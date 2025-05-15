@@ -485,7 +485,7 @@ private void updateTableView(String formattedResult) {
             for (Tab tab : tabEditorController.getView().getTabPane().getTabs()) {
                 if (tab != tabEditorController.getView().getAddTab()) {
                     CodeEditorController controller = tabEditorController.getModel().getControllerForTab(tab);
-                    if (controller != null && file.getPath().equals(controller.getModel().getCurrentFile())) {
+                    if (controller != null && file.getPath().equals(controller.getModel().getFilePath())) {
                         // File already open, select its tab
                         tabEditorController.getView().getTabPane().getSelectionModel().select(tab);
                         return;
@@ -502,7 +502,7 @@ private void updateTableView(String formattedResult) {
             // Save the file path in the model
             CodeEditorController controller = tabEditorController.getModel().getControllerForTab(tab);
             if (controller != null) {
-                controller.getModel().setCurrentFile(file.getPath());
+                controller.getModel().setFilePath(content);
                 controller.getModel().setCurrentSavedContent(content);
                 controller.getModel().setModified(false);
             }

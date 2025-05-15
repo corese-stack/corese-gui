@@ -76,6 +76,9 @@ public class IconButtonBarController {
             }
             try {
                 Files.writeString(file.toPath(), model.getCodeEditorModel().getContent());
+                CodeEditorModel editorModel = model.getCodeEditorModel();
+                editorModel.setFilePath(file.getAbsolutePath());
+                editorModel.markSaved();
                 IPopup successPopup = PopupFactory.getInstance().createPopup(PopupFactory.TOAST_NOTIFICATION);
                 successPopup.setMessage("File has been saved successfully!");
                 successPopup.displayPopup();
@@ -85,31 +88,29 @@ public class IconButtonBarController {
         }
     }
 
-private void onOpenFilesButtonClick() {
-    FileChooser fileChooser = new FileChooser();
-    fileChooser.setTitle("Open File");
-    fileChooser.getExtensionFilters().addAll(
-            new FileChooser.ExtensionFilter("RDF and SPARQL Files", "*.ttl", "*.rdf", "*.n3", "*.rq"),
-            new FileChooser.ExtensionFilter("All Files", "*.*")
-    );
+    private void onOpenFilesButtonClick() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Open File");
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("RDF and SPARQL Files", "*.ttl", "*.rdf", "*.n3", "*.rq"),
+                new FileChooser.ExtensionFilter("All Files", "*.*"));
 
-    File file = fileChooser.showOpenDialog(null);
-    if (file != null) {
-        try {
-            String content = Files.readString(file.toPath());
-            model.getCodeEditorModel().setContent(content);
-        } catch (Exception e) {
-            showError("Error Opening File", "Could not open the file: " + e.getMessage());
+        File file = fileChooser.showOpenDialog(null);
+        if (file != null) {
+            try {
+                String content = Files.readString(file.toPath());
+                model.getCodeEditorModel().setContent(content);
+            } catch (Exception e) {
+                showError("Error Opening File", "Could not open the file: " + e.getMessage());
+            }
         }
     }
-}
 
     private void onImportButtonClick() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Import File");
         fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Text Files", "*.txt")
-        );
+                new FileChooser.ExtensionFilter("Text Files", "*.txt"));
 
         File file = fileChooser.showOpenDialog(view.getScene().getWindow());
         if (file != null) {
@@ -126,8 +127,7 @@ private void onOpenFilesButtonClick() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Export File");
         fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Text Files", "*.txt")
-        );
+                new FileChooser.ExtensionFilter("Text Files", "*.txt"));
 
         File file = fileChooser.showSaveDialog(view.getScene().getWindow());
         if (file != null) {
@@ -177,15 +177,15 @@ private void onOpenFilesButtonClick() {
     }
 
     private void onZoomInButtonClick() {
-        //TODO
+        // TODO
     }
 
     private void onZoomOutButtonClick() {
-        //TODO
+        // TODO
     }
 
     private void onFullScreenButtonClick() {
-        //TODO
+        // TODO
     }
 
     private void showError(String title, String content) {

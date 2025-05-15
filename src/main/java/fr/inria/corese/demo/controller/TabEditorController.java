@@ -24,19 +24,17 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
-
 public class TabEditorController {
     private final TabEditorView view;
     private final TabEditorModel model;
     private final IconButtonBarType type;
     private TopBar topBar;
 
-
     public TabEditorController(IconButtonBarType type) {
         this.view = new TabEditorView();
         this.model = new TabEditorModel();
         this.type = type;
-        
+
         initializeTabPane();
         initializeKeyboardShortcuts();
     }
@@ -61,27 +59,32 @@ public class TabEditorController {
         CodeEditorController codeEditorController = new CodeEditorController(type, content);
         Tab tab = view.createEditorTab(title, codeEditorController.getView());
         model.addTabModel(tab, codeEditorController);
-    
+        tab.textProperty().bind(
+                javafx.beans.binding.Bindings.createStringBinding(
+                        codeEditorController.getModel()::getDisplayName,
+                        codeEditorController.getModel().filePathProperty()));
+
         int addTabIndex = view.getTabPane().getTabs().size() - 1;
-        if (addTabIndex < 0) addTabIndex = 0;
+        if (addTabIndex < 0)
+            addTabIndex = 0;
         view.getTabPane().getTabs().add(addTabIndex, tab);
         view.getTabPane().getSelectionModel().select(tab);
-    
+
         if (filePath != null) {
-            codeEditorController.getModel().setCurrentFile(filePath);
+            codeEditorController.getModel().setFilePath(filePath);
         }
-    
+
         codeEditorController.getModel().modifiedProperty().addListener((obs, oldVal, newVal) -> {
             view.updateTabIcon(tab, newVal);
         });
-    
+
         tab.setOnCloseRequest(event -> {
             event.consume();
             if (handleCloseFile(tab)) {
                 view.getTabPane().getTabs().remove(tab);
             }
         });
-    
+
         Platform.runLater(() -> {
             codeEditorController.getView().displayRunButton();
         });
@@ -91,7 +94,7 @@ public class TabEditorController {
         addNewTabHelper(title, "", null);
     }
 
-    private void initializeKeyboardShortcuts(){
+    private void initializeKeyboardShortcuts() {
         view.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
                 newScene.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
@@ -115,14 +118,13 @@ public class TabEditorController {
             }
         });
     }
-    
+
     private void onOpenFilesButtonClick() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open File");
         fileChooser.getExtensionFilters().addAll(
                 new FileChooser.ExtensionFilter("RDF and SPARQL Files", "*.ttl", "*.rdf", "*.n3", "*.rq"),
-                new FileChooser.ExtensionFilter("All Files", "*.*")
-        );
+                new FileChooser.ExtensionFilter("All Files", "*.*"));
 
         File file = fileChooser.showOpenDialog(null);
         if (file != null) {
@@ -155,7 +157,8 @@ public class TabEditorController {
     private boolean handleCloseFile(Tab tab) {
         CodeEditorController controller = model.getControllerForTab(tab);
         if (controller != null && controller.getModel().isModified()) {
-            SaveConfirmationPopup saveConfirmationPopup = (SaveConfirmationPopup) PopupFactory.getInstance().createPopup("saveFileConfirmation");
+            SaveConfirmationPopup saveConfirmationPopup = (SaveConfirmationPopup) PopupFactory.getInstance()
+                    .createPopup("saveFileConfirmation");
             saveConfirmationPopup.setOnSaveCallback(() -> {
                 controller.saveFile();
             });
@@ -187,6 +190,7 @@ public class TabEditorController {
             e.printStackTrace();
         }
     }
+
     public void openFile(File file) {
         for (Tab tab : view.getTabPane().getTabs()) {
             if (tab != view.getAddTab() && file.getName().equals(tab.getText())) {

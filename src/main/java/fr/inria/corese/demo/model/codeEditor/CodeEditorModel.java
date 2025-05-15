@@ -6,15 +6,22 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
 import java.util.Stack;
+import java.io.File;
 
 public class CodeEditorModel {
     private final StringProperty content = new SimpleStringProperty("");
-    private String currentSavedContent;
+    private String currentSavedContent = "";
     private final BooleanProperty modified = new SimpleBooleanProperty(false);
     private final Stack<CodeEditorChange> undoStack = new Stack<>();
     private final Stack<CodeEditorChange> redoStack = new Stack<>();
-    private String currentFile;
+    private final StringProperty filePath = new SimpleStringProperty(); // Changed to StringProperty
     private static final int MAX_HISTORY = 500;
+    
+    public CodeEditorModel() {
+        content.addListener((obs, oldVal, newVal) -> {
+            setModified(!newVal.equals(currentSavedContent));
+        });
+    }
 
     public StringProperty contentProperty() {
         return content;
@@ -26,7 +33,6 @@ public class CodeEditorModel {
 
     public void setContent(String content) {
         this.content.set(content);
-        setModified(true);
     }
 
     public String getCurrentSavedContent() {
@@ -35,14 +41,19 @@ public class CodeEditorModel {
 
     public void setCurrentSavedContent(String originalContent) {
         currentSavedContent = originalContent;
+        setModified(!getContent().equals(currentSavedContent));
     }
 
-    public String getCurrentFile() {
-        return currentFile;
+    public StringProperty filePathProperty() {
+        return filePath;
     }
 
-    public void setCurrentFile(String currentFile) {
-        this.currentFile = currentFile;
+    public String getFilePath() {
+        return filePath.get();
+    }
+
+    public void setFilePath(String filePath) {
+        this.filePath.set(filePath);
     }
 
     public BooleanProperty modifiedProperty() {
@@ -57,6 +68,19 @@ public class CodeEditorModel {
         this.modified.set(modified);
     }
 
+    public void markSaved() {
+        this.currentSavedContent = getContent();
+        setModified(false);
+    }
+
+    public String getDisplayName() {
+        String path = getFilePath();
+        if (path == null || path.isEmpty()) {
+            return "untitled";
+        }
+        return new File(path).getName();
+    }
+
     public void recordCurrentChange(String newContent) {
         String oldContent = getContent();
 
@@ -67,7 +91,6 @@ public class CodeEditorModel {
                 undoStack.remove(0);
             }
             setContent(newContent);
-            setModified(true);
         }
     }
 
