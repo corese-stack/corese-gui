@@ -180,7 +180,7 @@ public class ApplicationStateManager {
         switch (queryType) {
             case "SELECT" -> {
                 formattedResult = fr.inria.corese.core.print.ResultFormat.create(mappings,
-                        fr.inria.corese.core.print.ResultFormat.format.MARKDOWN_FORMAT).toString();
+                        fr.inria.corese.core.print.ResultFormat.format.CSV_FORMAT).toString();
                 addLogEntry("SELECT query executed successfully");
             }
             case "CONSTRUCT" -> {

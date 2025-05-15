@@ -61,14 +61,19 @@ public class IconButtonBarController {
     private void onSaveButtonClick() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Save File");
-        fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Turtle Files", "*.ttl"),
-                new FileChooser.ExtensionFilter("RDF/XML Files", "*.rdf"),
-                new FileChooser.ExtensionFilter("N3 Files", "*.n3")
-        );
+        FileChooser.ExtensionFilter rqFilter = new FileChooser.ExtensionFilter("SPARQL Query Files (*.rq)", "*.rq");
+        FileChooser.ExtensionFilter ttlFilter = new FileChooser.ExtensionFilter("Turtle Files (*.ttl)", "*.ttl");
+        FileChooser.ExtensionFilter rdfFilter = new FileChooser.ExtensionFilter("RDF/XML Files (*.rdf)", "*.rdf");
+        FileChooser.ExtensionFilter n3Filter = new FileChooser.ExtensionFilter("N3 Files (*.n3)", "*.n3");
+        fileChooser.getExtensionFilters().addAll(rqFilter, ttlFilter, rdfFilter, n3Filter);
+        fileChooser.setSelectedExtensionFilter(rqFilter);
 
         File file = fileChooser.showSaveDialog(null);
         if (file != null) {
+            String selectedExt = fileChooser.getSelectedExtensionFilter().getExtensions().get(0).replace("*", "");
+            if (!file.getName().toLowerCase().endsWith(selectedExt.replace(".", ""))) {
+                file = new File(file.getAbsolutePath() + selectedExt);
+            }
             try {
                 Files.writeString(file.toPath(), model.getCodeEditorModel().getContent());
                 IPopup successPopup = PopupFactory.getInstance().createPopup(PopupFactory.TOAST_NOTIFICATION);
@@ -80,24 +85,24 @@ public class IconButtonBarController {
         }
     }
 
-    private void onOpenFilesButtonClick() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Open File");
-        fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("RDF Files", "*.ttl", "*.rdf", "*.n3"),
-                new FileChooser.ExtensionFilter("All Files", "*.*")
-        );
+private void onOpenFilesButtonClick() {
+    FileChooser fileChooser = new FileChooser();
+    fileChooser.setTitle("Open File");
+    fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter("RDF and SPARQL Files", "*.ttl", "*.rdf", "*.n3", "*.rq"),
+            new FileChooser.ExtensionFilter("All Files", "*.*")
+    );
 
-        File file = fileChooser.showOpenDialog(null);
-        if (file != null) {
-            try {
-                String content = Files.readString(file.toPath());
-                model.getCodeEditorModel().setContent(content);
-            } catch (Exception e) {
-                showError("Error Opening File", "Could not open the file: " + e.getMessage());
-            }
+    File file = fileChooser.showOpenDialog(null);
+    if (file != null) {
+        try {
+            String content = Files.readString(file.toPath());
+            model.getCodeEditorModel().setContent(content);
+        } catch (Exception e) {
+            showError("Error Opening File", "Could not open the file: " + e.getMessage());
         }
     }
+}
 
     private void onImportButtonClick() {
         FileChooser fileChooser = new FileChooser();

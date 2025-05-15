@@ -88,7 +88,14 @@ public class TabEditorView extends VBox {
         getChildren().addAll(mainContainer);
     }
 
-    public Tab addNewEditorTab(String title, CodeEditorView codeEditorView) {
+    /**
+     * Creates a Tab with the given title and code editor view without adding it to the TabPane
+     * 
+     * @param title The title of the tab
+     * @param codeEditorView The code editor view to be displayed in the tab
+     * @return The created tab
+     */
+    public Tab createEditorTab(String title, CodeEditorView codeEditorView) {
         Tab tab = new Tab(title);
 
         tab.setStyle("""
@@ -114,9 +121,12 @@ public class TabEditorView extends VBox {
         codeEditorView.setMaxHeight(Double.MAX_VALUE);
         tab.setContent(codeEditorView);
 
+        return tab;
+    }
+    public Tab addNewEditorTab(String title, CodeEditorView codeEditorView) {
+        Tab tab = createEditorTab(title, codeEditorView);
         tabPane.getTabs().add(tabPane.getTabs().size() - 1, tab);
         tabPane.getSelectionModel().select(tab);
-
         return tab;
     }
 

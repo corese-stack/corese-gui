@@ -7,6 +7,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.fxml.FXMLLoader;
 import java.io.IOException;
 import javafx.scene.control.Button;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Controller for the navigation bar.
@@ -17,6 +19,10 @@ public class NavigationBarController {
     private final ApplicationStateManager stateManager;
     private final NavigationBarView view;
     private String currentViewName;
+    
+    // Cache for views that should retain state (currently only query-view)
+    private final Map<String, Node> cachedViews = new HashMap<>();
+    private final Map<String, Object> cachedControllers = new HashMap<>();
 
     /**
      * Constructor for the navigation bar controller.
@@ -31,7 +37,29 @@ public class NavigationBarController {
         this.stateManager = ApplicationStateManager.getInstance();
         this.view = new NavigationBarView();
 
+        // Preload and cache the query view and controller
+        preloadQueryView();
+        
         initializeButtons();
+    }
+
+    /**
+     * Preloads and caches the Query view and its controller.
+     */
+    private void preloadQueryView() {
+        String viewName = "query-view";
+        String fxmlPath = "/fr/inria/corese/demo/" + viewName + ".fxml";
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
+            Node content = loader.load();
+            Object controller = loader.getController();
+            cachedViews.put(viewName, content);
+            cachedControllers.put(viewName, controller);
+            stateManager.addLogEntry("Preloaded and cached Query view");
+        } catch (IOException e) {
+            stateManager.addLogEntry("Error preloading Query view: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -50,25 +78,33 @@ public class NavigationBarController {
             // Remember the current view name for future operations
             currentViewName = viewName;
 
-            String fxmlPath = "/fr/inria/corese/demo/" + viewName + ".fxml";
-            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
+            Node content;
+            Object controller;
 
-            Node content = loader.load();
-            Object controller = loader.getController();
+            if ("query-view".equals(viewName)) {
+                // Use cached Query view and controller
+                content = cachedViews.get(viewName);
+                controller = cachedControllers.get(viewName);
+                stateManager.addLogEntry("Using cached Query view");
+                stateManager.addLogEntry("Skipped state restore for QueryViewController");
+            } else {
+                // Load other views as before
+                String fxmlPath = "/fr/inria/corese/demo/" + viewName + ".fxml";
+                FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
+                content = loader.load();
+                controller = loader.getController();
 
-            // Inject dependencies and restore state based on controller type
-            if (controller instanceof DataViewController) {
-                stateManager.restoreState();
-                stateManager.addLogEntry("Restored state for DataViewController");
-            } else if (controller instanceof QueryViewController) {
-                stateManager.restoreState();
-                stateManager.addLogEntry("Restored state for QueryViewController");
-            } else if (controller instanceof RDFEditorViewController) {
-                stateManager.restoreState();
-                stateManager.addLogEntry("Restored state for RDFEditorViewController");
-            } else if (controller instanceof ValidationViewController) {
-                stateManager.restoreState();
-                stateManager.addLogEntry("Restored state for ValidationViewController");
+                // Inject dependencies and restore state based on controller type
+                if (controller instanceof DataViewController) {
+                    stateManager.restoreState();
+                    stateManager.addLogEntry("Restored state for DataViewController");
+                } else if (controller instanceof RDFEditorViewController) {
+                    stateManager.restoreState();
+                    stateManager.addLogEntry("Restored state for RDFEditorViewController");
+                } else if (controller instanceof ValidationViewController) {
+                    stateManager.restoreState();
+                    stateManager.addLogEntry("Restored state for ValidationViewController");
+                }
             }
 
             // Update button selection

@@ -43,16 +43,12 @@ public class QueryViewController {
     @FXML private TopBar topBar;
 
     private TabEditorController tabEditorController;
-    private final ApplicationStateManager stateManager;
-    private TableView<String[]> resultTable;
+    private  ApplicationStateManager stateManager = ApplicationStateManager.getInstance();
+        private TableView<String[]> resultTable;
 
     /**
      * Constructor for the query view controller.
      */
-    public QueryViewController() {
-        this.stateManager = ApplicationStateManager.getInstance();
-    }
-
     /**
      * Initializes the controller.
      */
@@ -73,13 +69,6 @@ public class QueryViewController {
             if (editorContainer != null) {
                 editorContainer.getChildren().clear();
                 editorContainer.getChildren().add(tabEditorController.getView());
-
-                // Create a default tab with a delay to ensure the tab editor is ready
-                PauseTransition delay = new PauseTransition(Duration.millis(200));
-                delay.setOnFinished(e -> {
-                    addNewQueryTab("Untitled", "");
-                });
-                delay.play();
             } else {
                 stateManager.addLogEntry("Error: editorContainer is null");
             }
@@ -106,7 +95,7 @@ public class QueryViewController {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open File");
         fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("RDF Files", "*.ttl", "*.rdf", "*.n3"),
+                new FileChooser.ExtensionFilter("RDF and SPARQL Files", "*.ttl", "*.rdf", "*.n3", "*.rq"),
                 new FileChooser.ExtensionFilter("All Files", "*.*")
         );
 
@@ -134,25 +123,30 @@ public class QueryViewController {
                 if (change.wasAdded()) {
                     for (Tab tab : change.getAddedSubList()) {
                         if (tab != tabEditorController.getView().getAddTab()) {
-                            // Add a content listener to ensure that content is loaded
-                            tab.contentProperty().addListener(new ChangeListener<Node>() {
-                                @Override
-                                public void changed(ObservableValue<? extends Node> observable, Node oldValue, Node newValue) {
-                                    if (newValue != null) {
-                                        // Remove listener after it fires
-                                        tab.contentProperty().removeListener(this);
-
-                                        Platform.runLater(() -> {
-                                            CodeEditorController codeEditorController = tabEditorController.getModel().getControllerForTab(tab);
-                                            if (codeEditorController != null) {
-                                                configureEditorRunButton(codeEditorController);
-                                            } else {
-                                                stateManager.addLogEntry("No CodeEditorController for tab: " + tab.getText());
-                                            }
-                                        });
+                            CodeEditorController controller = tabEditorController.getModel().getControllerForTab(tab);
+                            if (controller != null) {
+                                configureEditorRunButton(controller);
+                            } else {
+                                // If controller is not available immediately, add a content listener
+                                tab.contentProperty().addListener(new ChangeListener<Node>() {
+                                    @Override
+                                    public void changed(ObservableValue<? extends Node> observable, Node oldValue, Node newValue) {
+                                        if (newValue != null) {
+                                            // Remove listener after it fires
+                                            tab.contentProperty().removeListener(this);
+                                            
+                                            Platform.runLater(() -> {
+                                                CodeEditorController codeEditorController = tabEditorController.getModel().getControllerForTab(tab);
+                                                if (codeEditorController != null) {
+                                                    configureEditorRunButton(codeEditorController);
+                                                } else {
+                                                    stateManager.addLogEntry("No CodeEditorController for tab: " + tab.getText());
+                                                }
+                                            });
+                                        }
                                     }
-                                }
-                            });
+                                });
+                            }
                         }
                     }
                 }
@@ -281,7 +275,7 @@ public class QueryViewController {
                     String queryType = (String) result[1];
 
                     stateManager.addLogEntry("Query executed successfully. Type: " + queryType);
-
+                    
                     // Update the appropriate view based on query type
                     Platform.runLater(() -> {
                         switch (queryType) {
@@ -349,16 +343,8 @@ public class QueryViewController {
         CodeEditorController codeEditorController = new CodeEditorController(IconButtonBarType.QUERY, content);
         Tab tab = tabEditorController.getView().addNewEditorTab(title, codeEditorController.getView());
         tabEditorController.getModel().addTabModel(tab, codeEditorController);
-
-        // Add a delay for the run button configuration
-        PauseTransition delay = new PauseTransition(Duration.millis(300));
-        delay.setOnFinished(event -> {
-            Platform.runLater(() -> {
-                codeEditorController.getView().displayRunButton();
-                configureEditorRunButton(codeEditorController);
-            });
-        });
-        delay.play();
+        codeEditorController.getView().displayRunButton();
+        configureEditorRunButton(codeEditorController);
 
         return tab;
     }
@@ -368,15 +354,77 @@ public class QueryViewController {
      *
      * @param formattedResult The formatted query result
      */
-    private void updateTableView(String formattedResult) {
-        Platform.runLater(() -> {
-            if (resultTextArea != null) {
-                resultTextArea.setText(formattedResult);
-                // Scroll to top
-                resultTextArea.positionCaret(0);
+private void updateTableView(String formattedResult) {
+    final int FIXED_COL_WIDTH = 30; 
+
+    Platform.runLater(() -> {
+        if (resultTextArea != null) {
+            // Split lines
+            String[] lines = formattedResult.split("\\r?\\n");
+            if (lines.length == 0) {
+                resultTextArea.setText("");
+                return;
             }
-        });
-    }
+
+            // Split each line into columns
+            String[][] table = new String[lines.length][];
+            int colCount = 0;
+            for (int i = 0; i < lines.length; i++) {
+                table[i] = lines[i].split(",", -1);
+                colCount = Math.max(colCount, table[i].length);
+            }
+
+            // Helper to build border line
+            StringBuilder border = new StringBuilder("+");
+            for (int i = 0; i < colCount; i++) {
+                border.append("-".repeat(FIXED_COL_WIDTH + 2)).append("+");
+            }
+            String borderLine = border.toString();
+
+            // Helper to wrap a string into lines of max width
+            java.util.function.Function<String, List<String>> wrap = (text) -> {
+                List<String> linesList = new ArrayList<>();
+                String t = text == null ? "" : text;
+                while (t.length() > FIXED_COL_WIDTH) {
+                    linesList.add(t.substring(0, FIXED_COL_WIDTH));
+                    t = t.substring(FIXED_COL_WIDTH);
+                }
+                linesList.add(t);
+                return linesList;
+            };
+
+            StringBuilder sb = new StringBuilder();
+            sb.append(borderLine).append("\n");
+            for (int rowIdx = 0; rowIdx < table.length; rowIdx++) {
+                // Wrap each cell in the row
+                List<List<String>> wrappedCells = new ArrayList<>();
+                int maxLines = 1;
+                for (int colIdx = 0; colIdx < colCount; colIdx++) {
+                    String cell = (colIdx < table[rowIdx].length) ? table[rowIdx][colIdx].trim() : "";
+                    List<String> wrapped = wrap.apply(cell);
+                    wrappedCells.add(wrapped);
+                    maxLines = Math.max(maxLines, wrapped.size());
+                }
+                for (int line = 0; line < maxLines; line++) {
+                    sb.append("|");
+                    for (int colIdx = 0; colIdx < colCount; colIdx++) {
+                        List<String> wrapped = wrappedCells.get(colIdx);
+                        String part = (line < wrapped.size()) ? wrapped.get(line) : "";
+                        sb.append(" ").append(String.format("%-" + FIXED_COL_WIDTH + "s", part)).append(" |");
+                    }
+                    sb.append("\n");
+                }
+                if (rowIdx == 0) sb.append(borderLine).append("\n");
+            }
+            sb.append(borderLine);
+
+            resultTextArea.setStyle("-fx-font-family: 'monospace';");
+            resultTextArea.setText(sb.toString());
+            resultTextArea.positionCaret(0);
+        }
+    });
+}
+
 
     /**
      * Updates the graph view with query results.
