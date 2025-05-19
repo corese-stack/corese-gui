@@ -9,13 +9,13 @@
 <?import javafx.scene.web.WebView?>
 <?import fr.inria.corese.demo.view.TopBar?>
 <BorderPane xmlns="http://javafx.com/javafx"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="fr.inria.corese.demo.controller.QueryViewController"
-            prefHeight="600.0" prefWidth="800.0"
-            fx:id="mainBorderPane">
+    xmlns:fx="http://javafx.com/fxml"
+    fx:controller="fr.inria.corese.demo.controller.QueryViewController"
+    prefHeight="600.0" prefWidth="800.0"
+    fx:id="mainBorderPane">
 
     <top>
-        <TopBar fx:id="topBar"/>
+        <TopBar fx:id="topBar" />
     </top>
     <center>
         <SplitPane fx:id="mainSplitPane" orientation="VERTICAL" VBox.vgrow="ALWAYS">
@@ -29,22 +29,18 @@
                 <TabPane fx:id="resultsTabPane">
                     <SplitPane.resizableWithParent>true</SplitPane.resizableWithParent>
                     <tabs>
-                        <Tab text="Results" closable="false">
+                        <Tab fx:id="tableTab" text="Table" closable="false">
                             <content>
-                                <TextArea fx:id="resultTextArea"
-                                          editable="false"
-                                          wrapText="true"
-                                          style="-fx-font-family: monospace;"/>
                             </content>
                         </Tab>
                         <Tab text="Graph" closable="false">
                             <content>
-                                <WebView fx:id="graphView"/>
+                                <WebView fx:id="graphView" />
                             </content>
                         </Tab>
                         <Tab text="XML" closable="false">
                             <content>
-                                <WebView fx:id="xmlView"/>
+                                <WebView fx:id="xmlView" />
                             </content>
                         </Tab>
                     </tabs>

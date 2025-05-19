@@ -9,6 +9,9 @@ import javafx.collections.ListChangeListener;
 import fr.inria.corese.demo.view.TopBar;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
@@ -41,10 +44,13 @@ public class QueryViewController {
     @FXML private WebView graphView;
     @FXML private WebView xmlView;
     @FXML private TopBar topBar;
+    @FXML private Tab tableTab;
+    @FXML private Tab graphTab;
+    @FXML private Tab xmlTab;
 
     private TabEditorController tabEditorController;
-    private  ApplicationStateManager stateManager = ApplicationStateManager.getInstance();
-        private TableView<String[]> resultTable;
+    private ApplicationStateManager stateManager = ApplicationStateManager.getInstance();
+    private TableView<String[]> resultTable;
 
     /**
      * Constructor for the query view controller.
@@ -188,34 +194,26 @@ public class QueryViewController {
         });
     }
 
-    /**
-     * Sets up the results pane.
-     */
     private void setupResultsPane() {
-        // Use existing results tab pane from FXML if available
-        if (resultsTabPane == null) {
-            resultsTabPane = new TabPane();
+        resultTable = new TableView<>();
 
-            // Table tab
-            resultTable = new TableView<>();
-            Tab tableTab = new Tab("Table", resultTable);
+        if (tableTab == null) {
+            tableTab = new Tab("Table");
             tableTab.setClosable(false);
+            resultsTabPane.getTabs().add(0, tableTab);
+        } else {
+            tableTab.setText("Table");
+            tableTab.setClosable(false);
+        }
+        tableTab.setContent(resultTable);
 
-            // Graph tab
-            if (graphView == null) {
-                graphView = new WebView();
-            }
-            Tab graphTab = new Tab("Graph", graphView);
+        if (graphTab != null && graphView != null) {
+            graphTab.setContent(graphView);
             graphTab.setClosable(false);
-
-            // XML tab
-            if (xmlView == null) {
-                xmlView = new WebView();
-            }
-            Tab xmlTab = new Tab("XML", xmlView);
+        }
+        if (xmlTab != null && xmlView != null) {
+            xmlTab.setContent(xmlView);
             xmlTab.setClosable(false);
-
-            resultsTabPane.getTabs().addAll(tableTab, graphTab, xmlTab);
         }
     }
 
@@ -348,79 +346,40 @@ public class QueryViewController {
 
         return tab;
     }
-
-    /**
-     * Updates the table view with query results.
-     *
-     * @param formattedResult The formatted query result
-     */
+/**
+ * Updates the TableView with CSV-formatted query results.
+ *
+ * @param formattedResult The CSV-formatted query result (header in first line)
+ */
 private void updateTableView(String formattedResult) {
-    final int FIXED_COL_WIDTH = 30; 
-
     Platform.runLater(() -> {
-        if (resultTextArea != null) {
-            // Split lines
-            String[] lines = formattedResult.split("\\r?\\n");
-            if (lines.length == 0) {
-                resultTextArea.setText("");
-                return;
-            }
+        resultTable.getItems().clear();
+        resultTable.getColumns().clear();
 
-            // Split each line into columns
-            String[][] table = new String[lines.length][];
-            int colCount = 0;
-            for (int i = 0; i < lines.length; i++) {
-                table[i] = lines[i].split(",", -1);
-                colCount = Math.max(colCount, table[i].length);
-            }
+        String[] lines = formattedResult.split("\\r?\\n");
+        if (lines.length == 0) return;
 
-            // Helper to build border line
-            StringBuilder border = new StringBuilder("+");
-            for (int i = 0; i < colCount; i++) {
-                border.append("-".repeat(FIXED_COL_WIDTH + 2)).append("+");
-            }
-            String borderLine = border.toString();
+        String[] headers = lines[0].split(",", -1);
 
-            // Helper to wrap a string into lines of max width
-            java.util.function.Function<String, List<String>> wrap = (text) -> {
-                List<String> linesList = new ArrayList<>();
-                String t = text == null ? "" : text;
-                while (t.length() > FIXED_COL_WIDTH) {
-                    linesList.add(t.substring(0, FIXED_COL_WIDTH));
-                    t = t.substring(FIXED_COL_WIDTH);
-                }
-                linesList.add(t);
-                return linesList;
-            };
+        for (int col = 0; col < headers.length; col++) {
+            final int colIndex = col;
+            TableColumn<String[], String> tableColumn = new TableColumn<>(headers[col].trim());
+            tableColumn.setCellValueFactory(cellData -> {
+                String[] row = cellData.getValue();
+                String value = (colIndex < row.length) ? row[colIndex] : "";
+                return new javafx.beans.property.SimpleStringProperty(value);
+            });
+            tableColumn.setPrefWidth(200);
+            resultTable.getColumns().add(tableColumn);
+        }
 
-            StringBuilder sb = new StringBuilder();
-            sb.append(borderLine).append("\n");
-            for (int rowIdx = 0; rowIdx < table.length; rowIdx++) {
-                // Wrap each cell in the row
-                List<List<String>> wrappedCells = new ArrayList<>();
-                int maxLines = 1;
-                for (int colIdx = 0; colIdx < colCount; colIdx++) {
-                    String cell = (colIdx < table[rowIdx].length) ? table[rowIdx][colIdx].trim() : "";
-                    List<String> wrapped = wrap.apply(cell);
-                    wrappedCells.add(wrapped);
-                    maxLines = Math.max(maxLines, wrapped.size());
-                }
-                for (int line = 0; line < maxLines; line++) {
-                    sb.append("|");
-                    for (int colIdx = 0; colIdx < colCount; colIdx++) {
-                        List<String> wrapped = wrappedCells.get(colIdx);
-                        String part = (line < wrapped.size()) ? wrapped.get(line) : "";
-                        sb.append(" ").append(String.format("%-" + FIXED_COL_WIDTH + "s", part)).append(" |");
-                    }
-                    sb.append("\n");
-                }
-                if (rowIdx == 0) sb.append(borderLine).append("\n");
-            }
-            sb.append(borderLine);
+        for (int i = 1; i < lines.length; i++) {
+            String[] row = lines[i].split(",", -1);
+            resultTable.getItems().add(row);
+        }
 
-            resultTextArea.setStyle("-fx-font-family: 'monospace';");
-            resultTextArea.setText(sb.toString());
-            resultTextArea.positionCaret(0);
+        if (resultsTabPane != null && tableTab != null) {
+            resultsTabPane.getSelectionModel().select(tableTab);
         }
     });
 }
