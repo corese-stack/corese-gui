@@ -23,6 +23,14 @@ public class CodeEditorModel {
         });
     }
 
+        /**
+     * Alias for getFilePath(), for compatibility with controller code.
+     * @return the current file path, or null if none set.
+     */
+    public String getCurrentFile() {
+        return getFilePath();
+    }
+
     public StringProperty contentProperty() {
         return content;
     }
