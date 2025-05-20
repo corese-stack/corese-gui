@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <?import java.lang.*?>
 <?import java.util.*?>
 <?import javafx.scene.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.collections.FXCollections?>
 
 <?import javafx.scene.web.WebView?>
 <?import fr.inria.corese.demo.view.TopBar?>
@@ -40,7 +40,24 @@
                         </Tab>
                         <Tab text="XML" closable="false">
                             <content>
-                                <WebView fx:id="xmlView" />
+                                <VBox spacing="5" alignment="TOP_LEFT">
+                                    <HBox spacing="5" alignment="CENTER_LEFT">
+                                        <Label text="Format:"/>
+                                        <ComboBox fx:id="xmlFormatComboBox">
+                                            <items>
+                                                <FXCollections fx:factory="observableArrayList">
+                                                    <String fx:value="XML"/>
+                                                    <String fx:value="JSON"/>
+                                                    <String fx:value="CSV"/>
+                                                    <String fx:value="TSV"/>
+                                                    <String fx:value="MARKDOWN"/>
+                                                </FXCollections>
+                                            </items>
+                                        </ComboBox>
+                                        <Button fx:id="copyXmlButton" text="Copy" />
+                                    </HBox>
+                                    <TextArea fx:id="xmlResultTextArea" editable="false" wrapText="true" VBox.vgrow="ALWAYS"/>
+                                </VBox>
                             </content>
                         </Tab>
                     </tabs>

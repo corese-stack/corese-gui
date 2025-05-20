@@ -10,8 +10,8 @@ import fr.inria.corese.demo.view.TopBar;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
@@ -30,27 +30,42 @@ import javafx.application.Platform;
 import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
 
-
 /**
  * Controller for the query view.
  * Manages query editor and results display.
  */
 public class QueryViewController {
-    @FXML private StackPane editorContainer;
-    @FXML private BorderPane mainBorderPane;
-    @FXML private SplitPane mainSplitPane;
-    @FXML private TabPane resultsTabPane;
-    @FXML private TextArea resultTextArea;
-    @FXML private WebView graphView;
-    @FXML private WebView xmlView;
-    @FXML private TopBar topBar;
-    @FXML private Tab tableTab;
-    @FXML private Tab graphTab;
-    @FXML private Tab xmlTab;
+    @FXML
+    private StackPane editorContainer;
+    @FXML
+    private BorderPane mainBorderPane;
+    @FXML
+    private SplitPane mainSplitPane;
+    @FXML
+    private TabPane resultsTabPane;
+    @FXML
+    private TextArea resultTextArea;
+    @FXML
+    private WebView graphView;
+    @FXML
+    private TextArea xmlResultTextArea;
+    @FXML
+    private TopBar topBar;
+    @FXML
+    private Tab tableTab;
+    @FXML
+    private Tab graphTab;
+    @FXML
+    private Tab xmlTab;
+    @FXML
+    private ComboBox<String> xmlFormatComboBox;
+    @FXML
+    private Button copyXmlButton;
 
     private TabEditorController tabEditorController;
     private ApplicationStateManager stateManager = ApplicationStateManager.getInstance();
     private TableView<String[]> resultTable;
+    private fr.inria.corese.core.kgram.core.Mappings lastSelectMappings = null;
 
     /**
      * Constructor for the query view controller.
@@ -69,6 +84,8 @@ public class QueryViewController {
         setupRunButton();
         setupLayout();
         initializeTopBar();
+        setupXmlFormatComboBox();
+        setupCopyXmlButton();
 
         // Add the editor to the container and create a default tab
         Platform.runLater(() -> {
@@ -102,8 +119,7 @@ public class QueryViewController {
         fileChooser.setTitle("Open File");
         fileChooser.getExtensionFilters().addAll(
                 new FileChooser.ExtensionFilter("RDF and SPARQL Files", "*.ttl", "*.rdf", "*.n3", "*.rq"),
-                new FileChooser.ExtensionFilter("All Files", "*.*")
-        );
+                new FileChooser.ExtensionFilter("All Files", "*.*"));
 
         File file = fileChooser.showOpenDialog(null);
         if (file != null) {
@@ -136,17 +152,20 @@ public class QueryViewController {
                                 // If controller is not available immediately, add a content listener
                                 tab.contentProperty().addListener(new ChangeListener<Node>() {
                                     @Override
-                                    public void changed(ObservableValue<? extends Node> observable, Node oldValue, Node newValue) {
+                                    public void changed(ObservableValue<? extends Node> observable, Node oldValue,
+                                            Node newValue) {
                                         if (newValue != null) {
                                             // Remove listener after it fires
                                             tab.contentProperty().removeListener(this);
-                                            
+
                                             Platform.runLater(() -> {
-                                                CodeEditorController codeEditorController = tabEditorController.getModel().getControllerForTab(tab);
+                                                CodeEditorController codeEditorController = tabEditorController
+                                                        .getModel().getControllerForTab(tab);
                                                 if (codeEditorController != null) {
                                                     configureEditorRunButton(codeEditorController);
                                                 } else {
-                                                    stateManager.addLogEntry("No CodeEditorController for tab: " + tab.getText());
+                                                    stateManager.addLogEntry(
+                                                            "No CodeEditorController for tab: " + tab.getText());
                                                 }
                                             });
                                         }
@@ -211,9 +230,60 @@ public class QueryViewController {
             graphTab.setContent(graphView);
             graphTab.setClosable(false);
         }
-        if (xmlTab != null && xmlView != null) {
-            xmlTab.setContent(xmlView);
+        if (xmlTab != null && xmlResultTextArea != null) {
+            BorderPane xmlTabLayout = new BorderPane();
+
+            if (xmlFormatComboBox == null) {
+                xmlFormatComboBox = new ComboBox<>();
+            }
+            
+            // Create format selection and copy button container
+            BorderPane topContainer = new BorderPane();
+            topContainer.setLeft(xmlFormatComboBox);
+            topContainer.setRight(copyXmlButton);
+            
+            xmlTabLayout.setTop(topContainer);
+            xmlTabLayout.setCenter(xmlResultTextArea);
+
+            xmlTab.setContent(xmlTabLayout);
             xmlTab.setClosable(false);
+        }
+    }
+
+    private void setupXmlFormatComboBox() {
+        if (xmlFormatComboBox != null) {
+            xmlFormatComboBox.getItems().setAll("XML", "JSON", "CSV", "TSV", "MARKDOWN");
+            xmlFormatComboBox.getSelectionModel().select("XML");
+            xmlFormatComboBox.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+                if (lastSelectMappings != null && newVal != null) {
+                    updateXMLTabWithFormat(newVal);
+                }
+            });
+        }
+    }
+    
+    /**
+     * Sets up the copy button for XML results.
+     */
+    private void setupCopyXmlButton() {
+        if (copyXmlButton != null) {
+            copyXmlButton.setOnAction(event -> {
+                if (xmlResultTextArea != null) {
+                    String text = xmlResultTextArea.getText();
+                    if (text != null && !text.isEmpty()) {
+                        ClipboardContent content = new ClipboardContent();
+                        content.putString(text);
+                        Clipboard.getSystemClipboard().setContent(content);
+                        
+                        // Show visual feedback that copy was successful
+                        String originalText = copyXmlButton.getText();
+                        copyXmlButton.setText("Copied!");
+                        PauseTransition pause = new PauseTransition(Duration.seconds(1.5));
+                        pause.setOnFinished(e -> copyXmlButton.setText(originalText));
+                        pause.play();
+                    }
+                }
+            });
         }
     }
 
@@ -273,22 +343,32 @@ public class QueryViewController {
                     String queryType = (String) result[1];
 
                     stateManager.addLogEntry("Query executed successfully. Type: " + queryType);
-                    
+
                     // Update the appropriate view based on query type
                     Platform.runLater(() -> {
                         switch (queryType) {
                             case "SELECT":
+                                if (result.length > 2) {
+                                    lastSelectMappings = (fr.inria.corese.core.kgram.core.Mappings) result[2];
+                                } else {
+                                    lastSelectMappings = null;
+                                }
                                 updateTableView(formattedResult);
-                                resultsTabPane.getSelectionModel().select(0);
+                                updateXMLTabWithFormat(xmlFormatComboBox.getValue());
+                                if (resultsTabPane.getSelectionModel().getSelectedItem() != xmlTab) {
+                                    resultsTabPane.getSelectionModel().select(xmlTab);
+                                }
                                 break;
                             case "CONSTRUCT":
                             case "DESCRIBE":
+                                lastSelectMappings = null;
                                 updateGraphView(formattedResult);
-                                resultsTabPane.getSelectionModel().select(1);
+                                resultsTabPane.getSelectionModel().select(graphTab);
                                 break;
                             case "ASK":
+                                lastSelectMappings = null;
                                 updateXMLView(formattedResult);
-                                resultsTabPane.getSelectionModel().select(2);
+                                resultsTabPane.getSelectionModel().select(xmlTab);
                                 break;
                         }
                     });
@@ -317,9 +397,12 @@ public class QueryViewController {
             }
 
             // Clear XML view
-            if (xmlView != null) {
-                xmlView.getEngine().loadContent("");
+            if (xmlResultTextArea != null) {
+                xmlResultTextArea.clear();
             }
+
+            // Reset last mappings
+            lastSelectMappings = null;
 
             // Clear table view
             if (resultTable != null) {
@@ -332,7 +415,7 @@ public class QueryViewController {
     /**
      * Creates a new query tab.
      *
-     * @param title The tab title
+     * @param title   The tab title
      * @param content The tab content
      * @return The created tab
      */
@@ -346,44 +429,45 @@ public class QueryViewController {
 
         return tab;
     }
-/**
- * Updates the TableView with CSV-formatted query results.
- *
- * @param formattedResult The CSV-formatted query result (header in first line)
- */
-private void updateTableView(String formattedResult) {
-    Platform.runLater(() -> {
-        resultTable.getItems().clear();
-        resultTable.getColumns().clear();
 
-        String[] lines = formattedResult.split("\\r?\\n");
-        if (lines.length == 0) return;
+    /**
+     * Updates the TableView with CSV-formatted query results.
+     *
+     * @param formattedResult The CSV-formatted query result (header in first line)
+     */
+    private void updateTableView(String formattedResult) {
+        Platform.runLater(() -> {
+            resultTable.getItems().clear();
+            resultTable.getColumns().clear();
 
-        String[] headers = lines[0].split(",", -1);
+            String[] lines = formattedResult.split("\\r?\\n");
+            if (lines.length == 0)
+                return;
 
-        for (int col = 0; col < headers.length; col++) {
-            final int colIndex = col;
-            TableColumn<String[], String> tableColumn = new TableColumn<>(headers[col].trim());
-            tableColumn.setCellValueFactory(cellData -> {
-                String[] row = cellData.getValue();
-                String value = (colIndex < row.length) ? row[colIndex] : "";
-                return new javafx.beans.property.SimpleStringProperty(value);
-            });
-            tableColumn.setPrefWidth(200);
-            resultTable.getColumns().add(tableColumn);
-        }
+            String[] headers = lines[0].split(",", -1);
 
-        for (int i = 1; i < lines.length; i++) {
-            String[] row = lines[i].split(",", -1);
-            resultTable.getItems().add(row);
-        }
+            for (int col = 0; col < headers.length; col++) {
+                final int colIndex = col;
+                TableColumn<String[], String> tableColumn = new TableColumn<>(headers[col].trim());
+                tableColumn.setCellValueFactory(cellData -> {
+                    String[] row = cellData.getValue();
+                    String value = (colIndex < row.length) ? row[colIndex] : "";
+                    return new javafx.beans.property.SimpleStringProperty(value);
+                });
+                tableColumn.setPrefWidth(200);
+                resultTable.getColumns().add(tableColumn);
+            }
 
-        if (resultsTabPane != null && tableTab != null) {
-            resultsTabPane.getSelectionModel().select(tableTab);
-        }
-    });
-}
+            for (int i = 1; i < lines.length; i++) {
+                String[] row = lines[i].split(",", -1);
+                resultTable.getItems().add(row);
+            }
 
+            if (resultsTabPane != null && tableTab != null) {
+                resultsTabPane.getSelectionModel().select(tableTab);
+            }
+        });
+    }
 
     /**
      * Updates the graph view with query results.
@@ -395,10 +479,31 @@ private void updateTableView(String formattedResult) {
             if (graphView != null) {
                 graphView.getEngine().loadContent(
                         String.format("<html><body><pre>%s</pre></body></html>",
-                                content.replace("<", "&lt;").replace(">", "&gt;"))
-                );
+                                content.replace("<", "&lt;").replace(">", "&gt;")));
             }
         });
+    }
+
+    /**
+     * Updates the XML tab with the selected format.
+     *
+     * @param formatLabel The format label (XML, JSON, etc.)
+     */
+    private void updateXMLTabWithFormat(String formatLabel) {
+        if (lastSelectMappings == null)
+            return;
+
+        fr.inria.corese.core.print.ResultFormat.format format = switch (formatLabel) {
+            case "XML" -> fr.inria.corese.core.print.ResultFormat.format.XML_FORMAT;
+            case "JSON" -> fr.inria.corese.core.print.ResultFormat.format.JSON_FORMAT;
+            case "CSV" -> fr.inria.corese.core.print.ResultFormat.format.CSV_FORMAT;
+            case "TSV" -> fr.inria.corese.core.print.ResultFormat.format.TSV_FORMAT;
+            case "MARKDOWN" -> fr.inria.corese.core.print.ResultFormat.format.MARKDOWN_FORMAT;
+            default -> fr.inria.corese.core.print.ResultFormat.format.XML_FORMAT;
+        };
+
+        String formatted = stateManager.formatSelectResult(lastSelectMappings, format);
+        updateXMLView(formatted);
     }
 
     /**
@@ -408,11 +513,8 @@ private void updateTableView(String formattedResult) {
      */
     private void updateXMLView(String content) {
         Platform.runLater(() -> {
-            if (xmlView != null) {
-                xmlView.getEngine().loadContent(
-                        String.format("<html><body><pre>%s</pre></body></html>",
-                                content.replace("<", "&lt;").replace(">", "&gt;"))
-                );
+            if (xmlResultTextArea != null) {
+                xmlResultTextArea.setText(content);
             }
         });
     }
@@ -420,7 +522,7 @@ private void updateTableView(String formattedResult) {
     /**
      * Shows an error dialog.
      *
-     * @param title The error title
+     * @param title   The error title
      * @param message The error message
      */
     private void showError(String title, String message) {

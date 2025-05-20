@@ -4,6 +4,7 @@ import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.load.Load;
 import fr.inria.corese.core.load.LoadException;
 import fr.inria.corese.core.load.RuleLoad;
+import fr.inria.corese.core.print.ResultFormat;
 import fr.inria.corese.core.query.QueryProcess;
 import fr.inria.corese.core.rule.RuleEngine;
 import fr.inria.corese.demo.model.fileList.FileItem;
@@ -49,6 +50,8 @@ public class ApplicationStateManager {
 
     // Logging
     private final List<String> logEntries;
+    
+    private fr.inria.corese.core.kgram.core.Mappings lastSelectQueryMappings;
 
     /**
      * Private constructor to enforce singleton pattern.
@@ -169,7 +172,7 @@ public class ApplicationStateManager {
      * Executes a SPARQL query on the graph.
      *
      * @param queryString The SPARQL query to execute
-     * @return An array containing the formatted result and the query type
+     * @return An array containing the formatted result, the query type, and for SELECT queries, the mappings object
      * @throws Exception If an error occurs during query execution
      */
     public Object[] executeQuery(String queryString) throws Exception {
@@ -179,9 +182,12 @@ public class ApplicationStateManager {
 
         switch (queryType) {
             case "SELECT" -> {
-                formattedResult = fr.inria.corese.core.print.ResultFormat.create(mappings,
-                        fr.inria.corese.core.print.ResultFormat.format.CSV_FORMAT).toString();
+                this.lastSelectQueryMappings = mappings;
+                formattedResult = ResultFormat.create(mappings,
+                        ResultFormat.format.CSV_FORMAT).toString();
                 addLogEntry("SELECT query executed successfully");
+                // Return mappings as third element for SELECT
+                return new Object[]{formattedResult, queryType, mappings};
             }
             case "CONSTRUCT" -> {
                 Graph resultGraph = (Graph) mappings.getGraph();
@@ -888,5 +894,49 @@ public class ApplicationStateManager {
     public void setCustomRuleEnabled(String ruleName, boolean enabled) {
         customRuleStates.put(ruleName, enabled);
         reloadRules();
+    }
+    
+    /**
+     * Formats the last SELECT query result in the specified format.
+     * 
+     * @param format The desired result format (XML, JSON, CSV, TSV, MARKDOWN)
+     * @return The formatted result as a String, or null if no SELECT query has been executed
+     */
+    public String formatLastSelectResult(ResultFormat.format format) {
+        if (lastSelectQueryMappings == null) {
+            addLogEntry("No SELECT query results available to format");
+            return null;
+        }
+        
+        try {
+            String formattedResult = ResultFormat.create(lastSelectQueryMappings, format).toString();
+            addLogEntry("Query results formatted as " + format.name());
+            return formattedResult;
+        } catch (Exception e) {
+            addLogEntry("Error formatting query results: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Formats any SELECT query result in the specified format.
+     *
+     * @param mappings The Mappings object from a SELECT query
+     * @param format The desired result format (XML, JSON, CSV, TSV, MARKDOWN)
+     * @return The formatted result as a String, or null if mappings is null
+     */
+    public String formatSelectResult(fr.inria.corese.core.kgram.core.Mappings mappings, ResultFormat.format format) {
+        if (mappings == null) {
+            addLogEntry("No SELECT query results available to format");
+            return null;
+        }
+        try {
+            String formattedResult = ResultFormat.create(mappings, format).toString();
+            addLogEntry("Query results formatted as " + format.name());
+            return formattedResult;
+        } catch (Exception e) {
+            addLogEntry("Error formatting query results: " + e.getMessage());
+            return null;
+        }
     }
 }
