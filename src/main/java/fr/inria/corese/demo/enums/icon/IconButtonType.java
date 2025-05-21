@@ -21,4 +21,6 @@ public enum IconButtonType {
     DELETE,
     COPY,
     PASTE,
+    COPY_TO_CLIPBOARD,
+    COPIED_TO_CLIPBOARD
 }

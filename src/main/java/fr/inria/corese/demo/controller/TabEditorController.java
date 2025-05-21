@@ -80,7 +80,7 @@ public class TabEditorController {
 
         tab.setOnCloseRequest(event -> {
             event.consume();
-            if (handleCloseFile(tab)) {
+            if (handleCloseFile(tab)) { 
                 view.getTabPane().getTabs().remove(tab);
             }
         });
@@ -154,7 +154,7 @@ public class TabEditorController {
         }
     }
 
-    private boolean handleCloseFile(Tab tab) {
+    protected boolean handleCloseFile(Tab tab) {
         CodeEditorController controller = model.getControllerForTab(tab);
         if (controller != null && controller.getModel().isModified()) {
             SaveConfirmationPopup saveConfirmationPopup = (SaveConfirmationPopup) PopupFactory.getInstance()
@@ -166,19 +166,14 @@ public class TabEditorController {
             String result = saveConfirmationPopup.getResult();
             switch (result) {
                 case "save":
-                    model.getTabControllers().remove(tab);
-                    return true;
                 case "close":
-                    model.getTabControllers().remove(tab);
-                    return true;
+                    return true; // Indicate tab should be closed
                 case "cancel":
-                    return false;
                 default:
-                    return false;
+                    return false; // Indicate tab should NOT be closed
             }
         } else {
-            model.getTabControllers().remove(tab);
-            return true;
+            return true; // Tab should be closed
         }
     }
 

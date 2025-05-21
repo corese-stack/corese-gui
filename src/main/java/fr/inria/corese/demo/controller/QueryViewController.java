@@ -1,3 +1,4 @@
+
 package fr.inria.corese.demo.controller;
 
 import fr.inria.corese.demo.enums.icon.IconButtonBarType;
@@ -9,17 +10,24 @@ import javafx.collections.ListChangeListener;
 import fr.inria.corese.demo.view.TopBar;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.animation.PauseTransition;
 import javafx.util.Duration;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.Node;
+import javafx.geometry.Pos;
+import javafx.scene.layout.HBox;
+import org.kordamp.ikonli.javafx.FontIcon;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -44,8 +52,6 @@ public class QueryViewController {
     @FXML
     private TabPane resultsTabPane;
     @FXML
-    private TextArea resultTextArea;
-    @FXML
     private WebView graphView;
     @FXML
     private TextArea xmlResultTextArea;
@@ -66,19 +72,21 @@ public class QueryViewController {
     private ApplicationStateManager stateManager = ApplicationStateManager.getInstance();
     private TableView<String[]> resultTable;
     private fr.inria.corese.core.kgram.core.Mappings lastSelectMappings = null;
+    private Node emptyStateView;
+    private Button loadQueryButton; // Reference to the "Load Query" button
+    private Button newTabButtonEmptyState; // Reference to the "New Query" button
 
-    /**
-     * Constructor for the query view controller.
-     */
-    /**
-     * Initializes the controller.
-     */
     @FXML
     public void initialize() {
         stateManager.addLogEntry("QueryViewController.initialize() started");
 
-        // Initialiser le TabEditor - IMPORTANT: Ne pas ajouter au conteneur ici!
+        setupKeyboardShortcuts();
+
+        // Initialize the TabEditorController
         tabEditorController = new TabEditorController(IconButtonBarType.QUERY);
+
+        // Create and add the empty state view
+        emptyStateView = createEmptyStateView();
 
         setupResultsPane();
         setupRunButton();
@@ -87,20 +95,20 @@ public class QueryViewController {
         setupXmlFormatComboBox();
         setupCopyXmlButton();
 
-        // Add the editor to the container and create a default tab
+        // Add the editor to the container
         Platform.runLater(() -> {
-            if (editorContainer != null) {
-                editorContainer.getChildren().clear();
-                editorContainer.getChildren().add(tabEditorController.getView());
-            } else {
-                stateManager.addLogEntry("Error: editorContainer is null");
-            }
+            editorContainer.getChildren().clear();
+            editorContainer.getChildren().add(emptyStateView);
+            editorContainer.getChildren().add(tabEditorController.getView());
+            updateEmptyStateVisibility();
+        });
+
+        // Listen for tab changes to show/hide the empty state
+        tabEditorController.getView().getTabPane().getTabs().addListener((ListChangeListener<Tab>) change -> {
+            Platform.runLater(this::updateEmptyStateVisibility);
         });
     }
 
-    /**
-     * Sets up the run button listener.
-     */
     private void initializeTopBar() {
         List<IconButtonType> buttons = new ArrayList<>();
         buttons.add(IconButtonType.OPEN_FILE);
@@ -131,14 +139,6 @@ public class QueryViewController {
         }
     }
 
-    /**
-     * Configure le bouton d'exécution de requête.
-     *
-     * Gère :
-     * - L'affichage du bouton Run
-     * - Les actions du bouton
-     * - Le raccourci clavier Ctrl+Entrée
-     */
     private void setupRunButton() {
         tabEditorController.getView().getTabPane().getTabs().addListener((ListChangeListener<Tab>) change -> {
             while (change.next()) {
@@ -149,13 +149,11 @@ public class QueryViewController {
                             if (controller != null) {
                                 configureEditorRunButton(controller);
                             } else {
-                                // If controller is not available immediately, add a content listener
                                 tab.contentProperty().addListener(new ChangeListener<Node>() {
                                     @Override
                                     public void changed(ObservableValue<? extends Node> observable, Node oldValue,
                                             Node newValue) {
                                         if (newValue != null) {
-                                            // Remove listener after it fires
                                             tab.contentProperty().removeListener(this);
 
                                             Platform.runLater(() -> {
@@ -179,11 +177,6 @@ public class QueryViewController {
         });
     }
 
-    /**
-     * Configures the run button for a code editor.
-     *
-     * @param codeEditorController The code editor controller
-     */
     private void configureEditorRunButton(CodeEditorController codeEditorController) {
         stateManager.addLogEntry("Configuring editor run button");
 
@@ -195,16 +188,13 @@ public class QueryViewController {
             return;
         }
 
-        // Clear previous event handlers
         runButton.setOnAction(null);
 
-        // Add new event handler
         runButton.setOnAction(e -> {
             stateManager.addLogEntry("Run button clicked");
             executeQuery();
         });
 
-        // Set up keyboard shortcuts
         codeEditorController.getView().setOnKeyPressed(event -> {
             if (event.isControlDown() && event.getCode() == KeyCode.ENTER) {
                 stateManager.addLogEntry("Ctrl+Enter shortcut triggered");
@@ -213,89 +203,47 @@ public class QueryViewController {
         });
     }
 
+    /**
+     * Sets up the results pane.
+     * Only initializes the TableView as all tabs are already defined in FXML.
+     */
     private void setupResultsPane() {
         resultTable = new TableView<>();
-
-        if (tableTab == null) {
-            tableTab = new Tab("Table");
-            tableTab.setClosable(false);
-            resultsTabPane.getTabs().add(0, tableTab);
-        } else {
-            tableTab.setText("Table");
-            tableTab.setClosable(false);
-        }
         tableTab.setContent(resultTable);
-
-        if (graphTab != null && graphView != null) {
-            graphTab.setContent(graphView);
-            graphTab.setClosable(false);
-        }
-        if (xmlTab != null && xmlResultTextArea != null) {
-            BorderPane xmlTabLayout = new BorderPane();
-
-            if (xmlFormatComboBox == null) {
-                xmlFormatComboBox = new ComboBox<>();
-            }
-            
-            // Create format selection and copy button container
-            BorderPane topContainer = new BorderPane();
-            topContainer.setLeft(xmlFormatComboBox);
-            topContainer.setRight(copyXmlButton);
-            
-            xmlTabLayout.setTop(topContainer);
-            xmlTabLayout.setCenter(xmlResultTextArea);
-
-            xmlTab.setContent(xmlTabLayout);
-            xmlTab.setClosable(false);
-        }
     }
 
     private void setupXmlFormatComboBox() {
-        if (xmlFormatComboBox != null) {
-            xmlFormatComboBox.getItems().setAll("XML", "JSON", "CSV", "TSV", "MARKDOWN");
-            xmlFormatComboBox.getSelectionModel().select("XML");
-            xmlFormatComboBox.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-                if (lastSelectMappings != null && newVal != null) {
-                    updateXMLTabWithFormat(newVal);
-                }
-            });
-        }
-    }
-    
-    /**
-     * Sets up the copy button for XML results.
-     */
-    private void setupCopyXmlButton() {
-        if (copyXmlButton != null) {
-            copyXmlButton.setOnAction(event -> {
-                if (xmlResultTextArea != null) {
-                    String text = xmlResultTextArea.getText();
-                    if (text != null && !text.isEmpty()) {
-                        ClipboardContent content = new ClipboardContent();
-                        content.putString(text);
-                        Clipboard.getSystemClipboard().setContent(content);
-                        
-                        // Show visual feedback that copy was successful
-                        String originalText = copyXmlButton.getText();
-                        copyXmlButton.setText("Copied!");
-                        PauseTransition pause = new PauseTransition(Duration.seconds(1.5));
-                        pause.setOnFinished(e -> copyXmlButton.setText(originalText));
-                        pause.play();
-                    }
-                }
-            });
-        }
+        xmlFormatComboBox.getItems().setAll("XML", "JSON", "CSV", "TSV", "MARKDOWN");
+        xmlFormatComboBox.getSelectionModel().select("XML");
+        xmlFormatComboBox.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (lastSelectMappings != null && newVal != null) {
+                updateXMLTabWithFormat(newVal);
+            }
+        });
     }
 
-    /**
-     * Sets up the layout.
-     */
+    private void setupCopyXmlButton() {
+        copyXmlButton.setOnAction(event -> {
+            String text = xmlResultTextArea.getText();
+            if (text != null && !text.isEmpty()) {
+                ClipboardContent content = new ClipboardContent();
+                content.putString(text);
+                Clipboard.getSystemClipboard().setContent(content);
+
+                String originalText = copyXmlButton.getText();
+                copyXmlButton.setText("Copied!");
+                PauseTransition pause = new PauseTransition(Duration.seconds(1.5));
+                pause.setOnFinished(e -> copyXmlButton.setText(originalText));
+                pause.play();
+            }
+        });
+    }
+
     private void setupLayout() {
         Platform.runLater(() -> {
             if (mainSplitPane != null) {
                 mainSplitPane.setDividerPosition(0, 0.6);
 
-                // Manage divider positions
                 mainSplitPane.getDividers().get(0).positionProperty().addListener((obs, oldPos, newPos) -> {
                     if (newPos.doubleValue() < 0.25) {
                         Platform.runLater(() -> mainSplitPane.setDividerPosition(0, 0.25));
@@ -304,7 +252,6 @@ public class QueryViewController {
                     }
                 });
 
-                // Handle resizing
                 mainBorderPane.heightProperty().addListener((obs, oldHeight, newHeight) -> {
                     if (newHeight.doubleValue() > 0) {
                         double currentDividerPos = mainSplitPane.getDividerPositions()[0];
@@ -319,13 +266,9 @@ public class QueryViewController {
         });
     }
 
-    /**
-     * Executes a SPARQL query.
-     */
     public void executeQuery() {
         stateManager.addLogEntry("Executing query");
 
-        // Get the selected tab
         Tab selectedTab = tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
         if (selectedTab != null && selectedTab != tabEditorController.getView().getAddTab()) {
             CodeEditorController codeEditorController = tabEditorController.getModel().getControllerForTab(selectedTab);
@@ -334,17 +277,14 @@ public class QueryViewController {
                 stateManager.addLogEntry("Query content:\n" + queryContent);
 
                 try {
-                    // Clear result views
                     clearResultViews();
 
-                    // Execute query
                     Object[] result = stateManager.executeQuery(queryContent);
                     String formattedResult = result[0].toString();
                     String queryType = (String) result[1];
 
                     stateManager.addLogEntry("Query executed successfully. Type: " + queryType);
 
-                    // Update the appropriate view based on query type
                     Platform.runLater(() -> {
                         switch (queryType) {
                             case "SELECT":
@@ -355,9 +295,6 @@ public class QueryViewController {
                                 }
                                 updateTableView(formattedResult);
                                 updateXMLTabWithFormat(xmlFormatComboBox.getValue());
-                                if (resultsTabPane.getSelectionModel().getSelectedItem() != xmlTab) {
-                                    resultsTabPane.getSelectionModel().select(xmlTab);
-                                }
                                 break;
                             case "CONSTRUCT":
                             case "DESCRIBE":
@@ -381,44 +318,16 @@ public class QueryViewController {
         }
     }
 
-    /**
-     * Clears all result views.
-     */
     private void clearResultViews() {
         Platform.runLater(() -> {
-            // Clear text area
-            if (resultTextArea != null) {
-                resultTextArea.clear();
-            }
-
-            // Clear graph view
-            if (graphView != null) {
-                graphView.getEngine().loadContent("");
-            }
-
-            // Clear XML view
-            if (xmlResultTextArea != null) {
-                xmlResultTextArea.clear();
-            }
-
-            // Reset last mappings
+            graphView.getEngine().loadContent("");
+            xmlResultTextArea.clear();
             lastSelectMappings = null;
-
-            // Clear table view
-            if (resultTable != null) {
-                resultTable.getItems().clear();
-                resultTable.getColumns().clear();
-            }
+            resultTable.getItems().clear();
+            resultTable.getColumns().clear();
         });
     }
 
-    /**
-     * Creates a new query tab.
-     *
-     * @param title   The tab title
-     * @param content The tab content
-     * @return The created tab
-     */
     public Tab addNewQueryTab(String title, String content) {
         stateManager.addLogEntry("Creating new query tab: " + title);
         CodeEditorController codeEditorController = new CodeEditorController(IconButtonBarType.QUERY, content);
@@ -430,11 +339,6 @@ public class QueryViewController {
         return tab;
     }
 
-    /**
-     * Updates the TableView with CSV-formatted query results.
-     *
-     * @param formattedResult The CSV-formatted query result (header in first line)
-     */
     private void updateTableView(String formattedResult) {
         Platform.runLater(() -> {
             resultTable.getItems().clear();
@@ -463,32 +367,18 @@ public class QueryViewController {
                 resultTable.getItems().add(row);
             }
 
-            if (resultsTabPane != null && tableTab != null) {
-                resultsTabPane.getSelectionModel().select(tableTab);
-            }
+            resultsTabPane.getSelectionModel().select(tableTab);
         });
     }
 
-    /**
-     * Updates the graph view with query results.
-     *
-     * @param content The graph content
-     */
     private void updateGraphView(String content) {
         Platform.runLater(() -> {
-            if (graphView != null) {
-                graphView.getEngine().loadContent(
-                        String.format("<html><body><pre>%s</pre></body></html>",
-                                content.replace("<", "&lt;").replace(">", "&gt;")));
-            }
+            graphView.getEngine().loadContent(
+                    String.format("<html><body><pre>%s</pre></body></html>",
+                            content.replace("<", "&lt;").replace(">", "&gt;")));
         });
     }
 
-    /**
-     * Updates the XML tab with the selected format.
-     *
-     * @param formatLabel The format label (XML, JSON, etc.)
-     */
     private void updateXMLTabWithFormat(String formatLabel) {
         if (lastSelectMappings == null)
             return;
@@ -506,25 +396,12 @@ public class QueryViewController {
         updateXMLView(formatted);
     }
 
-    /**
-     * Updates the XML view with query results.
-     *
-     * @param content The XML content
-     */
     private void updateXMLView(String content) {
         Platform.runLater(() -> {
-            if (xmlResultTextArea != null) {
-                xmlResultTextArea.setText(content);
-            }
+            xmlResultTextArea.setText(content);
         });
     }
 
-    /**
-     * Shows an error dialog.
-     *
-     * @param title   The error title
-     * @param message The error message
-     */
     private void showError(String title, String message) {
         Platform.runLater(() -> {
             Alert alert = new Alert(Alert.AlertType.ERROR);
@@ -535,35 +412,88 @@ public class QueryViewController {
         });
     }
 
-    /**
-     * Opens a query file in a new tab.
-     *
-     * @param file The file to open
-     */
+    private Node createEmptyStateView() {
+        VBox emptyBox = new VBox(20);
+        emptyBox.setAlignment(Pos.CENTER);
+
+        FontIcon icon = new FontIcon(MaterialDesignF.FILE_DOCUMENT_OUTLINE);
+        icon.setIconSize(80);
+
+        Label message = new Label("No queries open.\nCreate a new query or load an existing one.");
+        message.setStyle("-fx-font-size: 16px; -fx-text-alignment: center;");
+
+        newTabButtonEmptyState = new Button("New Query");
+        newTabButtonEmptyState.setOnAction(e -> tabEditorController.addNewTab("unt"));
+
+        loadQueryButton = new Button("Load Query");
+        loadQueryButton.setOnAction(e -> onOpenFilesButtonClick());
+
+        HBox buttonBox = new HBox(10, newTabButtonEmptyState, loadQueryButton);
+        buttonBox.setAlignment(Pos.CENTER);
+
+        emptyBox.getChildren().addAll(icon, message, buttonBox);
+        emptyBox.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+
+        return emptyBox;
+    }
+
+    private void updateEmptyStateVisibility() {
+        TabPane tabPane = tabEditorController.getView().getTabPane();
+        int realTabCount = (int) tabPane.getTabs().stream()
+                .filter(tab -> tab != tabEditorController.getView().getAddTab())
+                .count();
+
+        emptyStateView.setVisible(realTabCount == 0);
+        emptyStateView.setManaged(realTabCount == 0);
+        tabEditorController.getView().setVisible(realTabCount > 0);
+        tabEditorController.getView().setManaged(realTabCount > 0);
+    }
+
+    private void setupKeyboardShortcuts() {
+        mainBorderPane.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                newScene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+                    if (new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN).match(event)) {
+                        onOpenFilesButtonClick();
+                        event.consume();
+                    } else if (new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN).match(event)) {
+                        tabEditorController.addNewTab("untitled");
+                        event.consume();
+                    } else if (new KeyCodeCombination(KeyCode.W, KeyCombination.CONTROL_DOWN).match(event)) {
+                        // Ctrl+W: Close current tab (except the Add Tab)
+                        TabPane tabPane = tabEditorController.getView().getTabPane();
+                        Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+                        if (selectedTab != null && selectedTab != tabEditorController.getView().getAddTab()) {
+                            if (tabEditorController.handleCloseFile(selectedTab)) { // Use refactored method
+                                tabPane.getTabs().remove(selectedTab); // Remove tab if allowed
+                            }
+                        }
+                        event.consume();
+                    }
+                });
+            }
+        });
+    }
+
     public void openQueryFile(File file) {
         try {
-            // Check if the file is already open
             for (Tab tab : tabEditorController.getView().getTabPane().getTabs()) {
                 if (tab != tabEditorController.getView().getAddTab()) {
                     CodeEditorController controller = tabEditorController.getModel().getControllerForTab(tab);
                     if (controller != null && file.getPath().equals(controller.getModel().getFilePath())) {
-                        // File already open, select its tab
                         tabEditorController.getView().getTabPane().getSelectionModel().select(tab);
                         return;
                     }
                 }
             }
 
-            // Read file content
             String content = Files.readString(file.toPath());
 
-            // Create a new tab with the file content
             Tab tab = addNewQueryTab(file.getName(), content);
 
-            // Save the file path in the model
             CodeEditorController controller = tabEditorController.getModel().getControllerForTab(tab);
             if (controller != null) {
-                controller.getModel().setFilePath(content);
+                controller.getModel().setFilePath(file.getPath());
                 controller.getModel().setCurrentSavedContent(content);
                 controller.getModel().setModified(false);
             }
@@ -574,11 +504,6 @@ public class QueryViewController {
         }
     }
 
-    /**
-     * Gets the tab editor controller.
-     *
-     * @return The tab editor controller
-     */
     public TabEditorController getTabEditorController() {
         return tabEditorController;
     }
