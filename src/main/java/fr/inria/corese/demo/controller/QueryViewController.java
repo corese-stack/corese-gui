@@ -73,8 +73,8 @@ public class QueryViewController {
     private TableView<String[]> resultTable;
     private fr.inria.corese.core.kgram.core.Mappings lastSelectMappings = null;
     private Node emptyStateView;
-    private Button loadQueryButton; // Reference to the "Load Query" button
-    private Button newTabButtonEmptyState; // Reference to the "New Query" button
+    private Button loadQueryButton; 
+    private Button newTabButtonEmptyState; 
 
     @FXML
     public void initialize() {
@@ -122,6 +122,12 @@ public class QueryViewController {
         });
     }
 
+    /**
+     * Handles the open files button click event.
+     * Shows a file chooser dialog allowing the user to select a file.
+     * If a file is selected, it is added as a new tab to the tab editor.
+     * If there is an error opening the file, an error dialog is shown.
+     */
     private void onOpenFilesButtonClick() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open File");
@@ -139,6 +145,15 @@ public class QueryViewController {
         }
     }
 
+        /**
+         * Listens for new tabs being added to the tab pane and configures the "Run" button for each new tab.
+         * When a new tab is added, it first checks if the tab is not the "Add Tab" tab (i.e., the tab with the "+" icon).
+         * If the tab is a content tab, it gets the associated CodeEditorController and calls configureEditorRunButton
+         * to set up the "Run" button for that tab.
+         * If the tab is not yet associated with a CodeEditorController, it sets up a listener for the content property
+         * of the tab. When the content property is set, it removes the listener and configures the "Run" button in the
+         * same way as above.
+         */
     private void setupRunButton() {
         tabEditorController.getView().getTabPane().getTabs().addListener((ListChangeListener<Tab>) change -> {
             while (change.next()) {
@@ -177,6 +192,15 @@ public class QueryViewController {
         });
     }
 
+/**
+ * Configures the run button for the given CodeEditorController.
+ * Adds an action listener to execute a query when the run button is clicked,
+ * and sets up a keyboard shortcut (Ctrl+Enter) to trigger the same action.
+ * Logs actions and ensures the run button is displayed.
+ *
+ * @param codeEditorController the CodeEditorController for which to configure the run button
+ */
+
     private void configureEditorRunButton(CodeEditorController codeEditorController) {
         stateManager.addLogEntry("Configuring editor run button");
 
@@ -212,6 +236,11 @@ public class QueryViewController {
         tableTab.setContent(resultTable);
     }
 
+    /**
+     * Sets up the XML format combo box.
+     * Adds the possible formats (XML, JSON, CSV, TSV, MARKDOWN) to the combo box and sets the default selection to XML.
+     * Listens for the selected item property and updates the XML tab with the selected format.
+     */
     private void setupXmlFormatComboBox() {
         xmlFormatComboBox.getItems().setAll("XML", "JSON", "CSV", "TSV", "MARKDOWN");
         xmlFormatComboBox.getSelectionModel().select("XML");
@@ -266,6 +295,12 @@ public class QueryViewController {
         });
     }
 
+    /**
+     * Executes the query currently selected in the tab editor.
+     * Logs the query content and execution result.
+     * Updates the results view according to the query type.
+     * In case of an error, logs the error message and displays an alert.
+     */
     public void executeQuery() {
         stateManager.addLogEntry("Executing query");
 
@@ -339,6 +374,19 @@ public class QueryViewController {
         return tab;
     }
 
+/**
+ * Updates the result table view with the provided formatted result data.
+ * 
+ * Clears the existing items and columns from the result table, and then 
+ * populates it with new data parsed from the given formattedResult string.
+ * The formattedResult is expected to be in CSV format, with the first line
+ * containing the headers. The table columns are dynamically created based
+ * on the headers, and the rows are added subsequently. After updating, the 
+ * table tab is selected in the results tab pane.
+ *
+ * @param formattedResult A string containing the result data in CSV format.
+ */
+
     private void updateTableView(String formattedResult) {
         Platform.runLater(() -> {
             resultTable.getItems().clear();
@@ -350,7 +398,8 @@ public class QueryViewController {
 
             String[] headers = lines[0].split(",", -1);
 
-            for (int col = 0; col < headers.length; col++) {
+            int columnCount = headers.length;
+            for (int col = 0; col < columnCount; col++) {
                 final int colIndex = col;
                 TableColumn<String[], String> tableColumn = new TableColumn<>(headers[col].trim());
                 tableColumn.setCellValueFactory(cellData -> {
@@ -358,7 +407,7 @@ public class QueryViewController {
                     String value = (colIndex < row.length) ? row[colIndex] : "";
                     return new javafx.beans.property.SimpleStringProperty(value);
                 });
-                tableColumn.setPrefWidth(200);
+                tableColumn.prefWidthProperty().bind(resultTable.widthProperty().divide(columnCount));
                 resultTable.getColumns().add(tableColumn);
             }
 
@@ -379,6 +428,15 @@ public class QueryViewController {
         });
     }
 
+    /**
+     * Updates the XML tab with the formatted result of the last SELECT query.
+     * 
+     * The formatted result is based on the selected format in the combo box
+     * above the XML tab. The formats are defined in fr.inria.corese.core.print.ResultFormat.format.
+     * If no SELECT query has been executed, the method does nothing.
+     * 
+     * @param formatLabel The label of the selected format in the combo box.
+     */
     private void updateXMLTabWithFormat(String formatLabel) {
         if (lastSelectMappings == null)
             return;
@@ -396,6 +454,13 @@ public class QueryViewController {
         updateXMLView(formatted);
     }
 
+    /**
+     * Updates the content of the XML result text area with the given content.
+     * 
+     * The content is displayed in the XML result text area in the results tab.
+     * 
+     * @param content The content to display in the XML result text area.
+     */
     private void updateXMLView(String content) {
         Platform.runLater(() -> {
             xmlResultTextArea.setText(content);
@@ -411,6 +476,16 @@ public class QueryViewController {
             alert.showAndWait();
         });
     }
+
+/**
+ * Creates a view representing an empty state for queries.
+ *
+ * This view is displayed when no queries are open, providing
+ * a message and options to create a new query or load an existing one.
+ * It includes an icon, a descriptive label, and buttons for user actions.
+ *
+ * @return A Node containing the empty state view layout.
+ */
 
     private Node createEmptyStateView() {
         VBox emptyBox = new VBox(20);
@@ -449,6 +524,21 @@ public class QueryViewController {
         tabEditorController.getView().setManaged(realTabCount > 0);
     }
 
+/**
+ * Sets up keyboard shortcuts for the main application interface.
+ *
+ * Listens for specific key combinations when the scene is active
+ * and performs corresponding actions such as opening files, creating
+ * new tabs, or closing the current tab. The shortcuts implemented
+ * include:
+ * - Ctrl+O: Opens the file dialog to select files.
+ * - Ctrl+N: Creates a new tab with the title "untitled".
+ * - Ctrl+W: Closes the currently selected tab, excluding the "Add Tab".
+ *
+ * The method ensures that the appropriate action is taken and the
+ * keyboard event is consumed to prevent further handling.
+ */
+
     private void setupKeyboardShortcuts() {
         mainBorderPane.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
@@ -464,7 +554,7 @@ public class QueryViewController {
                         TabPane tabPane = tabEditorController.getView().getTabPane();
                         Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
                         if (selectedTab != null && selectedTab != tabEditorController.getView().getAddTab()) {
-                            if (tabEditorController.handleCloseFile(selectedTab)) { // Use refactored method
+                            if (tabEditorController.handleCloseFile(selectedTab)) { 
                                 tabPane.getTabs().remove(selectedTab); // Remove tab if allowed
                             }
                         }
@@ -475,6 +565,14 @@ public class QueryViewController {
         });
     }
 
+    /**
+     * Opens a query file and displays it in the query tab.
+     *
+     * If the file is already open, selects the existing tab.
+     * Otherwise, creates a new tab with the file name and content.
+     *
+     * @param file The file to open.
+     */
     public void openQueryFile(File file) {
         try {
             for (Tab tab : tabEditorController.getView().getTabPane().getTabs()) {
