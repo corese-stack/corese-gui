@@ -19,13 +19,13 @@ public class IconButtonView extends Button{
     private void createIcon(IconButtonType type) {
         switch (type) {
             case SAVE -> createIconButton(MaterialDesignC.CONTENT_SAVE_OUTLINE, "Save as");
-            case OPEN_FILE -> createIconButton(MaterialDesignF.FOLDER_OPEN, "Open file");
+            case OPEN_FILE -> createIconButton(MaterialDesignF.FILE, "Open file");
             case EXPORT -> createIconButton(MaterialDesignE.EXPORT, "Export");
             case IMPORT -> createIconButton(MaterialDesignI.IMPORT, "Import");
             case CLEAR -> createIconButton(MaterialDesignB.BROOM, "Clear");
             case UNDO -> createIconButton(MaterialDesignU.UNDO, "Undo");
             case REDO -> createIconButton(MaterialDesignR.REDO, "Redo");
-            case DOCUMENTATION -> createIconButton(MaterialDesignO.OPEN_IN_NEW, "Documentation");
+            case DOCUMENTATION -> createIconButton(MaterialDesignL.LINK, "Documentation");
             case ZOOM_IN -> createIconButton(MaterialDesignM.MAGNIFY_PLUS_OUTLINE, "Zoom in");
             case ZOOM_OUT -> createIconButton(MaterialDesignM.MAGNIFY_MINUS_OUTLINE, "Zoom out");
             case FULL_SCREEN -> createIconButton(MaterialDesignF.FULLSCREEN, "Full screen");
