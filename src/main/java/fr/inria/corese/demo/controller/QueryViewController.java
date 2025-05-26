@@ -17,6 +17,10 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.animation.PauseTransition;
@@ -33,10 +37,12 @@ import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.net.URI;
 
 import javafx.application.Platform;
 import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
+import javafx.application.HostServices;
 
 /**
  * Controller for the query view.
@@ -73,8 +79,30 @@ public class QueryViewController {
     private TableView<String[]> resultTable;
     private fr.inria.corese.core.kgram.core.Mappings lastSelectMappings = null;
     private Node emptyStateView;
-    private Button loadQueryButton; 
-    private Button newTabButtonEmptyState; 
+    private Button loadQueryButton;
+    private Button newTabButtonEmptyState;
+
+    // Pagination-related fields
+    private Pagination pagination;
+    private TextField rowsPerPageField;
+    private int rowsPerPage = 0; // default
+    private List<String[]> allRows = new ArrayList<>();
+    private HBox controlsPane; // Changed from FlowPane to HBox
+    private Label totalRowsLabel; // Total rows label
+
+    // HostServices for opening URLs in the default browser
+    private HostServices hostServices;
+
+    private ChangeListener<Number> paginationListener;
+
+    /**
+     * Call this method from your Application class to provide HostServices.
+     * Example:
+     * controller.setHostServices(getHostServices());
+     */
+    public void setHostServices(HostServices hostServices) {
+        this.hostServices = hostServices;
+    }
 
     @FXML
     public void initialize() {
@@ -117,8 +145,19 @@ public class QueryViewController {
 
         topBar.getButton(IconButtonType.OPEN_FILE).setOnAction(e -> onOpenFilesButtonClick());
         topBar.getButton(IconButtonType.DOCUMENTATION).setOnAction(e -> {
-            DocumentationPopup documentationPopup = new DocumentationPopup();
-            documentationPopup.displayPopup();
+            try {
+                if (hostServices != null) {
+                    hostServices.showDocument("https://www.w3.org/TR/sparql11-query/");
+                } else {
+                    // fallback: try Desktop if HostServices not set (may not work on Linux)
+                    java.awt.Desktop desktop = java.awt.Desktop.getDesktop();
+                    if (desktop.isSupported(java.awt.Desktop.Action.BROWSE)) {
+                        desktop.browse(new URI("https://www.w3.org/TR/sparql11-query/"));
+                    }
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
         });
     }
 
@@ -145,15 +184,20 @@ public class QueryViewController {
         }
     }
 
-        /**
-         * Listens for new tabs being added to the tab pane and configures the "Run" button for each new tab.
-         * When a new tab is added, it first checks if the tab is not the "Add Tab" tab (i.e., the tab with the "+" icon).
-         * If the tab is a content tab, it gets the associated CodeEditorController and calls configureEditorRunButton
-         * to set up the "Run" button for that tab.
-         * If the tab is not yet associated with a CodeEditorController, it sets up a listener for the content property
-         * of the tab. When the content property is set, it removes the listener and configures the "Run" button in the
-         * same way as above.
-         */
+    /**
+     * Listens for new tabs being added to the tab pane and configures the "Run"
+     * button for each new tab.
+     * When a new tab is added, it first checks if the tab is not the "Add Tab" tab
+     * (i.e., the tab with the "+" icon).
+     * If the tab is a content tab, it gets the associated CodeEditorController and
+     * calls configureEditorRunButton
+     * to set up the "Run" button for that tab.
+     * If the tab is not yet associated with a CodeEditorController, it sets up a
+     * listener for the content property
+     * of the tab. When the content property is set, it removes the listener and
+     * configures the "Run" button in the
+     * same way as above.
+     */
     private void setupRunButton() {
         tabEditorController.getView().getTabPane().getTabs().addListener((ListChangeListener<Tab>) change -> {
             while (change.next()) {
@@ -192,14 +236,15 @@ public class QueryViewController {
         });
     }
 
-/**
- * Configures the run button for the given CodeEditorController.
- * Adds an action listener to execute a query when the run button is clicked,
- * and sets up a keyboard shortcut (Ctrl+Enter) to trigger the same action.
- * Logs actions and ensures the run button is displayed.
- *
- * @param codeEditorController the CodeEditorController for which to configure the run button
- */
+    /**
+     * Configures the run button for the given CodeEditorController.
+     * Adds an action listener to execute a query when the run button is clicked,
+     * and sets up a keyboard shortcut (Ctrl+Enter) to trigger the same action.
+     * Logs actions and ensures the run button is displayed.
+     *
+     * @param codeEditorController the CodeEditorController for which to configure
+     *                             the run button
+     */
 
     private void configureEditorRunButton(CodeEditorController codeEditorController) {
         stateManager.addLogEntry("Configuring editor run button");
@@ -227,19 +272,71 @@ public class QueryViewController {
         });
     }
 
-    /**
-     * Sets up the results pane.
-     * Only initializes the TableView as all tabs are already defined in FXML.
-     */
+/**
+ * Sets up the results pane, including the table view and pagination controls.
+ * Initializes the table for displaying query results and configures pagination
+ * settings, including the rows per page input field and total rows label.
+ * Listens for changes in the rows per page field to update pagination settings.
+ * Arranges the layout using a VBox containing the controls, table, and pagination.
+ */
+
     private void setupResultsPane() {
         resultTable = new TableView<>();
-        tableTab.setContent(resultTable);
+
+        // --- Pagination controls ---
+        pagination = new Pagination();
+        pagination.setPageFactory(this::createPage);
+        pagination.setVisible(false); 
+        pagination.setManaged(false);
+
+        rowsPerPageField = new TextField(String.valueOf(rowsPerPage));
+        rowsPerPageField.setPrefWidth(60);
+        Label perPageLabel = new Label("Rows per page:");
+        perPageLabel.setLabelFor(rowsPerPageField);
+
+        // Create totalRowsLabel
+        totalRowsLabel = new Label("total rows: 0");
+
+        rowsPerPageField.textProperty().addListener((obs, oldVal, newVal) -> {
+            int val;
+            try {
+                val = Integer.parseInt(newVal);
+                if (val > 0) {
+                    rowsPerPage = val;
+                } else {
+                    rowsPerPage = 10;
+                    rowsPerPageField.setText(String.valueOf(rowsPerPage));
+                }
+            } catch (NumberFormatException ex) {
+                rowsPerPage = 10;
+                if (!newVal.isEmpty()) {
+                    rowsPerPageField.setText(String.valueOf(rowsPerPage));
+                }
+            }
+            updatePagination();
+        });
+
+        controlsPane = new HBox(10);
+        controlsPane.setAlignment(Pos.CENTER_LEFT);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        // Ensure the totalRowsLabel is right-aligned
+        HBox rightAlignedBox = new HBox(totalRowsLabel);
+        rightAlignedBox.setAlignment(Pos.CENTER_RIGHT);
+
+        controlsPane.getChildren().addAll(perPageLabel, rowsPerPageField, spacer, rightAlignedBox);
+
+        VBox tableBox = new VBox(5, controlsPane, resultTable, pagination);
+        VBox.setVgrow(resultTable, Priority.ALWAYS);
+        tableTab.setContent(tableBox);
     }
 
     /**
-     * Sets up the XML format combo box.
-     * Adds the possible formats (XML, JSON, CSV, TSV, MARKDOWN) to the combo box and sets the default selection to XML.
-     * Listens for the selected item property and updates the XML tab with the selected format.
+     * Configure the XML format combobox.
+     * The "XML" format is selected by default.
+     * When the selection changes, the XML tab is updated
+     * with the new format, if a mapping was previously selected.
      */
     private void setupXmlFormatComboBox() {
         xmlFormatComboBox.getItems().setAll("XML", "JSON", "CSV", "TSV", "MARKDOWN");
@@ -302,6 +399,13 @@ public class QueryViewController {
      * In case of an error, logs the error message and displays an alert.
      */
     public void executeQuery() {
+
+        if (rowsPerPage <= 0) {
+            rowsPerPage = 10;
+            if (rowsPerPageField != null) {
+                rowsPerPageField.setText(String.valueOf(rowsPerPage));
+            }
+        }
         stateManager.addLogEntry("Executing query");
 
         Tab selectedTab = tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
@@ -360,6 +464,8 @@ public class QueryViewController {
             lastSelectMappings = null;
             resultTable.getItems().clear();
             resultTable.getColumns().clear();
+            allRows.clear();
+            updatePagination();
         });
     }
 
@@ -374,27 +480,33 @@ public class QueryViewController {
         return tab;
     }
 
-/**
- * Updates the result table view with the provided formatted result data.
- * 
- * Clears the existing items and columns from the result table, and then 
- * populates it with new data parsed from the given formattedResult string.
- * The formattedResult is expected to be in CSV format, with the first line
- * containing the headers. The table columns are dynamically created based
- * on the headers, and the rows are added subsequently. After updating, the 
- * table tab is selected in the results tab pane.
- *
- * @param formattedResult A string containing the result data in CSV format.
- */
+    /**
+     * Updates the result table view with the provided formatted result data.
+     * 
+     * Clears the existing items and columns from the result table, and then
+     * populates it with new data parsed from the given formattedResult string.
+     * The formattedResult is expected to be in CSV format, with the first line
+     * containing the headers. The table columns are dynamically created based
+     * on the headers, and the rows are added subsequently. After updating, the
+     * table tab is selected in the results tab pane.
+     *
+     * @param formattedResult A string containing the result data in CSV format.
+     */
 
     private void updateTableView(String formattedResult) {
         Platform.runLater(() -> {
             resultTable.getItems().clear();
             resultTable.getColumns().clear();
+            allRows.clear();
 
             String[] lines = formattedResult.split("\\r?\\n");
-            if (lines.length == 0)
+            if (lines.length == 0) {
+                updatePagination();
+                if (totalRowsLabel != null) {
+                    totalRowsLabel.setText("total rows: 0");
+                }
                 return;
+            }
 
             String[] headers = lines[0].split(",", -1);
 
@@ -411,13 +523,72 @@ public class QueryViewController {
                 resultTable.getColumns().add(tableColumn);
             }
 
+            // Store all rows for pagination
             for (int i = 1; i < lines.length; i++) {
                 String[] row = lines[i].split(",", -1);
-                resultTable.getItems().add(row);
+                allRows.add(row);
             }
 
+            if (totalRowsLabel != null) {
+                totalRowsLabel.setText("total rows: " + allRows.size());
+            }
+            updatePagination();
             resultsTabPane.getSelectionModel().select(tableTab);
         });
+    }
+
+    /**
+     * Updates the pagination control and table view.
+     * Pagination is only shown if there is at least one row.
+     */
+private void updatePagination() {
+        if (totalRowsLabel != null) {
+            totalRowsLabel.setText("total rows: " + allRows.size());
+        }
+
+        if (allRows.isEmpty() || rowsPerPage <= 0) {
+            pagination.setVisible(false);
+            pagination.setManaged(false);
+            pagination.setPageCount(0); 
+            return;
+        }
+
+        int pageCount = (int) Math.ceil((double) allRows.size() / rowsPerPage);
+
+        if (pageCount <= 1) {
+            pagination.setVisible(false);
+            pagination.setManaged(false);
+            pagination.setPageCount(0); 
+        } else {
+            pagination.setVisible(true);
+            pagination.setManaged(true);
+            pagination.setPageCount(pageCount); 
+        }
+
+        pagination.setCurrentPageIndex(0);
+        updateTableForPage(0);
+
+        if (paginationListener != null) {
+            pagination.currentPageIndexProperty().removeListener(paginationListener);
+        }
+        paginationListener = (obs, oldIndex, newIndex) -> updateTableForPage(newIndex.intValue());
+        pagination.currentPageIndexProperty().addListener(paginationListener);
+    }
+    /**
+     * Called by Pagination to create a page.
+     */
+    private Node createPage(int pageIndex) {
+        updateTableForPage(pageIndex);
+        return new Region(); 
+    }
+    private void updateTableForPage(int pageIndex) {
+        int fromIndex = pageIndex * rowsPerPage;
+        int toIndex = Math.min(fromIndex + rowsPerPage, allRows.size());
+        if (fromIndex > toIndex) {
+            resultTable.getItems().clear();
+            return;
+        }
+        resultTable.getItems().setAll(allRows.subList(fromIndex, toIndex));
     }
 
     private void updateGraphView(String content) {
@@ -432,7 +603,8 @@ public class QueryViewController {
      * Updates the XML tab with the formatted result of the last SELECT query.
      * 
      * The formatted result is based on the selected format in the combo box
-     * above the XML tab. The formats are defined in fr.inria.corese.core.print.ResultFormat.format.
+     * above the XML tab. The formats are defined in
+     * fr.inria.corese.core.print.ResultFormat.format.
      * If no SELECT query has been executed, the method does nothing.
      * 
      * @param formatLabel The label of the selected format in the combo box.
@@ -477,15 +649,15 @@ public class QueryViewController {
         });
     }
 
-/**
- * Creates a view representing an empty state for queries.
- *
- * This view is displayed when no queries are open, providing
- * a message and options to create a new query or load an existing one.
- * It includes an icon, a descriptive label, and buttons for user actions.
- *
- * @return A Node containing the empty state view layout.
- */
+    /**
+     * Creates a view representing an empty state for queries.
+     *
+     * This view is displayed when no queries are open, providing
+     * a message and options to create a new query or load an existing one.
+     * It includes an icon, a descriptive label, and buttons for user actions.
+     *
+     * @return A Node containing the empty state view layout.
+     */
 
     private Node createEmptyStateView() {
         VBox emptyBox = new VBox(20);
@@ -524,20 +696,20 @@ public class QueryViewController {
         tabEditorController.getView().setManaged(realTabCount > 0);
     }
 
-/**
- * Sets up keyboard shortcuts for the main application interface.
- *
- * Listens for specific key combinations when the scene is active
- * and performs corresponding actions such as opening files, creating
- * new tabs, or closing the current tab. The shortcuts implemented
- * include:
- * - Ctrl+O: Opens the file dialog to select files.
- * - Ctrl+N: Creates a new tab with the title "untitled".
- * - Ctrl+W: Closes the currently selected tab, excluding the "Add Tab".
- *
- * The method ensures that the appropriate action is taken and the
- * keyboard event is consumed to prevent further handling.
- */
+    /**
+     * Sets up keyboard shortcuts for the main application interface.
+     *
+     * Listens for specific key combinations when the scene is active
+     * and performs corresponding actions such as opening files, creating
+     * new tabs, or closing the current tab. The shortcuts implemented
+     * include:
+     * - Ctrl+O: Opens the file dialog to select files.
+     * - Ctrl+N: Creates a new tab with the title "untitled".
+     * - Ctrl+W: Closes the currently selected tab, excluding the "Add Tab".
+     *
+     * The method ensures that the appropriate action is taken and the
+     * keyboard event is consumed to prevent further handling.
+     */
 
     private void setupKeyboardShortcuts() {
         mainBorderPane.sceneProperty().addListener((obs, oldScene, newScene) -> {
@@ -554,7 +726,7 @@ public class QueryViewController {
                         TabPane tabPane = tabEditorController.getView().getTabPane();
                         Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
                         if (selectedTab != null && selectedTab != tabEditorController.getView().getAddTab()) {
-                            if (tabEditorController.handleCloseFile(selectedTab)) { 
+                            if (tabEditorController.handleCloseFile(selectedTab)) {
                                 tabPane.getTabs().remove(selectedTab); // Remove tab if allowed
                             }
                         }
