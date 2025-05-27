@@ -272,13 +272,14 @@ public class QueryViewController {
         });
     }
 
-/**
- * Sets up the results pane, including the table view and pagination controls.
- * Initializes the table for displaying query results and configures pagination
- * settings, including the rows per page input field and total rows label.
- * Listens for changes in the rows per page field to update pagination settings.
- * Arranges the layout using a VBox containing the controls, table, and pagination.
- */
+    /**
+     * Sets up the results pane, including the table view and pagination controls.
+     * Initializes the table for displaying query results and configures pagination
+     * settings, including the rows per page input field and total rows label.
+     * Listens for changes in the rows per page field to update pagination settings.
+     * Arranges the layout using a VBox containing the controls, table, and
+     * pagination.
+     */
 
     private void setupResultsPane() {
         resultTable = new TableView<>();
@@ -286,7 +287,7 @@ public class QueryViewController {
         // --- Pagination controls ---
         pagination = new Pagination();
         pagination.setPageFactory(this::createPage);
-        pagination.setVisible(false); 
+        pagination.setVisible(false);
         pagination.setManaged(false);
 
         rowsPerPageField = new TextField(String.valueOf(rowsPerPage));
@@ -369,25 +370,7 @@ public class QueryViewController {
         Platform.runLater(() -> {
             if (mainSplitPane != null) {
                 mainSplitPane.setDividerPosition(0, 0.6);
-
-                mainSplitPane.getDividers().get(0).positionProperty().addListener((obs, oldPos, newPos) -> {
-                    if (newPos.doubleValue() < 0.25) {
-                        Platform.runLater(() -> mainSplitPane.setDividerPosition(0, 0.25));
-                    } else if (newPos.doubleValue() < 0.4) {
-                        Platform.runLater(() -> mainSplitPane.setDividerPosition(0, 0.4));
-                    }
-                });
-
-                mainBorderPane.heightProperty().addListener((obs, oldHeight, newHeight) -> {
-                    if (newHeight.doubleValue() > 0) {
-                        double currentDividerPos = mainSplitPane.getDividerPositions()[0];
-                        double resultsPaneHeight = newHeight.doubleValue() * (1 - currentDividerPos);
-
-                        if (resultsPaneHeight > newHeight.doubleValue() * 0.75) {
-                            Platform.runLater(() -> mainSplitPane.setDividerPosition(0, 0.25));
-                        }
-                    }
-                });
+                
             }
         });
     }
@@ -541,7 +524,7 @@ public class QueryViewController {
      * Updates the pagination control and table view.
      * Pagination is only shown if there is at least one row.
      */
-private void updatePagination() {
+    private void updatePagination() {
         if (totalRowsLabel != null) {
             totalRowsLabel.setText("total rows: " + allRows.size());
         }
@@ -549,7 +532,7 @@ private void updatePagination() {
         if (allRows.isEmpty() || rowsPerPage <= 0) {
             pagination.setVisible(false);
             pagination.setManaged(false);
-            pagination.setPageCount(0); 
+            pagination.setPageCount(0);
             return;
         }
 
@@ -558,11 +541,11 @@ private void updatePagination() {
         if (pageCount <= 1) {
             pagination.setVisible(false);
             pagination.setManaged(false);
-            pagination.setPageCount(0); 
+            pagination.setPageCount(0);
         } else {
             pagination.setVisible(true);
             pagination.setManaged(true);
-            pagination.setPageCount(pageCount); 
+            pagination.setPageCount(pageCount);
         }
 
         pagination.setCurrentPageIndex(0);
@@ -574,13 +557,15 @@ private void updatePagination() {
         paginationListener = (obs, oldIndex, newIndex) -> updateTableForPage(newIndex.intValue());
         pagination.currentPageIndexProperty().addListener(paginationListener);
     }
+
     /**
      * Called by Pagination to create a page.
      */
     private Node createPage(int pageIndex) {
         updateTableForPage(pageIndex);
-        return new Region(); 
+        return new Region();
     }
+
     private void updateTableForPage(int pageIndex) {
         int fromIndex = pageIndex * rowsPerPage;
         int toIndex = Math.min(fromIndex + rowsPerPage, allRows.size());
