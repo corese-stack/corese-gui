@@ -141,7 +141,7 @@ public class QueryViewController {
         List<IconButtonType> buttons = new ArrayList<>();
         buttons.add(IconButtonType.OPEN_FILE);
         buttons.add(IconButtonType.DOCUMENTATION);
-        topBar.addRightButtons(buttons);
+        topBar.addLeftButtons(buttons);
 
         topBar.getButton(IconButtonType.OPEN_FILE).setOnAction(e -> onOpenFilesButtonClick());
         topBar.getButton(IconButtonType.DOCUMENTATION).setOnAction(e -> {
