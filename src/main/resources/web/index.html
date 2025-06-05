@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Graph Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.16.0/d3.min.js"></script>
+    <script src="https://frogcat.github.io/ttl2jsonld/ttl2jsonld.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            /* Align to top to leave space for sliders */
+            min-height: 100vh;
+            background-color: #f0f0f0;
+        }
+
+        kg-graph {
+            width: 80vw;
+            /* Example width */
+            height: 70vh;
+            /* Example height */
+            border: 1px solid #ccc;
+            box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            display: block;
+            /* Custom elements are inline by default */
+        }
+    </style>
+</head>
+
+<body>
+
+    <kg-graph id="myGraph" width="1000px" height="800px"></kg-graph>
+
+    <script>
+        // Your KGGraphVis class code starts here
+        class KGGraphVis extends HTMLElement {
+
+            constructor() {
+                super()
+                this.attachShadow({ mode: "open" });
+
+                this.svg = null;
+                this.simulation = null;
+                this.defaultCharge = -50;
+                this.defaultDistance = 10;
+
+                this.internalData = new WeakMap()
+                this.internalData.set(this, {});
+            }
+
+            set ttl(ttl) {
+                const data = this.internalData.get(this) || {};
+                data.ttl = ttl;
+                this.internalData.set(this, data);
+                this.drawChart()
+            }
+
+            get ttl() {
+                return this.internalData.get(this)?.ttl;
+            }
+
+            async connectedCallback() {
+                this.render();
+
+                this.width = await this.computePixelValue('width')
+                this.height = await this.computePixelValue('height')
+
+                this.svg = d3.select(this.shadowRoot.querySelector("#chart-container"))
+                    .attr('width', this.width)
+                    .attr('height', this.height)
+
+                const defs = this.svg.append("defs");
+
+                defs.append("marker")
+                    .attr("id", "arrowhead")
+                    .attr("viewBox", "0 -5 10 10")
+                    .attr("refX", 15)
+                    .attr("refY", 0)
+                    .attr("markerWidth", 6)
+                    .attr("markerHeight", 6)
+                    .attr("orient", "auto")
+                    .attr("fill", "#999")
+                    .append("path")
+                    .attr("d", "M0,-5L10,0L0,5");
+            }
+
+            render() {
+                this.shadowRoot.innerHTML = `
+                    <style>
+                        svg {
+                            border: 1px solid #ccc;
+                        }
+                    </style>
+                    <div style="width=100%; height:100%;">
+                        <svg id="chart-container"></svg>
+                    </div>
+                `;
+            }
+
+            async computePixelValue(attr) {
+                const sizeStr = this.getAttribute(attr);
+                let pixelValue = null;
+
+                if (!sizeStr) return null;
+
+                if (sizeStr.endsWith('vw')) {
+                    const vw = parseFloat(sizeStr);
+                    pixelValue = (vw / 100) * window.innerWidth;
+                } else if (sizeStr.endsWith('vh')) {
+                    const vh = parseFloat(sizeStr);
+                    pixelValue = (vh / 100) * window.innerHeight;
+                    pixelValue *= 0.85;
+                } else if (sizeStr.endsWith('px')) {
+                    pixelValue = parseFloat(sizeStr);
+                } else if (sizeStr.endsWith('%')) {
+                    const percent = parseFloat(sizeStr);
+                    const parent = this.parentElement;
+                    if (parent) {
+                        const parentRect = parent.getBoundingClientRect();
+                        pixelValue = (percent / 100) * parentRect.width;
+                    } else {
+                        pixelValue = null;
+                    }
+                } else {
+                    pixelValue = null;
+                }
+                return pixelValue;
+            }
+
+            async drawChart() {
+                console.log("Loading ontology:", this.ttl);
+                this.jsonLDOntology = ttl2jsonld.parse(this.ttl);
+                console.log("Parsed JSON-LD Ontology:", this.jsonLDOntology);
+
+                let graph = await this.createGraph();
+                this.graph = await this.duplicateTargetsForMultipleLinks(graph);
+
+                console.log(this.graph)
+                await this.layoutGraphWithHierarchy(this.graph);
+
+                this.renderGraph();
+                this.setControls();
+            }
+
+            async createGraph() {
+                let graph = {
+                    nodes: [],
+                    links: []
+                };
+
+                const definedNodeIds = new Set();
+
+                this.jsonLDOntology['@graph'].forEach((item) => {
+                    if (item['@type'] === 'rdfs:Class') {
+                        graph.nodes.push({
+                            id: item['@id'],
+                            name: item['@id'],
+                            type: 'class'
+                        })
+                        definedNodeIds.add(item['@id']);
+                    }
+                });
+
+                this.jsonLDOntology['@graph'].forEach((item) => {
+                    if (item['@type'] === 'rdfs:Class' && item['rdfs:subClassOf']) {
+                        const sourceId = item['@id'];
+                        const subclasses = Array.isArray(item['rdfs:subClassOf'])
+                            ? item['rdfs:subClassOf']
+                            : [item['rdfs:subClassOf']];
+
+                        subclasses.forEach(sub => {
+                            const targetId = sub['@id'];
+
+                            graph.links.push({
+                                source: sourceId,
+                                target: targetId,
+                                name: 'rdfs:subClassOf'
+                            });
+
+                            if (!definedNodeIds.has(targetId)) {
+                                graph.nodes.push({
+                                    id: targetId,
+                                    name: targetId,
+                                    type: 'external'
+                                });
+                                definedNodeIds.add(targetId);
+                            }
+                        });
+                    }
+                });
+
+                this.jsonLDOntology['@graph'].forEach((item) => {
+                    if (item['@type'] === 'rdf:Property') {
+                        const domain = item['rdfs:domain'];
+                        const range = item['rdfs:range'];
+
+                        if (domain && range) {
+                            const domainId = domain['@id'];
+                            const rangeId = range['@id'];
+
+                            graph.links.push({
+                                source: domainId,
+                                target: rangeId,
+                                name: item['@id'],
+                            });
+
+                            if (!definedNodeIds.has(domainId)) {
+                                graph.nodes.push({
+                                    id: domainId,
+                                    name: domainId,
+                                    type: 'external'
+                                });
+                                definedNodeIds.add(domainId);
+                            }
+
+                            if (!definedNodeIds.has(rangeId)) {
+                                graph.nodes.push({
+                                    id: rangeId,
+                                    name: rangeId,
+                                    type: 'external'
+                                });
+                                definedNodeIds.add(rangeId);
+                            }
+                        }
+                    }
+                });
+                return graph;
+            }
+
+            async duplicateTargetsForMultipleLinks(graph) {
+                const sourceTargetCount = {};
+
+                graph.links.forEach(link => {
+                    const key = `${link.source}->${link.target}`;
+                    sourceTargetCount[key] = (sourceTargetCount[key] || 0) + 1;
+                });
+
+                const newNodes = [...graph.nodes];
+                const newLinks = [];
+                const copyIndex = {};
+
+                graph.links.forEach(link => {
+                    const key = `${link.source}->${link.target}`;
+
+                    if (sourceTargetCount[key] > 1) {
+                        copyIndex[key] = (copyIndex[key] || 0) + 1;
+
+                        if (copyIndex[key] === 1) {
+                            newLinks.push(link);
+                        } else {
+                            const originalTarget = graph.nodes.find(n => n.id === link.target);
+                            const newTargetId = `${link.target}_copy${copyIndex[key]}`;
+                            const newTarget = {
+                                ...originalTarget,
+                                id: newTargetId
+                            };
+
+                            newNodes.push(newTarget);
+                            newLinks.push({
+                                ...link,
+                                target: newTargetId
+                            });
+                        }
+                    } else {
+                        newLinks.push(link);
+                    }
+                });
+                return {
+                    nodes: newNodes,
+                    links: newLinks
+                };
+            }
+
+            async buildHierarchy(graph) {
+                const subclassLinks = graph.links.filter(l => l.name === 'rdfs:subClassOf');
+
+                const childrenByParent = {};
+                const allIds = new Set();
+
+                subclassLinks.forEach(link => {
+                    if (!childrenByParent[link.target]) {
+                        childrenByParent[link.target] = [];
+                    }
+                    childrenByParent[link.target].push(link.source);
+                    allIds.add(link.source);
+                    allIds.add(link.target);
+                });
+
+                const childIds = new Set(subclassLinks.map(l => l.source));
+                const rootIds = [...allIds].filter(id => !childIds.has(id));
+
+                function buildNode(id) {
+                    return {
+                        id,
+                        children: (childrenByParent[id] || []).map(buildNode)
+                    };
+                }
+                return rootIds.map(buildNode);
+            }
+
+            async layoutGraphWithHierarchy(graph) {
+                const hierarchyRoots = await this.buildHierarchy(graph);
+
+                const tree = d3.tree().nodeSize([70, 200]);
+                const positionedNodes = new Map();
+
+                hierarchyRoots.forEach((root, index) => {
+                    const rootHierarchy = d3.hierarchy(root, d => d.children);
+                    tree(rootHierarchy);
+
+                    const xOffset = index * 400;
+
+                    rootHierarchy.descendants().forEach(d => {
+                        positionedNodes.set(d.data.id, {
+                            x: d.y + xOffset,
+                            y: d.x
+                        });
+                    });
+                });
+
+                graph.nodes.forEach(node => {
+                    if (positionedNodes.has(node.id)) {
+                        const pos = positionedNodes.get(node.id);
+                        node.fx = pos.x;
+                        node.fy = pos.y;
+                    }
+                });
+
+                graph.nodes.forEach(node => {
+                    if (!node.x && !node.y) {
+                        const linked = graph.links.filter(l => l.source === node.id || l.target === node.id);
+                        const connected = linked.map(l =>
+                            l.source === node.id ? l.target : l.source
+                        ).filter(id => positionedNodes.has(id));
+
+                        if (connected.length > 0) {
+                            const avgX = d3.mean(connected.map(id => positionedNodes.get(id).x));
+                            const avgY = d3.mean(connected.map(id => positionedNodes.get(id).y));
+                            node.x = avgX + (Math.random() - 0.5) * 50;
+                            node.y = avgY + 100 + (Math.random() - 0.5) * 30;
+                        } else {
+                            node.x = Math.random() * 800;
+                            node.y = 800;
+                        }
+                    }
+                });
+            }
+
+            setupSimulation() {
+                this.graph.nodes.forEach(node => {
+                    if (node.fx !== undefined && node.fy !== undefined) {
+                        // Node already fixed by tree layout
+                    } else {
+                        delete node.fx;
+                        delete node.fy;
+                    }
+                });
+
+                this.simulation = d3.forceSimulation(this.graph.nodes)
+                    .force("link", d3.forceLink(this.graph.links)
+                        .id(d => d.id)
+                        .distance(d => {
+                            const isTreeLink = d.source.fx !== undefined || d.target.fx !== undefined;
+                            return isTreeLink ? 120 : 60;
+                        })
+                        .strength(0.7)
+                    )
+                    .force("charge", d3.forceManyBody().strength(-100))
+                    .force("center", d3.forceCenter(this.width / 2, this.height / 2))
+                    .force("collision", d3.forceCollide().radius(40));
+
+                this.simulation.on('end', () => {
+                    this.graph.nodes.forEach(n => {
+                        if (n.fx !== undefined) delete n.fx;
+                        if (n.fy !== undefined) delete n.fy;
+                    });
+                });
+            }
+
+            updatePositions() {
+                this.link
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y)
+                    .attr("d", d => `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`);
+
+                this.nodeGroup
+                    .attr("transform", d => `translate(${d.x},${d.y})`);
+
+                this.linkLabel
+                    .attr("transform", (d, i) => {
+                        const path = this.shadowRoot.querySelector(`#linkPath${i}`); // Use shadowRoot for path selection
+                        if (!path) return null;
+
+                        const pathLength = path.getTotalLength();
+                        const midPoint = path.getPointAtLength(pathLength / 2);
+
+                        const start = path.getPointAtLength(0);
+                        const end = path.getPointAtLength(pathLength);
+
+                        const angle = Math.atan2(end.y - start.y, end.x - start.x) * (180 / Math.PI);
+
+                        if (angle > 90 || angle < -90) {
+                            return `translate(${midPoint.x},${midPoint.y}) rotate(180) translate(${-midPoint.x},${-midPoint.y})`;
+                        } else {
+                            return null;
+                        }
+                    });
+            }
+
+            renderGraph() {
+                const tempText = this.svg.append("text").attr("font-size", "10px").attr("opacity", 0);
+                this.graph.links.forEach(link => {
+                    tempText.text(link.name);
+                    const bbox = tempText.node().getBBox();
+                    link._labelWidth = bbox.width;
+                });
+                tempText.remove();
+
+                this.setupSimulation();
+
+                const gZoom = this.svg.append("g").attr("class", "zoom-layer");
+
+                const zoom = d3.zoom()
+                    .scaleExtent([0.1, 5])
+                    .on("zoom", () => {
+                        gZoom.attr("transform", d3.event.transform);
+                    });
+
+                this.svg.call(zoom);
+
+                this.link = gZoom.append("g")
+                    .attr("class", "links")
+                    .selectAll("path")
+                    .data(this.graph.links)
+                    .enter()
+                    .append("path")
+                    .attr("id", (d, i) => `linkPath${i}`)
+                    .attr("stroke-width", 2)
+                    .attr("stroke", "#999")
+                    .attr("fill", "none")
+                    .attr("marker-end", "url(#arrowhead)")
+                    .attr("method", "align");
+
+                this.linkLabel = gZoom.append("g")
+                    .attr("class", "link-labels")
+                    .selectAll("text")
+                    .data(this.graph.links)
+                    .enter()
+                    .append("text")
+                    .attr("font-size", "10px")
+                    .attr("fill", "#555")
+                    .attr("text-anchor", "middle")
+                    .append("textPath")
+                    .attr("xlink:href", (d, i) => `#linkPath${i}`)
+                    .attr("startOffset", "50%")
+                    .text(d => d.name);
+
+                this.nodeGroup = gZoom.append("g")
+                    .attr("class", "nodes")
+                    .selectAll("g")
+                    .data(this.graph.nodes)
+                    .enter()
+                    .append("g")
+                    .style('cursor', 'grab')
+                    .call(d3.drag()
+                        .on("start", function (d) {
+                            if (d.fx !== null && d.fy !== null && d.fx !== undefined && d.fy !== undefined) {
+                                d._skipDrag = true;
+                                return;
+                            }
+                            d._skipDrag = false;
+                            if (!d3.event.active) this.simulation.alphaTarget(0.3).restart();
+                            d._wasFixed = false;
+                            d.fx = d.x;
+                            d.fy = d.y;
+                        }.bind(this))
+                        .on("drag", function (d) {
+                            if (d._skipDrag) return;
+                            d.fx = d3.event.x;
+                            d.fy = d3.event.y;
+                        })
+                        .on("end", function (d) {
+                            if (d._skipDrag) return;
+                            if (!d3.event.active) this.simulation.alphaTarget(0);
+                            d.fx = null;
+                            d.fy = null;
+                            delete d._wasFixed;
+                        }.bind(this))
+                    );
+
+                const colors = d3.scaleOrdinal(d3.schemeCategory10);
+                this.nodeGroup.each(function (d) {
+                    const group = d3.select(this);
+                    const text = group.append("text")
+                        .text(d.name)
+                        .attr("font-size", "10px")
+                        .attr("text-anchor", "middle")
+                        .attr("dominant-baseline", "middle");
+
+                    const textNode = text.node();
+                    const bbox = textNode.getBBox();
+                    const paddingX = 10;
+                    const paddingY = 6;
+
+                    group.insert("rect", "text")
+                        .attr("x", -bbox.width / 2 - paddingX / 2)
+                        .attr("y", -bbox.height / 2 - paddingY / 2)
+                        .attr("width", bbox.width + paddingX)
+                        .attr("height", bbox.height + paddingY)
+                        .attr("fill", d => colors(d.type))
+                        .attr("rx", 4)
+                        .attr("ry", 4);
+                });
+
+                this.simulation
+                    .nodes(this.graph.nodes)
+                    .on("tick", () => this.updatePositions());
+
+                this.simulation.force("link").links(this.graph.links);
+            }
+
+            setControls() {
+                const sliderGroup = this.svg.append("g").attr("class", "sliders");
+
+                const sliderWidth = 120;
+                const sliderX = 20;
+                let sliderY = this.height - 100;
+
+                const createSlider = (label, min, max, initial, step, onChange) => {
+                    const group = sliderGroup.append("g")
+                        .attr("transform", `translate(${sliderX}, ${sliderY})`);
+
+                    group.append("text")
+                        .text(`${label}: ${initial}`)
+                        .attr("x", 0)
+                        .attr("y", -10)
+                        .attr("font-size", "10px")
+                        .attr("class", `label-${label}`);
+
+                    group.append("line")
+                        .attr("x1", 0)
+                        .attr("x2", sliderWidth)
+                        .attr("y1", 0)
+                        .attr("y2", 0)
+                        .attr("stroke", "#ccc")
+                        .attr("stroke-width", 2);
+
+                    const handle = group.append("circle")
+                        .attr("cx", ((initial - min) / (max - min)) * sliderWidth)
+                        .attr("cy", 0)
+                        .attr("r", 6)
+                        .attr("fill", "#888")
+                        .style("cursor", "pointer")
+                        .call(d3.drag().on("drag", () => {
+                            let x = Math.max(0, Math.min(sliderWidth, d3.event.x));
+                            handle.attr("cx", x);
+
+                            const value = min + (x / sliderWidth) * (max - min);
+                            group.select(`text.label-${label}`)
+                                .text(`${label}: ${Math.round(value)}`);
+
+                            onChange(value);
+                        }));
+
+                    sliderY += 40;
+                };
+
+                createSlider("Charge", -300, -10, -50, 1, val => {
+                    this.simulation.force("charge").strength(val);
+                    this.simulation.alpha(1).restart();
+                });
+
+                createSlider("Distance", 10, 200, 10, 1, val => {
+                    this.simulation.force("link").distance(val);
+                    this.simulation.alpha(1).restart();
+                });
+
+                const buttonGroup = sliderGroup.append("g")
+                    .attr("transform", `translate(${sliderX}, ${sliderY - 15})`)
+                    .style("cursor", "pointer")
+                    .on("click", () => {
+                        let _this = this;
+                        this.simulation.force("charge").strength(this.defaultCharge);
+                        this.simulation.force("link").distance(this.defaultDistance);
+                        this.simulation.alpha(1).restart();
+
+                        sliderGroup.select("text.label-Charge").text(`Charge: ${this.defaultCharge}`);
+                        sliderGroup.select("text.label-Distance").text(`Distance: ${this.defaultDistance}`);
+
+                        sliderGroup.selectAll("g").each(function () {
+                            const text = d3.select(this).select("text").text();
+                            if (text.startsWith("Charge")) {
+                                d3.select(this).select("circle")
+                                    .attr("cx", ((_this.defaultCharge - (-300)) / (290)) * sliderWidth);
+                            } else if (text.startsWith("Distance")) {
+                                d3.select(this).select("circle")
+                                    .attr("cx", ((_this.defaultDistance - 10) / 190) * sliderWidth);
+                            }
+                        })
+                    });
+
+                buttonGroup.append("rect")
+                    .attr("width", 60)
+                    .attr("height", 20)
+                    .attr("rx", 4)
+                    .attr("ry", 4)
+                    .attr("fill", "#eee")
+                    .attr("stroke", "#aaa");
+
+                buttonGroup.append("text")
+                    .text("Reset")
+                    .attr("x", 30)
+                    .attr("y", 14)
+                    .attr("text-anchor", "middle")
+                    .attr("font-size", "10px");
+            }
+        }
+        customElements.define('kg-graph', KGGraphVis);
+
+        // Once the custom element is defined, set its TTL property
+        const graphElement = document.getElementById('myGraph');
+        graphElement.ttl = `@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix oa: <http://www.w3.org/ns/oa#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix diva: <http://example.org/diva#> . # Data, Interaction, Visualization, Analysis
+
+# Uses dcterms:title to define the name of entities (prov:Entity)
+
+# The target class is used to represent any visual element in the visualization that can be interacted with
+diva:Target a rdfs:Class ;
+    rdfs:label "Visual target"@en ;
+    rdfs:comment "The visual element in the visualization being interacted with (mark, glyph, axis, legend, etc.)."@en .
+
+# --- User ---
+# The User class is a subclass of prov:Agent
+
+diva:User a rdfs:Class ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:label "User"@en ;
+    rdfs:comment "The user interacting with the visualization."@en .
+
+# --- View ---
+# The View class is a subclass of prov:Entity
+# The View class is a subclass of diva:Target
+# Uses prov:wasAttributedTo from the PROV ontology to link the view to the user who created it
+diva:View a rdfs:Class ;
+    rdfs:subClassOf prov:Entity, diva:Target ;
+    rdfs:label "View" ;
+    rdfs:comment "A container for one or multiple visualization techniques." .
+
+diva:hasVisualization a rdf:Property ;
+    rdfs:domain diva:View ;
+    rdfs:range diva:Visualization ;
+    rdfs:label "has visualization" ;
+    rdfs:comment "Links a view to its visualizations." .
+
+diva:hasViewType a rdf:Property ;
+    rdfs:domain diva:View ;
+    rdfs:range rdfs:Literal ;
+    rdfs:label "has view type" ;
+    rdfs:comment "The type of view (e.g., dashboard, single view)." .
+
+
+# ----- Data -----
+# Classes
+# Uses all prov classes to describe the transformations in the data, if necessary
+# The DataPoint class is a subclass of prov:Entity
+# The DataPoint class is a subclass of diva:Target
+# Uses prov:wasAttributedTo from the PROV ontology to link to the user who created it
+
+diva:DataSource a rdfs:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Data Source" ;
+    rdfs:comment "The data feeding a visualization." .
+
+# Uses prov:associatedWith from the PROV ontology to link the data point to the data source it is associated with
+diva:DataRecord a rdfs:Class ;
+    rdfs:subClassOf prov:Entity, diva:Target ;
+    rdfs:label "Data Point"@en ;
+    rdfs:comment "An individual record of data linked to a visual mark. It can originate from various data formats (RDF, CSV, JSON)."@en .
+
+# Properties of the data source
+diva:url a rdf:Property ;
+    rdfs:domain diva:DataSource ;
+    rdfs:range rdfs:Literal ;
+    rdfs:label "url" ;
+    rdfs:comment "The URL where the data source can be found, including SPARQL endpoints and REST APIs" .
+
+diva:query a rdf:Property ;
+    rdfs:domain diva:DataSource ;
+    rdfs:range rdfs:Literal ;
+    rdfs:label "query" ;
+    rdfs:comment "The query used to retrieve the data from the data source." .
+
+diva:hasFilter a rdf:Property ;
+    rdfs:domain diva:DataSource ;
+    rdfs:range diva:Attribute ;
+    rdfs:label "filter" ;
+    rdfs:comment "The filter applied to the dataset to retrieve the input data." .
+
+# Properties of the data point
+diva:hasRawContent a rdf:Property ;
+    rdfs:domain diva:DataRecord ;
+    rdfs:range rdf:langString ;
+    rdfs:label "Raw Content"@en ;
+    rdfs:comment "A raw string content representing the data point, e.g., a JSON object, a CSV row, or a serialized RDF snippet."@en .
+
+diva:hasExternalReference a rdf:Property ;
+    rdfs:domain diva:DataRecord ;
+    rdfs:label "External Reference"@en ;
+    rdfs:comment "A pointer (URI, file path, ID) to the actual data point, in external data sources."@en .
+
+diva:hasAttribute a rdf:Property ;
+    rdfs:domain diva:DataRecord ;
+    rdfs:range diva:Attribute ;
+    rdfs:label "has attribute (key-value)"@en ;
+    rdfs:comment "A key-value pair describing an attribute of the data point."@en .
+
+diva:Attribute a rdfs:Class ;
+    rdfs:label "Key-Value Pair"@en ;
+    rdfs:comment "Represents an attribute of the data point using a key and a value."@en .
+
+diva:key a rdf:Property ;
+    rdfs:domain diva:Attribute ;
+    rdfs:range xsd:string ;
+    rdfs:label "Key"@en .
+
+diva:value a rdf:Property ;
+    rdfs:domain diva:Attribute ;
+    rdfs:range rdfs:Literal ;
+    rdfs:label "Value"@en .
+
+
+
+# ---- Visualization ----
+# Classes to describe a visualization technique based on the Vega-Lite grammar
+
+# Uses prov:wasAttributedTo from the PROV ontology to link the visualization to the user (prov:Agent) who created it
+# Uses prov:wasGeneratedBy from the PROV ontology to link the visualization to the interaction (prov:Activity) that generated it
+# Uses prov:wasDerivedFrom from the PROV ontology to link the visualization to the view (prov:Entity) that contains it
+# Uses dcterms:title to describe the title of the visualization
+diva:Visualization a rdfs:Class ;
+    rdfs:subClassOf prov:Entity, diva:Target ;
+    rdfs:label "Visualization" ;
+    rdfs:comment "A Vega-Lite visualization specification." .
+
+diva:Mark a rdfs:Class ;
+    rdfs:subClassOf prov:Entity, diva:Target ;
+    rdfs:label "Mark" ;
+    rdfs:comment "The graphical mark type used to plot the data (e.g., point, bar)." .
+
+diva:Encoding a rdfs:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Encoding" ;
+    rdfs:comment "An association between a data field and a visual channel." .
+
+diva:Field a rdfs:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Field" ;
+    rdfs:comment "A field (attribute) from the data source." .
+
+diva:Channel a rdfs:Class ;
+    rdfs:subClassOf prov:Entity, diva:Target ;
+    rdfs:label "Channel" ;
+    rdfs:comment "A visual channel such as x-position, y-position, color, size, etc." .
+
+diva:Legend a rdfs:Class ;
+    rdfs:subClassOf prov:Entity, diva:Target ;
+    rdfs:label "Legend" ;
+    rdfs:comment "A legend that provides information about the visual encoding." .
+
+## Object Properties
+
+diva:hasType a rdf:Property ;
+    rdfs:domain diva:Visualization ;
+    rdfs:range rdfs:Literal ;
+    rdfs:label "has visualization type" ;
+    rdfs:comment "The type of visualization (e.g., bar chart, line chart)." .
+
+diva:hasDataSource a rdf:Property ;
+    rdfs:domain diva:Visualization ;
+    rdfs:range diva:DataSource ;
+    rdfs:label "has data source" ;
+    rdfs:comment "Links a visualization to its data source." .
+
+diva:hasMark a rdf:Property ;
+    rdfs:domain diva:Visualization ;
+    rdfs:range diva:Mark ;
+    rdfs:label "has mark" ;
+    rdfs:comment "Links a visualization to its mark type." .
+
+diva:hasEncoding a rdf:Property ;
+    rdfs:domain diva:Visualization ;
+    rdfs:range diva:Encoding ;
+    rdfs:label "has encoding" ;
+    rdfs:comment "Links a visualization to its encodings." .
+
+diva:hasLegend a rdf:Property ;
+    rdfs:domain diva:Visualization ;
+    rdfs:range diva:Legend ;
+    rdfs:label "has legend" ;
+    rdfs:comment "Links a visualization to its legend." .
+
+# Links a legend to the encoding it represents in the visualization
+diva:hasLegendEncoding a rdf:Property ;
+    rdfs:domain diva:Legend ;
+    rdfs:range diva:Encoding ;
+    rdfs:label "has legend encoding"@en ;
+    rdfs:comment "Links a legend to the encoding it represents in the visualization."@en .
+
+diva:hasChannel a rdf:Property ;
+    rdfs:domain diva:Encoding ;
+    rdfs:range diva:Channel ;
+    rdfs:label "has channel" ;
+    rdfs:comment "Links an encoding to a visual channel." .
+
+diva:hasScale a rdf:Property ;
+    rdfs:domain diva:Encoding ;
+    rdfs:range diva:Scale ;
+    rdfs:label "has scale" ;
+    rdfs:comment "Links an encoding to a scale." .
+
+diva:hasField a rdf:Property ;
+    rdfs:domain diva:Channel ;  
+    rdfs:range diva:Field ;   
+    rdfs:label "has field"@en ;
+    rdfs:comment "Links a visual channel to a data field."@en .
+
+diva:markType a rdf:Property ;
+    rdfs:domain diva:Mark ;
+    rdfs:range rdfs:Literal ;
+    rdfs:label "mark type" ;
+    rdfs:comment "The type of mark (e.g., point, bar, line)." .
+
+diva:channelName a rdf:Property ;
+    rdfs:domain diva:Channel ;
+    rdfs:range rdfs:Literal ;
+    rdfs:label "channel name" ;
+    rdfs:comment "The name of the visual channel (e.g., x, y, color)." .
+
+diva:fieldName a rdf:Property ;
+    rdfs:domain diva:Field ;
+    rdfs:range rdfs:Literal ;
+    rdfs:label "field name" ;
+    rdfs:comment "The name of the field in the data source." .
+
+diva:fieldType a rdf:Property ;
+    rdfs:domain diva:Field ;
+    rdfs:range rdfs:Literal ;
+    rdfs:label "field type" ;
+    rdfs:comment "The type of the field (e.g., quantitative, nominal)." .
+
+diva:fieldValue a rdf:Property ;
+    rdfs:domain diva:Field ;  
+    rdfs:range rdfs:Literal ;   
+    rdfs:label "has value"@en ;
+    rdfs:comment "Links a visual channel to a value."@en .
+
+### Specific channels for graphs
+diva:sourceNode a diva:Field ;
+    rdfs:label "source node" ;
+    rdfs:comment "The field specifying the source node of a link." .
+
+diva:targetNode a diva:Field ;
+    rdfs:label "target node" ;
+    rdfs:comment "The field specifying the target node of a link." .
+
+diva:link a diva:Field ;
+    rdfs:label "link" ;
+    rdfs:comment "The field specifying the links." .
+
+
+diva:hasScale a rdf:Property ;
+    rdfs:domain diva:Encoding ;
+    rdfs:range rdfs:Literal ;
+    rdfs:label "Scale Type"@en ;
+    rdfs:comment "The type of scale (e.g., linear, log) used for this encoding."@en .
+
+diva:hasStack a rdf:Property ;
+    rdfs:domain diva:Channel ;     
+    rdfs:range rdfs:Literal ;
+    rdfs:label "stack type"@en ;
+    rdfs:comment "Defines the stacking behavior (e.g., 'zero', 'normalize', 'none') for the given channel (e.g. x-position, y-position). "@en .
+
+# Specifies the type of the legend (e.g., color, size, shape)
+diva:legendType a rdf:Property ;
+    rdfs:domain diva:Legend ;
+    rdfs:range rdfs:Literal ;
+    rdfs:label "legend type"@en ;
+    rdfs:comment "Specifies the type of legend (e.g., color, size, shape)."@en .
+
+
+# ----- Adjustable Visual Encoding -----
+# Node distance for graph visualization
+diva:nodeDistance a rdf:Property ;
+    rdfs:domain diva:Encoding ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "Node Distance"@en ;
+    rdfs:comment "The distance between nodes in a graph visualization, relevant for layout configurations."@en .
+
+# Gravity for force-directed layouts
+diva:gravity a rdf:Property ;
+    rdfs:domain diva:Encoding ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "Gravity"@en ;
+    rdfs:comment "The gravity factor for graph layouts, affecting how nodes are pulled towards the center."@en .
+
+# Repulsion for force-directed layouts
+diva:repulsion a rdf:Property ;
+    rdfs:domain diva:Encoding ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "Repulsion"@en ;
+    rdfs:comment "The repulsion factor for graph layouts, affecting how nodes are pulled away from each other."@en .
+
+diva:linkDistance a rdf:Property ;
+    rdfs:domain diva:Encoding ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "Link Distance"@en ;
+    rdfs:comment "The distance between linked nodes in a graph visualization."@en .
+
+diva:Aggregation a rdfs:Class ;
+    rdfs:subClassOf diva:Encoding ;
+    rdfs:label "Aggregation"@en ;
+    rdfs:comment "The aggregation function applied to the data before representation (e.g., count, sum, average, proportion)."@en .
+
+diva:aggregationField a rdf:Property ;
+    rdfs:domain diva:Aggregation ;
+    rdfs:range xsd:string ;
+    rdfs:label "Field of aggregation"@en ;
+    rdfs:comment "The field to which the aggregation is applied."@en .
+
+diva:aggregationFunction a rdf:Property ;
+    rdfs:domain diva:Aggregation ;
+    rdfs:range xsd:string ;
+    rdfs:label "Aggregation function"@en ;
+    rdfs:comment "The aggregation function applied to the data (e.g., count, sum, average)."@en .
+
+
+# ----- Link interactions to adjustable encoding -----
+diva:changedByInteraction a rdf:Property ;
+    rdfs:domain diva:Encoding ;
+    rdfs:range diva:Interaction ;
+    rdfs:label "Changed By Interaction"@en ;
+    rdfs:comment "Links a visualization characteristic (e.g., scale, node distance) to the interaction that triggered the change (e.g., click, slider)."@en .
+
+# ----- Interaction -----
+# Classes
+
+# An interaction is a sub-class of prov:Activity 
+# Uses prov:startedAtTime from the PROV ontology to link the interaction to the time it started
+# Uses prov:endedAtTime from the PROV ontology to link the interaction to the time it ended
+# Uses prov:wasAssociatedWith from the PROV ontology to link the interaction to the user who created it
+diva:Interaction a rdfs:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "User Interaction"@en .
+
+## Specific interaction types
+## The interaction types are sub-classes of diva:Interaction
+## Each interaction describes a specific user action in the visualization; the physical action (e.g. click, hover) is defined by the developer and does not need to be specified in the ontology
+
+# High-level interactions
+diva:StartExploration a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Start of Exploration"@en ;
+    rdfs:comment "An interaction that marks the beginning of a visual exploration session, such as opening a visualization or loading initial data."@en .
+
+diva:CreateAnnotation a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Create Annotation"@en ;
+    rdfs:comment "User creates and associates an annotation with the visualization."@en .
+
+diva:CreateVisualization a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Create Visualization"@en ;
+    rdfs:comment "User creates a new visualization."@en .
+
+diva:UpdateVisualization a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Update Visualization"@en ;
+    rdfs:comment "User updates an existing visualization."@en .
+
+diva:DeleteVisualization a rdfs:Class ;         
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Delete Visualization"@en ;
+    rdfs:comment "User deletes a visualization."@en .
+
+diva:DownloadVisualization a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Download Visualization"@en ;
+    rdfs:comment "User downloads a visualization."@en .
+
+diva:UnknownInteraction a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Unknown Interaction"@en ;
+    rdfs:comment "An interaction that does not fit into any specific category."@en .
+
+# Low-level interactions (e.g., mouse events)
+diva:ContextMenu a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Context Menu"@en ;
+    rdfs:comment "User attempts to open a context menu. This event is typically triggered by clicking the right mouse button, or by pressing the context menu key."@en .
+
+diva:Drag a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Drag"@en ;
+    rdfs:comment "User drags a visualization element."@en .
+
+diva:Drop a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Drop"@en ;
+    rdfs:comment "User drops a visualization element."@en .
+
+diva:Zoom a rdfs:Class ;    
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Zoom"@en ;
+    rdfs:comment "User zooms in or out of a visualization."@en .
+
+diva:Pan a rdfs:Class ;   
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Pan"@en ;
+    rdfs:comment "User pans the visualization."@en .    
+
+diva:Scroll a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Scroll"@en ;
+    rdfs:comment "User scrolls the visualization."@en .
+
+diva:Select a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Select"@en ;
+    rdfs:comment "User selects a visualization element."@en .
+
+diva:Unselect a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Unselect"@en ;
+    rdfs:comment "User unselects a visualization element."@en .
+
+diva:Filter a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Filter"@en ;
+    rdfs:comment "User filters the data in the visualization."@en .
+
+diva:Tooltip a rdfs:Class ; 
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Tooltip"@en ;
+    rdfs:comment "User displays a tooltip with additional information."@en .
+
+diva:Highlight a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Highlight"@en ;
+    rdfs:comment "User highlights a visualization element."@en .
+
+diva:FocusPlusContext a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Focus Plus Context"@en ;
+    rdfs:comment "User focuses on a specific part of the visualization while maintaining context."@en .
+
+diva:Brushing a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Brushing"@en ;
+    rdfs:comment "User selects a range of data points in the visualization."@en .
+
+diva:Link a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Link"@en ;
+    rdfs:comment "User links two or more visualization elements."@en .
+
+diva:TimeAnimation a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Time Animation"@en ;
+    rdfs:comment "User animates a visualization element over time."@en .
+
+diva:SpaceLinking a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Space Animation"@en ;
+    rdfs:comment "User animates a visualization element in space."@en .
+
+diva:EncodingInteraction a rdfs:Class ;
+    rdfs:subClassOf diva:Interaction ;
+    rdfs:label "Encoding Interaction"@en ;
+    rdfs:comment "An interaction that changes the visual encoding of data, such as the aggregation method or scale."@en .
+
+## Properties
+diva:hasTarget a rdf:Property ;
+    rdfs:subPropertyOf prov:used ;
+    rdfs:domain diva:Interaction ;
+    rdfs:range diva:Target ;
+    rdfs:label "Target"@en ;
+    rdfs:comment "The target of the interaction, i.e., the visual element from the visualization being interacted with."@en .
+
+diva:hasIntent a rdf:Property ;
+    rdfs:domain diva:Interaction ;
+    rdfs:range oa:Annotation ;
+    rdfs:label "Intent"@en ;
+    rdfs:comment "The motivation behind the interaction, based on the Open Annotation vocabulary."@en .
+
+diva:hasDataRecord a rdf:Property ;
+    rdfs:domain diva:Interaction ;
+    rdfs:range diva:DataRecord ;
+    rdfs:label "Data Record"@en ;
+    rdfs:comment "The data record corresponding to the visual mark of the interaction, when data is binded."@en .
+
+diva:hasPositionX a rdf:Property ;
+    rdfs:domain diva:Interaction ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "Interaction X Position"@en ;
+    rdfs:comment "Position of the interaction on the X-axis for all interaction types."@en .
+
+diva:hasPositionY a rdf:Property ;
+    rdfs:domain diva:Interaction ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "Interaction Y Position"@en ;
+    rdfs:comment "Position of the interaction on the Y-axis for all interaction types."@en .
+
+diva:appliesAggregation a rdf:Property ;
+    rdfs:domain diva:EncodingInteraction ;
+    rdfs:range diva:Aggregation ;
+    rdfs:label "Changes Aggregation"@en ;
+    rdfs:comment "Specifies the aggregation function selected by the user, such as count or proportion."@en .
+
+diva:appliesMetric a rdf:Property ;
+    rdfs:domain diva:EncodingInteraction ;
+    rdfs:range diva:Field ;
+    rdfs:label "Changes Metric"@en ;
+    rdfs:comment "Specifies the metric selected by the user for the visualization."@en .
+
+diva:appliesFilter a rdf:Property ;
+    rdfs:domain diva:Interaction ;
+    rdfs:range diva:Attribute ;
+    rdfs:label "Changes Filter"@en ;
+    rdfs:comment "Specifies the filter applied to the data source."@en .
+
+diva:interactsWithVisualization a rdf:Property ;
+    rdfs:domain diva:Interaction ;
+    rdfs:range diva:Visualization ;
+    rdfs:label "Interacts With Visualization"@en ;
+    rdfs:comment "Links an interaction to the visualization it interacts with."@en .
+
+# --- Inrteraction settings ---
+# The InteractionSetting class is a subclass of prov:Entity 
+# The InteractionSetting class is a subclass of diva:Target
+# Uses prov:wasAttributedTo from the PROV ontology to link the interaction setting to the user who created it
+# Uses prov:wasDerivedFrom from the PROV ontology to link the interaction setting to the visualization it is associated with
+# Uses prov:wasGeneratedBy from the PROV ontology to link the interaction setting to the interaction that generated it
+diva:InteractionSetting a rdfs:Class ;
+    rdfs:label "Interaction Setting"@en ;
+    rdfs:comment "Configuration settings that enable or disable interaction modes in the visualization."@en .
+
+# Property linking a visualization to interaction settings
+diva:hasInteractionSetting a rdf:Property ;
+    rdfs:domain diva:Visualization ;
+    rdfs:range diva:InteractionSetting ;
+    rdfs:label "Has Interaction Setting"@en ;
+    rdfs:comment "Specifies the interaction settings associated with the visualization."@en .
+
+diva:changeInteractionSetting a rdf:Property ;
+    rdfs:domain diva:Interaction ;
+    rdfs:range diva:InteractionSetting ;
+    rdfs:label "Change Interaction Setting"@en ;
+    rdfs:comment "Links an interaction to the interaction setting it changes."@en .
+
+# Boolean properties
+diva:zoomAllowed a rdf:Property ;
+    rdfs:domain diva:InteractionSetting ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "Zoom Allowed"@en ;
+    rdfs:comment "Indicates whether zoom interaction is allowed."@en .
+
+diva:timeAnimationAllowed a rdf:Property ;
+    rdfs:domain diva:InteractionSetting ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "Time Animation Allowed"@en ;
+    rdfs:comment "Indicates whether time animation is allowed."@en .
+
+diva:spaceLinkingAllowed a rdf:Property ;
+    rdfs:domain diva:InteractionSetting ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "Space Selection Allowed"@en ;
+    rdfs:comment "Indicates whether space selection is allowed. For instance, clicking on a spatial location in a map to highlight the corresponding data in the visualization."@en .
+
+diva:isDisplayed a rdf:Property ;
+    rdfs:domain diva:InteractionSetting ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "Is Displayed"@en ;
+    rdfs:comment "Indicates whether the visualization is displayed in the view. Particularly useful in multiple views dashboards, where visualizations and/or views can be hidden."@en .
+
+
+
+# ----- Annotations (for capturing user intentions and insights) -----
+# Class
+# Uses oa:hasBody from the Open Annotation ontology to link the annotation to the content (text, image, etc.) that is being annotated
+# Uses prov:wasAttributedTo from the PROV ontology to link the annotation to the user who created it
+# Uses prov:wasGeneratedBy from the PROV ontology to link the annotation to the interaction that generated it
+oa:Annotation rdfs:subClassOf prov:Entity .
+
+# Properties
+diva:hasVisualTarget a rdf:Property ;
+    rdfs:subPropertyOf oa:hasTarget ;
+    rdfs:domain oa:Annotation ;
+    rdfs:range diva:Target ; 
+    rdfs:label "Target"@en ;
+    rdfs:comment "The target of the annotation, i.e., the visual element from the visualization being annotated."@en .
+
+diva:hasAnnotationType a rdf:Property ;
+    rdfs:domain oa:Annotation ;
+    rdfs:range xsd:string ;
+    rdfs:label "Annotation Type"@en ;
+    rdfs:comment "The type of the annotation, such as 'comment', 'highlight', 'note', etc."@en .`;
+    </script>
+</body>
+
+</html>

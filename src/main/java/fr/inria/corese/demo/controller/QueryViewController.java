@@ -3,7 +3,9 @@ package fr.inria.corese.demo.controller;
 
 import fr.inria.corese.demo.enums.icon.IconButtonBarType;
 import fr.inria.corese.demo.enums.icon.IconButtonType;
+import fr.inria.corese.demo.view.rule.CustomPagination;
 import fr.inria.corese.demo.factory.popup.DocumentationPopup;
+import fr.inria.corese.demo.factory.popup.TemplatePopup;
 import fr.inria.corese.demo.manager.ApplicationStateManager;
 import fr.inria.corese.demo.view.CustomButton;
 import javafx.collections.ListChangeListener;
@@ -30,6 +32,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.Node;
 import javafx.geometry.Pos;
 import javafx.scene.layout.HBox;
+import javafx.stage.Stage;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
 
@@ -83,7 +86,7 @@ public class QueryViewController {
     private Button newTabButtonEmptyState;
 
     // Pagination-related fields
-    private Pagination pagination;
+    private CustomPagination customPagination;
     private TextField rowsPerPageField;
     private int rowsPerPage = 0; // default
     private List<String[]> allRows = new ArrayList<>();
@@ -141,9 +144,16 @@ public class QueryViewController {
         List<IconButtonType> buttons = new ArrayList<>();
         buttons.add(IconButtonType.OPEN_FILE);
         buttons.add(IconButtonType.DOCUMENTATION);
+        buttons.add(IconButtonType.TEMPLATE);
         topBar.addLeftButtons(buttons);
 
         topBar.getButton(IconButtonType.OPEN_FILE).setOnAction(e -> onOpenFilesButtonClick());
+        topBar.getButton(IconButtonType.TEMPLATE).setOnAction(e -> {
+            Stage stage = (Stage) mainBorderPane.getScene().getWindow();
+            TemplatePopup.show(stage, sql -> {
+                tabEditorController.addNewTab("untitled", sql);
+            });
+        });
         topBar.getButton(IconButtonType.DOCUMENTATION).setOnAction(e -> {
             try {
                 if (hostServices != null) {
@@ -285,10 +295,9 @@ public class QueryViewController {
         resultTable = new TableView<>();
 
         // --- Pagination controls ---
-        pagination = new Pagination();
-        pagination.setPageFactory(this::createPage);
-        pagination.setVisible(false);
-        pagination.setManaged(false);
+        customPagination = new CustomPagination(1, this::updateTableForPage);
+        customPagination.setVisible(false);
+        customPagination.setManaged(false);
 
         rowsPerPageField = new TextField(String.valueOf(rowsPerPage));
         rowsPerPageField.setPrefWidth(60);
@@ -328,7 +337,7 @@ public class QueryViewController {
 
         controlsPane.getChildren().addAll(perPageLabel, rowsPerPageField, spacer, rightAlignedBox);
 
-        VBox tableBox = new VBox(5, controlsPane, resultTable, pagination);
+        VBox tableBox = new VBox(5, controlsPane, resultTable, customPagination);
         VBox.setVgrow(resultTable, Priority.ALWAYS);
         tableTab.setContent(tableBox);
     }
@@ -370,7 +379,7 @@ public class QueryViewController {
         Platform.runLater(() -> {
             if (mainSplitPane != null) {
                 mainSplitPane.setDividerPosition(0, 0.6);
-                
+
             }
         });
     }
@@ -381,8 +390,13 @@ public class QueryViewController {
      * Updates the results view according to the query type.
      * In case of an error, logs the error message and displays an alert.
      */
+    /**
+     * Executes the query currently selected in the tab editor.
+     * Logs the query content and execution result.
+     * Updates the results view according to the query type.
+     * In case of an error, logs the error message and displays an alert.
+     */
     public void executeQuery() {
-
         if (rowsPerPage <= 0) {
             rowsPerPage = 10;
             if (rowsPerPageField != null) {
@@ -421,7 +435,7 @@ public class QueryViewController {
                             case "CONSTRUCT":
                             case "DESCRIBE":
                                 lastSelectMappings = null;
-                                updateGraphView(formattedResult);
+                                handleGraphResult(formattedResult, queryType);
                                 resultsTabPane.getSelectionModel().select(graphTab);
                                 break;
                             case "ASK":
@@ -459,6 +473,12 @@ public class QueryViewController {
         tabEditorController.getModel().addTabModel(tab, codeEditorController);
         codeEditorController.getView().displayRunButton();
         configureEditorRunButton(codeEditorController);
+
+        // Mark as unsaved if content is provided (i.e., not a blank new tab)
+        if (content != null && !content.isEmpty()) {
+            codeEditorController.getModel().setCurrentSavedContent("");
+            codeEditorController.getModel().setContent(content); // This will trigger the listener and set modified=true
+        }
 
         return tab;
     }
@@ -530,32 +550,18 @@ public class QueryViewController {
         }
 
         if (allRows.isEmpty() || rowsPerPage <= 0) {
-            pagination.setVisible(false);
-            pagination.setManaged(false);
-            pagination.setPageCount(0);
+            customPagination.setVisible(false);
+            customPagination.setManaged(false);
+            customPagination.setPageCount(1);
             return;
         }
-
         int pageCount = (int) Math.ceil((double) allRows.size() / rowsPerPage);
-
-        if (pageCount <= 1) {
-            pagination.setVisible(false);
-            pagination.setManaged(false);
-            pagination.setPageCount(0);
-        } else {
-            pagination.setVisible(true);
-            pagination.setManaged(true);
-            pagination.setPageCount(pageCount);
-        }
-
-        pagination.setCurrentPageIndex(0);
+        customPagination.setPageCount(pageCount);
+        customPagination.setVisible(pageCount > 1);
+        customPagination.setManaged(pageCount > 1);
+        customPagination.setCurrentPageIndex(0);
         updateTableForPage(0);
 
-        if (paginationListener != null) {
-            pagination.currentPageIndexProperty().removeListener(paginationListener);
-        }
-        paginationListener = (obs, oldIndex, newIndex) -> updateTableForPage(newIndex.intValue());
-        pagination.currentPageIndexProperty().addListener(paginationListener);
     }
 
     /**
@@ -576,12 +582,82 @@ public class QueryViewController {
         resultTable.getItems().setAll(allRows.subList(fromIndex, toIndex));
     }
 
+    /**
+     * Loads the knowledge graph visualization HTML file and initializes it with the
+     * provided TTL data.
+     * 
+     * @param ttlData The TTL data to visualize as a knowledge graph
+     */
+    public void loadKnowledgeGraphVisualization(String ttlData) {
+        stateManager.addLogEntry("Loading knowledge graph visualization");
+
+        Platform.runLater(() -> {
+            try {
+                // Get the path to the index.html file in resources
+                String htmlPath = getClass().getResource("/web/index.html").toExternalForm();
+
+                // Load the HTML file in the WebView
+                graphView.getEngine().load(htmlPath);
+
+                // Wait for the page to load, then set the TTL data
+                graphView.getEngine().getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+                    if (newState == javafx.concurrent.Worker.State.SUCCEEDED) {
+                        // Execute JavaScript to set the TTL data to the KG-Graph component
+                        String escapedTtl = ttlData.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n");
+                        String script = "document.getElementById('myGraph').ttl = '" + escapedTtl + "';";
+                        graphView.getEngine().executeScript(script);
+
+                        // Select the graph tab to show the visualization
+                        resultsTabPane.getSelectionModel().select(graphTab);
+                    }
+                });
+            } catch (Exception e) {
+                stateManager.addLogEntry("Error loading knowledge graph visualization: " + e.getMessage());
+                e.printStackTrace();
+                graphView.getEngine()
+                        .loadContent("<html><body><h2>Error loading knowledge graph visualization</h2><p>" +
+                                e.getMessage().replace("<", "&lt;").replace(">", "&gt;") + "</p></body></html>");
+            }
+        });
+    }
+
+    /**
+     * Updates the graph view with HTML content.
+     * 
+     * This method renders the provided HTML content directly in the WebView
+     * without wrapping it in pre tags, allowing proper rendering of HTML elements.
+     * 
+     * @param content The HTML content to display in the graph view.
+     */
     private void updateGraphView(String content) {
         Platform.runLater(() -> {
-            graphView.getEngine().loadContent(
-                    String.format("<html><body><pre>%s</pre></body></html>",
-                            content.replace("<", "&lt;").replace(">", "&gt;")));
+            // Load the HTML content directly without wrapping it in pre tags
+            graphView.getEngine().loadContent(content);
         });
+    }
+
+    /**
+     * Handles the result of CONSTRUCT and DESCRIBE queries by determining
+     * whether to display it as a knowledge graph or as regular HTML.
+     * 
+     * @param formattedResult The formatted result from the query execution
+     * @param queryType       The type of query executed
+     */
+    private void handleGraphResult(String formattedResult, String queryType) {
+        if (queryType.equals("CONSTRUCT") || queryType.equals("DESCRIBE")) {
+            // For CONSTRUCT and DESCRIBE queries, we can visualize the result as a
+            // knowledge graph
+            if (formattedResult.trim().startsWith("@prefix") || formattedResult.trim().startsWith("<")) {
+                // This looks like TTL data, use the knowledge graph visualization
+                loadKnowledgeGraphVisualization(formattedResult);
+            } else {
+                // This might be HTML or another format, use the regular graph view
+                updateGraphView(formattedResult);
+            }
+        } else {
+            // For other query types, use the regular graph view
+            updateGraphView(formattedResult);
+        }
     }
 
     /**
@@ -655,12 +731,26 @@ public class QueryViewController {
         message.setStyle("-fx-font-size: 16px; -fx-text-alignment: center;");
 
         newTabButtonEmptyState = new Button("New Query");
-        newTabButtonEmptyState.setOnAction(e -> tabEditorController.addNewTab("unt"));
+        newTabButtonEmptyState.setTooltip(new Tooltip("CTRL + N"));
 
         loadQueryButton = new Button("Load Query");
+        loadQueryButton.setTooltip(new Tooltip("CTRL + O"));
+
+        // Declare and initialize the Templates button
+        Button templateSelectionButton = new Button("Templates");
+        templateSelectionButton
+                .setTooltip(new Tooltip("CTRL + T"));
+        templateSelectionButton.setOnAction(e -> {
+            Stage stage = (Stage) mainBorderPane.getScene().getWindow();
+            fr.inria.corese.demo.factory.popup.TemplatePopup.show(stage, sql -> {
+                tabEditorController.addNewTab("untitled", sql);
+            });
+        });
+
+        newTabButtonEmptyState.setOnAction(e -> tabEditorController.addNewTab("untitled", ""));
         loadQueryButton.setOnAction(e -> onOpenFilesButtonClick());
 
-        HBox buttonBox = new HBox(10, newTabButtonEmptyState, loadQueryButton);
+        HBox buttonBox = new HBox(10, newTabButtonEmptyState, loadQueryButton, templateSelectionButton);
         buttonBox.setAlignment(Pos.CENTER);
 
         emptyBox.getChildren().addAll(icon, message, buttonBox);
@@ -704,7 +794,7 @@ public class QueryViewController {
                         onOpenFilesButtonClick();
                         event.consume();
                     } else if (new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN).match(event)) {
-                        tabEditorController.addNewTab("untitled");
+                        tabEditorController.addNewTab("untitled", "");
                         event.consume();
                     } else if (new KeyCodeCombination(KeyCode.W, KeyCombination.CONTROL_DOWN).match(event)) {
                         // Ctrl+W: Close current tab (except the Add Tab)
@@ -715,6 +805,12 @@ public class QueryViewController {
                                 tabPane.getTabs().remove(selectedTab); // Remove tab if allowed
                             }
                         }
+                        event.consume();
+                    } else if (new KeyCodeCombination(KeyCode.T, KeyCombination.CONTROL_DOWN).match(event)) {
+                        Stage stage = (Stage) mainBorderPane.getScene().getWindow();
+                        TemplatePopup.show(stage, sql -> {
+                            tabEditorController.addNewTab("untitled", sql);
+                        });
                         event.consume();
                     }
                 });

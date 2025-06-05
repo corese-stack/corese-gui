@@ -51,7 +51,7 @@ public class TabEditorController {
 
         // Configurer le bouton "+" pour créer un nouvel onglet
         view.getAddTabButton().setOnAction(e -> {
-            addNewTab("Untitled");
+            addNewTab("Untitled", "");
         });
     }
 
@@ -80,7 +80,7 @@ public class TabEditorController {
 
         tab.setOnCloseRequest(event -> {
             event.consume();
-            if (handleCloseFile(tab)) { 
+            if (handleCloseFile(tab)) {
                 view.getTabPane().getTabs().remove(tab);
             }
         });
@@ -90,8 +90,10 @@ public class TabEditorController {
         });
     }
 
-    public void addNewTab(String title) {
-        addNewTabHelper(title, "", null);
+    // Add this method to TabEditorController, below the existing addNewTab(String
+    // title)
+    public void addNewTab(String title, String content) {
+        addNewTabHelper(title, content, null);
     }
 
     private void initializeKeyboardShortcuts() {
