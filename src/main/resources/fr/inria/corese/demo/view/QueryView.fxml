@@ -34,7 +34,7 @@
                                 <WebView fx:id="graphView"/>
                             </content>
                         </Tab>
-                        <Tab fx:id="xmlTab" text="XML" closable="false">
+                        <Tab fx:id="textTab" text="Text" closable="false">
                             <content>
                                 <BorderPane>
                                     <top>

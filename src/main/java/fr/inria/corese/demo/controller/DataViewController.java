@@ -2,6 +2,7 @@ package fr.inria.corese.demo.controller;
 
 import fr.inria.corese.demo.enums.icon.IconButtonType;
 import fr.inria.corese.demo.manager.ApplicationStateManager;
+import fr.inria.corese.demo.manager.RuleManager;
 import fr.inria.corese.demo.view.FileListView;
 import fr.inria.corese.demo.view.TopBar;
 import fr.inria.corese.demo.factory.popup.*;
@@ -25,20 +26,29 @@ import java.util.List;
  */
 public class DataViewController {
     private final ApplicationStateManager stateManager;
+    private final RuleManager ruleManager;
     private final PopupFactory popupFactory;
     private RuleViewController ruleViewController;
     private LogDialog logDialog;
     private FileListView fileListView;
 
     // FXML injected components
-    @FXML private HBox configActionBox;
-    @FXML private VBox fileListContainer;
-    @FXML private VBox rulesContainer;
-    @FXML private Label semanticElementsLabel;
-    @FXML private Label tripletLabel;
-    @FXML private Label graphLabel;
-    @FXML private Label rulesLoadedLabel;
-    @FXML private TopBar topBar;
+    @FXML
+    private HBox configActionBox;
+    @FXML
+    private VBox fileListContainer;
+    @FXML
+    private VBox rulesContainer;
+    @FXML
+    private Label semanticElementsLabel;
+    @FXML
+    private Label tripletLabel;
+    @FXML
+    private Label graphLabel;
+    @FXML
+    private Label rulesLoadedLabel;
+    @FXML
+    private TopBar topBar;
 
     /**
      * Constructor for the data view controller.
@@ -46,6 +56,7 @@ public class DataViewController {
     public DataViewController() {
         this.stateManager = ApplicationStateManager.getInstance();
         this.popupFactory = PopupFactory.getInstance();
+        this.ruleManager = stateManager.getRuleManager();
     }
 
     /**
@@ -57,12 +68,10 @@ public class DataViewController {
         // Set up top bar buttons
         topBar.addLeftButtons(List.of(
                 IconButtonType.OPEN_FILE,
-                IconButtonType.SAVE
-        ));
+                IconButtonType.SAVE));
 
         topBar.addRightButtons(List.of(
-                IconButtonType.LOGS
-        ));
+                IconButtonType.LOGS));
 
         // Set up button handlers
         topBar.setOnAction(IconButtonType.OPEN_FILE, this::handleOpenProject);
@@ -172,7 +181,24 @@ public class DataViewController {
         FileChooser fileChooser = new FileChooser();
         File file = fileChooser.showSaveDialog(null);
         if (file != null) {
-            stateManager.saveProject(file);
+            try {
+                stateManager.saveProject(file);
+
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Success");
+                alert.setHeaderText(null);
+                alert.setContentText("Project saved successfully!");
+                alert.showAndWait();
+
+            } catch (Exception e) {
+                System.err.println("Failed to save project: " + e.getMessage());
+                e.printStackTrace(); 
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Save Error");
+                alert.setHeaderText("Could not save the project.");
+                alert.setContentText("An error occurred: " + e.getMessage());
+                alert.showAndWait();
+            }
         }
     }
 
@@ -221,8 +247,7 @@ public class DataViewController {
     private void handleLoadFiles() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("TTL files", "*.ttl")
-        );
+                new FileChooser.ExtensionFilter("TTL files", "*.ttl"));
 
         // Get window from available components
         javafx.stage.Window window = null;
@@ -285,10 +310,11 @@ public class DataViewController {
 
         // Update statistics labels
         if (semanticElementsLabel != null) {
-            semanticElementsLabel.setText("Number of semantic elements loaded: " + stateManager.getSemanticElementsCount());
+            semanticElementsLabel
+                    .setText("Number of semantic elements loaded: " + stateManager.getSemanticElementsCount());
             tripletLabel.setText("Number of triplet: " + stateManager.getTripletCount());
             graphLabel.setText("Number of graph: " + stateManager.getGraphCount());
-            rulesLoadedLabel.setText("Number of rules loaded: " + stateManager.getLoadedRulesCount());
+            rulesLoadedLabel.setText("Number of rules loaded: " + ruleManager.getLoadedRulesCount());
         }
     }
 }

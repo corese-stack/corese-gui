@@ -2,6 +2,7 @@ package fr.inria.corese.demo.controller;
 
 import fr.inria.corese.demo.enums.icon.IconButtonType;
 import fr.inria.corese.demo.manager.ApplicationStateManager;
+import fr.inria.corese.demo.manager.RuleManager;
 import fr.inria.corese.demo.view.icon.IconButtonView;
 import fr.inria.corese.demo.view.rule.RuleItem;
 import fr.inria.corese.demo.view.rule.RuleView;
@@ -21,16 +22,21 @@ import java.util.*;
  */
 public class RuleViewController {
     private final ApplicationStateManager stateManager;
+    private final RuleManager ruleManager;
     private RuleView view;
     private final Map<String, RuleItem> ruleItems;
     private final PopupFactory popupFactory;
     private Runnable owlRLAction;
     private Runnable owlRLExtendedAction;
 
-    @FXML private VBox rdfsRulesContainer;
-    @FXML private VBox owlRulesContainer;
-    @FXML private VBox customRulesContainer;
-    @FXML private Button loadRuleButton;
+    @FXML
+    private VBox rdfsRulesContainer;
+    @FXML
+    private VBox owlRulesContainer;
+    @FXML
+    private VBox customRulesContainer;
+    @FXML
+    private Button loadRuleButton;
 
     /**
      * Constructor for the rule view controller.
@@ -39,6 +45,7 @@ public class RuleViewController {
         this.view = new RuleView();
         this.ruleItems = new HashMap<>();
         this.stateManager = ApplicationStateManager.getInstance();
+        this.ruleManager = stateManager.getRuleManager();
         this.popupFactory = PopupFactory.getInstance();
     }
 
@@ -51,7 +58,6 @@ public class RuleViewController {
         view = new RuleView();
         initializeRules();
 
-        // Set up custom rules container
         if (customRulesContainer != null) {
             Label noRulesLabel = new Label("No custom rules loaded");
             noRulesLabel.setStyle("-fx-font-style: italic; -fx-text-fill: #888888;");
@@ -59,7 +65,6 @@ public class RuleViewController {
             customRulesContainer.getChildren().add(noRulesLabel);
         }
 
-        // Set up load rule button
         if (loadRuleButton != null) {
             loadRuleButton.setOnAction(e -> handleLoadRuleFile());
         }
@@ -85,7 +90,6 @@ public class RuleViewController {
             addRuleItem(owlRulesContainer, "OWL Clean", true);
         }
 
-        // Update view with current state
         updateView();
     }
 
@@ -100,16 +104,14 @@ public class RuleViewController {
         // Update custom rules
         if (customRulesContainer != null) {
             // Get custom rules from state manager
-            List<File> customRules = new ArrayList<>(stateManager.getLoadedRules());
-
+            List<File> customRules = new ArrayList<>(ruleManager.getLoadedRuleFiles());
             // Filter out predefined rules
-            customRules.removeIf(rule ->
-                    rule.getName().equals("RDFS Subset") ||
-                            rule.getName().equals("RDFS RL") ||
-                            rule.getName().equals("OWL RL") ||
-                            rule.getName().equals("OWL RL Extended") ||
-                            rule.getName().equals("OWL RL Test") ||
-                            rule.getName().equals("OWL Clean"));
+            customRules.removeIf(rule -> rule.getName().equals("RDFS Subset") ||
+                    rule.getName().equals("RDFS RL") ||
+                    rule.getName().equals("OWL RL") ||
+                    rule.getName().equals("OWL RL Extended") ||
+                    rule.getName().equals("OWL RL Test") ||
+                    rule.getName().equals("OWL Clean"));
 
             // Display custom rules
             displayCustomRules(customRules);
@@ -126,13 +128,13 @@ public class RuleViewController {
 
             // Get rule state from state manager
             boolean isEnabled = switch (ruleName) {
-                case "RDFS Subset" -> stateManager.isRDFSSubsetEnabled();
-                case "RDFS RL" -> stateManager.isRDFSRLEnabled();
-                case "OWL RL" -> stateManager.isOWLRLEnabled();
-                case "OWL RL Extended" -> stateManager.isOWLRLExtendedEnabled();
-                case "OWL RL Test" -> stateManager.isOWLRLTestEnabled();
-                case "OWL Clean" -> stateManager.isOWLCleanEnabled();
-                default -> stateManager.isCustomRuleEnabled(ruleName);
+                case "RDFS Subset" -> ruleManager.isRDFSSubsetEnabled();
+                case "RDFS RL" -> ruleManager.isRDFSRLEnabled();
+                case "OWL RL" -> ruleManager.isOWLRLEnabled();
+                case "OWL RL Extended" -> ruleManager.isOWLRLExtendedEnabled();
+                case "OWL RL Test" -> ruleManager.isOWLRLTestEnabled();
+                case "OWL Clean" -> ruleManager.isOWLCleanEnabled();
+                default -> ruleManager.isCustomRuleEnabled(ruleName);
             };
 
             item.getCheckBox().setSelected(isEnabled);
@@ -142,8 +144,8 @@ public class RuleViewController {
     /**
      * Adds a rule item to a container.
      *
-     * @param container The container to add the rule item to
-     * @param ruleName The name of the rule
+     * @param container  The container to add the rule item to
+     * @param ruleName   The name of the rule
      * @param predefined Whether the rule is predefined
      */
     private void addRuleItem(VBox container, String ruleName, boolean predefined) {
@@ -163,8 +165,7 @@ public class RuleViewController {
     public void handleLoadRuleFile() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Rule files (*.rul)", "*.rul")
-        );
+                new FileChooser.ExtensionFilter("Rule files (*.rul)", "*.rul"));
 
         File selectedFile = fileChooser.showOpenDialog(rdfsRulesContainer.getScene().getWindow());
         if (selectedFile != null) {
@@ -173,7 +174,7 @@ public class RuleViewController {
                 stateManager.addLogEntry("Starting to load rule file: " + selectedFile.getName());
 
                 // Load rule file
-                stateManager.loadRuleFile(selectedFile);
+                ruleManager.loadRuleFile(selectedFile);
                 stateManager.addLogEntry("Rule file loaded successfully: " + selectedFile.getName());
 
                 // Show success notification
@@ -232,16 +233,16 @@ public class RuleViewController {
     private void handleRuleToggle(String ruleName, boolean selected) {
         switch (ruleName) {
             case "RDFS Subset":
-                stateManager.setRDFSSubsetEnabled(selected);
+                ruleManager.setRDFSSubsetEnabled(selected);
                 break;
             case "RDFS RL":
-                stateManager.setRDFSRLEnabled(selected);
+                ruleManager.setRDFSRLEnabled(selected);
                 break;
             case "OWL RL":
                 if (selected && owlRLAction != null) {
                     owlRLAction.run();
                 }
-                stateManager.setOWLRLEnabled(selected);
+                ruleManager.setOWLRLEnabled(selected);
                 // Save current state
                 stateManager.saveCurrentState();
                 break;
@@ -249,19 +250,19 @@ public class RuleViewController {
                 if (selected && owlRLExtendedAction != null) {
                     owlRLExtendedAction.run();
                 }
-                stateManager.setOWLRLExtendedEnabled(selected);
+                ruleManager.setOWLRLExtendedEnabled(selected);
                 // Save current state
                 stateManager.saveCurrentState();
                 break;
             case "OWL RL Test":
-                stateManager.setOWLRLTestEnabled(selected);
+                ruleManager.setOWLRLTestEnabled(selected);
                 break;
             case "OWL Clean":
-                stateManager.setOWLCleanEnabled(selected);
+                ruleManager.setOWLCleanEnabled(selected);
                 break;
             default:
                 // Custom rule handling
-                stateManager.setCustomRuleEnabled(ruleName, selected);
+                ruleManager.setCustomRuleEnabled(ruleName, selected);
                 break;
         }
 
@@ -299,12 +300,12 @@ public class RuleViewController {
                 ruleItems.put(ruleName, ruleItem);
 
                 // Set checkbox state from state manager
-                boolean isEnabled = stateManager.isCustomRuleEnabled(ruleName);
+                boolean isEnabled = ruleManager.isCustomRuleEnabled(ruleName);
                 ruleItem.getCheckBox().setSelected(isEnabled);
 
                 // Configure checkbox to update state when changed
-                ruleItem.getCheckBox().setOnAction(e ->
-                        handleRuleToggle(ruleName, ruleItem.getCheckBox().isSelected()));
+                ruleItem.getCheckBox()
+                        .setOnAction(e -> handleRuleToggle(ruleName, ruleItem.getCheckBox().isSelected()));
 
                 // Replace documentation button with delete button
                 Button deleteButton = ruleItem.getDocumentationButton();
@@ -348,10 +349,10 @@ public class RuleViewController {
         if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
                 // Disable the rule first
-                stateManager.setCustomRuleEnabled(ruleName, false);
+                ruleManager.setCustomRuleEnabled(ruleName, false);
 
                 // Remove the rule from the model
-                stateManager.removeRule(ruleName);
+                ruleManager.removeRule(ruleName);
 
                 // Save current state
                 stateManager.saveCurrentState();

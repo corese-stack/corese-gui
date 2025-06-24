@@ -1,132 +1,72 @@
 package fr.inria.corese.demo.controller;
 
 import fr.inria.corese.demo.enums.icon.IconButtonBarType;
-import fr.inria.corese.demo.enums.icon.IconButtonType;
 import fr.inria.corese.demo.factory.icon.IconButtonBarFactory;
 import fr.inria.corese.demo.model.codeEditor.CodeEditorModel;
 import fr.inria.corese.demo.view.codeEditor.CodeEditorView;
-import fr.inria.corese.demo.view.codeEditor.CodeMirrorView;
-import fr.inria.corese.demo.factory.popup.IPopup;
-import fr.inria.corese.demo.factory.popup.PopupFactory;
 import javafx.application.Platform;
+import javafx.stage.FileChooser;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
 public class CodeEditorController {
     private final CodeEditorView view;
     private final CodeEditorModel model;
-    private boolean isUpdatingContent = false;
     private final IconButtonBarController iconButtonBarController;
-    private final CodeMirrorView editorContainer;
-    private String content = "";
-    private final IconButtonBarType type;
 
-    public CodeEditorController(IconButtonBarType type) {
+    public CodeEditorController(IconButtonBarType type, String initialContent) {
         this.view = new CodeEditorView();
         this.model = new CodeEditorModel();
-        this.iconButtonBarController = IconButtonBarFactory.create(type);
-        this.type = type;
+        this.iconButtonBarController = IconButtonBarFactory.create(type, this);
 
-        this.editorContainer = view.getCodeMirrorView();
-
-        initializeComponents();
-    }
-
-    public CodeEditorController(IconButtonBarType type, String content) {
-        this.view = new CodeEditorView();
-        this.model = new CodeEditorModel();
-        this.iconButtonBarController = IconButtonBarFactory.create(type);
-        this.content = content;
-        this.type = type;
-
-        this.editorContainer = view.getCodeMirrorView();
-
-        initializeComponents();
-    }
-
-    private void initializeComponents() {
-        // Initialise the button bar
+        this.iconButtonBarController.getModel().setCodeEditorModel(this.model);
         view.getIconButtonBarView().getChildren().add(iconButtonBarController.getView());
-        iconButtonBarController.getModel().setCodeEditorModel(model);
 
-        if (this.type.equals(IconButtonBarType.VALIDATION) || this.type.equals(IconButtonBarType.QUERY)){
+        if (type.equals(IconButtonBarType.VALIDATION) || type.equals(IconButtonBarType.QUERY)) {
             view.displayRunButton();
         }
 
-        Platform.runLater(this::initializeEditor);
+        Platform.runLater(() -> initializeEditor(initialContent));
     }
 
-    private void initializeEditor() {
-        if (editorContainer == null) {
-            System.err.println("Editor container is null!");
-            return;
-        }
+    private void initializeEditor(String initialContent) {
+        model.setContent(initialContent);
 
-        Platform.runLater(() -> {
-            try {
-                editorContainer.setContent(content);
-                view.setCodeMirrorViewContent(content);
-
-                if (model != null) {
-                    model.setCurrentSavedContent(content);
-
-                    // Écouter les changements de la vue
-                    editorContainer.contentProperty().addListener((obs, oldVal, newVal) -> {
-                        model.recordCurrentChange(newVal);
-                    });
-                } else {
-                    System.err.println("CodeEditorModel is null!");
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            // Écouter les changements du modèle
-            model.contentProperty().addListener((obs, oldVal, newVal) -> {
-                if (!isUpdatingContent) {
-                    isUpdatingContent = true;
-                    try {
-                        editorContainer.setContent(newVal);
-                    } finally {
-                        isUpdatingContent = false;
-                    }
-                }
-            });
-        });
+        view.getCodeMirrorView().contentProperty().bindBidirectional(model.contentProperty());
     }
 
+    
     public void saveFile() {
-        String currentFile = model.getCurrentFile();
-
-        if (currentFile != null) {
-            try (FileWriter writer = new FileWriter(currentFile)) {
-                writer.write(model.getContent());
-                IPopup successPopup = PopupFactory.getInstance().createPopup(PopupFactory.TOAST_NOTIFICATION);
-                successPopup.setMessage("File has been saved successfully!");
-                successPopup.displayPopup();
-                model.setModified(false);
-                model.setCurrentSavedContent(model.getContent());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        String path = model.getFilePath();
+        if (path == null) {
+            saveFileAs();
         } else {
-            iconButtonBarController.getView().getButton(IconButtonType.SAVE).fire();
+            writeToFile(new File(path));
         }
     }
 
+    public void saveFileAs() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Save File As");
+        File file = fileChooser.showSaveDialog(view.getScene().getWindow());
 
-    public CodeEditorModel getModel() {
-        return model;
+        if (file != null) {
+            writeToFile(file);
+        }
     }
 
-    public CodeEditorView getView() {
-        return view;
+    private void writeToFile(File file) {
+        try (FileWriter writer = new FileWriter(file)) {
+            writer.write(model.getContent());
+            model.setFilePath(file.getAbsolutePath());
+            model.markAsSaved();
+        } catch (IOException e) {
+            System.err.println("Error saving file: " + e.getMessage());
+        }
     }
 
-    public IconButtonBarController getIconButtonBarController() {
-        return iconButtonBarController;
-    }
-
-
-
+    public CodeEditorModel getModel() { return model; }
+    public CodeEditorView getView() { return view; }
+    public IconButtonBarController getIconButtonBarController() { return iconButtonBarController; }
 }

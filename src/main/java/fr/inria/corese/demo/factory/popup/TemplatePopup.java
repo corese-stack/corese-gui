@@ -25,7 +25,7 @@ public class TemplatePopup {
                                 "}\n" + //
                                 "");
 
-                TEMPLATES.put("CONSTRUCT", "CONSTUCT {\n" + //
+                TEMPLATES.put("CONSTRUCT", "CONSTRUCT {\n" + //
                                 "  ?x ?p ?y\n" + //
                                 "} \n" + //
                                 "WHERE {\n" + //
@@ -94,13 +94,6 @@ public class TemplatePopup {
 
         }
 
-        /**
-         * Shows the SQL Examples popup.
-         * 
-         * @param owner The parent stage.
-         * @param onUse Callback to handle the selected SQL template when "Use" is
-         *              clicked.
-         */
         public static void show(Stage owner, Consumer<String> onUse) {
                 Stage dialog = new Stage();
                 dialog.initOwner(owner);
@@ -130,9 +123,9 @@ public class TemplatePopup {
                 Button useButton = new Button("Use");
                 useButton.setDefaultButton(true);
                 useButton.setOnAction(e -> {
-                        String selectedSql = formatArea.getText();
+                        String selectedTemplate = formatArea.getText();
                         if (onUse != null) {
-                                onUse.accept(selectedSql);
+                                onUse.accept(selectedTemplate);
                         }
                         dialog.close();
                 });

@@ -1,9 +1,47 @@
 package fr.inria.corese.demo.enums.icon;
 
-public enum IconButtonBarType {
-    DATA,
-    RDF_EDITOR,
-    VALIDATION,
-    QUERY,
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
+public enum IconButtonBarType {
+
+    DATA(
+            IconButtonType.IMPORT,
+            IconButtonType.EXPORT,
+            IconButtonType.CLEAR
+    ),
+
+    RDF_EDITOR(
+            IconButtonType.SAVE,
+            IconButtonType.OPEN_FILE,
+            IconButtonType.CLEAR,
+            IconButtonType.UNDO,
+            IconButtonType.REDO
+    ),
+
+    VALIDATION(
+            IconButtonType.CLEAR,
+            IconButtonType.UNDO,
+            IconButtonType.REDO
+    ),
+
+    QUERY(
+
+            IconButtonType.SAVE,
+            IconButtonType.CLEAR,
+            IconButtonType.UNDO,
+            IconButtonType.REDO
+    );
+
+
+    private final List<IconButtonType> buttons;
+
+    IconButtonBarType(IconButtonType... buttons) {
+        this.buttons = Arrays.asList(buttons);
+    }
+
+    public List<IconButtonType> getButtons() {
+        return Collections.unmodifiableList(buttons);
+    }
 }

@@ -1,38 +1,21 @@
 package fr.inria.corese.demo.factory.icon;
 
+import fr.inria.corese.demo.controller.CodeEditorController;
 import fr.inria.corese.demo.controller.IconButtonBarController;
 import fr.inria.corese.demo.enums.icon.IconButtonBarType;
-import fr.inria.corese.demo.enums.icon.IconButtonType;
 import fr.inria.corese.demo.model.IconButtonBarModel;
 import fr.inria.corese.demo.view.icon.IconButtonBarView;
-import java.util.List;
 
 public class IconButtonBarFactory {
 
-    public static IconButtonBarController create(IconButtonBarType type) {
-        List<IconButtonType> buttons = getButtonsForType(type);
-
-        IconButtonBarModel model = new IconButtonBarModel(buttons);
+    public static IconButtonBarController create(IconButtonBarType type, CodeEditorController parentController) {
+        IconButtonBarModel model = new IconButtonBarModel(type.getButtons());
         IconButtonBarView view = new IconButtonBarView();
-        
-        return new IconButtonBarController(model, view);
+        // The key is passing the parentController to the constructor here
+        return new IconButtonBarController(model, view, parentController);
     }
-
-    private static List<IconButtonType> getButtonsForType(IconButtonBarType type) {
-        return switch (type) {
-            case DATA -> List.of(
-                    IconButtonType.CLEAR,
-                    IconButtonType.RELOAD,
-                    IconButtonType.IMPORT,
-                    IconButtonType.CLOSE_FILE_EXPLORER,
-                    IconButtonType.DOCUMENTATION
-            );
-            case RDF_EDITOR, VALIDATION, QUERY -> List.of(
-                    IconButtonType.SAVE,
-                    IconButtonType.UNDO,
-                    IconButtonType.REDO
-            );
-        };
+    
+    public static IconButtonBarController create(IconButtonBarType type) {
+        return create(type, null);
     }
-
 }

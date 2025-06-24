@@ -7,17 +7,21 @@ import fr.inria.corese.demo.view.TopBar;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.SplitPane;
+import javafx.scene.control.Tab;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 public class RDFEditorViewController {
     @FXML private BorderPane mainContainer;
-    @FXML private BorderPane contentContainer;
     @FXML private VBox fileExplorerContainer;
     @FXML private StackPane editorContainer;
     @FXML private SplitPane splitPane;
@@ -28,37 +32,23 @@ public class RDFEditorViewController {
 
     @FXML
     public void initialize() {
-        checkFXMLInjections();
-
-        try {
-            // Initialize components
-            setupFileTree();
-            initializeTopBar();
-            initializeTabEditor();
-            initializeSplitPane();
-            setupComponentInteractions();
-        } catch (Exception e) {
-            System.err.println("Error during initialization:");
-            e.printStackTrace();
-        }
+        setupFileTree();
+        initializeTopBar();
+        initializeTabEditor();
+        initializeSplitPane();
+        setupComponentInteractions();
+        setupKeyboardShortcuts();
     }
 
     private void initializeTabEditor(){
         tabEditorController = new TabEditorController(IconButtonBarType.RDF_EDITOR);
-        tabEditorController.getView().setMaxWidth(Double.MAX_VALUE);
-        tabEditorController.getView().setMaxHeight(Double.MAX_VALUE);
         editorContainer.getChildren().add(tabEditorController.getView());
     }
 
     private void initializeTopBar() {
-        List<IconButtonType> buttons = new ArrayList<>();
-        buttons.add(IconButtonType.DOCUMENTATION);
+        List<IconButtonType> buttons = new ArrayList<>(List.of(IconButtonType.DOCUMENTATION));
         topbar.addRightButtons(buttons);
-        topbar.getButton(IconButtonType.DOCUMENTATION).setOnAction(e -> {
-            DocumentationPopup documentationPopup = new DocumentationPopup();
-            documentationPopup.displayPopup();
-        });
-
+        topbar.getButton(IconButtonType.DOCUMENTATION).setOnAction(e -> new DocumentationPopup().displayPopup());
     }
 
     private void setupFileTree() {
@@ -68,8 +58,26 @@ public class RDFEditorViewController {
 
     private void setupComponentInteractions() {
         fileExplorerController.setOnFileOpenRequest(file -> {
-            tabEditorController.openFile(file);
+            // FIXED: Call the correct method to open a file.
+            openFileInEditor(file);
         });
+    }
+    
+    /**
+     * New method to handle opening a file, focusing it if already open.
+     */
+    public void openFileInEditor(File file) {
+        // Check if the file is already open
+        for (Tab tab : tabEditorController.getView().getTabPane().getTabs()) {
+            if (tab != tabEditorController.getView().getAddTab()) {
+                CodeEditorController controller = tabEditorController.getModel().getControllerForTab(tab);
+                if (controller != null && file.getAbsolutePath().equals(controller.getModel().getFilePath())) {
+                    tabEditorController.getView().getTabPane().getSelectionModel().select(tab);
+                    return; 
+                }
+            }
+        }
+        tabEditorController.addNewTab(file);
     }
 
     private void initializeSplitPane() {
@@ -78,33 +86,38 @@ public class RDFEditorViewController {
                 Platform.runLater(() -> {
                     splitPane.lookupAll(".split-pane-divider").forEach(div -> {
                         div.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
-                            if (event.getClickCount() == 2) {
-                                toggleLeftPane();
-                            }
+                            if (event.getClickCount() == 2) toggleLeftPane();
                         });
                     });
                 });
             }
         });
+        Platform.runLater(() -> splitPane.setDividerPositions(0.2));
     }
-
+    
     private void toggleLeftPane() {
-        if (splitPane.getDividerPositions()[0] > 0.01) {
-            splitPane.setDividerPositions(0.00);
-        } else {
-            splitPane.setDividerPositions(0.2);
-        }
+        splitPane.setDividerPositions(splitPane.getDividerPositions()[0] > 0.01 ? 0.0 : 0.2);
     }
 
-    private void checkFXMLInjections() {
-        StringBuilder missingInjections = new StringBuilder();
-        if (mainContainer == null) missingInjections.append("mainContainer, ");
-        if (contentContainer == null) missingInjections.append("contentContainer, ");
-        if (fileExplorerContainer == null) missingInjections.append("fileTreeView, ");
-        if (editorContainer == null) missingInjections.append("editorContainer, ");
+    private void setupKeyboardShortcuts() {
+        mainContainer.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                newScene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+                    if (new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN).match(event)) {
+                        Tab selectedTab = tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
+                        if (selectedTab != null && selectedTab != tabEditorController.getView().getAddTab()) {
+                            CodeEditorController activeController = tabEditorController.getModel().getControllerForTab(selectedTab);
+                            if (activeController != null) activeController.saveFile();
+                        }
+                        event.consume();
+                    } else if (new KeyCodeCombination(KeyCode.W, KeyCombination.CONTROL_DOWN).match(event)) {
+                        Tab selectedTab = tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
+                        tabEditorController.handleCloseFile(selectedTab);
 
-        if (missingInjections.length() > 0) {
-            System.err.println("Missing FXML injections: " + missingInjections);
-        }
+                        event.consume();
+                    }
+                });
+            }
+        });
     }
 }
