@@ -26,7 +26,8 @@ public class ApplicationStateManager {
     // Core graph components
     private Graph graph;
     private QueryProcess queryProcess;
-    // RESTORED: SemanticGraph to support older methods and avoid breaking other classes.
+    // RESTORED: SemanticGraph to support older methods and avoid breaking other
+    // classes.
     private final SemanticGraph semanticGraph;
 
     // Rule management
@@ -37,12 +38,10 @@ public class ApplicationStateManager {
     private final List<File> loadedFiles;
     private String projectPath;
 
-    // Logging
     private final List<String> logEntries;
 
     // Caching mechanism
     private final Map<Integer, TabCacheEntry> queryResultCache = new HashMap<>();
-    // RESTORED: Field to support the legacy getLastGraphResult() method
     private String lastGraphResult = null;
 
     private ApplicationStateManager() {
@@ -66,7 +65,6 @@ public class ApplicationStateManager {
         this.queryProcess = QueryProcess.create(graph);
     }
 
-    // --- FILE AND PROJECT MANAGEMENT ---
     public void loadFile(File file) throws Exception {
         try {
             Load loader = Load.create(graph);
@@ -93,21 +91,47 @@ public class ApplicationStateManager {
         }
     }
 
-
-    // --- QUERY EXECUTION METHODS ---
-
-    /**
-     * The original, public method to execute a query. Kept for backward compatibility.
-     */
     public Mappings executeQuery(String queryString) throws Exception {
         ruleManager.applyRules(this.graph);
         this.queryProcess = QueryProcess.create(this.graph);
         return this.queryProcess.query(queryString);
     }
 
-    /**
-     * New high-level method for SELECT/ASK queries.
-     */
+    public String getFormattedCachedQuery(Integer tabId, String format) throws Exception {
+        TabCacheEntry cachedEntry = getCachedResult(tabId);
+        switch (format.toUpperCase()) {
+            case "CSV":
+                return formatMappings(cachedEntry.getMappingsResult(), ResultFormat.format.CSV_FORMAT);
+            case "XML":
+                return formatMappings(cachedEntry.getMappingsResult(), ResultFormat.format.XML_FORMAT);
+            case "JSON":
+                return formatMappings(cachedEntry.getMappingsResult(), ResultFormat.format.JSON_FORMAT);
+            case "TSV":
+                return formatMappings(cachedEntry.getMappingsResult(), ResultFormat.format.TSV_FORMAT);
+            case "MARKDOWN":
+                return formatMappings(cachedEntry.getMappingsResult(), ResultFormat.format.MARKDOWN_FORMAT);
+
+            case "TURTLE":
+                Graph graphMappings = (Graph) cachedEntry.getMappingsResult().getGraph();
+                this.lastGraphResult = formatGraph(graphMappings, ResultFormat.format.TURTLE_FORMAT);
+                return this.lastGraphResult;
+
+            default:
+                throw new IllegalArgumentException("Unknown format: " + format);
+        }
+    }
+
+    public void executeAndCacheQuery(String query, Integer tabId) throws Exception {
+        Mappings mappings = executeQuery(query);
+        String queryType = determineQueryType(query);
+
+        try {
+            cacheTabResult(tabId, new TabCacheEntry(queryType, mappings));
+        } catch (Exception e) {
+            addLogEntry("Error caching query result: " + e.getMessage());
+        }
+    }
+
     public FormattedResult executeAndFormatSelectQuery(String query, Integer tabId) throws Exception {
         var mappings = executeQuery(query);
         String queryType = determineQueryType(query);
@@ -127,9 +151,6 @@ public class ApplicationStateManager {
         return new FormattedResult(queryType, primaryResult, allFormats);
     }
 
-    /**
-     * New high-level method for CONSTRUCT/DESCRIBE queries.
-     */
     public FormattedResult executeAndFormatConstructQuery(String query, Integer tabId) throws Exception {
         var mappings = executeQuery(query);
         Graph resultGraph = (Graph) mappings.getGraph();
@@ -137,15 +158,12 @@ public class ApplicationStateManager {
 
         TabCacheEntry cacheEntry = new TabCacheEntry(queryType, resultGraph);
         cacheTabResult(tabId, cacheEntry);
-
         String primaryResult = formatGraph(resultGraph, ResultFormat.format.TURTLE_FORMAT);
         Map<String, String> allFormats = Map.of("TURTLE", primaryResult);
         this.lastGraphResult = primaryResult;
         return new FormattedResult(queryType, primaryResult, allFormats);
     }
 
-
-    // --- CACHING AND FORMATTING HELPERS ---
     public void cacheTabResult(Integer tabHashCode, TabCacheEntry result) {
         queryResultCache.put(tabHashCode, result);
     }
@@ -159,7 +177,9 @@ public class ApplicationStateManager {
     }
 
     public String formatMappings(Mappings mappings, ResultFormat.format format) {
-        if (mappings == null || mappings.isEmpty()) { return ""; }
+        if (mappings == null || mappings.isEmpty()) {
+            return "";
+        }
         try {
             return ResultFormat.create(mappings, format).toString();
         } catch (Exception e) {
@@ -169,7 +189,9 @@ public class ApplicationStateManager {
     }
 
     public String formatGraph(Graph graph, ResultFormat.format format) {
-        if (graph == null || graph.size() == 0) { return ""; }
+        if (graph == null || graph.size() == 0) {
+            return "";
+        }
         try {
             return ResultFormat.create(graph, format).toString();
         } catch (Exception e) {
@@ -188,14 +210,17 @@ public class ApplicationStateManager {
                 break;
             }
         }
-        if (cleanedQuery.startsWith("SELECT")) return "SELECT";
-        if (cleanedQuery.startsWith("CONSTRUCT")) return "CONSTRUCT";
-        if (cleanedQuery.startsWith("ASK")) return "ASK";
-        if (cleanedQuery.startsWith("DESCRIBE")) return "DESCRIBE";
+        if (cleanedQuery.startsWith("SELECT"))
+            return "SELECT";
+        if (cleanedQuery.startsWith("CONSTRUCT"))
+            return "CONSTRUCT";
+        if (cleanedQuery.startsWith("ASK"))
+            return "ASK";
+        if (cleanedQuery.startsWith("DESCRIBE"))
+            return "DESCRIBE";
         return "UNKNOWN";
     }
 
-    // --- Graph State and Project Methods ---
     public void clearGraph() {
         initializeGraph();
         semanticGraph.clearGraph();
@@ -235,8 +260,6 @@ public class ApplicationStateManager {
         addLogEntry("Graph saved to: " + graphFile.getAbsolutePath());
     }
 
-    // --- RESTORED METHODS TO PREVENT COMPILATION ERRORS ELSEWHERE ---
-
     public void saveCurrentState() {
         try {
             semanticGraph.saveContext();
@@ -245,10 +268,7 @@ public class ApplicationStateManager {
             addLogEntry("Error saving current state: " + e.getMessage());
         }
     }
-    
-    /**
-     * RESTORED: The missing restoreState() method.
-     */
+
     public void restoreState() {
         try {
             loadedFiles.clear();
@@ -266,7 +286,7 @@ public class ApplicationStateManager {
             addLogEntry("Error restoring state: " + e.getMessage());
         }
     }
-    
+
     public SemanticGraph getSemanticGraph() {
         return this.semanticGraph;
     }
@@ -282,7 +302,7 @@ public class ApplicationStateManager {
     public int getGraphCount() {
         return semanticGraph.getGraphCount();
     }
-    
+
     public String getLastGraphResult() {
         return this.lastGraphResult;
     }
@@ -303,11 +323,11 @@ public class ApplicationStateManager {
     public List<File> getLoadedFiles() {
         return new ArrayList<>(loadedFiles);
     }
-    
+
     public List<String> getLogEntries() {
         return new ArrayList<>(logEntries);
     }
-    
+
     public void addLogEntry(String entry) {
         logEntries.add(entry);
         semanticGraph.addLogEntry(entry);
@@ -330,8 +350,16 @@ public class ApplicationStateManager {
             this.graphResult = graph;
         }
 
-        public String getQueryType() { return queryType; }
-        public Mappings getMappingsResult() { return mappingsResult; }
-        public Graph getGraphResult() { return graphResult; }
+        public String getQueryType() {
+            return queryType;
+        }
+
+        public Mappings getMappingsResult() {
+            return mappingsResult;
+        }
+
+        public Graph getGraphResult() {
+            return graphResult;
+        }
     }
 }

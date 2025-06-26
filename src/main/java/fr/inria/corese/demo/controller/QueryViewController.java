@@ -1,5 +1,6 @@
 package fr.inria.corese.demo.controller;
 
+import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.kgram.core.Mappings;
 import fr.inria.corese.core.print.ResultFormat;
 import fr.inria.corese.demo.enums.icon.IconButtonBarType;
@@ -120,13 +121,14 @@ public class QueryViewController {
         resultsPaneController.clearResults();
 
         if (newTab == null || newTab == tabEditorController.getView().getAddTab()) {
-            currentTabQueryResult = null; 
+            currentTabQueryResult = null;
             return;
         }
 
+        final Integer tabId = newTab.hashCode();
         System.out.println("[UI] Tab changed. Looking for cached result for tab ID: " + newTab.hashCode());
 
-        var cachedEntry = stateManager.getCachedResult(newTab.hashCode());
+        var cachedEntry = stateManager.getCachedResult(tabId);
 
         this.currentTabQueryResult = cachedEntry;
 
@@ -141,7 +143,7 @@ public class QueryViewController {
         switch (queryType) {
             case "SELECT":
             case "ASK":
-                tableViewController.displayCachedQuery(cachedEntry.getMappingsResult());
+                tableViewController.displayData(tabId);
 
                 resultsPaneController.populateXmlView(cachedEntry, "XML");
                 resultsTabPane.getSelectionModel().select(tableTab);
@@ -149,7 +151,7 @@ public class QueryViewController {
 
             case "CONSTRUCT":
             case "DESCRIBE":
-                graphViewController.displayCachedGraph(cachedEntry.getGraphResult());
+                graphViewController.displayGraph(tabId);
                 resultsTabPane.getSelectionModel().select(graphTab);
                 break;
         }
@@ -158,7 +160,7 @@ public class QueryViewController {
     public void executeQuery() {
         Tab selectedTab = tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
         if (selectedTab == null || selectedTab == tabEditorController.getView().getAddTab()) {
-            return; // Nothing to do if no tab is selected
+            return;
         }
 
         CodeEditorController codeEditorController = tabEditorController.getModel().getControllerForTab(selectedTab);
@@ -166,31 +168,32 @@ public class QueryViewController {
             return;
         }
 
-        String queryContent = codeEditorController.getModel().getContent();
-        Integer tabId = selectedTab.hashCode();
+        final String queryContent = codeEditorController.getModel().getContent();
+        final Integer tabId = selectedTab.hashCode();
 
-        String queryType = stateManager.determineQueryType(queryContent);
+        resultsPaneController.clearResults();
 
-        System.out.println("[UI] Detected query type: " + queryType);
+        new Thread(() -> {
+            try {
+                stateManager.executeAndCacheQuery(queryContent, tabId);
+                String queryType = stateManager.determineQueryType(queryContent);
 
-        if (queryType.equals("CONSTRUCT") || queryType.equals("DESCRIBE")) {
+                Platform.runLater(() -> {
+                    if (queryType.equals("SELECT")) {
+                        tableViewController.displayData(tabId);
+                        resultsTabPane.getSelectionModel().select(tableTab);
+                    }
+                    else{
+                        graphViewController.displayGraph(tabId);
+                        resultsTabPane.getSelectionModel().select(graphTab);
+                    }
+                });
 
-            System.out.println("[UI] Calling GraphViewController...");
-            graphViewController.runQueryAndDisplay(queryContent, tabId);
-            resultsTabPane.getSelectionModel().select(graphTab);
-
-        } else if (queryType.equals("SELECT") || queryType.equals("ASK")) {
-
-            System.out.println("[UI] Calling TableViewController...");
-            tableViewController.runQueryAndDisplay(queryContent, tabId);
-            resultsTabPane.getSelectionModel().select(tableTab);
-
-        } else {
-            // Handle unknown query types
-            showError("Unsupported Query", "Cannot execute this type of query.");
-        }
-
-        System.out.println("Execution finished.");
+            } catch (Exception e) {
+                Platform.runLater(() -> showError("Query Execution Error", e.getMessage()));
+                e.printStackTrace();
+            }
+        }).start();
     }
 
     private void initializeTopBar() {
@@ -342,7 +345,6 @@ public class QueryViewController {
             if (tab != tabEditorController.getView().getAddTab()) {
                 CodeEditorController controller = tabEditorController.getModel().getControllerForTab(tab);
                 if (controller != null && file.getAbsolutePath().equals(controller.getModel().getFilePath())) {
-                    // If found, just select that tab
                     tabEditorController.getView().getTabPane().getSelectionModel().select(tab);
                     return;
                 }
