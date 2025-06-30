@@ -58,9 +58,12 @@ public class QueryViewController {
     private TableViewController tableViewController;
     private ResultsPaneController resultsPaneController;
     private GraphViewController graphViewController;
+    private TextViewController textViewController;
     private ApplicationStateManager stateManager = ApplicationStateManager.getInstance();
 
-    private ApplicationStateManager.TabCacheEntry currentTabQueryResult;
+    private static final List<String> SELECT_FORMATS = List.of("XML", "JSON", "CSV", "TSV", "MARKDOWN");
+    private static final List<String> GRAPH_FORMATS = List.of("TURTLE", "RDF_XML", "JSON-LD", "N-TRIPLES", "N-QUADS",
+            "TriG");
 
     public void setHostServices(HostServices hostServices) {
         this.hostServices = hostServices;
@@ -72,12 +75,16 @@ public class QueryViewController {
         resultsPaneController = new ResultsPaneController();
         tableViewController = new TableViewController();
         graphViewController = new GraphViewController();
+        textViewController = new TextViewController();
 
         tableViewController.setResultsPaneController(resultsPaneController);
         graphViewController.setResultsPaneController(resultsPaneController);
+        textViewController.setResultsPaneController(resultsPaneController);
 
         tableTab.setContent(resultsPaneController.getTableBox());
         graphTab.setContent(resultsPaneController.getGraphView());
+        textTab.setContent(resultsPaneController.getTextViewBox());
+
         mainBorderPane.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
                 Stage stage = (Stage) mainBorderPane.getScene().getWindow();
@@ -94,10 +101,14 @@ public class QueryViewController {
         tabEditorController.getView().getTabPane().getSelectionModel().selectedItemProperty()
                 .addListener((obs, oldTab, newTab) -> handleTabSelectionChange(newTab));
 
-        resultsPaneController.getXmlFormatComboBox().getSelectionModel().selectedItemProperty()
+        resultsPaneController.getTextFormatComboBox().getSelectionModel().selectedItemProperty()
                 .addListener((obs, oldVal, newVal) -> {
                     if (newVal != null) {
-                        resultsPaneController.populateXmlView(currentTabQueryResult, newVal);
+                        Tab selectedTab = tabEditorController.getView().getTabPane().getSelectionModel()
+                                .getSelectedItem();
+                        if (selectedTab != null && selectedTab != tabEditorController.getView().getAddTab()) {
+                            textViewController.displayData(selectedTab.hashCode(), newVal);
+                        }
                     }
                 });
 
@@ -121,7 +132,6 @@ public class QueryViewController {
         resultsPaneController.clearResults();
 
         if (newTab == null || newTab == tabEditorController.getView().getAddTab()) {
-            currentTabQueryResult = null;
             return;
         }
 
@@ -130,10 +140,9 @@ public class QueryViewController {
 
         var cachedEntry = stateManager.getCachedResult(tabId);
 
-        this.currentTabQueryResult = cachedEntry;
-
         if (cachedEntry == null) {
             System.out.println("[UI] No cached result found. Views are clear.");
+            resultsPaneController.setTextFormats(List.of(), null);
             return;
         }
 
@@ -143,15 +152,17 @@ public class QueryViewController {
         switch (queryType) {
             case "SELECT":
             case "ASK":
+                resultsPaneController.setTextFormats(SELECT_FORMATS, "XML");
                 tableViewController.displayData(tabId);
-
-                resultsPaneController.populateXmlView(cachedEntry, "XML");
+                textViewController.displayData(tabId, "XML");
                 resultsTabPane.getSelectionModel().select(tableTab);
                 break;
 
             case "CONSTRUCT":
             case "DESCRIBE":
+                resultsPaneController.setTextFormats(GRAPH_FORMATS, "TURTLE");
                 graphViewController.displayGraph(tabId);
+                textViewController.displayData(tabId, "TURTLE");
                 resultsTabPane.getSelectionModel().select(graphTab);
                 break;
         }
@@ -176,17 +187,9 @@ public class QueryViewController {
         new Thread(() -> {
             try {
                 stateManager.executeAndCacheQuery(queryContent, tabId);
-                String queryType = stateManager.determineQueryType(queryContent);
 
                 Platform.runLater(() -> {
-                    if (queryType.equals("SELECT")) {
-                        tableViewController.displayData(tabId);
-                        resultsTabPane.getSelectionModel().select(tableTab);
-                    }
-                    else{
-                        graphViewController.displayGraph(tabId);
-                        resultsTabPane.getSelectionModel().select(graphTab);
-                    }
+                    handleTabSelectionChange(selectedTab);
                 });
 
             } catch (Exception e) {

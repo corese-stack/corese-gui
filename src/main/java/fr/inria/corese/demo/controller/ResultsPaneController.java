@@ -20,7 +20,6 @@ import javafx.animation.PauseTransition;
 import java.util.ArrayList;
 import java.util.List;
 
-
 public class ResultsPaneController {
     private final TableView<String[]> resultTable = new TableView<>();
     private final CustomPagination customPagination;
@@ -34,6 +33,7 @@ public class ResultsPaneController {
     private final ComboBox<String> textFormatComboBox = new ComboBox<>();
     private final TextArea xmlResultTextArea = new TextArea();
     private final Button copyXmlButton = new Button("Copy");
+    private final BorderPane textViewBox;
     private final WebView graphView;
 
     public ResultsPaneController() {
@@ -47,7 +47,6 @@ public class ResultsPaneController {
             try {
                 rowsPerPage = Math.max(1, Integer.parseInt(newVal));
             } catch (NumberFormatException ex) {
-                // Ignore invalid input
             }
             updatePagination();
         });
@@ -76,6 +75,16 @@ public class ResultsPaneController {
             pause.play();
         });
 
+        Region textSpacer = new Region();
+        HBox.setHgrow(textSpacer, Priority.ALWAYS);
+        HBox textControls = new HBox(10, textFormatComboBox, textSpacer, copyXmlButton);
+        textControls.setAlignment(Pos.CENTER_LEFT);
+        textControls.setStyle("-fx-padding: 5;");
+
+        this.textViewBox = new BorderPane();
+        this.textViewBox.setTop(textControls);
+        this.textViewBox.setCenter(xmlResultTextArea);
+
         this.graphView = new WebView();
     }
 
@@ -87,16 +96,12 @@ public class ResultsPaneController {
         return this.graphView;
     }
 
+    public Node getTextViewBox() {
+        return this.textViewBox;
+    }
+
     public ComboBox<String> getTextFormatComboBox() {
         return textFormatComboBox;
-    }
-
-    public ComboBox<String> getXmlFormatComboBox() {
-        return textFormatComboBox;
-    }
-
-    public TextArea getXmlResultTextArea() {
-        return xmlResultTextArea;
     }
 
     public Button getCopyXmlButton() {
@@ -131,6 +136,19 @@ public class ResultsPaneController {
         });
     }
 
+    public void setTextFormats(List<String> formats, String defaultFormat) {
+        Platform.runLater(() -> {
+            textFormatComboBox.getItems().setAll(formats);
+            if (defaultFormat != null && formats.contains(defaultFormat)) {
+                textFormatComboBox.getSelectionModel().select(defaultFormat);
+            } else if (!formats.isEmpty()) {
+                textFormatComboBox.getSelectionModel().selectFirst();
+            } else {
+                textFormatComboBox.getSelectionModel().clearSelection();
+            }
+        });
+
+    }
 
     public void displayGraph(String ttlData) {
         System.out.println("\n[RESULTS_PANE] displayGraph called.");
@@ -195,33 +213,7 @@ public class ResultsPaneController {
         });
     }
 
- 
-    public void populateXmlView(ApplicationStateManager.TabCacheEntry cacheEntry, String formatLabel) {
-        if (cacheEntry == null || formatLabel == null) {
-            updateXMLView("");
-            return;
-        }
-
-        // Get the mappings from the cache entry
-        fr.inria.corese.core.kgram.core.Mappings mappings = cacheEntry.getMappingsResult();
-        if (mappings == null) {
-            updateXMLView("");
-            return;
-        }
-        String formatted;
-        ApplicationStateManager stateManager = ApplicationStateManager.getInstance();
-        switch (formatLabel) {
-            case "XML" -> formatted = stateManager.formatMappings(mappings, ResultFormat.format.XML_FORMAT);
-            case "JSON" -> formatted = stateManager.formatMappings(mappings, ResultFormat.format.JSON_FORMAT);
-            case "CSV" -> formatted = stateManager.formatMappings(mappings, ResultFormat.format.CSV_FORMAT);
-            case "TSV" -> formatted = stateManager.formatMappings(mappings, ResultFormat.format.TSV_FORMAT);
-            case "MARKDOWN" -> formatted = stateManager.formatMappings(mappings, ResultFormat.format.MARKDOWN_FORMAT);
-            default -> formatted = "Unsupported format selected.";
-        }
-        updateXMLView(formatted);
-    }
-
-    private void updateXMLView(String content) {
+    public void updateXMLView(String content) {
         Platform.runLater(() -> xmlResultTextArea.setText(content != null ? content : ""));
     }
 
@@ -240,6 +232,7 @@ public class ResultsPaneController {
             if (graphView != null) {
                 graphView.getEngine().load("about:blank");
             }
+            textFormatComboBox.getItems().clear();
         });
     }
 

@@ -99,36 +99,68 @@ public class ApplicationStateManager {
 
     public String getFormattedCachedQuery(Integer tabId, String format) throws Exception {
         TabCacheEntry cachedEntry = getCachedResult(tabId);
-        switch (format.toUpperCase()) {
-            case "CSV":
-                return formatMappings(cachedEntry.getMappingsResult(), ResultFormat.format.CSV_FORMAT);
-            case "XML":
-                return formatMappings(cachedEntry.getMappingsResult(), ResultFormat.format.XML_FORMAT);
-            case "JSON":
-                return formatMappings(cachedEntry.getMappingsResult(), ResultFormat.format.JSON_FORMAT);
-            case "TSV":
-                return formatMappings(cachedEntry.getMappingsResult(), ResultFormat.format.TSV_FORMAT);
-            case "MARKDOWN":
-                return formatMappings(cachedEntry.getMappingsResult(), ResultFormat.format.MARKDOWN_FORMAT);
-
-            case "TURTLE":
-                Graph graphMappings = (Graph) cachedEntry.getMappingsResult().getGraph();
-                this.lastGraphResult = formatGraph(graphMappings, ResultFormat.format.TURTLE_FORMAT);
-                return this.lastGraphResult;
-
-            default:
-                throw new IllegalArgumentException("Unknown format: " + format);
+        if (cachedEntry == null) {
+            return "";
         }
+
+        String upperCaseFormat = format.toUpperCase();
+
+        if (cachedEntry.getMappingsResult() != null) {
+            switch (upperCaseFormat) {
+                case "CSV":
+                    return formatMappings(cachedEntry.getMappingsResult(), ResultFormat.format.CSV_FORMAT);
+                case "XML":
+                    return formatMappings(cachedEntry.getMappingsResult(), ResultFormat.format.XML_FORMAT);
+                case "JSON":
+                    return formatMappings(cachedEntry.getMappingsResult(), ResultFormat.format.JSON_FORMAT);
+                case "TSV":
+                    return formatMappings(cachedEntry.getMappingsResult(), ResultFormat.format.TSV_FORMAT);
+                case "MARKDOWN":
+                    return formatMappings(cachedEntry.getMappingsResult(), ResultFormat.format.MARKDOWN_FORMAT);
+                default:
+                    return "Format '" + format + "' is not applicable to this query type.";
+            }
+        }
+
+        if (cachedEntry.getGraphResult() != null) {
+            Graph resultGraph = cachedEntry.getGraphResult();
+            this.lastGraphResult = "Graph result is being processed...";
+            switch (upperCaseFormat) {
+                case "TURTLE":
+                    this.lastGraphResult = formatGraph(resultGraph, ResultFormat.format.TURTLE_FORMAT);
+                    return this.lastGraphResult;
+                case "RDF_XML":
+                    return formatGraph(resultGraph, ResultFormat.format.RDF_XML_FORMAT);
+                case "JSON-LD":
+                    return formatGraph(resultGraph, ResultFormat.format.JSONLD_FORMAT);
+                case "N-TRIPLES":
+                    return formatGraph(resultGraph, ResultFormat.format.NTRIPLES_FORMAT);
+                case "N-QUADS":
+                    return formatGraph(resultGraph, ResultFormat.format.NQUADS_FORMAT);
+                case "TRIG":
+                    return formatGraph(resultGraph, ResultFormat.format.TRIG_FORMAT);
+                default:
+                    return "Format '" + format + "' is not applicable to this query type.";
+            }
+        }
+
+        return "";
     }
+    // In ApplicationStateManager.java
 
     public void executeAndCacheQuery(String query, Integer tabId) throws Exception {
-        Mappings mappings = executeQuery(query);
-        String queryType = determineQueryType(query);
-
         try {
-            cacheTabResult(tabId, new TabCacheEntry(queryType, mappings));
+            Mappings mappings = executeQuery(query);
+            String queryType = determineQueryType(query);
+            if (queryType.equals("CONSTRUCT") || queryType.equals("DESCRIBE")) {
+                Graph resultGraph = (Graph) mappings.getGraph();
+                cacheTabResult(tabId, new TabCacheEntry(queryType, resultGraph));
+            } else {
+                cacheTabResult(tabId, new TabCacheEntry(queryType, mappings));
+            }
         } catch (Exception e) {
-            addLogEntry("Error caching query result: " + e.getMessage());
+            addLogEntry("Error executing or caching query: " + e.getMessage());
+            throw e;
         }
     }
 
