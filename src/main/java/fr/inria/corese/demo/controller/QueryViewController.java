@@ -34,6 +34,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
+
 public class QueryViewController {
     @FXML
     private StackPane editorContainer;
@@ -132,6 +133,9 @@ public class QueryViewController {
         resultsPaneController.clearResults();
 
         if (newTab == null || newTab == tabEditorController.getView().getAddTab()) {
+            tableTab.setDisable(true);
+            graphTab.setDisable(true);
+            textTab.setDisable(true);
             return;
         }
 
@@ -141,6 +145,9 @@ public class QueryViewController {
         var cachedEntry = stateManager.getCachedResult(tabId);
 
         if (cachedEntry == null) {
+            tableTab.setDisable(true);
+            graphTab.setDisable(true);
+            textTab.setDisable(true);
             System.out.println("[UI] No cached result found. Views are clear.");
             resultsPaneController.setTextFormats(List.of(), null);
             return;
@@ -152,6 +159,11 @@ public class QueryViewController {
         switch (queryType) {
             case "SELECT":
             case "ASK":
+
+                tableTab.setDisable(false);
+                graphTab.setDisable(true);
+                textTab.setDisable(false);
+
                 resultsPaneController.setTextFormats(SELECT_FORMATS, "XML");
                 tableViewController.displayData(tabId);
                 textViewController.displayData(tabId, "XML");
@@ -160,6 +172,11 @@ public class QueryViewController {
 
             case "CONSTRUCT":
             case "DESCRIBE":
+
+                tableTab.setDisable(true);
+                graphTab.setDisable(false);
+                textTab.setDisable(false);
+
                 resultsPaneController.setTextFormats(GRAPH_FORMATS, "TURTLE");
                 graphViewController.displayGraph(tabId);
                 textViewController.displayData(tabId, "TURTLE");
