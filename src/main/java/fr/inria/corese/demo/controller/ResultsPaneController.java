@@ -1,8 +1,4 @@
 package fr.inria.corese.demo.controller;
-
-import fr.inria.corese.core.print.ResultFormat;
-import fr.inria.corese.demo.manager.ApplicationStateManager;
-import fr.inria.corese.demo.model.QueryResult;
 import fr.inria.corese.demo.view.rule.CustomPagination;
 import javafx.application.Platform;
 import javafx.concurrent.Worker;

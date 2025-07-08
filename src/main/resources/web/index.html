@@ -39,14 +39,11 @@
 
 <body>
     <div id="container">
-        <div id="graph-controls" style="position: absolute; top: 20px; left: 20px; z-index: 10; background: rgba(255,255,255,0.95); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 10px 16px; font-size: 14px;">
+        <div id="graph-controls"
+            style="position: absolute; top: 20px; right: 20px; z-index: 10; background: rgba(255,255,255,0.95); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 10px 16px; font-size: 14px;">
             <label style="display: block; margin-bottom: 6px;">
-                <input type="checkbox" id="toggle-labels" checked>
-                Show rdfs:label
-            </label>
-            <label style="display: block;">
-                <input type="checkbox" id="toggle-comments">
-                Show rdfs:comment
+                <input type="checkbox" id="toggle-edge-labels" checked>
+                Show Edge Labels
             </label>
         </div>
         <kg-graph id="myGraph" width="100%" height="100%"></kg-graph>
@@ -56,16 +53,30 @@
         class KGGraphVis extends HTMLElement {
             setShowLabels(show) {
                 if (!this.shadowRoot) return;
-        
+
                 d3.select(this.shadowRoot)
-                  .selectAll('.nodes text')
-                  .style('display', show ? null : 'none');
+                    .selectAll('.nodes text')
+                    .style('display', show ? null : 'none');
+            }
+
+            setShowEdgeLabels(show) {
+                console.log('--- setShowEdgeLabels called ---');
+                console.log('Value of "show" is:', show);
+                console.log('The "this.linkLabel" variable is:', this.linkLabel);
+                if (this.linkLabel) {
+                    console.log('D3 found', this.linkLabel.size(), 'elements to modify.');
+                    this.linkLabel.style('display', show ? null : 'none');
+                    console.log('Attempted to set display style.');
+                }
+                else {
+                    console.error('CRITICAL: this.linkLabel is null or undefined. Cannot toggle labels.');
+                }
             }
             setShowComments(show) {
                 if (!this.shadowRoot) return;
                 d3.select(this.shadowRoot)
-                  .selectAll('.rdfs-comment')
-                  .style('display', show ? null : 'none');
+                    .selectAll('.rdfs-comment')
+                    .style('display', show ? null : 'none');
             }
 
             constructor() {
@@ -74,8 +85,10 @@
 
                 this.svg = null;
                 this.simulation = null;
-                this.defaultCharge = -50;
-                this.defaultDistance = 150;
+                this.defaultCharge = -1000;
+                this.defaultDistance = 180;
+                this.baseLinkDistance = this.defaultDistance;
+                this.linkHover = null;
 
                 this.internalData = new WeakMap()
                 this.internalData.set(this, {});
@@ -95,7 +108,7 @@
                 this.jsonLDOntology = null;
 
                 this.shadowRoot.innerHTML = '';
-                this.render(); 
+                this.render();
                 this.svg = d3.select(this.shadowRoot.querySelector("#chart-container"));
             }
 
@@ -163,10 +176,25 @@
                             border: 1px solid #ccc;
                             display: block;
                         }
+                        /* --- CHANGE: Added styles for the tooltip --- */
+                        .kg-tooltip {
+                            position: absolute;
+                            padding: 6px 10px;
+                            background: rgba(0, 0, 0, 0.8);
+                            color: #fff;
+                            border-radius: 4px;
+                            font-size: 14px;
+                            pointer-events: none;
+                            opacity: 0;
+                            transition: opacity 0.2s;
+                            z-index: 100;
+                        }
                     </style>
                     <div class="container">
                         <svg id="chart-container"></svg>
                     </div>
+                    <!-- --- CHANGE: Added the tooltip div --- -->
+                    <div class="kg-tooltip"></div>
                 `;
             }
 
@@ -175,7 +203,6 @@
                     await this.updateSize();
                     if (this.svg) {
                         this.svg.attr('width', this.width).attr('height', this.height);
-                        // Optionally, re-render or adjust layout if needed
                         if (this.simulation) {
                             this.simulation.force("center", d3.forceCenter(this.width / 2, this.height / 2));
                             this.simulation.alpha(0.2).restart();
@@ -230,6 +257,14 @@
                 let graph = await this.createGraph();
                 this.graph = await this.duplicateTargetsForMultipleLinks(graph);
 
+                this.graph.nodes.forEach(node => { node.degree = 0; });
+                this.graph.links.forEach(link => {
+                    const sourceNode = this.graph.nodes.find(n => n.id === link.source);
+                    const targetNode = this.graph.nodes.find(n => n.id === link.target);
+                    if (sourceNode) sourceNode.degree = (sourceNode.degree || 0) + 1;
+                    if (targetNode) targetNode.degree = (targetNode.degree || 0) + 1;
+                });
+
                 await this.layoutGraphWithHierarchy(this.graph);
 
                 this.graph.nodes.forEach(node => {
@@ -240,44 +275,59 @@
                         node.x = this.width / 2 + (Math.random() - 0.5) * 200;
                         node.y = this.height / 2 + (Math.random() - 0.5) * 200;
                     }
-
                 });
 
                 this.renderGraph();
                 this.setControls();
-            }
-
-            async createGraph() {
+            } async createGraph() {
                 let graph = {
                     nodes: [],
                     links: []
                 };
-                const definedNodeIds = new Set();
+
                 const addNode = (id, type) => {
-                    if (!definedNodeIds.has(id)) {
-                        graph.nodes.push({ id, name: id, type });
-                        definedNodeIds.add(id);
+                    let node = graph.nodes.find(n => n.id === id);
+                    if (!node) {
+                        node = { id, name: id, type };
+                        graph.nodes.push(node);
                     }
+                    return node;
                 };
+
                 this.jsonLDOntology['@graph'].forEach((item) => {
                     const subj = item['@id'] || item['@value'] || item['@node'] || item['@blank'] || item['@literal'];
                     let subjType = 'default';
-                    if (item['@type'] === 'rdfs:Class') subjType = 'Class';
-                    else if (item['@type'] === 'rdf:Property') subjType = 'Property';
-                    else if (item['@type'] === 'Literal') subjType = 'Literal';
+                    if (item['@type'] && item['@type'].includes('Class')) subjType = 'Class';
+                    else if (item['@type'] && item['@type'].includes('Property')) subjType = 'Property';
+                    else if (item['@type'] && item['@type'].includes('Literal')) subjType = 'Literal';
                     else if (subj && subj.startsWith('_:')) subjType = 'Blank';
-                    addNode(subj, subjType);
+                    else if (subj) subjType = 'Class';
+
+                    const subjNode = addNode(subj, subjType);
+                    subjNode.rawData = item;
+
                     Object.keys(item).forEach(pred => {
-                        if (pred === '@id' || pred === '@type' || pred === 'rdfs:comment') return; // SKIP rdfs:comment
+                        if (pred === '@id' || pred === '@type') return;
+
                         let objs = item[pred];
                         if (!Array.isArray(objs)) objs = [objs];
+
                         objs.forEach(obj => {
+
                             let objId = obj['@id'] || obj['@value'] || obj['@node'] || obj['@blank'] || obj['@literal'] || obj;
+
                             let objType = 'default';
-                            if (obj['@type'] === 'rdfs:Class') objType = 'Class';
-                            else if (obj['@type'] === 'rdf:Property') objType = 'Property';
-                            else if (obj['@type'] === 'Literal' || obj['@value'] !== undefined) objType = 'Literal';
-                            else if (objId && typeof objId === 'string' && objId.startsWith('_:')) objType = 'Blank';
+                            if (typeof obj === 'object' && obj !== null) {
+                                if (obj['@id']) {
+
+                                    objType = 'Class';
+                                } else {
+                                    objType = 'Literal';
+                                }
+                            } else {
+                                objType = 'Literal';
+                            }
+
                             addNode(objId, objType);
                             graph.links.push({ source: subj, target: objId, name: pred });
                         });
@@ -285,7 +335,6 @@
                 });
                 return graph;
             }
-
             async duplicateTargetsForMultipleLinks(graph) {
                 const sourceTargetCount = {};
 
@@ -332,10 +381,8 @@
 
             async buildHierarchy(graph) {
                 const subclassLinks = graph.links.filter(l => l.name === 'rdfs:subClassOf');
-
                 const childrenByParent = {};
                 const allIds = new Set();
-
                 subclassLinks.forEach(link => {
                     if (!childrenByParent[link.target]) {
                         childrenByParent[link.target] = [];
@@ -344,10 +391,8 @@
                     allIds.add(link.source);
                     allIds.add(link.target);
                 });
-
                 const childIds = new Set(subclassLinks.map(l => l.source));
                 const rootIds = [...allIds].filter(id => !childIds.has(id));
-
                 function buildNode(id) {
                     return {
                         id,
@@ -359,16 +404,12 @@
 
             async layoutGraphWithHierarchy(graph) {
                 const hierarchyRoots = await this.buildHierarchy(graph);
-
                 const tree = d3.tree().nodeSize([70, 200]);
                 const positionedNodes = new Map();
-
                 hierarchyRoots.forEach((root, index) => {
                     const rootHierarchy = d3.hierarchy(root, d => d.children);
                     tree(rootHierarchy);
-
                     const xOffset = index * 400;
-
                     rootHierarchy.descendants().forEach(d => {
                         positionedNodes.set(d.data.id, {
                             x: d.y + xOffset,
@@ -376,7 +417,6 @@
                         });
                     });
                 });
-
                 graph.nodes.forEach(node => {
                     if (positionedNodes.has(node.id)) {
                         const pos = positionedNodes.get(node.id);
@@ -384,7 +424,6 @@
                         node.fy = pos.y;
                     }
                 });
-
                 graph.nodes.forEach(node => {
                     if (!node.x && !node.y) {
                         const linked = graph.links.filter(l => l.source === node.id || l.target === node.id);
@@ -414,16 +453,18 @@
                 this.simulation = d3.forceSimulation(this.graph.nodes)
                     .force("link", d3.forceLink(this.graph.links)
                         .id(d => d.id)
-                        .distance(300)
+                        .distance(d => {
+                            const labelPadding = 20;
+                            const labelWidth = d._labelWidth || 0;
+                            return this.baseLinkDistance + labelWidth + labelPadding;
+                        })
                         .strength(0.8)
                     )
-                    .force("charge", d3.forceManyBody().strength(-600))
+                    .force("charge", d3.forceManyBody().strength(this.defaultCharge))
                     .force("center", d3.forceCenter(this.width / 2, this.height / 2))
-                    .force("collision", d3.forceCollide().radius(d => d.type === "Literal" ? 60 : 50))
+                    .force("collision", d3.forceCollide().radius(d => d.collisionRadius + 10))
                     .force("x", d3.forceX(this.width / 2).strength(0.02))
                     .force("y", d3.forceY(this.height / 2).strength(0.02));
-
-
 
                 this.simulation.on('end', () => {
                     this.graph.nodes.forEach(n => {
@@ -433,66 +474,78 @@
                 });
             }
 
-
-
+            truncateText(text) {
+                if (typeof text !== 'string' || text.length <= 25) {
+                    return { text: text, truncated: false };
+                }
+                return { text: text.substring(0, 10) + '…', truncated: true };
+            }
 
             updatePositions() {
-                this.link
-                    .attr("x1", d => d.source.x)
-                    .attr("y1", d => d.source.y)
-                    .attr("x2", d => d.target.x)
-                    .attr("y2", d => d.target.y)
-                    .attr("d", d => `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`);
+                const pathData = d => `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+
+                this.link.attr("d", pathData);
+
+                if (this.linkHover) {
+                    this.linkHover.attr("d", pathData);
+                }
 
                 this.nodeGroup
-                    .attr("transform", d => `translate(${d.x},${d.y})`);
-
-                this.linkLabel
-                    .attr("transform", (d, i) => {
-                        const path = this.shadowRoot.querySelector(`#linkPath${i}`); // Use shadowRoot for path selection
-                        if (!path) return null;
-
-                        const pathLength = path.getTotalLength();
-                        const midPoint = path.getPointAtLength(pathLength / 2);
-
-                        const start = path.getPointAtLength(0);
-                        const end = path.getPointAtLength(pathLength);
-
-                        const angle = Math.atan2(end.y - start.y, end.x - start.x) * (180 / Math.PI);
-
-                        if (angle > 90 || angle < -90) {
-                            return `translate(${midPoint.x},${midPoint.y}) rotate(180) translate(${-midPoint.x},${-midPoint.y})`;
-                        } else {
-                            return null;
-                        }
-                    });
+                    .attr("transform", d => `translate(${d.x},${d.y})`)
             }
 
             renderGraph() {
-                const tempText = this.svg.append("text").attr("font-size", "10px").attr("opacity", 0);
+                const tempLinkText = this.svg.append("text").attr("font-size", "12px").attr("opacity", 0);
                 this.graph.links.forEach(link => {
-                    tempText.text(link.name);
-                    const bbox = tempText.node().getBBox();
+                    tempLinkText.text(link.name);
+                    const bbox = tempLinkText.node().getBBox();
                     link._labelWidth = bbox.width;
                 });
-                tempText.remove();
+                tempLinkText.remove();
+
+                const degreeExtent = d3.extent(this.graph.nodes, d => d.degree);
+
+                const degreeBonusScale = d3.scaleSqrt()
+                    .domain(degreeExtent[0] > 0 ? degreeExtent : [0, 1])
+                    .range([0, 15]);
+
+                const tempNodeText = this.svg.append("text").attr("opacity", 0);
+                this.graph.nodes.forEach(d => {
+                    let nameToShow = d.name;
+                    if (d.rawData && d.rawData['rdfs:label']) {
+                        let labels = d.rawData['rdfs:label'];
+                        if (!Array.isArray(labels)) labels = [labels];
+                        const enLabel = labels.find(l => l['@language'] === 'en');
+                        nameToShow = enLabel ? enLabel['@value'] : (labels[0]['@value'] || labels[0] || nameToShow);
+                    }
+                    d.fullName = nameToShow;
+
+                    const textSize = (d.type === "Literal") ? 10 : (d.type === "class" || d.type === "Class") ? 11 : 12;
+                    tempNodeText.attr("font-size", textSize).attr("font-family", "Arial");
+
+                    let textToDisplay;
+                    if (typeof nameToShow !== 'string' || nameToShow.length <= 10) {
+                        textToDisplay = nameToShow;
+                        d.isTruncated = false;
+                    } else {
+                        textToDisplay = nameToShow.substring(0, 10) + '…';
+                        d.isTruncated = true;
+                    }
+                    d.displayName = textToDisplay;
+
+                    tempNodeText.text(textToDisplay);
+                    const textWidth = tempNodeText.node().getBBox().width;
+                    const textRadius = (textWidth / 2) + 8;
+
+                    const bonus = degreeBonusScale(d.degree);
+                    d.collisionRadius = textRadius + bonus;
+                });
+                tempNodeText.remove();
+
 
                 this.setupSimulation();
 
                 const gZoom = this.svg.append("g").attr("class", "zoom-layer");
-
-                const femaleNode = this.graph.nodes.find(n => n.id.endsWith('Female'));
-                const personNode = this.graph.nodes.find(n => n.id.endsWith('Person'));
-                if (femaleNode && personNode) {
-                    const padding = 120; 
-                    const minX = Math.min(femaleNode.x, personNode.x) - padding;
-                    const maxX = Math.max(femaleNode.x, personNode.x) + padding;
-                    const minY = Math.min(femaleNode.y, personNode.y) - padding;
-                    const maxY = Math.max(femaleNode.y, personNode.y) + padding;
-                    const centerX = (minX + maxX) / 2;
-                    const centerY = (minY + maxY) / 2;
-                    const radius = Math.max(maxX - minX, maxY - minY) / 2 + padding * 0.7;
-                }
 
                 const zoom = d3.zoom()
                     .scaleExtent([0.1, 5])
@@ -516,6 +569,32 @@
                     .attr("marker-end", "url(#arrowhead)")
                     .attr("method", "align");
 
+                const tooltip = d3.select(this.shadowRoot.querySelector(".kg-tooltip"));
+
+                this.linkHover = gZoom.append("g")
+                    .attr("class", "link-hover-paths")
+                    .selectAll("path")
+                    .data(this.graph.links)
+                    .enter()
+                    .append("path")
+                    .attr("stroke-width", 15)
+                    .attr("stroke", "transparent")
+                    .attr("fill", "none")
+                    .style("cursor", "pointer")
+                    .on("mouseover", function (d) {
+                        const htmlContent = `<strong>Predicate:</strong> ${d.name}`;
+                        tooltip.style("opacity", 1)
+                            .style("text-align", "center")
+                            .html(htmlContent);
+                    })
+                    .on("mousemove", function () {
+                        tooltip.style("left", (d3.event.pageX + 15) + "px")
+                            .style("top", (d3.event.pageY - 10) + "px");
+                    })
+                    .on("mouseout", function () {
+                        tooltip.style("opacity", 0);
+                    });
+
                 this.linkLabel = gZoom.append("g")
                     .attr("class", "link-labels")
                     .selectAll("text")
@@ -530,6 +609,9 @@
                     .attr("xlink:href", (d, i) => `#linkPath${i}`)
                     .attr("startOffset", "50%")
                     .text(d => d.name);
+                console.log('--- renderGraph: this.linkLabel was just created. Value is:', this.linkLabel);
+
+                this.setShowEdgeLabels(document.getElementById('toggle-edge-labels').checked);
 
                 this.nodeGroup = gZoom.append("g")
                     .attr("class", "nodes")
@@ -541,12 +623,10 @@
                     .call(d3.drag()
                         .on("start", function (d) {
                             if (d.fx !== null && d.fy !== null && d.fx !== undefined && d.fy !== undefined) {
-                                d._skipDrag = true;
-                                return;
+                                d._skipDrag = true; return;
                             }
                             d._skipDrag = false;
                             if (!d3.event.active) this.simulation.alphaTarget(0.3).restart();
-                            d._wasFixed = false;
                             d.fx = d.x;
                             d.fy = d.y;
                         }.bind(this))
@@ -560,20 +640,56 @@
                             if (!d3.event.active) this.simulation.alphaTarget(0);
                             d.fx = null;
                             d.fy = null;
-                            delete d._wasFixed;
                         }.bind(this))
-                    );
+                    )
+                    .on("mouseover", function (d) {
+                        const escape = (str) => String(str)
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;')
+                            .replace(/'/g, '&#39;');
 
-                const colors = d3.scaleOrdinal(d3.schemeCategory10);
+                        let htmlContent = [`<strong>${escape(d.fullName)}</strong>`];
+
+                        if (d.rawData) {
+                            Object.keys(d.rawData).forEach(key => {
+                                if (key.startsWith('@') || key === 'id') return;
+
+                                let values = d.rawData[key];
+                                if (!Array.isArray(values)) values = [values];
+
+                                values.forEach(valueObj => {
+                                    if (valueObj['@id'] === undefined) {
+                                        const text = valueObj['@value'] || valueObj;
+                                        const lang = valueObj['@language'] ? `@${valueObj['@language']}` : '';
+                                        const type = (valueObj['@type'] && valueObj['@type'].includes(':')) ? `^^${valueObj['@type'].split(':').pop()}` : '';
+
+                                        htmlContent.push(`<strong>${escape(key)}${lang}:</strong> ${escape(text)} ${type}`);
+                                    }
+                                });
+                            });
+                        }
+
+                        tooltip.style("opacity", 1)
+                            .style("text-align", "left")
+                            .html(htmlContent.join('<br>'));
+                    })
+                    .on("mousemove", function () {
+                        tooltip.style("left", (d3.event.pageX + 15) + "px")
+                            .style("top", (d3.event.pageY - 10) + "px");
+                    })
+                    .on("mouseout", function () {
+                        tooltip.style("opacity", 0);
+                    });
+
                 this.nodeGroup.each(function (d) {
                     const group = d3.select(this);
 
                     let fillColor = "#1f77b4";
                     let textSize = 12;
-                    let textColor = "black";
+                    let textColor = "white";
                     let rx = 4, ry = 4;
-                    let fontFamily = "Arial";
-
                     let shape = "circle";
 
                     if (d.type === "Literal") {
@@ -584,51 +700,36 @@
                         fillColor = "yellow";
                         shape = "rect";
                         textSize = 12;
-                    } else if (d.type === "class" || d.type === "Class") {
-                        fillColor = "blue";
+                    } else if (d.type === "class" || d.type === "Class" || d.type === "Property") {
+                        fillColor = "#1f77b4";
                         shape = "circle";
                         textSize = 11;
                     }
 
-                    const tempText = group.append("text")
-                        .attr("font-size", textSize)
-                        .attr("font-family", fontFamily)
-                        .attr("opacity", 0)
-                        .text(d.name);
-                    const bbox = tempText.node().getBBox();
-                    tempText.remove();
-
-                    const textWidth = bbox.width;
-                    const textHeight = bbox.height;
-                    const paddingX = 10;
-                    const paddingY = 6;
+                    const radius = d.collisionRadius;
 
                     if (shape === "rect") {
-                        const rectWidth = textWidth + paddingX * 2;
-                        const rectHeight = textHeight + paddingY * 2;
-
                         group.append("rect")
-                            .attr("x", -rectWidth / 2)
-                            .attr("y", -rectHeight / 2)
-                            .attr("width", rectWidth)
-                            .attr("height", rectHeight)
+                            .attr("x", -radius)
+                            .attr("y", -radius * 0.75)
+                            .attr("width", radius * 2)
+                            .attr("height", radius * 1.5)
                             .attr("fill", fillColor)
                             .attr("rx", rx)
                             .attr("ry", ry);
-                    } else if (shape === "circle") {
-                        const radius = Math.max(textWidth, textHeight) / 2 + 10;
+                    } else {
                         group.append("circle")
                             .attr("r", radius)
                             .attr("fill", fillColor);
                     }
 
                     group.append("text")
-                        .text(d.name)
+                        .text(d.displayName)
                         .attr("font-size", textSize)
-                        .attr("font-family", fontFamily)
+                        .attr("font-family", "Arial")
                         .attr("fill", textColor)
                         .attr("text-anchor", "middle")
-                        .attr("dominant-baseline", "middle");
+                        .attr("dominant-baseline", "central");
                 });
 
                 this.simulation
@@ -643,22 +744,20 @@
                 const fullHeight = this.height;
                 const width = bounds.width;
                 const height = bounds.height;
-                const midX = bounds.x + width / 2;
-                const midY = bounds.y + height / 2;
+                if (width > 0 && height > 0) {
+                    const midX = bounds.x + width / 2;
+                    const midY = bounds.y + height / 2;
+                    const scale = 0.85 / Math.max(width / fullWidth, height / fullHeight);
+                    const translate = [fullWidth / 2 - scale * midX, fullHeight / 2 - scale * midY];
 
-                const scale = 0.85 / Math.max(width / fullWidth, height / fullHeight);
-                const translate = [fullWidth / 2 - scale * midX, fullHeight / 2 - scale * midY];
-
-                this.svg.transition()
-                    .duration(500)
-                    .call(
-                        zoom.transform,
-                        d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale)
-                    );
-
+                    this.svg.transition()
+                        .duration(500)
+                        .call(
+                            zoom.transform,
+                            d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale)
+                        );
+                }
             }
-
-
             setControls() {
                 const sliderGroup = this.svg.append("g").attr("class", "sliders");
 
@@ -669,14 +768,12 @@
                 const createSlider = (label, min, max, initial, step, onChange) => {
                     const group = sliderGroup.append("g")
                         .attr("transform", `translate(${sliderX}, ${sliderY})`);
-
                     group.append("text")
                         .text(`${label}: ${initial}`)
                         .attr("x", 0)
                         .attr("y", -10)
                         .attr("font-size", "10px")
                         .attr("class", `label-${label}`);
-
                     group.append("line")
                         .attr("x1", 0)
                         .attr("x2", sliderWidth)
@@ -684,7 +781,6 @@
                         .attr("y2", 0)
                         .attr("stroke", "#ccc")
                         .attr("stroke-width", 2);
-
                     const handle = group.append("circle")
                         .attr("cx", ((initial - min) / (max - min)) * sliderWidth)
                         .attr("cy", 0)
@@ -694,24 +790,21 @@
                         .call(d3.drag().on("drag", () => {
                             let x = Math.max(0, Math.min(sliderWidth, d3.event.x));
                             handle.attr("cx", x);
-
                             const value = min + (x / sliderWidth) * (max - min);
                             group.select(`text.label-${label}`)
                                 .text(`${label}: ${Math.round(value)}`);
-
                             onChange(value);
                         }));
-
                     sliderY += 40;
                 };
 
-                createSlider("Charge", -300, -10, -50, 1, val => {
+                createSlider("Charge", -2000, -10, this.defaultCharge, 1, val => {
                     this.simulation.force("charge").strength(val);
                     this.simulation.alpha(1).restart();
                 });
 
-                createSlider("Distance", 10, 200, 10, 1, val => {
-                    this.simulation.force("link").distance(val);
+                createSlider("Distance", 10, 300, this.baseLinkDistance, 1, val => {
+                    this.baseLinkDistance = val;
                     this.simulation.alpha(1).restart();
                 });
 
@@ -721,20 +814,22 @@
                     .on("click", () => {
                         let _this = this;
                         this.simulation.force("charge").strength(this.defaultCharge);
-                        this.simulation.force("link").distance(this.defaultDistance);
+                        this.baseLinkDistance = this.defaultDistance;
                         this.simulation.alpha(1).restart();
 
                         sliderGroup.select("text.label-Charge").text(`Charge: ${this.defaultCharge}`);
                         sliderGroup.select("text.label-Distance").text(`Distance: ${this.defaultDistance}`);
-
                         sliderGroup.selectAll("g").each(function () {
                             const text = d3.select(this).select("text").text();
+                            const g = d3.select(this);
                             if (text.startsWith("Charge")) {
-                                d3.select(this).select("circle")
-                                    .attr("cx", ((_this.defaultCharge - (-300)) / (290)) * sliderWidth);
+                                const newRange = -10 - (-2000);
+                                const newCx = ((_this.defaultCharge - (-2000)) / newRange) * sliderWidth;
+                                g.select("circle").attr("cx", newCx);
                             } else if (text.startsWith("Distance")) {
-                                d3.select(this).select("circle")
-                                    .attr("cx", ((_this.defaultDistance - 10) / 190) * sliderWidth);
+                                const newRange = 300 - 10;
+                                const newCx = ((_this.defaultDistance - 10) / newRange) * sliderWidth;
+                                g.select("circle").attr("cx", newCx);
                             }
                         })
                     });
@@ -757,15 +852,11 @@
         }
         customElements.define('kg-graph', KGGraphVis);
 
-        // Once the custom element is defined, set its TTL property
-        const graphElement = document.getElementById('myGraph');
-
-        // Checkbox event listeners
-        document.getElementById('toggle-labels').addEventListener('change', function() {
-            graphElement.setShowLabels(this.checked);
-        });
-        document.getElementById('toggle-comments').addEventListener('change', function() {
-            graphElement.setShowComments(this.checked);
+        document.getElementById('toggle-edge-labels').addEventListener('change', function () {
+            const currentGraphElement = document.getElementById('myGraph');
+            if (currentGraphElement) {
+                currentGraphElement.setShowEdgeLabels(this.checked);
+            }
         });
     </script>
 </body>
