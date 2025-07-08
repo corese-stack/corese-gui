@@ -60,16 +60,8 @@
             }
 
             setShowEdgeLabels(show) {
-                console.log('--- setShowEdgeLabels called ---');
-                console.log('Value of "show" is:', show);
-                console.log('The "this.linkLabel" variable is:', this.linkLabel);
                 if (this.linkLabel) {
-                    console.log('D3 found', this.linkLabel.size(), 'elements to modify.');
                     this.linkLabel.style('display', show ? null : 'none');
-                    console.log('Attempted to set display style.');
-                }
-                else {
-                    console.error('CRITICAL: this.linkLabel is null or undefined. Cannot toggle labels.');
                 }
             }
             setShowComments(show) {
@@ -609,7 +601,6 @@
                     .attr("xlink:href", (d, i) => `#linkPath${i}`)
                     .attr("startOffset", "50%")
                     .text(d => d.name);
-                console.log('--- renderGraph: this.linkLabel was just created. Value is:', this.linkLabel);
 
                 this.setShowEdgeLabels(document.getElementById('toggle-edge-labels').checked);
 
