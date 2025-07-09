@@ -21,5 +21,6 @@ public enum IconButtonType {
     DELETE,
     COPY,
     PASTE,
-    TEMPLATE
+    TEMPLATE,
+    SPLIT
 }

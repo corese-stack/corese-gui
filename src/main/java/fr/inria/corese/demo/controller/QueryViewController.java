@@ -1,13 +1,9 @@
 package fr.inria.corese.demo.controller;
 
-import fr.inria.corese.core.Graph;
-import fr.inria.corese.core.kgram.core.Mappings;
-import fr.inria.corese.core.print.ResultFormat;
 import fr.inria.corese.demo.enums.icon.IconButtonBarType;
 import fr.inria.corese.demo.enums.icon.IconButtonType;
 import fr.inria.corese.demo.factory.popup.TemplatePopup;
 import fr.inria.corese.demo.manager.ApplicationStateManager;
-import fr.inria.corese.demo.model.QueryResult;
 import fr.inria.corese.demo.view.CustomButton;
 import fr.inria.corese.demo.view.EmptyStateViewFactory;
 import fr.inria.corese.demo.view.TopBar;
@@ -23,17 +19,13 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
-import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
 import java.net.URI;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
-
 
 public class QueryViewController {
     @FXML
@@ -53,6 +45,14 @@ public class QueryViewController {
     @FXML
     private Tab textTab;
 
+    @FXML
+    private StackPane resultsContainer;
+
+    private boolean isSplitView = false;
+    @FXML
+    private SplitPane resultsSplitPane;
+    private Node textViewNode;
+
     private TabEditorController tabEditorController;
     private Node emptyStateView;
     private HostServices hostServices;
@@ -60,7 +60,7 @@ public class QueryViewController {
     private ResultsPaneController resultsPaneController;
     private GraphViewController graphViewController;
     private TextViewController textViewController;
-    private ApplicationStateManager stateManager = ApplicationStateManager.getInstance();
+    private final ApplicationStateManager stateManager = ApplicationStateManager.getInstance();
 
     private static final List<String> SELECT_FORMATS = List.of("XML", "JSON", "CSV", "TSV", "MARKDOWN");
     private static final List<String> GRAPH_FORMATS = List.of("TURTLE", "RDF_XML", "JSON-LD", "N-TRIPLES", "N-QUADS",
@@ -100,15 +100,18 @@ public class QueryViewController {
         });
 
         tabEditorController.getView().getTabPane().getSelectionModel().selectedItemProperty()
-                .addListener((obs, oldTab, newTab) -> handleTabSelectionChange(newTab));
+                .addListener((obs, oldTab, newTab) -> updateResultsForSelectedQueryTab(newTab));
 
+        resultsTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+
+        });
         resultsPaneController.getTextFormatComboBox().getSelectionModel().selectedItemProperty()
                 .addListener((obs, oldVal, newVal) -> {
                     if (newVal != null) {
-                        Tab selectedTab = tabEditorController.getView().getTabPane().getSelectionModel()
+                        Tab selectedQueryTab = tabEditorController.getView().getTabPane().getSelectionModel()
                                 .getSelectedItem();
-                        if (selectedTab != null && selectedTab != tabEditorController.getView().getAddTab()) {
-                            textViewController.displayData(selectedTab.hashCode(), newVal);
+                        if (selectedQueryTab != null && selectedQueryTab != tabEditorController.getView().getAddTab()) {
+                            textViewController.displayData(selectedQueryTab.hashCode(), newVal);
                         }
                     }
                 });
@@ -123,66 +126,105 @@ public class QueryViewController {
             }
             Platform.runLater(this::updateEmptyStateVisibility);
         });
+
         setupRunButton();
         setupLayout();
         initializeTopBar();
         setupKeyboardShortcuts();
+        
     }
 
-    private void handleTabSelectionChange(Tab newTab) {
+    /**
+     * Toggles the results view between a single TabPane and a split view
+     * where the Text view is shown side-by-side.
+     */
+    @FXML
+    private void toggleSplitView() {
+        if (this.textViewNode == null) {
+            this.textViewNode = textTab.getContent();
+        }
+
+        isSplitView = !isSplitView;
+
+        if (isSplitView) {
+
+            if (resultsTabPane.getTabs().contains(textTab)) {
+                resultsTabPane.getTabs().remove(textTab);
+            }
+
+            if (resultsSplitPane.getItems().size() == 1) {
+                TabPane textWrapperPane = new TabPane();
+                textWrapperPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+                Tab newTextTab = new Tab("Text", this.textViewNode);
+                newTextTab.setClosable(false);
+                textWrapperPane.getTabs().add(newTextTab);
+
+                resultsSplitPane.getItems().add(textWrapperPane);
+            }
+
+            Platform.runLater(() -> resultsSplitPane.setDividerPositions(0.5));
+
+        } else {
+            if (resultsSplitPane.getItems().size() > 1) {
+                resultsSplitPane.getItems().remove(1);
+            }
+
+            textTab.setContent(textViewNode);
+            if (!resultsTabPane.getTabs().contains(textTab)) {
+                resultsTabPane.getTabs().add(textTab);
+            }
+            resultsTabPane.getSelectionModel().select(textTab);
+
+        }
+    }
+
+    private void updateResultsForSelectedQueryTab(Tab selectedQueryTab) {
         resultsPaneController.clearResults();
 
-        if (newTab == null || newTab == tabEditorController.getView().getAddTab()) {
-            tableTab.setDisable(true);
-            graphTab.setDisable(true);
-            textTab.setDisable(true);
+        if (selectedQueryTab == null || selectedQueryTab == tabEditorController.getView().getAddTab()) {
+            disableAllResultsTabs();
             return;
         }
 
-        final Integer tabId = newTab.hashCode();
-        System.out.println("[UI] Tab changed. Looking for cached result for tab ID: " + newTab.hashCode());
-
-        var cachedEntry = stateManager.getCachedResult(tabId);
+        final Integer queryTabId = selectedQueryTab.hashCode();
+        var cachedEntry = stateManager.getCachedResult(queryTabId);
 
         if (cachedEntry == null) {
-            tableTab.setDisable(true);
-            graphTab.setDisable(true);
-            textTab.setDisable(true);
-            System.out.println("[UI] No cached result found. Views are clear.");
+            disableAllResultsTabs();
             resultsPaneController.setTextFormats(List.of(), null);
             return;
         }
 
         String queryType = cachedEntry.getQueryType();
-        System.out.println("[UI] Found cached result of type: " + queryType);
 
         switch (queryType) {
             case "SELECT":
             case "ASK":
-
                 tableTab.setDisable(false);
                 graphTab.setDisable(true);
                 textTab.setDisable(false);
-
                 resultsPaneController.setTextFormats(SELECT_FORMATS, "XML");
-                tableViewController.displayData(tabId);
-                textViewController.displayData(tabId, "XML");
+                tableViewController.displayData(queryTabId);
+                textViewController.displayData(queryTabId, "XML");
                 resultsTabPane.getSelectionModel().select(tableTab);
                 break;
-
             case "CONSTRUCT":
             case "DESCRIBE":
-
                 tableTab.setDisable(true);
                 graphTab.setDisable(false);
                 textTab.setDisable(false);
-
                 resultsPaneController.setTextFormats(GRAPH_FORMATS, "TURTLE");
-                graphViewController.displayGraph(tabId);
-                textViewController.displayData(tabId, "TURTLE");
+                graphViewController.displayGraph(queryTabId);
+                textViewController.displayData(queryTabId, "TURTLE");
                 resultsTabPane.getSelectionModel().select(graphTab);
                 break;
         }
+    }
+
+    private void disableAllResultsTabs() {
+        tableTab.setDisable(true);
+        graphTab.setDisable(true);
+        textTab.setDisable(true);
     }
 
     public void executeQuery() {
@@ -206,7 +248,7 @@ public class QueryViewController {
                 stateManager.executeAndCacheQuery(queryContent, tabId);
 
                 Platform.runLater(() -> {
-                    handleTabSelectionChange(selectedTab);
+                    updateResultsForSelectedQueryTab(selectedTab);
                 });
 
             } catch (Exception e) {
@@ -218,7 +260,8 @@ public class QueryViewController {
 
     private void initializeTopBar() {
         List<IconButtonType> buttons = new ArrayList<>(
-                List.of(IconButtonType.OPEN_FILE, IconButtonType.DOCUMENTATION, IconButtonType.TEMPLATE));
+                List.of(IconButtonType.OPEN_FILE, IconButtonType.DOCUMENTATION, IconButtonType.TEMPLATE,
+                        IconButtonType.SPLIT));
         topBar.addLeftButtons(buttons);
         topBar.getButton(IconButtonType.OPEN_FILE).setOnAction(e -> onOpenFilesButtonClick());
         topBar.getButton(IconButtonType.TEMPLATE).setOnAction(e -> {
@@ -235,6 +278,8 @@ public class QueryViewController {
                 ex.printStackTrace();
             }
         });
+
+        topBar.getButton(IconButtonType.SPLIT).setOnAction(e -> toggleSplitView());
     }
 
     private void onOpenFilesButtonClick() {
@@ -308,35 +353,22 @@ public class QueryViewController {
         tabEditorController.getView().setManaged(realTabCount > 0);
     }
 
-    /**
-     * This method contains the complete set of keyboard shortcuts for the Query
-     * View.
-     */
     private void setupKeyboardShortcuts() {
-        // We add the listener to the scene property to ensure it's active once the UI
-        // is fully loaded.
         mainBorderPane.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
                 newScene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-                    // Open File: Ctrl + O
                     if (new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN).match(event)) {
                         onOpenFilesButtonClick();
                         event.consume();
-                    }
-                    // New Tab: Ctrl + N
-                    else if (new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN).match(event)) {
+                    } else if (new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN).match(event)) {
                         tabEditorController.addNewTab("untitled", "");
                         event.consume();
-                    }
-                    // Close Tab: Ctrl + W
-                    else if (new KeyCodeCombination(KeyCode.W, KeyCombination.CONTROL_DOWN).match(event)) {
+                    } else if (new KeyCodeCombination(KeyCode.W, KeyCombination.CONTROL_DOWN).match(event)) {
                         Tab selectedTab = tabEditorController.getView().getTabPane().getSelectionModel()
                                 .getSelectedItem();
                         tabEditorController.handleCloseFile(selectedTab);
                         event.consume();
-                    }
-                    // Save File: Ctrl + S
-                    else if (new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN).match(event)) {
+                    } else if (new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN).match(event)) {
                         Tab selectedTab = tabEditorController.getView().getTabPane().getSelectionModel()
                                 .getSelectedItem();
                         if (selectedTab != null && selectedTab != tabEditorController.getView().getAddTab()) {
@@ -347,9 +379,7 @@ public class QueryViewController {
                             }
                         }
                         event.consume();
-                    }
-                    // Open Templates: Ctrl + T
-                    else if (new KeyCodeCombination(KeyCode.T, KeyCombination.CONTROL_DOWN).match(event)) {
+                    } else if (new KeyCodeCombination(KeyCode.T, KeyCombination.CONTROL_DOWN).match(event)) {
                         Stage stage = (Stage) mainBorderPane.getScene().getWindow();
                         TemplatePopup.show(stage, query -> tabEditorController.addNewTab("untitled", query));
                         event.consume();
@@ -360,7 +390,6 @@ public class QueryViewController {
     }
 
     public void openQueryFile(File file) {
-        // Check if the file is already open in a tab
         for (Tab tab : tabEditorController.getView().getTabPane().getTabs()) {
             if (tab != tabEditorController.getView().getAddTab()) {
                 CodeEditorController controller = tabEditorController.getModel().getControllerForTab(tab);
@@ -370,7 +399,6 @@ public class QueryViewController {
                 }
             }
         }
-        // If not found, open it in a new tab
         tabEditorController.addNewTab(file);
     }
 

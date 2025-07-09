@@ -37,6 +37,7 @@ public class IconButtonView extends Button{
             case LOGS -> createIconButton(MaterialDesignB.BOOK_OPEN_VARIANT, "Show logs");
             case DELETE -> createIconButton(MaterialDesignT.TRASH_CAN, "Clear graph");
             case TEMPLATE -> createIconButton(MaterialDesignS.SCRIPT_OUTLINE, "Select Template");
+            case SPLIT -> createIconButton(MaterialDesignV.VIEW_SPLIT_VERTICAL, "Select Template");
             default -> throw new IllegalArgumentException("Unexpected value: " + type);
             
         }
