@@ -333,14 +333,11 @@
                             let objType = 'default';
                             if (typeof obj === 'object' && obj !== null) {
                                 if (obj['@id']) {
-                                    // It's a link to another resource (likely a Class or Property)
                                     objType = 'Class';
                                 } else {
-                                    // It's a literal object like {"@value": "some text", "@language": "en"}
                                     objType = 'Literal';
                                 }
                             } else {
-                                // It's a simple literal value like "some text"
                                 objType = 'Literal';
                             }
 
@@ -350,24 +347,18 @@
                     });
                 });
 
-                // --- NEWLY ADDED BLOCK ---
-                // Post-process links to determine their property type for styling.
                 graph.links.forEach(link => {
-                    // Find the node that defines the property itself (e.g., the ns1:hasSister node).
-                    // This node holds the rdfs:range and rdfs:domain information in its rawData.
+
                     const propertyDefinitionNode = graph.nodes.find(n => n.id === link.name);
 
                     if (propertyDefinitionNode && propertyDefinitionNode.rawData) {
-                        // If an rdfs:range is defined, it's an ObjectProperty because it links to another object/class.
                         if (propertyDefinitionNode.rawData['rdfs:range']) {
                             link.propertyType = 'Object';
                         } else {
-                            // If no rdfs:range is specified, we assume it's a DatatypeProperty linking to a literal value.
                             link.propertyType = 'Datatype';
                         }
                     }
                 });
-                // --- END OF NEWLY ADDED BLOCK ---
 
                 return graph;
             }
