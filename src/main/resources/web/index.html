@@ -141,6 +141,19 @@
                     .attr("fill", "#999")
                     .append("path")
                     .attr("d", "M0,-5L10,0L0,5");
+
+                defs.append("marker")
+                    .attr("id", "arrowhead-unfilled")
+                    .attr("viewBox", "0 -5 10 10")
+                    .attr("refX", 15)
+                    .attr("refY", 0)
+                    .attr("markerWidth", 6)
+                    .attr("markerHeight", 6)
+                    .attr("orient", "auto")
+                    .attr("fill", "none")
+                    .attr("stroke", "#999")
+                    .append("path")
+                    .attr("d", "M0,-5L10,0L0,5");
             }
 
             disconnectedCallback() {
@@ -271,7 +284,8 @@
 
                 this.renderGraph();
                 this.setControls();
-            } async createGraph() {
+            }
+            async createGraph() {
                 let graph = {
                     nodes: [],
                     links: []
@@ -289,14 +303,23 @@
                 this.jsonLDOntology['@graph'].forEach((item) => {
                     const subj = item['@id'] || item['@value'] || item['@node'] || item['@blank'] || item['@literal'];
                     let subjType = 'default';
-                    if (item['@type'] && item['@type'].includes('Class')) subjType = 'Class';
-                    else if (item['@type'] && item['@type'].includes('Property')) subjType = 'Property';
-                    else if (item['@type'] && item['@type'].includes('Literal')) subjType = 'Literal';
-                    else if (subj && subj.startsWith('_:')) subjType = 'Blank';
-                    else if (subj) subjType = 'Class';
+
+                    // Correctly identify Class, Property, and Literal nodes
+                    if (item['@type'] && item['@type'].includes('Class')) {
+                        subjType = 'Class';
+                    } else if (item['@type'] && item['@type'].includes('Property')) {
+                        subjType = 'Property';
+                    } else if (item['@type'] && item['@type'].includes('Literal')) {
+                        subjType = 'Literal';
+                    } else if (subj && subj.startsWith('_:')) {
+                        subjType = 'Blank';
+                    } else if (subj) {
+                        // Default to Class if it's a resource but has no explicit type
+                        subjType = 'Class';
+                    }
 
                     const subjNode = addNode(subj, subjType);
-                    subjNode.rawData = item;
+                    subjNode.rawData = item; // Store the original data on the node
 
                     Object.keys(item).forEach(pred => {
                         if (pred === '@id' || pred === '@type') return;
@@ -305,18 +328,19 @@
                         if (!Array.isArray(objs)) objs = [objs];
 
                         objs.forEach(obj => {
-
                             let objId = obj['@id'] || obj['@value'] || obj['@node'] || obj['@blank'] || obj['@literal'] || obj;
 
                             let objType = 'default';
                             if (typeof obj === 'object' && obj !== null) {
                                 if (obj['@id']) {
-
+                                    // It's a link to another resource (likely a Class or Property)
                                     objType = 'Class';
                                 } else {
+                                    // It's a literal object like {"@value": "some text", "@language": "en"}
                                     objType = 'Literal';
                                 }
                             } else {
+                                // It's a simple literal value like "some text"
                                 objType = 'Literal';
                             }
 
@@ -325,6 +349,26 @@
                         });
                     });
                 });
+
+                // --- NEWLY ADDED BLOCK ---
+                // Post-process links to determine their property type for styling.
+                graph.links.forEach(link => {
+                    // Find the node that defines the property itself (e.g., the ns1:hasSister node).
+                    // This node holds the rdfs:range and rdfs:domain information in its rawData.
+                    const propertyDefinitionNode = graph.nodes.find(n => n.id === link.name);
+
+                    if (propertyDefinitionNode && propertyDefinitionNode.rawData) {
+                        // If an rdfs:range is defined, it's an ObjectProperty because it links to another object/class.
+                        if (propertyDefinitionNode.rawData['rdfs:range']) {
+                            link.propertyType = 'Object';
+                        } else {
+                            // If no rdfs:range is specified, we assume it's a DatatypeProperty linking to a literal value.
+                            link.propertyType = 'Datatype';
+                        }
+                    }
+                });
+                // --- END OF NEWLY ADDED BLOCK ---
+
                 return graph;
             }
             async duplicateTargetsForMultipleLinks(graph) {
@@ -558,8 +602,9 @@
                     .attr("stroke-width", 3)
                     .attr("stroke", "#666")
                     .attr("fill", "none")
-                    .attr("marker-end", "url(#arrowhead)")
-                    .attr("method", "align");
+                    .attr("stroke-dasharray", d => (d.name === 'rdfs:subClassOf' || d.name === 'rdfs:subPropertyOf') ? "5,5" : null)
+                    .attr("marker-end", d => (d.name === 'rdfs:subClassOf' || d.name === 'rdfs:subPropertyOf') ? "url(#arrowhead-unfilled)" : "url(#arrowhead)")
+
 
                 const tooltip = d3.select(this.shadowRoot.querySelector(".kg-tooltip"));
 
@@ -594,7 +639,11 @@
                     .enter()
                     .append("text")
                     .attr("font-size", 12)
-                    .attr("fill", "black")
+                    .attr("fill", d => {
+                        if (d.propertyType === 'Datatype') return '#d62728';
+                        if (d.name.startsWith('rdfs:')) return '#636363';
+                        return 'black';
+                    })
                     .attr("font-weight", "normal")
                     .attr("text-anchor", "middle")
                     .append("textPath")
@@ -682,8 +731,11 @@
                     let textColor = "white";
                     let rx = 4, ry = 4;
                     let shape = "circle";
-
-                    if (d.type === "Literal") {
+                    if (d.type === "Property") {
+                        fillColor = "#2ca02c";
+                        shape = "rect";
+                    }
+                    else if (d.type === "Literal") {
                         fillColor = "orange";
                         shape = "rect";
                         textSize = 10;
@@ -691,7 +743,7 @@
                         fillColor = "yellow";
                         shape = "rect";
                         textSize = 12;
-                    } else if (d.type === "class" || d.type === "Class" || d.type === "Property") {
+                    } else if (d.type === "class" || d.type === "Class") {
                         fillColor = "#1f77b4";
                         shape = "circle";
                         textSize = 11;
@@ -700,7 +752,7 @@
                     const radius = d.collisionRadius;
 
                     if (shape === "rect") {
-                        group.append("rect")
+                        const rect = group.append("rect")
                             .attr("x", -radius)
                             .attr("y", -radius * 0.75)
                             .attr("width", radius * 2)
@@ -708,6 +760,10 @@
                             .attr("fill", fillColor)
                             .attr("rx", rx)
                             .attr("ry", ry);
+
+                        if (d.type === "Property") {
+                            rect.attr("transform", `rotate(45)`);
+                        }
                     } else {
                         group.append("circle")
                             .attr("r", radius)
