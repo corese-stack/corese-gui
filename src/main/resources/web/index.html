@@ -203,15 +203,12 @@
                 `;
             }
 
-            // REPLACE your entire observeResize method with this one.
             observeResize() {
                 this.resizeObserver = new ResizeObserver(async () => {
                     await this.updateSize();
                     if (this.svg) {
-                        // 1. Update the main SVG canvas size
                         this.svg.attr('width', this.width).attr('height', this.height);
 
-                        // 2. Re-center the physics simulation
                         if (this.simulation) {
                             this.simulation.force("center", d3.forceCenter(this.width / 2, this.height / 2));
                             this.simulation.alpha(0.2).restart();
@@ -326,7 +323,7 @@
                     }
 
                     const subjNode = addNode(subj, subjType);
-                    subjNode.rawData = item; 
+                    subjNode.rawData = item;
 
                     Object.keys(item).forEach(pred => {
                         if (pred === '@id' || pred === '@type') return;
@@ -720,7 +717,6 @@
                     .on("mouseout", function () {
                         tooltip.style("opacity", 0);
                     });
-
                 this.nodeGroup.each(function (d) {
                     const group = d3.select(this);
 
@@ -750,12 +746,28 @@
                     const radius = d.collisionRadius;
 
                     if (shape === "rect") {
-                        const rect = group.append("rect")
-                            .attr("x", -radius)
-                            .attr("y", -radius * 0.75)
-                            .attr("width", radius * 2)
-                            .attr("height", radius * 1.5)
-                            .attr("fill", fillColor)
+                        const rect = group.append("rect");
+
+                        if (d.type === "Literal") {
+                            rect.attr("x", -radius)
+                                .attr("y", -radius * 0.6)
+                                .attr("width", radius * 2)
+                                .attr("height", radius * 1.2);
+
+                        } else if (d.type === "Property") {
+                            const size = radius * 1.7; 
+                            rect.attr("x", -size / 2)
+                                .attr("y", -size / 2)
+                                .attr("width", size)
+                                .attr("height", size);
+                        } else {
+                            rect.attr("x", -radius)
+                                .attr("y", -radius * 0.75)
+                                .attr("width", radius * 2)
+                                .attr("height", radius * 1.5);
+                        }
+
+                        rect.attr("fill", fillColor)
                             .attr("rx", rx)
                             .attr("ry", ry);
 
@@ -804,7 +816,6 @@
                 }
             }
 
-            // REPLACE your existing setLegend() method with this corrected version
             setLegend() {
                 const legendGroup = this.svg.append("g")
                     .attr("class", "legend-group")
