@@ -203,15 +203,25 @@
                 `;
             }
 
+            // REPLACE your entire observeResize method with this one.
             observeResize() {
                 this.resizeObserver = new ResizeObserver(async () => {
                     await this.updateSize();
                     if (this.svg) {
+                        // 1. Update the main SVG canvas size
                         this.svg.attr('width', this.width).attr('height', this.height);
+
+                        // 2. Re-center the physics simulation
                         if (this.simulation) {
                             this.simulation.force("center", d3.forceCenter(this.width / 2, this.height / 2));
                             this.simulation.alpha(0.2).restart();
                         }
+
+                        this.svg.select('.sliders').remove();
+                        this.svg.select('.legend-group').remove();
+
+                        this.setControls();
+                        this.setLegend();
                     }
                 });
                 this.resizeObserver.observe(this);
@@ -283,7 +293,6 @@
                 });
 
                 this.renderGraph();
-                this.setControls();
             }
             async createGraph() {
                 let graph = {
@@ -304,7 +313,6 @@
                     const subj = item['@id'] || item['@value'] || item['@node'] || item['@blank'] || item['@literal'];
                     let subjType = 'default';
 
-                    // Correctly identify Class, Property, and Literal nodes
                     if (item['@type'] && item['@type'].includes('Class')) {
                         subjType = 'Class';
                     } else if (item['@type'] && item['@type'].includes('Property')) {
@@ -314,12 +322,11 @@
                     } else if (subj && subj.startsWith('_:')) {
                         subjType = 'Blank';
                     } else if (subj) {
-                        // Default to Class if it's a resource but has no explicit type
                         subjType = 'Class';
                     }
 
                     const subjNode = addNode(subj, subjType);
-                    subjNode.rawData = item; // Store the original data on the node
+                    subjNode.rawData = item; 
 
                     Object.keys(item).forEach(pred => {
                         if (pred === '@id' || pred === '@type') return;
@@ -795,6 +802,92 @@
                             d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale)
                         );
                 }
+            }
+
+            // REPLACE your existing setLegend() method with this corrected version
+            setLegend() {
+                const legendGroup = this.svg.append("g")
+                    .attr("class", "legend-group")
+                    .attr("transform", `translate(${this.width - 200}, ${this.height - 150})`);
+                legendGroup.append("rect")
+                    .attr("width", 180)
+                    .attr("height", 135)
+                    .attr("fill", "rgba(255, 255, 255, 0.9)")
+                    .attr("stroke", "#ccc")
+                    .attr("rx", 5);
+
+                const legendItems = [
+                    { label: "Class", shape: "circle", color: "#1f77b4" },
+                    { label: "Property", shape: "diamond", color: "#2ca02c" },
+                    { label: "Literal", shape: "rect", color: "orange" },
+                    { label: "SubClass Of Link", shape: "dotted-line", color: "#666" },
+                    { label: "Object Property Link", shape: "solid-line", color: "black" },
+                    { label: "Datatype Property Link", shape: "solid-line", color: "#d62728" }
+                ];
+
+                const itemGroup = legendGroup.selectAll(".legend-item")
+                    .data(legendItems)
+                    .enter()
+                    .append("g")
+                    .attr("class", "legend-item")
+                    .attr("transform", (d, i) => `translate(15, ${20 + i * 20})`);
+
+                itemGroup.each(function (d) {
+                    const group = d3.select(this);
+                    switch (d.shape) {
+                        case "circle":
+                            group.append("circle")
+                                .attr("cx", 0)
+                                .attr("cy", 0)
+                                .attr("r", 6)
+                                .attr("fill", d.color);
+                            break;
+                        case "diamond":
+                            group.append("rect")
+                                .attr("x", -5)
+                                .attr("y", -5)
+                                .attr("width", 10)
+                                .attr("height", 10)
+                                .attr("fill", d.color)
+                                .attr("transform", "rotate(45)");
+                            break;
+                        case "rect":
+                            group.append("rect")
+                                .attr("x", -5)
+                                .attr("y", -5)
+                                .attr("width", 10)
+                                .attr("height", 10)
+                                .attr("fill", d.color);
+                            break;
+                        case "dotted-line":
+                            group.append("line")
+                                .attr("x1", -6)
+                                .attr("y1", 0)
+                                .attr("x2", 6)
+                                .attr("y2", 0)
+                                .attr("stroke", d.color)
+                                .attr("stroke-width", 2)
+                                .attr("stroke-dasharray", "3,2");
+                            break;
+                        case "solid-line":
+                            group.append("line")
+                                .attr("x1", -6)
+                                .attr("y1", 0)
+                                .attr("x2", 6)
+                                .attr("y2", 0)
+                                .attr("stroke", d.color)
+                                .attr("stroke-width", 2);
+                            break;
+                    }
+                });
+
+                itemGroup.append("text")
+                    .attr("x", 20)
+                    .attr("y", 4)
+                    .attr("font-size", "12px")
+                    .attr("font-family", "Arial")
+                    .attr("fill", "#333")
+                    .text(d => d.label);
             }
             setControls() {
                 const sliderGroup = this.svg.append("g").attr("class", "sliders");
