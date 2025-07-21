@@ -2,27 +2,35 @@ package fr.inria.corese.demo.controller;
 
 import fr.inria.corese.demo.manager.ApplicationStateManager;
 import fr.inria.corese.demo.view.NavigationBarView;
-import javafx.scene.Node;
-import javafx.scene.layout.BorderPane;
 import javafx.fxml.FXMLLoader;
-import java.io.IOException;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.layout.BorderPane;
+
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Controller for the navigation bar.
  * Manages navigation between different views of the application.
+ * It caches specific views (like editors) to preserve their state during
+ * navigation.
  */
 public class NavigationBarController {
     private final BorderPane mainContent;
     private final ApplicationStateManager stateManager;
     private final NavigationBarView view;
     private String currentViewName;
-    
-    // Cache for views that should retain state (currently only query-view)
+
     private final Map<String, Node> cachedViews = new HashMap<>();
     private final Map<String, Object> cachedControllers = new HashMap<>();
+
+    private final Set<String> cachedViewNames = Set.of(
+            "query-view",
+            "validation-view",
+            "rdf-editor-view");
 
     /**
      * Constructor for the navigation bar controller.
@@ -37,17 +45,21 @@ public class NavigationBarController {
         this.stateManager = ApplicationStateManager.getInstance();
         this.view = new NavigationBarView();
 
-        // Preload and cache the query view and controller
-        preloadQueryView();
-        
+        // Preload all views marked for caching at application startup.
+        for (String viewName : cachedViewNames) {
+            preloadView(viewName);
+        }
+
         initializeButtons();
     }
 
     /**
-     * Preloads and caches the Query view and its controller.
+     * Preloads and caches a specified view and its controller.
+     * This is called at startup for all views listed in cachedViewNames.
+     *
+     * @param viewName The name of the view to preload (e.g., "query-view").
      */
-    private void preloadQueryView() {
-        String viewName = "query-view";
+    private void preloadView(String viewName) {
         String fxmlPath = "/fr/inria/corese/demo/" + viewName + ".fxml";
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
@@ -55,59 +67,44 @@ public class NavigationBarController {
             Object controller = loader.getController();
             cachedViews.put(viewName, content);
             cachedControllers.put(viewName, controller);
-            stateManager.addLogEntry("Preloaded and cached Query view");
+            stateManager.addLogEntry("Preloaded and cached " + viewName);
         } catch (IOException e) {
-            stateManager.addLogEntry("Error preloading Query view: " + e.getMessage());
+            stateManager.addLogEntry("Error preloading " + viewName + ": " + e.getMessage());
             e.printStackTrace();
         }
     }
 
     /**
-     * Selects and loads a view.
+     * Selects and loads a view into the main content area.
+     * It uses the cache for stateful views or loads them new for stateless views.
      *
      * @param viewName The name of the view to select
      */
     public void selectView(String viewName) {
         try {
-            // Save current state before changing views
             if (currentViewName != null) {
                 stateManager.saveCurrentState();
                 stateManager.addLogEntry("State saved before navigating from " + currentViewName + " to " + viewName);
             }
 
-            // Remember the current view name for future operations
             currentViewName = viewName;
-
             Node content;
-            Object controller;
 
-            if ("query-view".equals(viewName)) {
-                // Use cached Query view and controller
+            if (cachedViewNames.contains(viewName)) {
                 content = cachedViews.get(viewName);
-                controller = cachedControllers.get(viewName);
-                stateManager.addLogEntry("Using cached Query view");
-                stateManager.addLogEntry("Skipped state restore for QueryViewController");
+                stateManager.addLogEntry("Using cached " + viewName);
             } else {
-                // Load other views as before
                 String fxmlPath = "/fr/inria/corese/demo/" + viewName + ".fxml";
                 FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
                 content = loader.load();
-                controller = loader.getController();
+                Object controller = loader.getController();
 
-                // Inject dependencies and restore state based on controller type
                 if (controller instanceof DataViewController) {
                     stateManager.restoreState();
                     stateManager.addLogEntry("Restored state for DataViewController");
-                } else if (controller instanceof RDFEditorViewController) {
-                    stateManager.restoreState();
-                    stateManager.addLogEntry("Restored state for RDFEditorViewController");
-                } else if (controller instanceof ValidationViewController) {
-                    stateManager.restoreState();
-                    stateManager.addLogEntry("Restored state for ValidationViewController");
                 }
             }
 
-            // Update button selection
             Button selectedButton = getButtonForView(viewName);
             if (selectedButton != null) {
                 view.setButtonSelected(selectedButton);

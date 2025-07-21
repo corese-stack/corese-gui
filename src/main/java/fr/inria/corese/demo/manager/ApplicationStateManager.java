@@ -23,11 +23,9 @@ import java.util.Map;
 public class ApplicationStateManager {
     private static ApplicationStateManager instance;
 
-    // Core graph components
     private Graph graph;
     private QueryProcess queryProcess;
-    // RESTORED: SemanticGraph to support older methods and avoid breaking other
-    // classes.
+
     private final SemanticGraph semanticGraph;
 
     // Rule management
