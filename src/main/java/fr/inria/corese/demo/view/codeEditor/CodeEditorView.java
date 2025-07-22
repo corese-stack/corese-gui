@@ -32,13 +32,15 @@ public class CodeEditorView extends AnchorPane {
 
         getChildren().addAll(codeMirrorView, iconButtonBarView);
     }
+    
+    public String getText() {
+
+        return codeMirrorView.getContent();
+    }
 
     public void displayRunButton() {
         if (runButton == null) {
             runButton = new CustomButton(ButtonType.RUN);
-            // Ajouter le bouton à votre mise en page
-            // Par exemple :
-            // buttonContainer.getChildren().add(runButton);
         }
         runButton.setVisible(true);
 

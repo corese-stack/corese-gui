@@ -1,31 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import java.lang.*?>
-<?import java.util.*?>
-<?import javafx.scene.*?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import fr.inria.corese.demo.view.TopBar?>
+
 <BorderPane fx:id="mainContainer"
-            xmlns="http://javafx.com/javafx"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="fr.inria.corese.demo.controller.ValidationViewController"
-            stylesheets="@../../../../styles/application.css">
+    xmlns="http://javafx.com/javafx"
+    xmlns:fx="http://javafx.com/fxml"
+    fx:controller="fr.inria.corese.demo.controller.ValidationViewController"
+    stylesheets="@../../../../styles/application.css">
 
     <top>
-        <TopBar fx:id="topBar"/>
+        <TopBar fx:id="topBar" />
     </top>
-    <center>
-        <BorderPane fx:id="contentContainer">
-            <center>
 
-                <SplitPane fx:id="splitPane" dividerPositions="0.7" orientation="VERTICAL">
-                    <StackPane fx:id="editorContainer" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS"/>
-                    <StackPane fx:id="consoleContainer" HBox.hgrow="ALWAYS"/>
-                </SplitPane>
-            </center>
-        </BorderPane>
+    <center>
+        <SplitPane fx:id="splitPane" dividerPositions="0.7" orientation="VERTICAL">
+            <StackPane fx:id="editorContainer" />
+
+            <BorderPane fx:id="reportPane">
+                <top>
+                    <HBox alignment="CENTER_LEFT" spacing="10" style="-fx-padding: 5;">
+                        <Label text="Format:"/>
+                        <ComboBox fx:id="reportFormatComboBox" />
+                        <Region HBox.hgrow="ALWAYS" />
+
+                        <HBox fx:id="exportButtonContainer" alignment="CENTER" spacing="5"/>
+
+                        <Button fx:id="copyReportButton" text="Copy" />
+                    </HBox>
+                </top>
+                <center>
+                    <TextArea fx:id="reportTextArea" editable="false" wrapText="true" style="-fx-font-family: 'monospaced';" />
+                </center>
+            </BorderPane>
+        </SplitPane>
     </center>
 
 </BorderPane>
