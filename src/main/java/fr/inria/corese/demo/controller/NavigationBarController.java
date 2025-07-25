@@ -1,6 +1,6 @@
 package fr.inria.corese.demo.controller;
 
-import fr.inria.corese.demo.manager.ApplicationStateManager;
+import fr.inria.corese.demo.manager.QueryManager;
 import fr.inria.corese.demo.view.NavigationBarView;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
@@ -20,7 +20,7 @@ import java.util.Set;
  */
 public class NavigationBarController {
     private final BorderPane mainContent;
-    private final ApplicationStateManager stateManager;
+    private final QueryManager stateManager;
     private final NavigationBarView view;
     private String currentViewName;
 
@@ -42,10 +42,9 @@ public class NavigationBarController {
             throw new IllegalArgumentException("mainContent cannot be null");
         }
         this.mainContent = mainContent;
-        this.stateManager = ApplicationStateManager.getInstance();
+        this.stateManager = QueryManager.getInstance();
         this.view = new NavigationBarView();
 
-        // Preload all views marked for caching at application startup.
         for (String viewName : cachedViewNames) {
             preloadView(viewName);
         }

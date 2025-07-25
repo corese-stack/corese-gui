@@ -4,9 +4,9 @@ import fr.inria.corese.core.print.ResultFormat;
 import fr.inria.corese.core.kgram.core.Mappings;
 
 public class CoreseResultProvider implements QueryResultProvider {
-    private final ApplicationStateManager stateManager;
+    private final QueryManager stateManager;
 
-    public CoreseResultProvider(ApplicationStateManager stateManager) {
+    public CoreseResultProvider(QueryManager stateManager) {
         this.stateManager = stateManager;
     }
 

@@ -5,7 +5,7 @@ import fr.inria.corese.core.print.ResultFormat;
 import fr.inria.corese.demo.enums.icon.IconButtonBarType;
 import fr.inria.corese.demo.enums.icon.IconButtonType;
 import fr.inria.corese.demo.factory.popup.DocumentationPopup;
-import fr.inria.corese.demo.manager.ApplicationStateManager;
+import fr.inria.corese.demo.manager.QueryManager;
 import fr.inria.corese.demo.model.ValidationModel;
 import fr.inria.corese.demo.view.CustomButton;
 import fr.inria.corese.demo.view.TopBar;
@@ -49,7 +49,7 @@ public class ValidationViewController {
 
     private TabEditorController tabEditorController;
     private final ValidationModel validationModel = new ValidationModel();
-    private final ApplicationStateManager stateManager = ApplicationStateManager.getInstance();
+    private final QueryManager stateManager = QueryManager.getInstance();
 
     private Graph lastReportGraph;
     private static final List<String> REPORT_FORMATS = List.of("TURTLE", "RDF/XML", "JSON-LD", "N-TRIPLES", "N-QUADS",

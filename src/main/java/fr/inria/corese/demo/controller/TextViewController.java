@@ -1,16 +1,16 @@
 package fr.inria.corese.demo.controller;
 
-import fr.inria.corese.demo.manager.ApplicationStateManager;
+import fr.inria.corese.demo.manager.QueryManager;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 
 public class TextViewController {
 
-    private final ApplicationStateManager stateManager;
+    private final QueryManager stateManager;
     private ResultsPaneController resultsPaneController;
 
     public TextViewController() {
-        this.stateManager = ApplicationStateManager.getInstance();
+        this.stateManager = QueryManager.getInstance();
     }
 
 
@@ -25,13 +25,11 @@ public class TextViewController {
             return;
         }
         if (tabId == null) {
-            resultsPaneController.updateXMLView(""); // Clear the view if no tab
+            resultsPaneController.updateXMLView(""); 
             return;
         }
 
         try {
-            // Ask the state manager to format the cached result.
-            // Note: The getFormattedCachedQuery method is perfect for this.
             String formattedResult = stateManager.getFormattedCachedQuery(tabId, formatLabel);
 
             Platform.runLater(() -> {

@@ -1,4 +1,3 @@
-// RuleManager.java
 package fr.inria.corese.demo.manager;
 
 import fr.inria.corese.core.Graph;
@@ -13,14 +12,13 @@ import java.util.*;
 
 /**
  * Manages the loading, configuration, and application of inference rules.
- * This class isolates all rule-related logic from the main
- * ApplicationStateManager.
+ * This class is now decoupled from the old ApplicationStateManager and depends
+ * on the QueryManager to access the main data graph.
  */
 public class RuleManager {
 
-    private final ApplicationStateManager stateManager;
+    private final QueryManager queryManager;
 
-    // Rule state
     private final List<File> loadedRuleFiles;
     private final Map<String, Boolean> customRuleStates;
     private boolean rdfsSubsetEnabled;
@@ -30,15 +28,21 @@ public class RuleManager {
     private boolean owlRLTestEnabled;
     private boolean owlCleanEnabled;
 
-    public RuleManager(ApplicationStateManager stateManager) {
-        this.stateManager = stateManager;
+    /**
+     * Constructor that injects the required QueryManager dependency.
+     * 
+     * @param queryManager The central QueryManager instance.
+     */
+    public RuleManager(QueryManager queryManager) {
+        this.queryManager = queryManager;
         this.loadedRuleFiles = new ArrayList<>();
         this.customRuleStates = new HashMap<>();
     }
 
     /**
      * Loads a custom rule file and marks it as active.
-     * 
+     * After loading, it automatically re-applies all rules.
+     *
      * @param file The rule file (.rul) to load.
      * @throws Exception if loading fails.
      */
@@ -47,25 +51,44 @@ public class RuleManager {
             loadedRuleFiles.add(file);
         }
         customRuleStates.put(file.getName(), true);
-        stateManager.addLogEntry("Rule file loaded and enabled: " + file.getName());
-        applyRules(stateManager.getGraph());
+        queryManager.addLogEntry("Rule file loaded and enabled: " + file.getName());
+        applyRules();
     }
 
     /**
-     * The core method to apply all configured rules to a given graph.
-     * It creates a new RuleEngine, configures it based on the current state,
-     * loads custom rules, and processes them.
+     * Disables and removes a custom rule file from the active set.
+     * After removing, it automatically re-applies the remaining rules.
+     * Note: This requires reloading the original data to get a clean state.
      *
-     * @param graph The graph on which to apply the rules.
+     * @param ruleName The name of the rule to remove/disable.
      */
-    public void applyRules(Graph graph) {
-        stateManager.addLogEntry("Applying inference rules...");
+    public void removeRule(String ruleName) {
+        customRuleStates.put(ruleName, false);
+
+        loadedRuleFiles.removeIf(file -> file.getName().equals(ruleName));
+
+        queryManager.addLogEntry("Rule disabled and removed: " + ruleName);
+        applyRules();
+    }
+
+    /**
+     * The core method to apply all configured rules to the main graph.
+     * It fetches the graph from the QueryManager, configures a RuleEngine,
+     * loads custom rules, and processes them.
+     */
+    public void applyRules() {
+        Graph graph = queryManager.getGraph();
+        if (graph == null) {
+            queryManager.addLogEntry("ERROR: Cannot apply rules, graph is null.");
+            return;
+        }
+
+        queryManager.addLogEntry("Applying inference rules...");
         int initialSize = graph.size();
 
         try {
             RuleEngine engine = RuleEngine.create(graph);
 
-            // 1. Configure built-in rule profiles
             if (isOWLRLEnabled()) {
                 engine.setProfile(RuleEngine.OWL_RL);
             }
@@ -75,47 +98,32 @@ public class RuleManager {
             if (isOWLRLTestEnabled()) {
                 engine.setProfile(RuleEngine.OWL_RL_TEST);
             }
-            // Note: Setting a profile like OWL_RL includes RDFS entailments.
-            // Other profiles like RDFS_SUBSET or OWL_CLEAN would need custom
-            // implementations
-            // if they are not part of the standard RuleEngine profiles.
 
-            // 2. Load and apply enabled custom rules
             RuleLoad ruleLoader = RuleLoad.create(engine);
             for (File ruleFile : loadedRuleFiles) {
                 if (isCustomRuleEnabled(ruleFile.getName())) {
-                    stateManager.addLogEntry("-> Loading custom rule: " + ruleFile.getName());
+                    queryManager.addLogEntry("-> Loading custom rule: " + ruleFile.getName());
                     ruleLoader.parse(ruleFile.getAbsolutePath());
                 }
             }
 
-            // 3. Process the rules
             engine.process();
             int finalSize = graph.size();
-            stateManager
+            queryManager
                     .addLogEntry("Rule processing complete. " + (finalSize - initialSize) + " new triples inferred.");
 
         } catch (Exception e) {
-            stateManager.addLogEntry("ERROR during rule application: " + e.getMessage());
+            queryManager.addLogEntry("ERROR during rule application: " + e.getMessage());
             e.printStackTrace();
         }
-    }
 
+    }
     /**
-     * Disables a custom rule and re-applies the remaining rules.
-     * 
-     * @param ruleName The name of the rule to remove/disable.
+     * Calculates the total number of currently active rule sets.
+     * This includes both built-in profiles and enabled custom rule files.
+     *
+     * @return The count of active rule sets.
      */
-    public void removeRule(String ruleName) {
-        customRuleStates.put(ruleName, false);
-        stateManager.addLogEntry("Rule disabled: " + ruleName);
-        applyRules(stateManager.getGraph());
-    }
-
-    public List<File> getLoadedRuleFiles() {
-        return loadedRuleFiles;
-    }
-
     public int getLoadedRulesCount() {
         int count = 0;
         if (rdfsSubsetEnabled)
@@ -130,15 +138,59 @@ public class RuleManager {
             count++;
         if (owlCleanEnabled)
             count++;
+
         for (boolean enabled : customRuleStates.values()) {
-            if (enabled)
+            if (enabled) {
                 count++;
+            }
         }
         return count;
     }
 
-    public Map<String, Boolean> getCustomRuleStates() {
-        return customRuleStates;
+    private void updateAndApplyRules() {
+        applyRules();
+    }
+
+    public void setRDFSSubsetEnabled(boolean enabled) {
+        this.rdfsSubsetEnabled = enabled;
+        queryManager.addLogEntry("RDFS Subset rules " + (enabled ? "enabled" : "disabled"));
+        updateAndApplyRules();
+    }
+
+    public void setRDFSRLEnabled(boolean enabled) {
+        this.rdfsRLEnabled = enabled;
+        queryManager.addLogEntry("RDFS RL rules " + (enabled ? "enabled" : "disabled"));
+        updateAndApplyRules();
+    }
+
+    public void setOWLRLEnabled(boolean enabled) {
+        this.owlRLEnabled = enabled;
+        queryManager.addLogEntry("OWL RL rules " + (enabled ? "enabled" : "disabled"));
+        updateAndApplyRules();
+    }
+
+    public void setOWLRLExtendedEnabled(boolean enabled) {
+        this.owlRLExtendedEnabled = enabled;
+        queryManager.addLogEntry("OWL RL Extended rules " + (enabled ? "enabled" : "disabled"));
+        updateAndApplyRules();
+    }
+
+    public void setOWLRLTestEnabled(boolean enabled) {
+        this.owlRLTestEnabled = enabled;
+        queryManager.addLogEntry("OWL RL Test rules " + (enabled ? "enabled" : "disabled"));
+        updateAndApplyRules();
+    }
+
+    public void setOWLCleanEnabled(boolean enabled) {
+        this.owlCleanEnabled = enabled;
+        queryManager.addLogEntry("OWL Clean rules " + (enabled ? "enabled" : "disabled"));
+        updateAndApplyRules();
+    }
+
+    public void setCustomRuleEnabled(String ruleName, boolean enabled) {
+        customRuleStates.put(ruleName, enabled);
+        queryManager.addLogEntry("Custom rule " + ruleName + " " + (enabled ? "enabled" : "disabled"));
+        updateAndApplyRules();
     }
 
     public boolean isRDFSSubsetEnabled() {
@@ -169,75 +221,11 @@ public class RuleManager {
         return customRuleStates.getOrDefault(ruleName, false);
     }
 
-    private void updateAndApplyRules() {
-        applyRules(stateManager.getGraph());
+    public List<File> getLoadedRuleFiles() {
+        return loadedRuleFiles;
     }
 
-    public void setRDFSSubsetEnabled(boolean enabled) {
-        this.rdfsSubsetEnabled = enabled;
-        stateManager.addLogEntry("RDFS Subset rules " + (enabled ? "enabled" : "disabled"));
-        updateAndApplyRules();
-    }
-
-    public void setRDFSRLEnabled(boolean enabled) {
-        this.rdfsRLEnabled = enabled;
-        stateManager.addLogEntry("RDFS RL rules " + (enabled ? "enabled" : "disabled"));
-        updateAndApplyRules();
-    }
-
-    public void setOWLRLEnabled(boolean enabled) {
-        this.owlRLEnabled = enabled;
-        stateManager.addLogEntry("OWL RL rules " + (enabled ? "enabled" : "disabled"));
-        updateAndApplyRules();
-    }
-
-    public void setOWLRLExtendedEnabled(boolean enabled) {
-        this.owlRLExtendedEnabled = enabled;
-        stateManager.addLogEntry("OWL RL Extended rules " + (enabled ? "enabled" : "disabled"));
-        updateAndApplyRules();
-    }
-
-    public void setOWLRLTestEnabled(boolean enabled) {
-        this.owlRLTestEnabled = enabled;
-        stateManager.addLogEntry("OWL RL Test rules " + (enabled ? "enabled" : "disabled"));
-        updateAndApplyRules();
-    }
-
-    public void setOWLCleanEnabled(boolean enabled) {
-        this.owlCleanEnabled = enabled;
-        stateManager.addLogEntry("OWL Clean rules " + (enabled ? "enabled" : "disabled"));
-        updateAndApplyRules();
-    }
-
-    public void setCustomRuleEnabled(String ruleName, boolean enabled) {
-        customRuleStates.put(ruleName, enabled);
-        stateManager.addLogEntry("Custom rule " + ruleName + " " + (enabled ? "enabled" : "disabled"));
-        updateAndApplyRules();
-    }
-
-    public void saveRulesConfiguration(Path projectDir) throws Exception {
-        Path rulesDir = projectDir.resolve("rules");
-        Files.createDirectories(rulesDir);
-
-        File configFile = new File(projectDir.toFile(), "rules.config");
-        try (FileOutputStream out = new FileOutputStream(configFile)) {
-            Properties props = new Properties();
-
-            // Use local fields/methods directly, not a 'ruleManager' variable
-            props.setProperty("RDFS_SUBSET", String.valueOf(isRDFSSubsetEnabled()));
-            props.setProperty("RDFS_RL", String.valueOf(isRDFSRLEnabled()));
-            props.setProperty("OWL_RL", String.valueOf(isOWLRLEnabled()));
-            props.setProperty("OWL_RL_EXTENDED", String.valueOf(isOWLRLExtendedEnabled()));
-            props.setProperty("OWL_RL_TEST", String.valueOf(isOWLRLTestEnabled()));
-            props.setProperty("OWL_CLEAN", String.valueOf(isOWLCleanEnabled()));
-
-            for (Map.Entry<String, Boolean> entry : getCustomRuleStates().entrySet()) {
-                props.setProperty("CUSTOM_RULE_" + entry.getKey(), String.valueOf(entry.getValue()));
-            }
-            props.store(out, "Rules configuration");
-        }
-
-        // Use the stateManager reference for logging
-        stateManager.addLogEntry("Rules configuration saved to: " + configFile.getAbsolutePath());
+    public Map<String, Boolean> getCustomRuleStates() {
+        return customRuleStates;
     }
 }

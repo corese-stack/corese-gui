@@ -1,6 +1,5 @@
 package fr.inria.corese.demo.controller;
-
-import fr.inria.corese.demo.manager.ApplicationStateManager;
+import fr.inria.corese.demo.manager.QueryManager;
 import javafx.fxml.FXML;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
@@ -15,7 +14,7 @@ public class MainController {
     @FXML private BorderPane contentArea;
 
     private NavigationBarController navigationBarController;
-    private ApplicationStateManager stateManager;
+    private QueryManager stateManager;
 
     /**
      * Initializes the controller.
@@ -23,17 +22,13 @@ public class MainController {
      */
     @FXML
     public void initialize() {
-        // Get the global state manager
-        stateManager = ApplicationStateManager.getInstance();
+        stateManager = QueryManager.getInstance();
 
-        // Initialize the navigation controller with the content area
         navigationBarController = new NavigationBarController(contentArea);
 
-        // Set up the navigation view
         navigationContainer.getChildren().clear();
         navigationContainer.getChildren().add(navigationBarController.getView());
 
-        // Load the default view
         navigationBarController.selectView("data-view");
 
         stateManager.addLogEntry("MainController initialization complete");

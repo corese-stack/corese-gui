@@ -3,7 +3,7 @@ package fr.inria.corese.demo.controller;
 import fr.inria.corese.demo.enums.icon.IconButtonBarType;
 import fr.inria.corese.demo.enums.icon.IconButtonType;
 import fr.inria.corese.demo.factory.popup.TemplatePopup;
-import fr.inria.corese.demo.manager.ApplicationStateManager;
+import fr.inria.corese.demo.manager.QueryManager;
 import fr.inria.corese.demo.view.CustomButton;
 import fr.inria.corese.demo.view.EmptyStateViewFactory;
 import fr.inria.corese.demo.view.TopBar;
@@ -60,7 +60,7 @@ public class QueryViewController {
     private ResultsPaneController resultsPaneController;
     private GraphViewController graphViewController;
     private TextViewController textViewController;
-    private final ApplicationStateManager stateManager = ApplicationStateManager.getInstance();
+    private final QueryManager stateManager = QueryManager.getInstance();
 
     private static final List<String> SELECT_FORMATS = List.of("XML", "JSON", "CSV", "TSV", "MARKDOWN");
     private static final List<String> GRAPH_FORMATS = List.of("TURTLE", "RDF_XML", "JSON-LD", "N-TRIPLES", "N-QUADS",

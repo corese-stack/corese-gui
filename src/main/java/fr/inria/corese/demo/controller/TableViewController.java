@@ -1,18 +1,18 @@
 package fr.inria.corese.demo.controller;
 
 import fr.inria.corese.core.print.ResultFormat;
-import fr.inria.corese.demo.manager.ApplicationStateManager;
+import fr.inria.corese.demo.manager.QueryManager;
 import fr.inria.corese.demo.model.FormattedResult;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 
 public class TableViewController {
 
-    private final ApplicationStateManager stateManager;
+    private final QueryManager stateManager;
     private ResultsPaneController resultsPaneController;
 
     public TableViewController() {
-        this.stateManager = ApplicationStateManager.getInstance();
+        this.stateManager = QueryManager.getInstance();
     }
 
     public void setResultsPaneController(ResultsPaneController resultsPaneController) {

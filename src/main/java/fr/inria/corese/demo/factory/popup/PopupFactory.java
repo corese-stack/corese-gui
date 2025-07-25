@@ -1,9 +1,9 @@
 package fr.inria.corese.demo.factory.popup;
 
-import fr.inria.corese.demo.manager.ApplicationStateManager;
-
 import java.util.HashMap;
 import java.util.Map;
+
+import fr.inria.corese.demo.manager.QueryManager;
 
 public class PopupFactory {
     public static final String WARNING_POPUP = "warning";
@@ -21,13 +21,13 @@ public class PopupFactory {
 
     private final Map<String, IPopup> popupCache = new HashMap<>();
     private static PopupFactory instance;
-    private final ApplicationStateManager stateManager;
+    private final QueryManager stateManager;
 
     /**
      * Private constructor for singleton pattern.
      */
     public PopupFactory() {
-        this.stateManager = ApplicationStateManager.getInstance();
+        this.stateManager = QueryManager.getInstance();
     }
 
     /**

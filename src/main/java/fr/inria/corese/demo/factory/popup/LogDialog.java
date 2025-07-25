@@ -1,36 +1,26 @@
 package fr.inria.corese.demo.factory.popup;
 
-import fr.inria.corese.core.Graph;
-import fr.inria.corese.core.load.Load;
-import fr.inria.corese.core.query.QueryProcess;
-import fr.inria.corese.demo.manager.ApplicationStateManager;
+import fr.inria.corese.demo.manager.QueryManager;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import java.util.stream.Collectors;
 
 public class LogDialog extends BasePopup {
     private final TextArea logTextArea;
-    private final Graph graph;
-    private final QueryProcess exec;
-    private final Load ld;
-    private final ApplicationStateManager model;
+    private final QueryManager queryManager;
 
     public LogDialog() {
-        this.model = ApplicationStateManager.getInstance();
-        this.graph = Graph.create();
-        this.exec = QueryProcess.create(graph);
-        this.ld = Load.create(graph);
+        this.queryManager = QueryManager.getInstance();
 
-        setTitle("Logs");
+        setTitle("Application Logs");
         logTextArea = new TextArea();
         logTextArea.setEditable(false);
         logTextArea.setWrapText(true);
         logTextArea.setPrefRowCount(20);
         logTextArea.setPrefColumnCount(50);
-
-        exec.setDebug(true);
 
         setupUI();
     }
@@ -43,10 +33,10 @@ public class LogDialog extends BasePopup {
         buttonBox.setAlignment(Pos.CENTER_RIGHT);
         buttonBox.setPadding(new Insets(10, 0, 0, 0));
 
-        Button clearButton = new Button("Clear");
+        Button clearButton = new Button("Clear Log View");
         Button refreshButton = new Button("Refresh");
 
-        clearButton.setOnAction(e -> clearLogs());
+        clearButton.setOnAction(e -> clearLogView());
         refreshButton.setOnAction(e -> updateLogs());
 
         buttonBox.getChildren().addAll(clearButton, refreshButton);
@@ -65,25 +55,22 @@ public class LogDialog extends BasePopup {
         });
     }
 
+    /**
+     * Fetches the latest logs from the QueryManager and displays them.
+     */
     public void updateLogs() {
-        String logs = "=== Application Logs ===\n" +
-                model.getLogEntries() +
-                "\n=== Corese Logs ===\n" +
-                "Graph size: " + graph.size() + " triples\n" +
-                "Query engine status: " + exec.toString();
-
+        String logs = queryManager.getLogEntries()
+                .stream()
+                .collect(Collectors.joining("\n"));
         logTextArea.setText(logs);
     }
 
-    public void clearLogs() {
-        model.clearGraph();
-        model.clearFiles();
-        updateLogs();
-    }
-
-    public void appendLog(String logEntry) {
-        model.addLogEntry(logEntry);
-        updateLogs();
+    /**
+     * Clears the text area in the dialog.
+     * It does NOT clear the application's main graph or log history.
+     */
+    public void clearLogView() {
+        logTextArea.clear();
     }
 
     @Override
