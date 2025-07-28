@@ -10,7 +10,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignS; // Import for the new icon
+import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
 
 import java.util.function.Consumer;
 
@@ -57,8 +57,6 @@ public class EmptyStateViewFactory {
             Runnable onNewShapesFile,
             Runnable onLoadShapesFile) {
 
-        // Use a different, more appropriate icon for validation (e.g., a shield with a
-        // check)
         FontIcon icon = new FontIcon(MaterialDesignS.SHIELD_CHECK_OUTLINE);
         Label message = new Label("No shapes files open.\nCreate a new shapes file or load an existing one.");
 
@@ -70,17 +68,12 @@ public class EmptyStateViewFactory {
         loadButton.setTooltip(new Tooltip("CTRL + O"));
         loadButton.setOnAction(e -> onLoadShapesFile.run());
 
-        // Note: No "Templates" button for validation context
         HBox buttonBox = new HBox(10, newButton, loadButton);
         buttonBox.setAlignment(Pos.CENTER);
 
         return buildEmptyStateLayout(icon, message, buttonBox);
     }
 
-    /**
-     * Private helper to construct the common VBox layout for any empty state.
-     * This avoids duplicating layout code.
-     */
     private static Node buildEmptyStateLayout(FontIcon icon, Label message, HBox buttonBox) {
         VBox emptyBox = new VBox(20);
         emptyBox.setAlignment(Pos.CENTER);

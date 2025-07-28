@@ -4,7 +4,6 @@ import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.print.ResultFormat;
 import fr.inria.corese.demo.enums.icon.IconButtonBarType;
 import fr.inria.corese.demo.enums.icon.IconButtonType;
-import fr.inria.corese.demo.factory.popup.DocumentationPopup;
 import fr.inria.corese.demo.manager.QueryManager;
 import fr.inria.corese.demo.model.ValidationModel;
 import fr.inria.corese.demo.view.CustomButton;
@@ -30,15 +29,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ValidationViewController {
-    // --- FXML Fields ---
+
+    // --- FXML Fields (Updated to match the new FXML structure) ---
+    @FXML
+    private BorderPane mainBorderPane;
+    @FXML
+    private SplitPane mainSplitPane;
     @FXML
     private StackPane editorContainer;
     @FXML
-    private SplitPane splitPane;
+    private SplitPane resultsSplitPane;
     @FXML
     private TopBar topBar;
     @FXML
-    private BorderPane reportPane;
+    private TabPane resultsTabPane;
+    @FXML
+    private Tab tableTab;
+    @FXML
+    private Tab graphTab;
+    @FXML
+    private Tab textTab;
     @FXML
     private ComboBox<String> reportFormatComboBox;
     @FXML
@@ -51,9 +61,7 @@ public class ValidationViewController {
     private TabEditorController tabEditorController;
     private final ValidationModel validationModel = new ValidationModel();
     private final QueryManager stateManager = QueryManager.getInstance();
-
     private Node emptyStateView;
-
     private Graph lastReportGraph;
     private static final List<String> REPORT_FORMATS = List.of("TURTLE", "RDF/XML", "JSON-LD", "N-TRIPLES", "N-QUADS",
             "TRIG");
@@ -62,6 +70,11 @@ public class ValidationViewController {
     public void initialize() {
         checkFXMLInjections();
         try {
+            textTab.setText("Text");
+            tableTab.setDisable(true);
+            graphTab.setDisable(true);
+            resultsTabPane.getSelectionModel().select(textTab);
+
             initializeTabEditor();
             initializeTopBar();
             setupValidateButtonForEachTab();
@@ -102,23 +115,16 @@ public class ValidationViewController {
         List<IconButtonType> buttons = new ArrayList<>();
         buttons.add(IconButtonType.OPEN_FILE);
         buttons.add(IconButtonType.EXPORT);
-        buttons.add(IconButtonType.DOCUMENTATION);
-        topBar.addRightButtons(buttons);
+        topBar.addLeftButtons(buttons);
 
         topBar.getButton(IconButtonType.OPEN_FILE).setOnAction(e -> onOpenFilesButtonClick());
-        topBar.getButton(IconButtonType.DOCUMENTATION).setOnAction(e -> {
-            DocumentationPopup documentationPopup = new DocumentationPopup();
-            documentationPopup.displayPopup();
-        });
     }
 
     private void initializeReportView() {
         Button exportIconButton = topBar.getButton(IconButtonType.EXPORT);
 
         if (exportIconButton != null) {
-
             exportButtonContainer.getChildren().add(exportIconButton);
-
             exportIconButton.setOnAction(event -> handleExportReport());
         }
 
@@ -166,7 +172,7 @@ public class ValidationViewController {
             return;
         }
         new Thread(() -> {
-            fr.inria.corese.core.Graph dataGraph = stateManager.getGraph();
+            Graph dataGraph = stateManager.getGraph();
             ValidationModel.ValidationResult result = validationModel.validate(dataGraph, shapesContent);
             Platform.runLater(() -> {
                 if (result.getErrorMessage() != null) {
@@ -208,6 +214,44 @@ public class ValidationViewController {
         reportTextArea.setText(formattedReport);
     }
 
+    private void handleExportReport() {
+        if (lastReportGraph == null) {
+            showError("Export Error", "There is no validation report to export. Please run a validation first.");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Export Validation Report");
+        String selectedFormat = reportFormatComboBox.getValue();
+        String extension = getExtensionForFormat(selectedFormat);
+        fileChooser.setInitialFileName("validation-report" + extension);
+        FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter(
+                selectedFormat + " file (*" + extension + ")", "*" + extension);
+        fileChooser.getExtensionFilters().add(extFilter);
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
+        File file = fileChooser.showSaveDialog(topBar.getScene().getWindow());
+
+        if (file != null) {
+            File fileToSave = file;
+            if (!file.getName().toLowerCase().endsWith(extension)) {
+                fileToSave = new File(file.getAbsolutePath() + extension);
+            }
+            try {
+                String reportContent = reportTextArea.getText();
+                Files.writeString(fileToSave.toPath(), reportContent);
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Export Successful");
+                alert.setHeaderText(null);
+                alert.setContentText(
+                        "The validation report has been successfully exported to:\n" + fileToSave.getAbsolutePath());
+                alert.showAndWait();
+            } catch (IOException e) {
+                e.printStackTrace();
+                showError("Export Failed", "An error occurred while saving the file:\n" + e.getMessage());
+            }
+        }
+    }
+
     private String getExtensionForFormat(String format) {
         return switch (format) {
             case "RDF/XML" -> ".rdf";
@@ -217,52 +261,6 @@ public class ValidationViewController {
             case "TRIG" -> ".trig";
             default -> ".ttl";
         };
-    }
-
-    private void handleExportReport() {
-        if (lastReportGraph == null) {
-            showError("Export Error", "There is no validation report to export. Please run a validation first.");
-            return;
-        }
-
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Export Validation Report");
-
-        String selectedFormat = reportFormatComboBox.getValue();
-        String extension = getExtensionForFormat(selectedFormat);
-
-        fileChooser.setInitialFileName("validation-report" + extension);
-
-        FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter(
-                selectedFormat + " file (*" + extension + ")", "*" + extension);
-        fileChooser.getExtensionFilters().add(extFilter);
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
-
-        File file = fileChooser.showSaveDialog(topBar.getScene().getWindow());
-
-        if (file != null) {
-            File fileToSave = file;
-
-            if (!file.getName().toLowerCase().endsWith(extension)) {
-                fileToSave = new File(file.getAbsolutePath() + extension);
-            }
-
-            try {
-                String reportContent = reportTextArea.getText();
-                Files.writeString(fileToSave.toPath(), reportContent);
-
-                Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                alert.setTitle("Export Successful");
-                alert.setHeaderText(null);
-                alert.setContentText(
-                        "The validation report has been successfully exported to:\n" + fileToSave.getAbsolutePath());
-                alert.showAndWait();
-
-            } catch (IOException e) {
-                e.printStackTrace();
-                showError("Export Failed", "An error occurred while saving the file:\n" + e.getMessage());
-            }
-        }
     }
 
     private void initializeTabEditor() {
@@ -328,20 +326,36 @@ public class ValidationViewController {
 
     private void checkFXMLInjections() {
         StringBuilder missing = new StringBuilder();
+        if (mainBorderPane == null)
+            missing.append("mainBorderPane, ");
+        if (mainSplitPane == null)
+            missing.append("mainSplitPane, ");
+        if (resultsSplitPane == null)
+            missing.append("resultsSplitPane, ");
         if (editorContainer == null)
             missing.append("editorContainer, ");
         if (topBar == null)
             missing.append("topBar, ");
-        if (reportPane == null)
-            missing.append("reportPane, ");
+        if (resultsTabPane == null)
+            missing.append("resultsTabPane, ");
+        if (tableTab == null)
+            missing.append("tableTab, ");
+        if (graphTab == null)
+            missing.append("graphTab, ");
+        if (textTab == null)
+            missing.append("textTab, ");
         if (reportFormatComboBox == null)
             missing.append("reportFormatComboBox, ");
         if (copyReportButton == null)
             missing.append("copyReportButton, ");
         if (reportTextArea == null)
             missing.append("reportTextArea, ");
+        if (exportButtonContainer == null)
+            missing.append("exportButtonContainer, ");
+
         if (missing.length() > 0) {
-            System.err.println("Missing FXML injections in ValidationViewController: " + missing);
+            String missingFields = missing.substring(0, missing.length() - 2);
+            System.err.println("Missing FXML injections in ValidationViewController: " + missingFields);
         }
     }
 }

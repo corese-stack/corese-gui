@@ -131,7 +131,7 @@ public class QueryViewController {
         setupLayout();
         initializeTopBar();
         setupKeyboardShortcuts();
-        
+
     }
 
     /**
@@ -260,25 +260,14 @@ public class QueryViewController {
 
     private void initializeTopBar() {
         List<IconButtonType> buttons = new ArrayList<>(
-                List.of(IconButtonType.OPEN_FILE, IconButtonType.DOCUMENTATION, IconButtonType.TEMPLATE,
-                        IconButtonType.SPLIT));
+                List.of(IconButtonType.OPEN_FILE, IconButtonType.TEMPLATE, IconButtonType.SPLIT));
+
         topBar.addLeftButtons(buttons);
         topBar.getButton(IconButtonType.OPEN_FILE).setOnAction(e -> onOpenFilesButtonClick());
         topBar.getButton(IconButtonType.TEMPLATE).setOnAction(e -> {
             Stage stage = (Stage) mainBorderPane.getScene().getWindow();
             TemplatePopup.show(stage, query -> tabEditorController.addNewTab("untitled", query));
         });
-        topBar.getButton(IconButtonType.DOCUMENTATION).setOnAction(e -> {
-            try {
-                if (hostServices != null)
-                    hostServices.showDocument("https://www.w3.org/TR/sparql11-query/");
-                else
-                    java.awt.Desktop.getDesktop().browse(new URI("https://www.w3.org/TR/sparql11-query/"));
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        });
-
         topBar.getButton(IconButtonType.SPLIT).setOnAction(e -> toggleSplitView());
     }
 
