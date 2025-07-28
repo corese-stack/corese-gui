@@ -10,43 +10,92 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignS; // Import for the new icon
 
 import java.util.function.Consumer;
 
 public class EmptyStateViewFactory {
 
-    public static Node createEmptyStateView(
+    /**
+     * Creates an empty state view specifically for the Query context.
+     */
+    public static Node createQueryEmptyStateView(
             Runnable onNewQuery,
             Runnable onLoadQuery,
             Consumer<Stage> onTemplateSelection,
             Stage stage) {
-        VBox emptyBox = new VBox(20);
-        emptyBox.setAlignment(Pos.CENTER);
 
         FontIcon icon = new FontIcon(MaterialDesignF.FILE_DOCUMENT_OUTLINE);
-        icon.setIconSize(80);
-
         Label message = new Label("No queries open.\nCreate a new query or load an existing one.");
-        message.setStyle("-fx-font-size: 16px; -fx-text-alignment: center;");
 
-        Button newTabButtonEmptyState = new Button("New Query");
-        newTabButtonEmptyState.setTooltip(new Tooltip("CTRL + N"));
+        Button newTabButton = new Button("New Query");
+        newTabButton.setTooltip(new Tooltip("CTRL + N"));
+        newTabButton.setOnAction(e -> onNewQuery.run());
 
         Button loadQueryButton = new Button("Load Query");
         loadQueryButton.setTooltip(new Tooltip("CTRL + O"));
+        loadQueryButton.setOnAction(e -> onLoadQuery.run());
 
         Button templateSelectionButton = new Button("Templates");
         templateSelectionButton.setTooltip(new Tooltip("CTRL + T"));
-
-        newTabButtonEmptyState.setOnAction(e -> onNewQuery.run());
-        loadQueryButton.setOnAction(e -> onLoadQuery.run());
         templateSelectionButton.setOnAction(e -> onTemplateSelection.accept(stage));
 
-        HBox buttonBox = new HBox(10, newTabButtonEmptyState, loadQueryButton, templateSelectionButton);
+        HBox buttonBox = new HBox(10, newTabButton, loadQueryButton, templateSelectionButton);
         buttonBox.setAlignment(Pos.CENTER);
+
+        return buildEmptyStateLayout(icon, message, buttonBox);
+    }
+
+    /**
+     * Creates an empty state view specifically for the SHACL Validation context.
+     * 
+     * @param onNewShapesFile  Action to run when "New Shapes File" is clicked.
+     * @param onLoadShapesFile Action to run when "Load Shapes File" is clicked.
+     * @return A Node representing the empty state view.
+     */
+    public static Node createValidationEmptyStateView(
+            Runnable onNewShapesFile,
+            Runnable onLoadShapesFile) {
+
+        // Use a different, more appropriate icon for validation (e.g., a shield with a
+        // check)
+        FontIcon icon = new FontIcon(MaterialDesignS.SHIELD_CHECK_OUTLINE);
+        Label message = new Label("No shapes files open.\nCreate a new shapes file or load an existing one.");
+
+        Button newButton = new Button("New Shapes File");
+        newButton.setTooltip(new Tooltip("CTRL + N"));
+        newButton.setOnAction(e -> onNewShapesFile.run());
+
+        Button loadButton = new Button("Load Shapes File");
+        loadButton.setTooltip(new Tooltip("CTRL + O"));
+        loadButton.setOnAction(e -> onLoadShapesFile.run());
+
+        // Note: No "Templates" button for validation context
+        HBox buttonBox = new HBox(10, newButton, loadButton);
+        buttonBox.setAlignment(Pos.CENTER);
+
+        return buildEmptyStateLayout(icon, message, buttonBox);
+    }
+
+    /**
+     * Private helper to construct the common VBox layout for any empty state.
+     * This avoids duplicating layout code.
+     */
+    private static Node buildEmptyStateLayout(FontIcon icon, Label message, HBox buttonBox) {
+        VBox emptyBox = new VBox(20);
+        emptyBox.setAlignment(Pos.CENTER);
+
+        icon.setIconSize(80);
+        icon.getStyleClass().add("empty-state-icon");
+
+        message.setStyle("-fx-font-size: 16px; -fx-text-alignment: center;");
+        message.getStyleClass().add("empty-state-message");
+
+        buttonBox.getStyleClass().add("empty-state-buttons");
 
         emptyBox.getChildren().addAll(icon, message, buttonBox);
         emptyBox.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        emptyBox.getStyleClass().add("empty-state-view");
 
         return emptyBox;
     }

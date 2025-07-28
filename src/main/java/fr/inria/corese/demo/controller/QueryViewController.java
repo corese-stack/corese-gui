@@ -89,7 +89,7 @@ public class QueryViewController {
         mainBorderPane.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
                 Stage stage = (Stage) mainBorderPane.getScene().getWindow();
-                emptyStateView = EmptyStateViewFactory.createEmptyStateView(
+                emptyStateView = EmptyStateViewFactory.createQueryEmptyStateView(
                         () -> tabEditorController.addNewTab("untitled", ""),
                         this::onOpenFilesButtonClick,
                         s -> TemplatePopup.show(s, query -> tabEditorController.addNewTab("untitled", query)),

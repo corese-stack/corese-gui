@@ -8,12 +8,13 @@ import fr.inria.corese.demo.factory.popup.DocumentationPopup;
 import fr.inria.corese.demo.manager.QueryManager;
 import fr.inria.corese.demo.model.ValidationModel;
 import fr.inria.corese.demo.view.CustomButton;
+import fr.inria.corese.demo.view.EmptyStateViewFactory;
 import fr.inria.corese.demo.view.TopBar;
-import fr.inria.corese.demo.view.codeEditor.CodeEditorView;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.*;
 import javafx.scene.layout.BorderPane;
@@ -51,6 +52,8 @@ public class ValidationViewController {
     private final ValidationModel validationModel = new ValidationModel();
     private final QueryManager stateManager = QueryManager.getInstance();
 
+    private Node emptyStateView;
+
     private Graph lastReportGraph;
     private static final List<String> REPORT_FORMATS = List.of("TURTLE", "RDF/XML", "JSON-LD", "N-TRIPLES", "N-QUADS",
             "TRIG");
@@ -63,9 +66,36 @@ public class ValidationViewController {
             initializeTopBar();
             setupValidateButtonForEachTab();
             initializeReportView();
+            setupEmptyState();
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private void setupEmptyState() {
+        Runnable newShapesAction = () -> tabEditorController.addNewTab("untitled-shapes.ttl", "");
+        Runnable loadShapesAction = this::onOpenFilesButtonClick;
+
+        this.emptyStateView = EmptyStateViewFactory.createValidationEmptyStateView(
+                newShapesAction,
+                loadShapesAction);
+
+        editorContainer.getChildren().add(0, emptyStateView);
+        updateEmptyStateVisibility();
+    }
+
+    private void updateEmptyStateVisibility() {
+        long realTabCount = tabEditorController.getView().getTabPane().getTabs().stream()
+                .filter(t -> t != tabEditorController.getView().getAddTab()).count();
+
+        boolean noTabsOpen = (realTabCount == 0);
+
+        if (emptyStateView != null) {
+            emptyStateView.setVisible(noTabsOpen);
+            emptyStateView.setManaged(noTabsOpen);
+        }
+        tabEditorController.getView().setVisible(!noTabsOpen);
+        tabEditorController.getView().setManaged(!noTabsOpen);
     }
 
     private void initializeTopBar() {
@@ -83,7 +113,6 @@ public class ValidationViewController {
     }
 
     private void initializeReportView() {
-
         Button exportIconButton = topBar.getButton(IconButtonType.EXPORT);
 
         if (exportIconButton != null) {
@@ -110,63 +139,6 @@ public class ValidationViewController {
             pause.setOnFinished(e -> copyReportButton.setText(originalText));
             pause.play();
         });
-    }
-
-    private void handleExportReport() {
-        if (lastReportGraph == null) {
-            showError("Export Error", "There is no validation report to export. Please run a validation first.");
-            return;
-        }
-
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Export Validation Report");
-
-        String selectedFormat = reportFormatComboBox.getValue();
-        String extension = getExtensionForFormat(selectedFormat);
-
-        fileChooser.setInitialFileName("validation-report" + extension);
-
-        FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter(
-                selectedFormat + " file (*" + extension + ")", "*" + extension);
-        fileChooser.getExtensionFilters().add(extFilter);
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*")); 
-
-        File file = fileChooser.showSaveDialog(topBar.getScene().getWindow());
-
-        if (file != null) {
-            File fileToSave = file;
-
-            if (!file.getName().toLowerCase().endsWith(extension)) {
-                fileToSave = new File(file.getAbsolutePath() + extension);
-            }
-
-            try {
-                String reportContent = reportTextArea.getText();
-                Files.writeString(fileToSave.toPath(), reportContent);
-
-                Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                alert.setTitle("Export Successful");
-                alert.setHeaderText(null);
-                alert.setContentText(
-                        "The validation report has been successfully exported to:\n" + fileToSave.getAbsolutePath());
-                alert.showAndWait();
-
-            } catch (IOException e) {
-                e.printStackTrace();
-                showError("Export Failed", "An error occurred while saving the file:\n" + e.getMessage());
-            }
-        }
-    }
-
-    private String getExtensionForFormat(String format) {
-        return switch (format) {
-            case "RDF/XML" -> ".rdf";
-            case "JSON-LD" -> ".jsonld";
-            case "N-TRIPLES" -> ".nt";
-            case "N-QUADS" -> ".nq";
-            case "TRIG" -> ".trig";
-            default -> ".ttl";
-        };
     }
 
     public void executeValidation() {
@@ -236,6 +208,63 @@ public class ValidationViewController {
         reportTextArea.setText(formattedReport);
     }
 
+    private String getExtensionForFormat(String format) {
+        return switch (format) {
+            case "RDF/XML" -> ".rdf";
+            case "JSON-LD" -> ".jsonld";
+            case "N-TRIPLES" -> ".nt";
+            case "N-QUADS" -> ".nq";
+            case "TRIG" -> ".trig";
+            default -> ".ttl";
+        };
+    }
+
+    private void handleExportReport() {
+        if (lastReportGraph == null) {
+            showError("Export Error", "There is no validation report to export. Please run a validation first.");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Export Validation Report");
+
+        String selectedFormat = reportFormatComboBox.getValue();
+        String extension = getExtensionForFormat(selectedFormat);
+
+        fileChooser.setInitialFileName("validation-report" + extension);
+
+        FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter(
+                selectedFormat + " file (*" + extension + ")", "*" + extension);
+        fileChooser.getExtensionFilters().add(extFilter);
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
+
+        File file = fileChooser.showSaveDialog(topBar.getScene().getWindow());
+
+        if (file != null) {
+            File fileToSave = file;
+
+            if (!file.getName().toLowerCase().endsWith(extension)) {
+                fileToSave = new File(file.getAbsolutePath() + extension);
+            }
+
+            try {
+                String reportContent = reportTextArea.getText();
+                Files.writeString(fileToSave.toPath(), reportContent);
+
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Export Successful");
+                alert.setHeaderText(null);
+                alert.setContentText(
+                        "The validation report has been successfully exported to:\n" + fileToSave.getAbsolutePath());
+                alert.showAndWait();
+
+            } catch (IOException e) {
+                e.printStackTrace();
+                showError("Export Failed", "An error occurred while saving the file:\n" + e.getMessage());
+            }
+        }
+    }
+
     private void initializeTabEditor() {
         tabEditorController = new TabEditorController(IconButtonBarType.VALIDATION);
         tabEditorController.getView().setMaxWidth(Double.MAX_VALUE);
@@ -260,6 +289,7 @@ public class ValidationViewController {
                     }
                 }
             }
+            Platform.runLater(this::updateEmptyStateVisibility);
         });
     }
 
@@ -314,5 +344,4 @@ public class ValidationViewController {
             System.err.println("Missing FXML injections in ValidationViewController: " + missing);
         }
     }
-
 }
