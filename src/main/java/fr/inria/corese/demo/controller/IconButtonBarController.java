@@ -54,8 +54,6 @@ public class IconButtonBarController {
 
                 onOpenFilesButtonClick();
             });
-
-            // SELF-CONTAINED ACTIONS (Your original, working logic)
             case EXPORT -> button.setOnAction(e -> onExportButtonClick());
             case IMPORT -> button.setOnAction(e -> onImportButtonClick());
             case CLEAR -> button.setOnAction(e -> onClearButtonClick());

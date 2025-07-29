@@ -6,42 +6,39 @@ import java.util.List;
 
 public enum IconButtonBarType {
 
-    DATA(
-            IconButtonType.IMPORT,
-            IconButtonType.EXPORT,
-            IconButtonType.CLEAR
-    ),
+        DATA(
+                        IconButtonType.IMPORT,
+                        IconButtonType.EXPORT,
+                        IconButtonType.CLEAR),
 
-    RDF_EDITOR(
-            IconButtonType.SAVE,
-            IconButtonType.OPEN_FILE,
-            IconButtonType.CLEAR,
-            IconButtonType.UNDO,
-            IconButtonType.REDO
-    ),
+        RDF_EDITOR(
+                        IconButtonType.SAVE,
+                        IconButtonType.OPEN_FILE,
+                        IconButtonType.CLEAR,
+                        IconButtonType.UNDO,
+                        IconButtonType.REDO),
 
-    VALIDATION(
-            IconButtonType.CLEAR,
-            IconButtonType.UNDO,
-            IconButtonType.REDO
-    ),
+        VALIDATION(
+                        IconButtonType.SAVE,
+                        IconButtonType.EXPORT,
+                        IconButtonType.CLEAR,
+                        IconButtonType.UNDO,
+                        IconButtonType.REDO),
 
-    QUERY(
+        QUERY(
 
-            IconButtonType.SAVE,
-            IconButtonType.CLEAR,
-            IconButtonType.UNDO,
-            IconButtonType.REDO
-    );
+                        IconButtonType.SAVE,
+                        IconButtonType.CLEAR,
+                        IconButtonType.UNDO,
+                        IconButtonType.REDO);
 
+        private final List<IconButtonType> buttons;
 
-    private final List<IconButtonType> buttons;
+        IconButtonBarType(IconButtonType... buttons) {
+                this.buttons = Arrays.asList(buttons);
+        }
 
-    IconButtonBarType(IconButtonType... buttons) {
-        this.buttons = Arrays.asList(buttons);
-    }
-
-    public List<IconButtonType> getButtons() {
-        return Collections.unmodifiableList(buttons);
-    }
+        public List<IconButtonType> getButtons() {
+                return Collections.unmodifiableList(buttons);
+        }
 }
