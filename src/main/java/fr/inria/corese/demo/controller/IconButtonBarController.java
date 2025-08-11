@@ -5,8 +5,14 @@ import fr.inria.corese.demo.model.codeEditor.CodeEditorModel;
 import fr.inria.corese.demo.model.IconButtonBarModel;
 import fr.inria.corese.demo.view.icon.IconButtonBarView;
 import fr.inria.corese.demo.factory.popup.DocumentationPopup;
-import fr.inria.corese.demo.factory.popup.IPopup;
-import fr.inria.corese.demo.factory.popup.PopupFactory;
+
+import fr.inria.corese.core.Graph;
+import fr.inria.corese.core.load.Load;
+import fr.inria.corese.demo.factory.popup.ExportFormatPopup;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+import javafx.stage.Stage;
+
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.stage.FileChooser;
@@ -16,14 +22,13 @@ import java.nio.file.Files;
 public class IconButtonBarController {
     private final IconButtonBarView view;
     private final IconButtonBarModel model;
-    private final CodeEditorController parentController; // Keep the parent reference
+    private final CodeEditorController parentController; 
 
-    // The constructor now accepts the parent controller
     public IconButtonBarController(IconButtonBarModel model, IconButtonBarView view,
             CodeEditorController parentController) {
         this.model = model;
         this.view = view;
-        this.parentController = parentController; // Store it
+        this.parentController = parentController; 
 
         view.initializeButtons(model.getAvailableButtons());
         initializeButtonHandlers();
@@ -35,13 +40,13 @@ public class IconButtonBarController {
         if (model.getCodeEditorModel() != null) {
             model.getCodeEditorModel().contentProperty().addListener((obs, o, n) -> updateUndoRedoButtons());
         }
-        updateUndoRedoButtons(); 
+        updateUndoRedoButtons();
     }
 
     private void initializeHandler(IconButtonType type) {
         Button button = view.getButton(type);
         if (button == null)
-            return; // Safety check
+            return; 
 
         switch (type) {
             case SAVE -> button.setOnAction(e -> {
@@ -63,7 +68,6 @@ public class IconButtonBarController {
         }
     }
 
-    
     private void onOpenFilesButtonClick() {
         if (model.getCodeEditorModel() == null)
             return;
@@ -105,23 +109,52 @@ public class IconButtonBarController {
     }
 
     private void onExportButtonClick() {
-        if (model.getCodeEditorModel() == null)
-            return;
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Export File");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
+        /*
+         * --- OLD LOGIC (Commented out as requested) ---
+         *
+         * if (model.getCodeEditorModel() == null)
+         * return;
+         * FileChooser fileChooser = new FileChooser();
+         * fileChooser.setTitle("Export File");
+         * fileChooser.getExtensionFilters().add(new
+         * FileChooser.ExtensionFilter("Text Files", "*.txt"));
+         *
+         * File file = fileChooser.showSaveDialog(view.getScene().getWindow());
+         * if (file != null) {
+         * if (!file.getName().toLowerCase().endsWith(".txt")) {
+         * file = new File(file.getAbsolutePath() + ".txt");
+         * }
+         * try {
+         * Files.writeString(file.toPath(), model.getCodeEditorModel().getContent());
+         * } catch (Exception e) {
+         * showError("Error Exporting File", "Could not export the file: " +
+         * e.getMessage());
+         * }
+         * }
+         */
 
-        File file = fileChooser.showSaveDialog(view.getScene().getWindow());
-        if (file != null) {
-            if (!file.getName().toLowerCase().endsWith(".txt")) {
-                file = new File(file.getAbsolutePath() + ".txt");
-            }
-            try {
-                Files.writeString(file.toPath(), model.getCodeEditorModel().getContent());
-            } catch (Exception e) {
-                showError("Error Exporting File", "Could not export the file: " + e.getMessage());
-            }
+        if (model.getCodeEditorModel() == null) {
+            return;
         }
+
+        String content = model.getCodeEditorModel().getContent();
+        if (content == null || content.trim().isEmpty()) {
+            showError("Export Error", "The editor is empty. There is nothing to export.");
+            return;
+        }
+
+        Graph graphToExport = Graph.create();
+        try {
+            Load.create(graphToExport).parse(
+                    new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8)),
+                    Load.format.TURTLE_FORMAT);
+        } catch (Exception e) {
+            showError("Parsing Error",
+                    "Could not parse the content. Please ensure it is valid RDF syntax.\n\n" + e.getMessage());
+            return;
+        }
+
+        ExportFormatPopup.show((Stage) view.getScene().getWindow(), graphToExport);
     }
 
     private void onClearButtonClick() {

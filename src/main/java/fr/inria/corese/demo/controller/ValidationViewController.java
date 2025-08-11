@@ -9,6 +9,11 @@ import fr.inria.corese.demo.model.ValidationModel;
 import fr.inria.corese.demo.view.CustomButton;
 import fr.inria.corese.demo.view.EmptyStateViewFactory;
 import fr.inria.corese.demo.view.TopBar;
+import fr.inria.corese.core.load.Load;
+import fr.inria.corese.demo.factory.popup.ExportFormatPopup;
+
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;

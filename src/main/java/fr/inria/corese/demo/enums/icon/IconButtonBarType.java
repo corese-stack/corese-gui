@@ -12,6 +12,7 @@ public enum IconButtonBarType {
                         IconButtonType.CLEAR),
 
         RDF_EDITOR(
+                        IconButtonType.EXPORT, 
                         IconButtonType.SAVE,
                         IconButtonType.OPEN_FILE,
                         IconButtonType.CLEAR,
