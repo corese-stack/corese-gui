@@ -34,27 +34,7 @@
                             <tabs>
                                 <Tab fx:id="tableTab" text="Table" />
                                 <Tab fx:id="graphTab" text="Graph" />
-                                <Tab fx:id="textTab" text="Text">
-                                    <content>
-                                        <BorderPane>
-                                            <top>
-                                                <HBox alignment="CENTER_LEFT" spacing="10"
-                                                    style="-fx-padding: 5;">
-                                                    <ComboBox fx:id="reportFormatComboBox" />
-                                                    <Region HBox.hgrow="ALWAYS" />
-                                                    <HBox fx:id="exportButtonContainer"
-                                                        alignment="CENTER" spacing="5" />
-                                                    <Button fx:id="copyReportButton" text="Copy" />
-                                                </HBox>
-                                            </top>
-                                            <center>
-                                                <TextArea fx:id="reportTextArea" editable="false"
-                                                    wrapText="true"
-                                                    style="-fx-font-family: 'monospaced';" />
-                                            </center>
-                                        </BorderPane>
-                                    </content>
-                                </Tab>
+                                <Tab fx:id="textTab" text="Text" />  
                             </tabs>
                         </TabPane>
                     </items>

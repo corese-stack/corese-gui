@@ -1,4 +1,5 @@
 package fr.inria.corese.demo.controller;
+
 import fr.inria.corese.demo.view.rule.CustomPagination;
 import javafx.application.Platform;
 import javafx.concurrent.Worker;
@@ -10,9 +11,13 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.*;
 import javafx.scene.web.WebView;
+import javafx.stage.FileChooser;
 import javafx.util.Duration;
 import javafx.animation.PauseTransition;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,6 +53,9 @@ public class ResultsPaneController {
         });
 
         controlsPane.setAlignment(Pos.CENTER_LEFT);
+
+        Button exportButton = new Button("Export");
+        exportButton.setOnAction((event -> handleExport()));
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         controlsPane.getChildren().addAll(perPageLabel, rowsPerPageField, spacer, totalRowsLabel);
@@ -57,8 +65,6 @@ public class ResultsPaneController {
 
         textFormatComboBox.getItems().setAll("XML", "JSON", "CSV", "TSV", "MARKDOWN");
         textFormatComboBox.getSelectionModel().select("XML");
-
-        // The listener for this ComboBox is now managed by the QueryViewController.
 
         copyXmlButton.setOnAction(event -> {
             ClipboardContent content = new ClipboardContent();
@@ -73,7 +79,7 @@ public class ResultsPaneController {
 
         Region textSpacer = new Region();
         HBox.setHgrow(textSpacer, Priority.ALWAYS);
-        HBox textControls = new HBox(10, textFormatComboBox, textSpacer, copyXmlButton);
+        HBox textControls = new HBox(10, textFormatComboBox, textSpacer, copyXmlButton, exportButton);
         textControls.setAlignment(Pos.CENTER_LEFT);
         textControls.setStyle("-fx-padding: 5;");
 
@@ -178,7 +184,6 @@ public class ResultsPaneController {
                                     .replace("\n", "\\n")
                                     .replace("\r", "");
 
-                            // The full, original script to create and populate the graph element
                             String script = "(function() {" +
                                     "    var container = document.getElementById('container');" +
                                     "    if (!container) { setTimeout(arguments.callee, 50); return; }" +
@@ -209,6 +214,69 @@ public class ResultsPaneController {
         });
     }
 
+    private void handleExport() {
+        String contentToExport = xmlResultTextArea.getText();
+        if (contentToExport == null || contentToExport.isBlank()) {
+            showError("Export Error", "There is no text content to export.");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Export Result As");
+
+        String selectedFormat = textFormatComboBox.getValue();
+        if (selectedFormat == null) {
+            selectedFormat = "Text";
+        }
+        String extension = getExtensionForFormat(selectedFormat);
+
+        fileChooser.setInitialFileName("output" + extension);
+        FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter(
+                selectedFormat + " file (*" + extension + ")", "*" + extension);
+        fileChooser.getExtensionFilters().add(extFilter);
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
+
+        File file = fileChooser.showSaveDialog(xmlResultTextArea.getScene().getWindow());
+
+        if (file != null) {
+            File fileToSave = file;
+            if (!file.getName().toLowerCase().endsWith(extension)) {
+                fileToSave = new File(file.getAbsolutePath() + extension);
+            }
+
+            try {
+                Files.writeString(fileToSave.toPath(), contentToExport);
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Export Successful");
+                alert.setHeaderText(null);
+                alert.setContentText(
+                        "The result has been successfully exported to:\n" + fileToSave.getAbsolutePath());
+                alert.showAndWait();
+            } catch (IOException e) {
+                e.printStackTrace();
+                showError("Export Failed", "An error occurred while saving the file:\n" + e.getMessage());
+            }
+        }
+    }
+
+    private String getExtensionForFormat(String format) {
+
+        return switch (format.toUpperCase()) {
+            case "RDF/XML" -> ".rdf";
+            case "JSON-LD" -> ".jsonld";
+            case "N-TRIPLES" -> ".nt";
+            case "N-QUADS" -> ".nq";
+            case "TRIG" -> ".trig";
+            case "TURTLE" -> ".ttl";
+            case "JSON" -> ".json";
+            case "CSV" -> ".csv";
+            case "TSV" -> ".tsv";
+            case "XML" -> ".xml";
+            case "MARKDOWN" -> ".md";
+            default -> ".ttl";
+        };
+    }
+
     public void updateXMLView(String content) {
         Platform.runLater(() -> xmlResultTextArea.setText(content != null ? content : ""));
     }
@@ -219,7 +287,6 @@ public class ResultsPaneController {
 
     public void clearResults() {
         Platform.runLater(() -> {
-            // Clear table
             resultTable.getItems().clear();
             resultTable.getColumns().clear();
             allRows.clear();
@@ -254,6 +321,14 @@ public class ResultsPaneController {
             return;
         }
         resultTable.getItems().setAll(allRows.subList(fromIndex, toIndex));
+    }
+
+    private void showError(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
 }

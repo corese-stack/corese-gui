@@ -9,23 +9,17 @@ import fr.inria.corese.demo.model.ValidationModel;
 import fr.inria.corese.demo.view.CustomButton;
 import fr.inria.corese.demo.view.EmptyStateViewFactory;
 import fr.inria.corese.demo.view.TopBar;
-import fr.inria.corese.core.load.Load;
-import fr.inria.corese.demo.factory.popup.ExportFormatPopup;
-
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
-import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.input.*;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
-import javafx.util.Duration;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,7 +29,7 @@ import java.util.List;
 
 public class ValidationViewController {
 
-    // --- FXML Fields (Updated to match the new FXML structure) ---
+    // --- FXML Fields ---
     @FXML
     private BorderPane mainBorderPane;
     @FXML
@@ -54,20 +48,15 @@ public class ValidationViewController {
     private Tab graphTab;
     @FXML
     private Tab textTab;
-    @FXML
-    private ComboBox<String> reportFormatComboBox;
-    @FXML
-    private Button copyReportButton;
-    @FXML
-    private TextArea reportTextArea;
-    @FXML
-    private HBox exportButtonContainer;
 
     private TabEditorController tabEditorController;
     private final ValidationModel validationModel = new ValidationModel();
     private final QueryManager stateManager = QueryManager.getInstance();
     private Node emptyStateView;
     private Graph lastReportGraph;
+
+    private ResultsPaneController resultsPaneController;
+
     private static final List<String> REPORT_FORMATS = List.of("TURTLE", "RDF/XML", "JSON-LD", "N-TRIPLES", "N-QUADS",
             "TRIG");
 
@@ -75,16 +64,28 @@ public class ValidationViewController {
     public void initialize() {
         checkFXMLInjections();
         try {
-            textTab.setText("Text");
+            resultsPaneController = new ResultsPaneController();
+            tableTab.setContent(resultsPaneController.getTableBox());
+            graphTab.setContent(resultsPaneController.getGraphView());
+            textTab.setContent(resultsPaneController.getTextViewBox());
+
             tableTab.setDisable(true);
             graphTab.setDisable(true);
+            textTab.setDisable(false);
             resultsTabPane.getSelectionModel().select(textTab);
+
+            resultsPaneController.getTextFormatComboBox().getSelectionModel().selectedItemProperty()
+                    .addListener((obs, oldVal, newVal) -> {
+                        if (newVal != null && lastReportGraph != null) {
+                            formatAndDisplayReport(lastReportGraph, newVal);
+                        }
+                    });
 
             initializeTabEditor();
             initializeTopBar();
             setupValidateButtonForEachTab();
-            initializeReportView();
             setupEmptyState();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -100,12 +101,17 @@ public class ValidationViewController {
 
         editorContainer.getChildren().add(0, emptyStateView);
         updateEmptyStateVisibility();
+
+        tabEditorController.getView().getTabPane().getTabs().addListener((ListChangeListener<Tab>) c -> {
+            while (c.next()) {
+                Platform.runLater(this::updateEmptyStateVisibility);
+            }
+        });
     }
 
     private void updateEmptyStateVisibility() {
         long realTabCount = tabEditorController.getView().getTabPane().getTabs().stream()
                 .filter(t -> t != tabEditorController.getView().getAddTab()).count();
-
         boolean noTabsOpen = (realTabCount == 0);
 
         if (emptyStateView != null) {
@@ -117,75 +123,57 @@ public class ValidationViewController {
     }
 
     private void initializeTopBar() {
-        List<IconButtonType> buttons = new ArrayList<>();
-        buttons.add(IconButtonType.OPEN_FILE);
-        buttons.add(IconButtonType.EXPORT);
+        List<IconButtonType> buttons = new ArrayList<>(List.of(IconButtonType.OPEN_FILE));
         topBar.addLeftButtons(buttons);
-
         topBar.getButton(IconButtonType.OPEN_FILE).setOnAction(e -> onOpenFilesButtonClick());
     }
 
-    private void initializeReportView() {
-        Button exportIconButton = topBar.getButton(IconButtonType.EXPORT);
-
-        if (exportIconButton != null) {
-            exportButtonContainer.getChildren().add(exportIconButton);
-            exportIconButton.setOnAction(event -> handleExportReport());
-        }
-
-        reportFormatComboBox.getItems().setAll(REPORT_FORMATS);
-        reportFormatComboBox.getSelectionModel().select("TURTLE");
-        reportFormatComboBox.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null && lastReportGraph != null) {
-                formatAndDisplayReport(lastReportGraph, newVal);
-            }
-        });
-        copyReportButton.setOnAction(event -> {
-            ClipboardContent content = new ClipboardContent();
-            content.putString(reportTextArea.getText());
-            Clipboard.getSystemClipboard().setContent(content);
-            String originalText = copyReportButton.getText();
-            copyReportButton.setText("Copied!");
-            PauseTransition pause = new PauseTransition(Duration.seconds(1.5));
-            pause.setOnFinished(e -> copyReportButton.setText(originalText));
-            pause.play();
-        });
-    }
-
     public void executeValidation() {
-        reportTextArea.clear();
+        resultsPaneController.clearResults();
         lastReportGraph = null;
+
         if (stateManager.getGraph().size() == 0) {
             String message = "Cannot validate: No data has been loaded in the 'Data' view.";
-            reportTextArea.setText(message);
+            resultsPaneController.updateXMLView(message);
             showError("No Data Loaded", message);
             return;
         }
+
         Tab selectedTab = tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
         if (selectedTab == null || selectedTab == tabEditorController.getView().getAddTab()) {
             return;
         }
+
         CodeEditorController codeEditorController = tabEditorController.getModel().getControllerForTab(selectedTab);
         if (codeEditorController == null) {
             return;
         }
+
         final String shapesContent = codeEditorController.getView().getText();
         if (shapesContent == null || shapesContent.trim().isEmpty()) {
             String message = "Cannot validate: The current tab is empty...";
-            reportTextArea.setText(message);
+            resultsPaneController.updateXMLView(message);
             showError("Empty Shapes", message);
             return;
         }
+
         new Thread(() -> {
             Graph dataGraph = stateManager.getGraph();
             ValidationModel.ValidationResult result = validationModel.validate(dataGraph, shapesContent);
             Platform.runLater(() -> {
+                tableTab.setDisable(true);
+                graphTab.setDisable(true);
+                textTab.setDisable(false);
+                resultsPaneController.setTextFormats(REPORT_FORMATS, "TURTLE");
+                resultsTabPane.getSelectionModel().select(textTab);
+
                 if (result.getErrorMessage() != null) {
-                    reportTextArea.setText("Validation Failed: Invalid SHACL Syntax\n\n" + result.getErrorMessage());
+                    String errorMsg = "Validation Failed: Invalid SHACL Syntax\n\n" + result.getErrorMessage();
+                    resultsPaneController.updateXMLView(errorMsg);
                     showError("Invalid SHACL Content", result.getErrorMessage());
                 } else {
                     this.lastReportGraph = result.getReportGraph();
-                    formatAndDisplayReport(this.lastReportGraph, reportFormatComboBox.getValue());
+                    formatAndDisplayReport(this.lastReportGraph, "TURTLE");
                 }
             });
         }).start();
@@ -194,8 +182,9 @@ public class ValidationViewController {
     private void formatAndDisplayReport(Graph reportGraph, String format) {
         if (reportGraph == null || format == null)
             return;
+
         ResultFormat.format coreseFormat;
-        switch (format) {
+        switch (format.toUpperCase()) {
             case "RDF/XML":
                 coreseFormat = ResultFormat.format.RDF_XML_FORMAT;
                 break;
@@ -216,56 +205,7 @@ public class ValidationViewController {
                 break;
         }
         String formattedReport = stateManager.formatGraph(reportGraph, coreseFormat);
-        reportTextArea.setText(formattedReport);
-    }
-
-    private void handleExportReport() {
-        if (lastReportGraph == null) {
-            showError("Export Error", "There is no validation report to export. Please run a validation first.");
-            return;
-        }
-
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Export Validation Report");
-        String selectedFormat = reportFormatComboBox.getValue();
-        String extension = getExtensionForFormat(selectedFormat);
-        fileChooser.setInitialFileName("validation-report" + extension);
-        FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter(
-                selectedFormat + " file (*" + extension + ")", "*" + extension);
-        fileChooser.getExtensionFilters().add(extFilter);
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
-        File file = fileChooser.showSaveDialog(topBar.getScene().getWindow());
-
-        if (file != null) {
-            File fileToSave = file;
-            if (!file.getName().toLowerCase().endsWith(extension)) {
-                fileToSave = new File(file.getAbsolutePath() + extension);
-            }
-            try {
-                String reportContent = reportTextArea.getText();
-                Files.writeString(fileToSave.toPath(), reportContent);
-                Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                alert.setTitle("Export Successful");
-                alert.setHeaderText(null);
-                alert.setContentText(
-                        "The validation report has been successfully exported to:\n" + fileToSave.getAbsolutePath());
-                alert.showAndWait();
-            } catch (IOException e) {
-                e.printStackTrace();
-                showError("Export Failed", "An error occurred while saving the file:\n" + e.getMessage());
-            }
-        }
-    }
-
-    private String getExtensionForFormat(String format) {
-        return switch (format) {
-            case "RDF/XML" -> ".rdf";
-            case "JSON-LD" -> ".jsonld";
-            case "N-TRIPLES" -> ".nt";
-            case "N-QUADS" -> ".nq";
-            case "TRIG" -> ".trig";
-            default -> ".ttl";
-        };
+        resultsPaneController.updateXMLView(formattedReport);
     }
 
     private void initializeTabEditor() {
@@ -292,7 +232,6 @@ public class ValidationViewController {
                     }
                 }
             }
-            Platform.runLater(this::updateEmptyStateVisibility);
         });
     }
 
@@ -314,7 +253,7 @@ public class ValidationViewController {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open Shapes File");
         fileChooser.getExtensionFilters()
-                .addAll(new FileChooser.ExtensionFilter("RDF Files", "*.ttl", "*.rdf", "*.n3"));
+                .addAll(new FileChooser.ExtensionFilter("RDF Files", "*.ttl", "*.rdf", "*.n3", "*.shacl"));
         File file = fileChooser.showOpenDialog(null);
         if (file != null) {
             tabEditorController.addNewTab(file);
@@ -330,37 +269,9 @@ public class ValidationViewController {
     }
 
     private void checkFXMLInjections() {
-        StringBuilder missing = new StringBuilder();
-        if (mainBorderPane == null)
-            missing.append("mainBorderPane, ");
-        if (mainSplitPane == null)
-            missing.append("mainSplitPane, ");
-        if (resultsSplitPane == null)
-            missing.append("resultsSplitPane, ");
-        if (editorContainer == null)
-            missing.append("editorContainer, ");
-        if (topBar == null)
-            missing.append("topBar, ");
-        if (resultsTabPane == null)
-            missing.append("resultsTabPane, ");
-        if (tableTab == null)
-            missing.append("tableTab, ");
-        if (graphTab == null)
-            missing.append("graphTab, ");
-        if (textTab == null)
-            missing.append("textTab, ");
-        if (reportFormatComboBox == null)
-            missing.append("reportFormatComboBox, ");
-        if (copyReportButton == null)
-            missing.append("copyReportButton, ");
-        if (reportTextArea == null)
-            missing.append("reportTextArea, ");
-        if (exportButtonContainer == null)
-            missing.append("exportButtonContainer, ");
-
-        if (missing.length() > 0) {
-            String missingFields = missing.substring(0, missing.length() - 2);
-            System.err.println("Missing FXML injections in ValidationViewController: " + missingFields);
+        if (mainBorderPane == null || mainSplitPane == null || editorContainer == null ||
+                topBar == null || resultsTabPane == null || tableTab == null || graphTab == null || textTab == null) {
+            System.err.println("Warning: One or more FXML fields in ValidationViewController were not injected.");
         }
     }
 }
