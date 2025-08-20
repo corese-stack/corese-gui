@@ -31,6 +31,7 @@ public class TableViewController {
             });
         } catch (Exception e) {
             e.printStackTrace();
+            showError("Error displaying data", e.getMessage());
         }
     }
 

@@ -4,6 +4,8 @@ import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.kgram.core.Mappings;
 import fr.inria.corese.core.print.ResultFormat;
 import fr.inria.corese.core.query.QueryProcess;
+import fr.inria.corese.core.sparql.triple.parser.ASTQuery;
+import fr.inria.corese.core.sparql.triple.parser.Variable;
 import fr.inria.corese.demo.model.fileList.FileListModel;
 
 import java.io.File;
@@ -11,6 +13,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class QueryManager {
     private static QueryManager instance;
@@ -21,6 +24,15 @@ public class QueryManager {
     private final List<String> logEntries;
 
     private final Map<Integer, TabCacheEntry> queryResultCache = new HashMap<>();
+
+    private static final Set<ResultFormat.format> RDF_FORMATS = Set.of(
+            ResultFormat.format.TURTLE_FORMAT,
+            ResultFormat.format.RDF_XML_FORMAT,
+            ResultFormat.format.JSONLD_FORMAT,
+            ResultFormat.format.NTRIPLES_FORMAT,
+            ResultFormat.format.NQUADS_FORMAT,
+            ResultFormat.format.TRIG_FORMAT
+    );
 
     private QueryManager() {
         this.graphManager = GraphManager.getInstance();
@@ -40,14 +52,15 @@ public class QueryManager {
         try {
             this.queryProcess = QueryProcess.create(graphManager.getGraph());
             Mappings mappings = this.queryProcess.query(query);
-            String queryType = determineQueryType(query);
-            TabCacheEntry cacheEntry;
+            ASTQuery ast = mappings.getAST();
+            String queryType = determineQueryTypeFromAST(ast);
 
-            if (queryType.equals("CONSTRUCT") || queryType.equals("DESCRIBE")) {
+            TabCacheEntry cacheEntry;
+            if (ast.isConstruct() || ast.isDescribe()) {
                 Graph resultGraph = (Graph) mappings.getGraph();
-                cacheEntry = new TabCacheEntry(queryType, resultGraph);
+                cacheEntry = new TabCacheEntry(queryType, resultGraph, ast);
             } else {
-                cacheEntry = new TabCacheEntry(queryType, mappings);
+                cacheEntry = new TabCacheEntry(queryType, mappings, ast);
             }
             queryResultCache.put(tabId, cacheEntry);
             addLogEntry("Query executed and result cached for tab " + tabId);
@@ -67,51 +80,95 @@ public class QueryManager {
 
     public String getFormattedCachedQuery(Integer tabId, String format) {
         TabCacheEntry cachedEntry = getCachedResult(tabId);
-        if (cachedEntry == null)
-            return "";
+        if (cachedEntry == null) return "";
 
-        String upperCaseFormat = format.toUpperCase().replace("-", "_");
+        ASTQuery ast = cachedEntry.getAst();
+        if (ast == null) return "Error: Query AST not found in cache.";
 
-        ResultFormat.format coreseFormat;
+        ResultFormat.format coreseFormat = getCoreseFormat(format);
+        if (coreseFormat == null) return "Unsupported format: " + format;
 
-        if (cachedEntry.getMappingsResult() != null) {
-            coreseFormat = switch (upperCaseFormat) {
-                case "XML" -> ResultFormat.format.XML_FORMAT;
-                case "JSON" -> ResultFormat.format.JSON_FORMAT;
-                case "CSV" -> ResultFormat.format.CSV_FORMAT;
-                case "TSV" -> ResultFormat.format.TSV_FORMAT;
-                case "MARKDOWN" -> ResultFormat.format.MARKDOWN_FORMAT;
-                default -> null;
-            };
-            return (coreseFormat != null) ? formatMappings(cachedEntry.getMappingsResult(), coreseFormat)
-                    : "Unsupported format for SELECT/ASK.";
+        boolean isRdfFormat = RDF_FORMATS.contains(coreseFormat);
+        if ((ast.isConstruct() || ast.isDescribe() || ast.isUpdate()) && !isRdfFormat) {
+            return String.format("Error: %s is not a valid RDF format for this query type.", format);
+        }
+        if ((ast.isSelect() || ast.isAsk()) && isRdfFormat) {
+            return String.format("Error: %s is not a valid mapping format for this query type.", format);
         }
 
         if (cachedEntry.getGraphResult() != null) {
-            coreseFormat = switch (upperCaseFormat) {
-                case "TURTLE" -> ResultFormat.format.TURTLE_FORMAT;
-                case "RDF_XML" -> ResultFormat.format.RDF_XML_FORMAT;
-                case "JSON_LD" -> ResultFormat.format.JSONLD_FORMAT;
-                case "N_TRIPLES" -> ResultFormat.format.NTRIPLES_FORMAT;
-                case "N_QUADS" -> ResultFormat.format.NQUADS_FORMAT;
-                case "TRIG" -> ResultFormat.format.TRIG_FORMAT;
-                default -> null;
-            };
-            return (coreseFormat != null) ? formatGraph(cachedEntry.getGraphResult(), coreseFormat)
-                    : "Unsupported format for CONSTRUCT/DESCRIBE.";
+            return formatGraph(cachedEntry.getGraphResult(), coreseFormat);
         }
+        if (cachedEntry.getMappingsResult() != null) {
+            return formatMappings(cachedEntry.getMappingsResult(), coreseFormat);
+        }
+
         return "";
     }
 
+    private ResultFormat.format getCoreseFormat(String formatName) {
+        return switch (formatName.toUpperCase().replace("-", "_")) {
+            case "XML" -> ResultFormat.format.XML_FORMAT;
+            case "JSON" -> ResultFormat.format.JSON_FORMAT;
+            case "CSV" -> ResultFormat.format.CSV_FORMAT;
+            case "TSV" -> ResultFormat.format.TSV_FORMAT;
+            case "MARKDOWN" -> ResultFormat.format.MARKDOWN_FORMAT;
+            case "TURTLE" -> ResultFormat.format.TURTLE_FORMAT;
+            case "RDF_XML" -> ResultFormat.format.RDF_XML_FORMAT;
+            case "JSON_LD" -> ResultFormat.format.JSONLD_FORMAT;
+            case "N_TRIPLES" -> ResultFormat.format.NTRIPLES_FORMAT;
+            case "N_QUADS" -> ResultFormat.format.NQUADS_FORMAT;
+            case "TRIG" -> ResultFormat.format.TRIG_FORMAT;
+            default -> null;
+        };
+    }
+
     public String formatMappings(Mappings mappings, ResultFormat.format format) {
-        if (mappings == null || mappings.isEmpty())
-            return "";
+        if (mappings == null) return "";
+        if (format == ResultFormat.format.CSV_FORMAT) {
+            return formatMappingsAsCSV(mappings);
+        }
+        if (mappings.isEmpty()) return "";
         try {
             return ResultFormat.create(mappings, format).toString();
         } catch (Exception e) {
             addLogEntry("Error formatting Mappings: " + e.getMessage());
             return "Error: " + e.getMessage();
         }
+    }
+
+    private String formatMappingsAsCSV(Mappings mappings) {
+        if (mappings == null || mappings.getAST() == null) {
+            return "";
+        }
+        StringBuilder csv = new StringBuilder();
+        List<Variable> variables = mappings.getAST().getSelect();
+
+        // Header
+        for (int i = 0; i < variables.size(); i++) {
+            csv.append(variables.get(i).getName().substring(1)); // remove leading '?'
+            if (i < variables.size() - 1) {
+                csv.append(',');
+            }
+        }
+        csv.append("\n");
+
+        // Rows
+        mappings.forEach(mapping -> {
+            for (int i = 0; i < variables.size(); i++) {
+                Variable var = variables.get(i);
+                fr.inria.corese.core.kgram.api.core.Node node = mapping.getNode(var);
+                if (node != null) {
+                    csv.append(node.getLabel());
+                }
+                if (i < variables.size() - 1) {
+                    csv.append(',');
+                }
+            }
+            csv.append("\n");
+        });
+
+        return csv.toString();
     }
 
     public String formatGraph(Graph graph, ResultFormat.format format) {
@@ -125,24 +182,11 @@ public class QueryManager {
         }
     }
 
-    public String determineQueryType(String queryString) {
-        String cleanedQuery = queryString.trim().toUpperCase();
-        while (cleanedQuery.startsWith("PREFIX")) {
-            int endOfPrefix = cleanedQuery.indexOf(">");
-            if (endOfPrefix != -1) {
-                cleanedQuery = cleanedQuery.substring(endOfPrefix + 1).trim();
-            } else {
-                break;
-            }
-        }
-        if (cleanedQuery.startsWith("SELECT"))
-            return "SELECT";
-        if (cleanedQuery.startsWith("CONSTRUCT"))
-            return "CONSTRUCT";
-        if (cleanedQuery.startsWith("ASK"))
-            return "ASK";
-        if (cleanedQuery.startsWith("DESCRIBE"))
-            return "DESCRIBE";
+    private String determineQueryTypeFromAST(ASTQuery ast) {
+        if (ast.isSelect()) return "SELECT";
+        if (ast.isConstruct()) return "CONSTRUCT";
+        if (ast.isAsk()) return "ASK";
+        if (ast.isDescribe()) return "DESCRIBE";
         return "UNKNOWN";
     }
 
@@ -161,17 +205,20 @@ public class QueryManager {
         private final String queryType;
         private final Mappings mappingsResult;
         private final Graph graphResult;
+        private final ASTQuery ast;
 
-        public TabCacheEntry(String queryType, Mappings mappings) {
+        public TabCacheEntry(String queryType, Mappings mappings, ASTQuery ast) {
             this.queryType = queryType;
             this.mappingsResult = mappings;
             this.graphResult = null;
+            this.ast = ast;
         }
 
-        public TabCacheEntry(String queryType, Graph graph) {
+        public TabCacheEntry(String queryType, Graph graph, ASTQuery ast) {
             this.queryType = queryType;
             this.mappingsResult = null;
             this.graphResult = graph;
+            this.ast = ast;
         }
 
         public String getQueryType() {
@@ -184,6 +231,10 @@ public class QueryManager {
 
         public Graph getGraphResult() {
             return graphResult;
+        }
+
+        public ASTQuery getAst() {
+            return ast;
         }
     }
 }

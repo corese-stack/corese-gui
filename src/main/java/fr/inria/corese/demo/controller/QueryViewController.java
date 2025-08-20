@@ -238,10 +238,11 @@ public class QueryViewController {
             return;
         }
 
-        final String queryContent = codeEditorController.getModel().getContent();
+        final String queryContent = codeEditorController.getView().getText();
         final Integer tabId = selectedTab.hashCode();
 
         resultsPaneController.clearResults();
+        stateManager.clearCacheForTab(tabId);
 
         new Thread(() -> {
             try {
@@ -304,8 +305,12 @@ public class QueryViewController {
     private void configureEditorRunButton(CodeEditorController controller) {
         controller.getView().displayRunButton();
         CustomButton runButton = controller.getView().getRunButton();
-        if (runButton != null)
-            runButton.setOnAction(e -> executeQuery());
+        if (runButton != null) {
+            runButton.setOnAction(e -> {
+                controller.getView().getCodeMirrorView().requestFocus();
+                executeQuery();
+            });
+        }
         controller.getView().setOnKeyPressed(event -> {
             if (new KeyCodeCombination(KeyCode.ENTER, KeyCombination.CONTROL_DOWN).match(event)) {
                 executeQuery();
