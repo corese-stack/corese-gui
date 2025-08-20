@@ -4,6 +4,7 @@ import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.print.ResultFormat;
 import fr.inria.corese.demo.enums.icon.IconButtonBarType;
 import fr.inria.corese.demo.enums.icon.IconButtonType;
+import fr.inria.corese.demo.manager.GraphManager;
 import fr.inria.corese.demo.manager.QueryManager;
 import fr.inria.corese.demo.model.ValidationModel;
 import fr.inria.corese.demo.view.CustomButton;
@@ -51,7 +52,7 @@ public class ValidationViewController {
 
     private TabEditorController tabEditorController;
     private final ValidationModel validationModel = new ValidationModel();
-    private final QueryManager stateManager = QueryManager.getInstance();
+    private final GraphManager graphManager = GraphManager.getInstance();
     private Node emptyStateView;
     private Graph lastReportGraph;
 
@@ -132,7 +133,7 @@ public class ValidationViewController {
         resultsPaneController.clearResults();
         lastReportGraph = null;
 
-        if (stateManager.getGraph().size() == 0) {
+        if (graphManager.getGraph().size() == 0) {
             String message = "Cannot validate: No data has been loaded in the 'Data' view.";
             resultsPaneController.updateXMLView(message);
             showError("No Data Loaded", message);
@@ -158,7 +159,7 @@ public class ValidationViewController {
         }
 
         new Thread(() -> {
-            Graph dataGraph = stateManager.getGraph();
+            Graph dataGraph = graphManager.getGraph();
             ValidationModel.ValidationResult result = validationModel.validate(dataGraph, shapesContent);
             Platform.runLater(() -> {
                 tableTab.setDisable(true);
@@ -204,7 +205,7 @@ public class ValidationViewController {
                 coreseFormat = ResultFormat.format.TURTLE_FORMAT;
                 break;
         }
-        String formattedReport = stateManager.formatGraph(reportGraph, coreseFormat);
+        String formattedReport = QueryManager.getInstance().formatGraph(reportGraph, coreseFormat);
         resultsPaneController.updateXMLView(formattedReport);
     }
 

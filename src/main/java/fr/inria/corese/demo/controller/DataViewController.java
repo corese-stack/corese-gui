@@ -1,7 +1,9 @@
 package fr.inria.corese.demo.controller;
 
 import fr.inria.corese.demo.enums.icon.IconButtonType;
+import fr.inria.corese.demo.manager.DataManager;
 import fr.inria.corese.demo.manager.QueryManager;
+import fr.inria.corese.demo.manager.GraphManager;
 import fr.inria.corese.demo.manager.RuleManager;
 import fr.inria.corese.demo.view.FileListView;
 import fr.inria.corese.demo.view.TopBar;
@@ -24,7 +26,9 @@ import java.util.List;
  * Manages file list, rules, and data operations.
  */
 public class DataViewController {
+    private final DataManager dataManager;
     private final QueryManager queryManager;
+    private final GraphManager graphManager;
     private final RuleManager ruleManager;
     private final PopupFactory popupFactory;
 
@@ -54,7 +58,9 @@ public class DataViewController {
      * Constructor for the data view controller.
      */
     public DataViewController() {
+        this.dataManager = DataManager.getInstance();
         this.queryManager = QueryManager.getInstance();
+        this.graphManager = GraphManager.getInstance();
         this.ruleManager = new RuleManager(this.queryManager);
         this.popupFactory = PopupFactory.getInstance();
     }
@@ -86,7 +92,7 @@ public class DataViewController {
         }
         try {
             fileListView = new FileListView();
-            fileListView.setModel(queryManager.getFileListModel());
+            fileListView.setModel(dataManager.getFileListModel());
 
             fileListContainer.getChildren().add(fileListView);
             VBox.setVgrow(fileListView, Priority.ALWAYS);
@@ -135,7 +141,7 @@ public class DataViewController {
         File file = fileChooser.showSaveDialog(null);
         if (file != null) {
             try {
-                queryManager.saveGraph(file);
+                dataManager.saveGraph(file);
                 Alert alert = new Alert(Alert.AlertType.INFORMATION);
                 alert.setTitle("Success");
                 alert.setHeaderText(null);
@@ -157,7 +163,7 @@ public class DataViewController {
         confirmPopup.displayPopup();
 
         if (((ClearGraphConfirmationPopup) confirmPopup).getResult()) {
-            queryManager.clearGraphAndFiles();
+            dataManager.reloadFiles();
             updateView();
             IPopup successPopup = popupFactory.createPopup(PopupFactory.TOAST_NOTIFICATION);
             successPopup.setMessage("Graph has been cleared successfully!");
@@ -166,6 +172,7 @@ public class DataViewController {
     }
 
     private void handleReload() {
+        dataManager.reloadFiles();
         ruleManager.applyRules();
         updateView();
     }
@@ -190,7 +197,7 @@ public class DataViewController {
         if (files != null && !files.isEmpty()) {
             for (File file : files) {
                 try {
-                    queryManager.loadFile(file);
+                    dataManager.loadFile(file);
                     IPopup successPopup = popupFactory.createPopup(PopupFactory.TOAST_NOTIFICATION);
                     successPopup.setMessage("File '" + file.getName() + "' loaded!");
                     successPopup.displayPopup();
@@ -213,7 +220,7 @@ public class DataViewController {
         }
 
         if (tripletLabel != null) {
-            tripletLabel.setText("Number of triplet: " + queryManager.getTripletCount());
+            tripletLabel.setText("Number of triplet: " + graphManager.getTripletCount());
             rulesLoadedLabel.setText("Number of rules loaded: " + ruleManager.getLoadedRulesCount());
 
             semanticElementsLabel.setText("");

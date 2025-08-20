@@ -11,5 +11,4 @@ public interface QueryResultProvider {
 
     String get_markdown(fr.inria.corese.core.kgram.core.Mappings mappings);
 
-    String get_graph_data(fr.inria.corese.core.kgram.core.Mappings mappings);
-}
+    }

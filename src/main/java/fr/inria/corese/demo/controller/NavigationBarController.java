@@ -1,6 +1,7 @@
 package fr.inria.corese.demo.controller;
 
 import fr.inria.corese.demo.manager.QueryManager;
+import fr.inria.corese.demo.manager.DataManager;
 import fr.inria.corese.demo.view.NavigationBarView;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
@@ -21,6 +22,7 @@ import java.util.Set;
 public class NavigationBarController {
     private final BorderPane mainContent;
     private final QueryManager stateManager;
+    private final DataManager dataManager;
     private final NavigationBarView view;
     private String currentViewName;
 
@@ -43,6 +45,7 @@ public class NavigationBarController {
         }
         this.mainContent = mainContent;
         this.stateManager = QueryManager.getInstance();
+        this.dataManager = DataManager.getInstance();
         this.view = new NavigationBarView();
 
         for (String viewName : cachedViewNames) {
@@ -82,7 +85,7 @@ public class NavigationBarController {
     public void selectView(String viewName) {
         try {
             if (currentViewName != null) {
-                stateManager.saveCurrentState();
+                dataManager.saveCurrentState();
                 stateManager.addLogEntry("State saved before navigating from " + currentViewName + " to " + viewName);
             }
 
@@ -99,7 +102,7 @@ public class NavigationBarController {
                 Object controller = loader.getController();
 
                 if (controller instanceof DataViewController) {
-                    stateManager.restoreState();
+                    dataManager.restoreState();
                     stateManager.addLogEntry("Restored state for DataViewController");
                 }
             }

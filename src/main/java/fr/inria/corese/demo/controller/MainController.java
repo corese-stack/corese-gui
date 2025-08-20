@@ -14,7 +14,7 @@ public class MainController {
     @FXML private BorderPane contentArea;
 
     private NavigationBarController navigationBarController;
-    private QueryManager stateManager;
+    private QueryManager queryManager;
 
     /**
      * Initializes the controller.
@@ -22,7 +22,7 @@ public class MainController {
      */
     @FXML
     public void initialize() {
-        stateManager = QueryManager.getInstance();
+        queryManager = QueryManager.getInstance();
 
         navigationBarController = new NavigationBarController(contentArea);
 
@@ -31,6 +31,6 @@ public class MainController {
 
         navigationBarController.selectView("data-view");
 
-        stateManager.addLogEntry("MainController initialization complete");
+        queryManager.addLogEntry("MainController initialization complete");
     }
 }

@@ -18,6 +18,7 @@ import java.util.*;
 public class RuleManager {
 
     private final QueryManager queryManager;
+    private final GraphManager graphManager;
 
     private final List<File> loadedRuleFiles;
     private final Map<String, Boolean> customRuleStates;
@@ -35,6 +36,7 @@ public class RuleManager {
      */
     public RuleManager(QueryManager queryManager) {
         this.queryManager = queryManager;
+        this.graphManager = GraphManager.getInstance();
         this.loadedRuleFiles = new ArrayList<>();
         this.customRuleStates = new HashMap<>();
     }
@@ -77,7 +79,7 @@ public class RuleManager {
      * loads custom rules, and processes them.
      */
     public void applyRules() {
-        Graph graph = queryManager.getGraph();
+        Graph graph = graphManager.getGraph();
         if (graph == null) {
             queryManager.addLogEntry("ERROR: Cannot apply rules, graph is null.");
             return;
