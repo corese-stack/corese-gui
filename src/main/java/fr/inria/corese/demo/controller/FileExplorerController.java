@@ -114,7 +114,7 @@ public class FileExplorerController {
                     File newFile = new File(fullPath);
 
                     if (newFile.createNewFile()) {
-                        model.addFile(finalSelectedItem, new FileItem(fileName));
+                        model.addFile(finalSelectedItem, new FileItem(newFile));
                     } else {
                         System.err.println("Impossible de créer le fichier: " + fullPath);
                     }
@@ -140,7 +140,7 @@ public class FileExplorerController {
                 String fullPath = buildPath(finalSelectedItem) + File.separator + folderName;
 
                 if (new File(fullPath).mkdir()) {
-                    model.addFolder(finalSelectedItem, new FileItem(folderName));
+                    model.addFolder(finalSelectedItem, new FileItem(new File(fullPath)));
                 } else {
                     System.err.println("Impossible de créer le fichier: " + fullPath);
                 }

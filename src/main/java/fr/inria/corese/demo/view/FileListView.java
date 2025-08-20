@@ -13,7 +13,9 @@ import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import java.io.File;
 import java.io.IOException;
+import java.util.function.Consumer;
 
 /**
  * Vue de gestion de liste de fichiers dans une application sémantique.
@@ -34,7 +36,7 @@ import java.io.IOException;
  */
 public class FileListView extends VBox {
     private FileListModel model;
-    private PopupFactory popupFactory;
+    private Consumer<FileItem> onRemoveAction;
     private EmptyStateView emptyStateView;
     private Button clearButton;
     private Button reloadButton;
@@ -111,9 +113,7 @@ public class FileListView extends VBox {
      */
     private void setupListView() {
         if (fileList != null) {
-            fileList.setCellFactory(lv -> new FileListCell(this));
-
-            // Ajouter un style pour que l'encadré soit toujours visible
+            fileList.setCellFactory(lv -> new FileListCell(onRemoveAction));
             fileList.getStyleClass().add("always-visible-border");
         }
     }
@@ -127,44 +127,15 @@ public class FileListView extends VBox {
         this.model = model;
         if (model != null && fileList != null) {
             fileList.setItems(model.getFiles());
-
-            // Bind empty state visibility to model's file list size
             emptyStateView.visibleProperty().bind(Bindings.isEmpty(model.getFiles()));
         }
     }
 
-    /**
-     * Affiche un popup d'avertissement.
-     *
-     * @param message Le message à afficher
-     * @return true si l'utilisateur confirme, false sinon
-     */
-    private boolean showWarningPopup(String message) {
-        if (popupFactory != null) {
-            IPopup warningPopup = popupFactory.createPopup(PopupFactory.WARNING_POPUP);
-            warningPopup.setMessage(message);
-            return ((WarningPopup) warningPopup).getResult();
+    public void setOnRemoveAction(Consumer<FileItem> onRemoveAction) {
+        this.onRemoveAction = onRemoveAction;
+        if (fileList != null) {
+            fileList.setCellFactory(lv -> new FileListCell(this.onRemoveAction));
         }
-        return true;
-    }
-
-    /**
-     * Demande confirmation avant de recharger les fichiers.
-     *
-     * @return true si l'utilisateur confirme, false sinon
-     */
-    public boolean confirmReload() {
-        return showWarningPopup("Reloading files will reset the current graph. Do you want to continue?");
-    }
-
-    /**
-     * Demande confirmation avant de supprimer un fichier.
-     *
-     * @param item Le fichier à supprimer
-     * @return true si l'utilisateur confirme, false sinon
-     */
-    public boolean confirmDelete(FileItem item) {
-        return showWarningPopup("Removing this file will reset the current graph. Do you want to continue?");
     }
 
     /**
@@ -226,15 +197,10 @@ public class FileListView extends VBox {
      * Classe interne représentant une cellule personnalisée de liste de fichiers.
      */
     private static class FileListCell extends ListCell<FileItem> {
-        private final FileListView parentView;
+        private final Consumer<FileItem> onRemove;
 
-        /**
-         * Constructeur par défaut.
-         *
-         * @param parentView
-         */
-        public FileListCell(FileListView parentView) {
-            this.parentView = parentView;
+        public FileListCell(Consumer<FileItem> onRemove) {
+            this.onRemove = onRemove;
         }
 
         /**
@@ -261,9 +227,8 @@ public class FileListView extends VBox {
 
                 IconButtonView deleteButton = new IconButtonView(IconButtonType.DELETE);
                 deleteButton.setOnAction(e -> {
-                    if (parentView.confirmDelete(item)) {
-                        ListView<FileItem> listView = getListView();
-                        listView.getItems().remove(item);
+                    if (onRemove != null) {
+                        onRemove.accept(item);
                     }
                 });
 

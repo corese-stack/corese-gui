@@ -3,6 +3,8 @@ package fr.inria.corese.demo.model.fileList;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
+import java.io.File;
+
 /**
  * Modèle de gestion d'une liste de fichiers dans une application.
  *
@@ -40,17 +42,12 @@ public class FileListModel {
      *
      * @param name Nom du fichier à ajouter
      */
-    public void addFile(String name) {
-        files.add(new FileItem(name));
+    public void addFile(File file) {
+        files.add(new FileItem(file));
     }
 
-    /**
-     * Supprime un fichier spécifique de la liste.
-     *
-     * @param file Élément de fichier à supprimer
-     */
-    public void removeFile(FileItem file) {
-        files.remove(file);
+    public void removeFile(String fileName) {
+        files.removeIf(fileItem -> fileItem.getName().equals(fileName));
     }
 
     /**

@@ -29,6 +29,8 @@ public class RuleViewController {
 
     private Runnable owlRLAction;
     private Runnable owlRLExtendedAction;
+    private boolean rulesInitialized = false;
+    private Runnable onRuleToggled;
 
     // FXML bindings
     @FXML
@@ -83,6 +85,11 @@ public class RuleViewController {
             System.err.println("FATAL: RuleViewController.initializeRules() called before RuleManager was set.");
             return;
         }
+        if (rulesInitialized) {
+            updateView();
+            return;
+        }
+
         if (rdfsRulesContainer != null && owlRulesContainer != null) {
             rdfsRulesContainer.getChildren().clear();
             owlRulesContainer.getChildren().clear();
@@ -96,6 +103,8 @@ public class RuleViewController {
             addRuleItem(owlRulesContainer, "OWL RL Extended");
             addRuleItem(owlRulesContainer, "OWL RL Test");
             addRuleItem(owlRulesContainer, "OWL Clean");
+
+            rulesInitialized = true;
         }
         updateView();
     }
@@ -200,6 +209,10 @@ public class RuleViewController {
                 ruleManager.setCustomRuleEnabled(ruleName, isSelected);
             }
         }
+
+        if (onRuleToggled != null) {
+            onRuleToggled.run();
+        }
     }
 
     /**
@@ -237,5 +250,9 @@ public class RuleViewController {
 
     public void setOWLRLExtendedAction(Runnable action) {
         this.owlRLExtendedAction = action;
+    }
+
+    public void setOnRuleToggled(Runnable onRuleToggled) {
+        this.onRuleToggled = onRuleToggled;
     }
 }

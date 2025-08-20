@@ -1,5 +1,7 @@
 package fr.inria.corese.demo.model.fileList;
 
+import java.io.File;
+
 /**
  * Représente un élément de fichier dans une liste de fichiers.
  *
@@ -18,26 +20,20 @@ package fr.inria.corese.demo.model.fileList;
  * @since 2025
  */
 public class FileItem {
-    private final String name;
+    private final File file;
     private boolean loading;
 
-    /**
-     * Constructeur pour créer un nouvel élément de fichier.
-     *
-     * @param name Le nom du fichier
-     */
-    public FileItem(String name) {
-        this.name = name;
+    public FileItem(File file) {
+        this.file = file;
         this.loading = false;
     }
 
-    /**
-     * Récupère le nom du fichier.
-     *
-     * @return Le nom du fichier
-     */
     public String getName() {
-        return name;
+        return file.getName();
+    }
+
+    public File getFile() {
+        return file;
     }
 
     /**

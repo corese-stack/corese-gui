@@ -104,7 +104,7 @@ public class FileListController {
 
         File file = fileChooser.showOpenDialog(view.getScene().getWindow());
         if (file != null) {
-            model.addFile(file.getName());
+            model.addFile(file);
         }
     }
 

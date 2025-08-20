@@ -8,6 +8,7 @@ import fr.inria.corese.demo.manager.RuleManager;
 import fr.inria.corese.demo.view.FileListView;
 import fr.inria.corese.demo.view.TopBar;
 import fr.inria.corese.demo.factory.popup.*;
+import fr.inria.corese.demo.model.fileList.FileItem;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.Alert;
@@ -93,6 +94,7 @@ public class DataViewController {
         try {
             fileListView = new FileListView();
             fileListView.setModel(dataManager.getFileListModel());
+            fileListView.setOnRemoveAction(this::handleRemoveFile);
 
             fileListContainer.getChildren().add(fileListView);
             VBox.setVgrow(fileListView, Priority.ALWAYS);
@@ -118,6 +120,7 @@ public class DataViewController {
             ruleViewController = loader.getController();
 
             ruleViewController.setRuleManager(this.ruleManager);
+            ruleViewController.setOnRuleToggled(this::updateView);
 
             ScrollPane scrollPane = new ScrollPane(ruleView);
             scrollPane.setFitToWidth(true);
@@ -163,11 +166,18 @@ public class DataViewController {
         confirmPopup.displayPopup();
 
         if (((ClearGraphConfirmationPopup) confirmPopup).getResult()) {
-            dataManager.reloadFiles();
+            dataManager.clearGraphAndFiles();
             updateView();
             IPopup successPopup = popupFactory.createPopup(PopupFactory.TOAST_NOTIFICATION);
             successPopup.setMessage("Graph has been cleared successfully!");
             successPopup.displayPopup();
+        }
+    }
+
+    private void handleRemoveFile(FileItem item) {
+        if (item != null) {
+            dataManager.removeFile(item.getFile());
+            updateView();
         }
     }
 

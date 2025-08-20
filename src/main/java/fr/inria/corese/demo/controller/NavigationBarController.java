@@ -30,6 +30,7 @@ public class NavigationBarController {
     private final Map<String, Object> cachedControllers = new HashMap<>();
 
     private final Set<String> cachedViewNames = Set.of(
+            "data-view",
             "query-view",
             "validation-view",
             "rdf-editor-view");

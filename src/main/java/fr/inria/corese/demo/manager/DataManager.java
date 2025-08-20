@@ -33,7 +33,7 @@ public class DataManager {
         return instance;
     }
 
-    public void loadFile(File file) throws Exception {
+    public synchronized void loadFile(File file) throws Exception {
         try {
             Load loader = Load.create(graphManager.getGraph());
             String fileName = file.getName().toLowerCase();
@@ -46,7 +46,7 @@ public class DataManager {
             } else {
                 loader.parse(file.getAbsolutePath(), Load.format.TURTLE_FORMAT);
             }
-            fileListModel.addFile(file.getName());
+            fileListModel.addFile(file);
             if (!loadedFiles.contains(file)) {
                 loadedFiles.add(file);
             }
@@ -57,9 +57,10 @@ public class DataManager {
         }
     }
 
-    public void reloadFiles() {
+    public synchronized void reloadFiles() {
         List<File> filesToReload = new ArrayList<>(this.loadedFiles);
         graphManager.initializeGraph();
+        fileListModel.clearFiles();
         queryManager.addLogEntry("Reloading all files...");
         for (File file : filesToReload) {
             try {
@@ -71,7 +72,7 @@ public class DataManager {
         queryManager.addLogEntry("All files reloaded.");
     }
 
-    public void saveGraph(File targetFile) throws Exception {
+    public synchronized void saveGraph(File targetFile) throws Exception {
         String baseName = targetFile.getName();
         if (!baseName.toLowerCase().endsWith(".ttl")) {
             baseName += ".ttl";
@@ -84,19 +85,15 @@ public class DataManager {
         queryManager.addLogEntry("Graph saved to: " + graphFile.getAbsolutePath());
     }
 
-    public void saveCurrentState() {
+    public synchronized void saveCurrentState() {
         this.savedLoadedFiles = new ArrayList<>(this.loadedFiles);
         queryManager.addLogEntry("Current state snapshot saved (" + savedLoadedFiles.size() + " files).");
     }
 
-    public void restoreState() {
+    public synchronized void restoreState() {
         this.loadedFiles.clear();
         this.loadedFiles.addAll(this.savedLoadedFiles);
         reloadFiles();
-        this.fileListModel.clearFiles();
-        for (File file : this.loadedFiles) {
-            this.fileListModel.addFile(file.getName());
-        }
         queryManager.addLogEntry("State restored from snapshot (" + loadedFiles.size() + " files).");
     }
 
@@ -108,10 +105,20 @@ public class DataManager {
         return new ArrayList<>(loadedFiles);
     }
 
-    public void clearGraphAndFiles() {
+    public synchronized void clearGraphAndFiles() {
         graphManager.initializeGraph();
         this.fileListModel.clearFiles();
         this.loadedFiles.clear();
-        queryManager.addLogEntry("Graph cleared and files reloaded.");
+        queryManager.addLogEntry("Graph and loaded files cleared.");
+    }
+
+    public synchronized void removeFile(File file) {
+        if (loadedFiles.remove(file)) {
+            fileListModel.removeFile(file.getName());
+            reloadFiles();
+            queryManager.addLogEntry("File removed and graph reloaded: " + file.getName());
+        } else {
+            queryManager.addLogEntry("File not found in loaded list: " + file.getName());
+        }
     }
 }

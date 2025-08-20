@@ -123,7 +123,9 @@ public class FileExplorerView extends HBox {
     }
 
     public void switchView(boolean hasRoot) {
-        mainContent.getChildren().remove(1);
+        if (mainContent.getChildren().size() > 1) {
+            mainContent.getChildren().remove(1);
+        }
         if (hasRoot) {
             mainContent.getChildren().add(treeView);
         } else {
