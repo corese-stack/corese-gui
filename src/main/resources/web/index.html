@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Knowledge Graph Visualization</title>
-    <script src="../web/lib/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
     <script src="../web/lib/ttl2jsonld.js"></script>
     <style>
         html,
@@ -133,7 +133,7 @@
                 defs.append("marker")
                     .attr("id", "arrowhead")
                     .attr("viewBox", "0 -5 10 10")
-                    .attr("refX", 15)
+                    .attr("refX", 10)
                     .attr("refY", 0)
                     .attr("markerWidth", 6)
                     .attr("markerHeight", 6)
@@ -145,7 +145,7 @@
                 defs.append("marker")
                     .attr("id", "arrowhead-unfilled")
                     .attr("viewBox", "0 -5 10 10")
-                    .attr("refX", 15)
+                    .attr("refX", 10)
                     .attr("refY", 0)
                     .attr("markerWidth", 6)
                     .attr("markerHeight", 6)
@@ -253,12 +253,25 @@
                 defs.append("marker")
                     .attr("id", "arrowhead")
                     .attr("viewBox", "0 -5 10 10")
-                    .attr("refX", 15)
+                    .attr("refX", 10)
                     .attr("refY", 0)
                     .attr("markerWidth", 6)
                     .attr("markerHeight", 6)
                     .attr("orient", "auto")
                     .attr("fill", "#999")
+                    .append("path")
+                    .attr("d", "M0,-5L10,0L0,5");
+
+                defs.append("marker")
+                    .attr("id", "arrowhead-unfilled")
+                    .attr("viewBox", "0 -5 10 10")
+                    .attr("refX", 10)
+                    .attr("refY", 0)
+                    .attr("markerWidth", 6)
+                    .attr("markerHeight", 6)
+                    .attr("orient", "auto")
+                    .attr("fill", "none")
+                    .attr("stroke", "#999")
                     .append("path")
                     .attr("d", "M0,-5L10,0L0,5");
 
@@ -369,6 +382,8 @@
             async duplicateTargetsForMultipleLinks(graph) {
                 const sourceTargetCount = {};
 
+                const symmetricProperties = new Set(['ex:isMarriedTo', 'ex:friend']);
+
                 graph.links.forEach(link => {
                     const key = `${link.source}->${link.target}`;
                     sourceTargetCount[key] = (sourceTargetCount[key] || 0) + 1;
@@ -383,7 +398,6 @@
 
                     if (sourceTargetCount[key] > 1) {
                         copyIndex[key] = (copyIndex[key] || 0) + 1;
-
                         if (copyIndex[key] === 1) {
                             newLinks.push(link);
                         } else {
@@ -393,7 +407,6 @@
                                 ...originalTarget,
                                 id: newTargetId
                             };
-
                             newNodes.push(newTarget);
                             newLinks.push({
                                 ...link,
@@ -402,6 +415,16 @@
                         }
                     } else {
                         newLinks.push(link);
+                    }
+
+                    if (symmetricProperties.has(link.name)) {
+                        newLinks.push({
+                            source: link.target,
+                            target: link.source,
+                            name: link.name,
+                            propertyType: link.propertyType,
+                            isSymmetric: true
+                        });
                     }
                 });
                 return {
@@ -513,16 +536,79 @@
             }
 
             updatePositions() {
-                const pathData = d => `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+                const getLinkKey = d => `${[d.source.id, d.target.id].sort().join('-')}-${d.name}`;
+                const linkCounts = new Map();
+                this.graph.links.forEach(l => {
+                    const key = getLinkKey(l);
+                    linkCounts.set(key, (linkCounts.get(key) || 0) + 1);
+                });
+
+                const pathData = d => {
+                    const key = getLinkKey(d);
+                    const count = linkCounts.get(key);
+                    const isCyclic = count > 1;
+
+                    const dx = d.target.x - d.source.x;
+                    const dy = d.target.y - d.source.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist === 0) {
+                        return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+                    }
+
+                    const sourceRadius = d.source.collisionRadius || 0;
+                    const targetRadius = d.target.collisionRadius || 0;
+
+                    const sourceX = d.source.x + (dx / dist) * sourceRadius;
+                    const sourceY = d.source.y + (dy / dist) * sourceRadius;
+                    const targetX = d.target.x - (dx / dist) * targetRadius;
+                    const targetY = d.target.y - (dy / dist) * targetRadius;
+
+                    if (isCyclic) {
+                        const midX = (d.source.x + d.target.x) / 2;
+                        const midY = (d.source.y + d.target.y) / 2;
+                        
+                        const perpendicularX = -dy / dist;
+                        const perpendicularY = dx / dist;
+
+                        const curve = 50;
+                        const isReversed = d.isSymmetric;
+                        const curveFactor = isReversed ? -1 : 1;
+
+                        const controlX = midX + curveFactor * curve * perpendicularX;
+                        const controlY = midY + curveFactor * curve * perpendicularY;
+
+                        return `M${sourceX},${sourceY} Q${controlX},${controlY} ${targetX},${targetY}`;
+                    }
+                    return `M${sourceX},${sourceY} L${targetX},${targetY}`;
+                };
 
                 this.link.attr("d", pathData);
-
                 if (this.linkHover) {
                     this.linkHover.attr("d", pathData);
                 }
 
                 this.nodeGroup
                     .attr("transform", d => `translate(${d.x},${d.y})`)
+
+                const linkPaths = this.link.nodes();
+                this.linkLabel.each(function (d, i) {
+                    const linkPath = linkPaths[i];
+                    if (linkPath) {
+                        const pathLength = linkPath.getTotalLength();
+                        const midPoint = linkPath.getPointAtLength(pathLength / 2);
+                        const startPoint = linkPath.getPointAtLength(0);
+                        const endPoint = linkPath.getPointAtLength(pathLength);
+
+                        const angle = Math.atan2(endPoint.y - startPoint.y, endPoint.x - startPoint.x) * 180 / Math.PI;
+
+                        d3.select(this)
+                            .attr("x", midPoint.x)
+                            .attr("y", midPoint.y)
+                            .attr("dy", -5)
+                            .attr("transform", `rotate(${angle}, ${midPoint.x}, ${midPoint.y})`);
+                    }
+                });
             }
 
             renderGraph() {
@@ -580,8 +666,8 @@
 
                 const zoom = d3.zoom()
                     .scaleExtent([0.1, 5])
-                    .on("zoom", () => {
-                        gZoom.attr("transform", d3.event.transform);
+                    .on("zoom", (event) => {
+                        gZoom.attr("transform", event.transform);
                     });
 
                 this.svg.call(zoom);
@@ -613,15 +699,15 @@
                     .attr("stroke", "transparent")
                     .attr("fill", "none")
                     .style("cursor", "pointer")
-                    .on("mouseover", function (d) {
+                    .on("mouseover", function (event, d) {
                         const htmlContent = `<strong>Predicate:</strong> ${d.name}`;
                         tooltip.style("opacity", 1)
                             .style("text-align", "center")
                             .html(htmlContent);
                     })
-                    .on("mousemove", function () {
-                        tooltip.style("left", (d3.event.pageX + 15) + "px")
-                            .style("top", (d3.event.pageY - 10) + "px");
+                    .on("mousemove", function (event, d) {
+                        tooltip.style("left", (event.pageX + 15) + "px")
+                            .style("top", (event.pageY - 10) + "px");
                     })
                     .on("mouseout", function () {
                         tooltip.style("opacity", 0);
@@ -641,9 +727,6 @@
                     })
                     .attr("font-weight", "normal")
                     .attr("text-anchor", "middle")
-                    .append("textPath")
-                    .attr("xlink:href", (d, i) => `#linkPath${i}`)
-                    .attr("startOffset", "50%")
                     .text(d => d.name);
 
                 this.setShowEdgeLabels(document.getElementById('toggle-edge-labels').checked);
@@ -656,28 +739,28 @@
                     .append("g")
                     .style('cursor', 'grab')
                     .call(d3.drag()
-                        .on("start", function (d) {
+                        .on("start", function (event, d) {
                             if (d.fx !== null && d.fy !== null && d.fx !== undefined && d.fy !== undefined) {
                                 d._skipDrag = true; return;
                             }
                             d._skipDrag = false;
-                            if (!d3.event.active) this.simulation.alphaTarget(0.3).restart();
+                            if (!event.active) this.simulation.alphaTarget(0.3).restart();
                             d.fx = d.x;
                             d.fy = d.y;
                         }.bind(this))
-                        .on("drag", function (d) {
+                        .on("drag", function (event, d) {
                             if (d._skipDrag) return;
-                            d.fx = d3.event.x;
-                            d.fy = d3.event.y;
+                            d.fx = event.x;
+                            d.fy = event.y;
                         })
-                        .on("end", function (d) {
+                        .on("end", function (event, d) {
                             if (d._skipDrag) return;
-                            if (!d3.event.active) this.simulation.alphaTarget(0);
+                            if (!event.active) this.simulation.alphaTarget(0);
                             d.fx = null;
                             d.fy = null;
                         }.bind(this))
                     )
-                    .on("mouseover", function (d) {
+                    .on("mouseover", function (event, d) {
                         const escape = (str) => String(str)
                             .replace(/&/g, '&amp;')
                             .replace(/</g, '&lt;')
@@ -710,9 +793,9 @@
                             .style("text-align", "left")
                             .html(htmlContent.join('<br>'));
                     })
-                    .on("mousemove", function () {
-                        tooltip.style("left", (d3.event.pageX + 15) + "px")
-                            .style("top", (d3.event.pageY - 10) + "px");
+                    .on("mousemove", function (event, d) {
+                        tooltip.style("left", (event.pageX + 15) + "px")
+                            .style("top", (event.pageY - 10) + "px");
                     })
                     .on("mouseout", function () {
                         tooltip.style("opacity", 0);
@@ -725,11 +808,7 @@
                     let textColor = "white";
                     let rx = 4, ry = 4;
                     let shape = "circle";
-                    if (d.type === "Property") {
-                        fillColor = "#2ca02c";
-                        shape = "rect";
-                    }
-                    else if (d.type === "Literal") {
+                    if (d.type === "Literal") {
                         fillColor = "orange";
                         shape = "rect";
                         textSize = 10;
@@ -737,7 +816,7 @@
                         fillColor = "yellow";
                         shape = "rect";
                         textSize = 12;
-                    } else if (d.type === "class" || d.type === "Class") {
+                    } else if (d.type === "class" || d.type === "Class" || d.type === "Property") {
                         fillColor = "#1f77b4";
                         shape = "circle";
                         textSize = 11;
@@ -755,7 +834,7 @@
                                 .attr("height", radius * 1.2);
 
                         } else if (d.type === "Property") {
-                            const size = radius * 1.7; 
+                            const size = radius * 1.7;
                             rect.attr("x", -size / 2)
                                 .attr("y", -size / 2)
                                 .attr("width", size)
@@ -828,8 +907,7 @@
                     .attr("rx", 5);
 
                 const legendItems = [
-                    { label: "Class", shape: "circle", color: "#1f77b4" },
-                    { label: "Property", shape: "diamond", color: "#2ca02c" },
+                    { label: "Resources", shape: "circle", color: "#1f77b4" },
                     { label: "Literal", shape: "rect", color: "orange" },
                     { label: "SubClass Of Link", shape: "dotted-line", color: "#666" },
                     { label: "Object Property Link", shape: "solid-line", color: "black" },
@@ -929,8 +1007,8 @@
                         .attr("r", 6)
                         .attr("fill", "#888")
                         .style("cursor", "pointer")
-                        .call(d3.drag().on("drag", () => {
-                            let x = Math.max(0, Math.min(sliderWidth, d3.event.x));
+                        .call(d3.drag().on("drag", (event) => {
+                            let x = Math.max(0, Math.min(sliderWidth, event.x));
                             handle.attr("cx", x);
                             const value = min + (x / sliderWidth) * (max - min);
                             group.select(`text.label-${label}`)

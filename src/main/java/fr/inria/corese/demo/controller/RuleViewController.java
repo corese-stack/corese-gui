@@ -31,6 +31,7 @@ public class RuleViewController {
     private Runnable owlRLExtendedAction;
     private boolean rulesInitialized = false;
     private Runnable onRuleToggled;
+    private DataViewController parentController;
 
     // FXML bindings
     @FXML
@@ -60,6 +61,10 @@ public class RuleViewController {
      */
     public void setRuleManager(RuleManager ruleManager) {
         this.ruleManager = ruleManager;
+    }
+
+    public void setParentController(DataViewController parentController) {
+        this.parentController = parentController;
     }
 
     @FXML
@@ -212,6 +217,13 @@ public class RuleViewController {
 
         if (onRuleToggled != null) {
             onRuleToggled.run();
+        }
+        refreshGraph();
+    }
+
+    private void refreshGraph() {
+        if (parentController != null) {
+            parentController.loadGraphData(parentController.getCurrentContent());
         }
     }
 

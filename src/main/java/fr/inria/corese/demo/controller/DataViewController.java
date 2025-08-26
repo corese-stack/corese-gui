@@ -71,14 +71,9 @@ public class DataViewController {
      */
     @FXML
     public void initialize() {
-        topBar.addLeftButtons(List.of(
-                IconButtonType.OPEN_FILE,
-                IconButtonType.SAVE));
         topBar.addRightButtons(List.of(
                 IconButtonType.LOGS));
 
-        topBar.setOnAction(IconButtonType.OPEN_FILE, this::handleLoadFiles);
-        topBar.setOnAction(IconButtonType.SAVE, this::handleSaveAs);
         topBar.setOnAction(IconButtonType.LOGS, this::handleShowLogs);
 
         setupFileList();
@@ -120,6 +115,7 @@ public class DataViewController {
             ruleViewController = loader.getController();
 
             ruleViewController.setRuleManager(this.ruleManager);
+            ruleViewController.setParentController(this);
             ruleViewController.setOnRuleToggled(this::updateView);
 
             ScrollPane scrollPane = new ScrollPane(ruleView);
@@ -236,5 +232,15 @@ public class DataViewController {
             semanticElementsLabel.setText("");
             graphLabel.setText("");
         }
+    }
+
+    public void loadGraphData(String content) {
+        graphManager.loadGraph(content);
+        ruleManager.applyRules();
+        updateView();
+    }
+
+    public String getCurrentContent() {
+        return dataManager.getCurrentContent();
     }
 }

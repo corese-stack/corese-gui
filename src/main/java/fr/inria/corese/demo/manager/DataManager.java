@@ -7,6 +7,8 @@ import fr.inria.corese.demo.model.fileList.FileListModel;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -119,6 +121,19 @@ public class DataManager {
             queryManager.addLogEntry("File removed and graph reloaded: " + file.getName());
         } else {
             queryManager.addLogEntry("File not found in loaded list: " + file.getName());
+        }
+    }
+
+    public String getCurrentContent() {
+        if (loadedFiles.isEmpty()) {
+            return "";
+        }
+        File lastFile = loadedFiles.get(loadedFiles.size() - 1);
+        try {
+            return Files.readString(lastFile.toPath());
+        } catch (IOException e) {
+            queryManager.addLogEntry("Error reading file content: " + e.getMessage());
+            return "";
         }
     }
 }
