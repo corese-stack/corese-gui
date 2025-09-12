@@ -8,6 +8,14 @@ import java.nio.charset.StandardCharsets;
 
 import java.io.File;
 
+/**
+ * Thread-safe singleton that manages the lifecycle of a Corese Graph.
+ * Provides creation/reset of the Graph, access to it, and the current triple
+ * count.
+ * Loads new content as UTF-8 Turtle via Load after reinitializing the Graph.
+ * LoadException is caught and its stack trace is printed.
+ */
+
 public class GraphManager {
     private static GraphManager instance;
 
@@ -46,8 +54,7 @@ public class GraphManager {
             try {
                 Load.create(graph).parse(
                         new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8)),
-                        Load.format.TURTLE_FORMAT
-                );
+                        Load.format.TURTLE_FORMAT);
             } catch (LoadException e) {
                 e.printStackTrace();
             }

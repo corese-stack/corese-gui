@@ -28,6 +28,20 @@ public class DataManager {
         this.graphManager = GraphManager.getInstance();
     }
 
+    /**
+     * Manages RDF data and associated files for the application using a singleton
+     * pattern.
+     * Responsibilities include:
+     * - Loading RDF files (.ttl, .rdf/.xml, .jsonld) into the shared Corese Graph.
+     * - Tracking loaded files via FileListModel and maintaining an in-memory list.
+     * - Reloading all files after graph reinitialization or file removal.
+     * - Saving the current graph as Turtle (.ttl).
+     * - Saving/restoring a snapshot of the loaded-files state.
+     * - Clearing the graph and file lists, and providing the content of the last
+     * loaded file.
+     * *
+     */
+
     public static synchronized DataManager getInstance() {
         if (instance == null) {
             instance = new DataManager();
@@ -81,7 +95,8 @@ public class DataManager {
         }
         File graphFile = new File(targetFile.getParentFile(), baseName);
         try (FileOutputStream out = new FileOutputStream(graphFile)) {
-            String turtleRepresentation = queryManager.formatGraph(graphManager.getGraph(), ResultFormat.format.TURTLE_FORMAT);
+            String turtleRepresentation = queryManager.formatGraph(graphManager.getGraph(),
+                    ResultFormat.format.TURTLE_FORMAT);
             out.write(turtleRepresentation.getBytes());
         }
         queryManager.addLogEntry("Graph saved to: " + graphFile.getAbsolutePath());

@@ -15,6 +15,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Central manager for executing and caching SPARQL queries per UI tab over the
+ * Corese Graph.
+ * Implements a thread-safe singleton that:
+ * - runs queries via QueryProcess and stores a TabCacheEntry with either
+ * Mappings (SELECT/ASK) or a result Graph (CONSTRUCT/DESCRIBE);
+ * - formats cached results using ResultFormat, enforcing mapping vs RDF format
+ * compatibility (custom CSV supported for mappings);
+ * - converts external format names to Corese formats and logs operations;
+ * - provides cache access and clearing by tab id.
+ * Typical flow: executeAndCacheQuery(query, tabId) ->
+ * getFormattedCachedQuery(tabId, format) -> clearCacheForTab(tabId).
+ *
+ */
 public class QueryManager {
     private static QueryManager instance;
 
@@ -31,8 +45,7 @@ public class QueryManager {
             ResultFormat.format.JSONLD_FORMAT,
             ResultFormat.format.NTRIPLES_FORMAT,
             ResultFormat.format.NQUADS_FORMAT,
-            ResultFormat.format.TRIG_FORMAT
-    );
+            ResultFormat.format.TRIG_FORMAT);
 
     private QueryManager() {
         this.graphManager = GraphManager.getInstance();
@@ -46,8 +59,23 @@ public class QueryManager {
         return instance;
     }
 
-    
-    
+    /**
+     * Central manager that executes, caches, and formats SPARQL queries per UI tab
+     * over a Corese Graph.
+     *
+     * Features:
+     * - Thread-safe singleton (getInstance) using GraphManager and QueryProcess to
+     * run queries.
+     * - Per-tab caching of results as either Mappings (SELECT/ASK) or Graph
+     * (CONSTRUCT/DESCRIBE), with query type derived from the AST.
+     * - Result formatting via ResultFormat with validation of mapping vs RDF
+     * formats; includes a custom CSV formatter for mappings.
+     * - Utilities to retrieve and clear cached results, plus lightweight logging.
+     *
+     * Typical flow: executeAndCacheQuery(query, tabId) ->
+     * getFormattedCachedQuery(tabId, format) -> clearCacheForTab(tabId).
+     */
+
     public void executeAndCacheQuery(String query, Integer tabId) throws Exception {
         try {
             this.queryProcess = QueryProcess.create(graphManager.getGraph());
@@ -80,13 +108,16 @@ public class QueryManager {
 
     public String getFormattedCachedQuery(Integer tabId, String format) {
         TabCacheEntry cachedEntry = getCachedResult(tabId);
-        if (cachedEntry == null) return "";
+        if (cachedEntry == null)
+            return "";
 
         ASTQuery ast = cachedEntry.getAst();
-        if (ast == null) return "Error: Query AST not found in cache.";
+        if (ast == null)
+            return "Error: Query AST not found in cache.";
 
         ResultFormat.format coreseFormat = getCoreseFormat(format);
-        if (coreseFormat == null) return "Unsupported format: " + format;
+        if (coreseFormat == null)
+            return "Unsupported format: " + format;
 
         boolean isRdfFormat = RDF_FORMATS.contains(coreseFormat);
         if ((ast.isConstruct() || ast.isDescribe() || ast.isUpdate()) && !isRdfFormat) {
@@ -124,11 +155,13 @@ public class QueryManager {
     }
 
     public String formatMappings(Mappings mappings, ResultFormat.format format) {
-        if (mappings == null) return "";
+        if (mappings == null)
+            return "";
         if (format == ResultFormat.format.CSV_FORMAT) {
             return formatMappingsAsCSV(mappings);
         }
-        if (mappings.isEmpty()) return "";
+        if (mappings.isEmpty())
+            return "";
         try {
             return ResultFormat.create(mappings, format).toString();
         } catch (Exception e) {
@@ -183,15 +216,17 @@ public class QueryManager {
     }
 
     private String determineQueryTypeFromAST(ASTQuery ast) {
-        if (ast.isSelect()) return "SELECT";
-        if (ast.isConstruct()) return "CONSTRUCT";
-        if (ast.isAsk()) return "ASK";
-        if (ast.isDescribe()) return "DESCRIBE";
+        if (ast.isSelect())
+            return "SELECT";
+        if (ast.isConstruct())
+            return "CONSTRUCT";
+        if (ast.isAsk())
+            return "ASK";
+        if (ast.isDescribe())
+            return "DESCRIBE";
         return "UNKNOWN";
     }
 
-    
-    
     public void addLogEntry(String entry) {
         logEntries.add(entry);
         System.out.println("[LOG] " + entry);

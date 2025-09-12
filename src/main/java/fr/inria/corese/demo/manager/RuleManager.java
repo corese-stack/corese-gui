@@ -120,6 +120,7 @@ public class RuleManager {
         }
 
     }
+
     /**
      * Calculates the total number of currently active rule sets.
      * This includes both built-in profiles and enabled custom rule files.
