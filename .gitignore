@@ -1,11 +1,22 @@
-### Java ###
+# =======================================
+#   Java / Maven / Gradle .gitignore
+#   Compatible multi-IDE & multi-build
+# =======================================
+
+### === Java ===
 *.class
 *.jar
 *.war
 *.ear
+*.zip
+*.tar.gz
+*.rar
 *.log
 
-### Maven ###
+# JavaFX cache
+javafx-*.properties
+
+### === Maven ===
 target/
 pom.xml.tag
 pom.xml.releaseBackup
@@ -14,44 +25,70 @@ pom.xml.next
 release.properties
 dependency-reduced-pom.xml
 buildNumber.properties
-.mvn/timing.properties
-.mvn/wrapper/maven-wrapper.jar
+.mvn/
+!/.mvn/wrapper/maven-wrapper.jar
 
-### IDE ###
+### === Gradle ===
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/**/build/
+
+### === IDEs ===
+
+# IntelliJ IDEA
 .idea/
 *.iml
 *.ipr
 *.iws
+
+# Eclipse
 .classpath
 .project
 .settings/
-bin/
 .factorypath
+bin/
 
-### Système ###
+# VS Code
+.vscode/
+
+# NetBeans
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+### === System Files ===
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-### Environnements ###
+### === Environment / Secrets ===
 .env
-.venv
+.venv/
 env/
+.env.local
+*.key
+*.pem
+*.crt
 
-### Logs ###
+### === Logs ===
 logs/
+log/
 *.log
 *.logs
-log/
 
-### Autres fichiers générés ###
+### === Temporary / Backup Files ===
 *.orig
+*.bak
 *.swp
 *~
-*.bak
+*.tmp
+*.cache
+tmp/
+.cache/
 
-### Fichiers spécifiques au projet ###
+### === Project-specific ===
 graph-context.properties
-dependency-reduced-pom.xml
-
-### JavaFX Cache ###
-javafx-*.properties
