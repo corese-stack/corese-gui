@@ -2,16 +2,21 @@
 package fr.inria.corese.demo.enums.button;
 
 public enum ButtonType {
-    RUN("Run", "file-button");
+  RUN("Run", "file-button");
 
-    private final String label;
-    private final String styleClass;
+  private final String label;
+  private final String styleClass;
 
-    ButtonType(String label, String styleClass) {
-        this.label = label;
-        this.styleClass = styleClass;
-    }
+  ButtonType(String label, String styleClass) {
+    this.label = label;
+    this.styleClass = styleClass;
+  }
 
-    public String getLabel() { return label; }
-    public String getStyleClass() { return styleClass; }
+  public String getLabel() {
+    return label;
+  }
+
+  public String getStyleClass() {
+    return styleClass;
+  }
 }

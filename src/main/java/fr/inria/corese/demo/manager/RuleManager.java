@@ -1,14 +1,14 @@
 package fr.inria.corese.demo.manager;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.load.RuleLoad;
 import fr.inria.corese.core.rule.RuleEngine;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.*;
 
 /**
  * Manages the loading, configuration, and application of inference rules.

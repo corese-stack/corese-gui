@@ -6,36 +6,34 @@ import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 
 public class DocumentationPopup extends BasePopup {
-    private final TextArea documentationTextArea;
+  private final TextArea documentationTextArea;
 
-    public DocumentationPopup() {
-        setTitle("Documentation");
+  public DocumentationPopup() {
+    setTitle("Documentation");
 
-        documentationTextArea = new TextArea();
-        documentationTextArea.setEditable(false);
-        documentationTextArea.setWrapText(true);
+    documentationTextArea = new TextArea();
+    documentationTextArea.setEditable(false);
+    documentationTextArea.setWrapText(true);
 
-        initializeDocumentation();
+    initializeDocumentation();
 
-        BorderPane contentPane = new BorderPane();
-        contentPane.setPadding(new Insets(10, 10, -15, 10));
+    BorderPane contentPane = new BorderPane();
+    contentPane.setPadding(new Insets(10, 10, -15, 10));
 
-        contentPane.setCenter(documentationTextArea);
+    contentPane.setCenter(documentationTextArea);
 
-        getDialogPane().setContent(contentPane);
-        getDialogPane().getButtonTypes().addAll(ButtonType.CLOSE);
-        setOnCloseRequest(event -> closePopup());
+    getDialogPane().setContent(contentPane);
+    getDialogPane().getButtonTypes().addAll(ButtonType.CLOSE);
+    setOnCloseRequest(event -> closePopup());
 
-        setupUI();
-    }
+    setupUI();
+  }
 
-    private void initializeDocumentation() {
-        documentationTextArea.setText("Documentation goes here");
-    }
+  private void initializeDocumentation() {
+    documentationTextArea.setText("Documentation goes here");
+  }
 
-    private void setupUI() {
-        documentationTextArea.setPrefRowCount(10);
-    }
-
-
+  private void setupUI() {
+    documentationTextArea.setPrefRowCount(10);
+  }
 }

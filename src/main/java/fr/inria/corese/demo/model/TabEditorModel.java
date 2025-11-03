@@ -1,51 +1,52 @@
 package fr.inria.corese.demo.model;
 
 import fr.inria.corese.demo.controller.CodeEditorController;
-import javafx.scene.control.Tab;
 import java.util.HashMap;
 import java.util.Map;
-
+import javafx.scene.control.Tab;
 
 public class TabEditorModel {
-    private final Map<Tab, CodeEditorController> tabControllerMap;
+  private final Map<Tab, CodeEditorController> tabControllerMap;
 
-    public TabEditorModel() {
-        this.tabControllerMap = new HashMap<>();
-    }
+  public TabEditorModel() {
+    this.tabControllerMap = new HashMap<>();
+  }
 
-    /**
-     * Registers a new tab and its associated controller.
-     * @param tab The UI Tab.
-     * @param controller The controller for the content of the tab.
-     */
-    public void addTabModel(Tab tab, CodeEditorController controller) {
-        tabControllerMap.put(tab, controller);
-    }
+  /**
+   * Registers a new tab and its associated controller.
+   *
+   * @param tab The UI Tab.
+   * @param controller The controller for the content of the tab.
+   */
+  public void addTabModel(Tab tab, CodeEditorController controller) {
+    tabControllerMap.put(tab, controller);
+  }
 
-    /**
-     * Retrieves the controller associated with a given tab.
-     * @param tab The UI Tab to look up.
-     * @return The associated CodeEditorController, or null if not found.
-     */
-    public CodeEditorController getControllerForTab(Tab tab) {
-        if (tab == null) {
-            // This case can happen, e.g., when no tab is selected. It's not an error.
-            return null;
-        }
-        return tabControllerMap.get(tab);
+  /**
+   * Retrieves the controller associated with a given tab.
+   *
+   * @param tab The UI Tab to look up.
+   * @return The associated CodeEditorController, or null if not found.
+   */
+  public CodeEditorController getControllerForTab(Tab tab) {
+    if (tab == null) {
+      // This case can happen, e.g., when no tab is selected. It's not an error.
+      return null;
     }
+    return tabControllerMap.get(tab);
+  }
 
-    public void removeTabModel(Tab tab) {
-        if (tab != null) {
-            tabControllerMap.remove(tab);
-        }
+  public void removeTabModel(Tab tab) {
+    if (tab != null) {
+      tabControllerMap.remove(tab);
     }
+  }
 
-    public void clearAll() {
-        tabControllerMap.clear();
-    }
+  public void clearAll() {
+    tabControllerMap.clear();
+  }
 
-    public Map<Tab, CodeEditorController> getTabControllers() {
-        return tabControllerMap;
-    }
+  public Map<Tab, CodeEditorController> getTabControllers() {
+    return tabControllerMap;
+  }
 }

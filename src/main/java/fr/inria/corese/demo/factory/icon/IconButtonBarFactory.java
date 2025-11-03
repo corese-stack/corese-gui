@@ -8,14 +8,15 @@ import fr.inria.corese.demo.view.icon.IconButtonBarView;
 
 public class IconButtonBarFactory {
 
-    public static IconButtonBarController create(IconButtonBarType type, CodeEditorController parentController) {
-        IconButtonBarModel model = new IconButtonBarModel(type.getButtons());
-        IconButtonBarView view = new IconButtonBarView();
-        // The key is passing the parentController to the constructor here
-        return new IconButtonBarController(model, view, parentController);
-    }
-    
-    public static IconButtonBarController create(IconButtonBarType type) {
-        return create(type, null);
-    }
+  public static IconButtonBarController create(
+      IconButtonBarType type, CodeEditorController parentController) {
+    IconButtonBarModel model = new IconButtonBarModel(type.getButtons());
+    IconButtonBarView view = new IconButtonBarView();
+    // The key is passing the parentController to the constructor here
+    return new IconButtonBarController(model, view, parentController);
+  }
+
+  public static IconButtonBarController create(IconButtonBarType type) {
+    return create(type, null);
+  }
 }

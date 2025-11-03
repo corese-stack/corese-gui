@@ -1,13 +1,13 @@
 package fr.inria.corese.demo.view.codeEditor;
 
+import javafx.application.Platform;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.web.WebView;
 import javafx.scene.web.WebEngine;
-import javafx.beans.property.StringProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.application.Platform;
+import javafx.scene.web.WebView;
 import netscape.javascript.JSObject;
 
 public class CodeMirrorView extends VBox {
