@@ -3,8 +3,11 @@ package fr.inria.corese.demo.controller;
 import fr.inria.corese.demo.manager.QueryManager;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TableViewController {
+  private static final Logger logger = LoggerFactory.getLogger(TableViewController.class);
 
   private final QueryManager stateManager;
   private ResultsPaneController resultsPaneController;
@@ -19,7 +22,7 @@ public class TableViewController {
 
   public void displayData(Integer tabId) {
     if (resultsPaneController == null) {
-      System.err.println("FATAL ERROR: ResultsPaneController not set!");
+      logger.error("FATAL ERROR: ResultsPaneController not set!");
       return;
     }
     try {
@@ -29,7 +32,7 @@ public class TableViewController {
             resultsPaneController.updateTableView(csvResult);
           });
     } catch (Exception e) {
-      e.printStackTrace();
+      logger.error("Error displaying data for tab {}", tabId, e);
       showError("Error displaying data", e.getMessage());
     }
   }

@@ -10,6 +10,9 @@ import fr.inria.corese.demo.model.ValidationModel;
 import fr.inria.corese.demo.view.CustomButton;
 import fr.inria.corese.demo.view.EmptyStateViewFactory;
 import fr.inria.corese.demo.view.TopBar;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +32,7 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 
 public class ValidationViewController {
+  private static final Logger logger = LoggerFactory.getLogger(ValidationViewController.class);
 
   // --- FXML Fields ---
   @FXML private BorderPane mainBorderPane;
@@ -297,8 +301,7 @@ public class ValidationViewController {
         || tableTab == null
         || graphTab == null
         || textTab == null) {
-      System.err.println(
-          "Warning: One or more FXML fields in ValidationViewController were not injected.");
+      logger.warn("One or more FXML fields in ValidationViewController were not injected.");
     }
   }
 }

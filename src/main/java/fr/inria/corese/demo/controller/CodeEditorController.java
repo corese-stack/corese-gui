@@ -4,6 +4,9 @@ import fr.inria.corese.demo.enums.icon.IconButtonBarType;
 import fr.inria.corese.demo.factory.icon.IconButtonBarFactory;
 import fr.inria.corese.demo.model.codeEditor.CodeEditorModel;
 import fr.inria.corese.demo.view.codeEditor.CodeEditorView;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -11,6 +14,8 @@ import javafx.application.Platform;
 import javafx.stage.FileChooser;
 
 public class CodeEditorController {
+  private static final Logger logger = LoggerFactory.getLogger(CodeEditorController.class);
+  
   private final CodeEditorView view;
   private final CodeEditorModel model;
   private final IconButtonBarController iconButtonBarController;
@@ -80,7 +85,7 @@ public class CodeEditorController {
       model.setFilePath(file.getAbsolutePath());
       model.markAsSaved();
     } catch (IOException e) {
-      System.err.println("Error saving file: " + e.getMessage());
+      logger.error("Error saving file: {}", file.getAbsolutePath(), e);
     }
   }
 

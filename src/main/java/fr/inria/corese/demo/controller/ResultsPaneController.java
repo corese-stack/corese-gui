@@ -1,6 +1,9 @@
 package fr.inria.corese.demo.controller;
 
 import fr.inria.corese.demo.view.rule.CustomPagination;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -32,6 +35,8 @@ import javafx.stage.FileChooser;
 import javafx.util.Duration;
 
 public class ResultsPaneController {
+  private static final Logger logger = LoggerFactory.getLogger(ResultsPaneController.class);
+  
   private final TableView<String[]> resultTable = new TableView<>();
   private final CustomPagination customPagination;
   private final TextField rowsPerPageField = new TextField("10");
@@ -171,14 +176,11 @@ public class ResultsPaneController {
   }
 
   public void displayGraph(String ttlData) {
-    System.out.println("\n[RESULTS_PANE] displayGraph called.");
+    logger.debug("displayGraph called");
     if (ttlData == null || ttlData.isBlank()) {
-      System.out.println("[RESULTS_PANE] TTL data is EMPTY. Clearing view.");
+      logger.debug("TTL data is empty. Clearing view.");
     } else {
-      System.out.println("[RESULTS_PANE] Received TTL data to display:");
-      System.out.println("----- BEGIN TTL -----");
-      System.out.println(ttlData);
-      System.out.println("----- END TTL -----");
+      logger.debug("Received TTL data to display:\n{}", ttlData);
     }
     Platform.runLater(
         () -> {
@@ -187,9 +189,9 @@ public class ResultsPaneController {
             return;
           }
           try {
-            System.out.println("[RESULTS_PANE] Attempting to load index.html...");
+            logger.debug("Attempting to load index.html...");
             String htmlPath = getClass().getResource("/web/index.html").toExternalForm();
-            System.out.println("[RESULTS_PANE] Found index.html at: " + htmlPath);
+            logger.debug("Found index.html at: {}", htmlPath);
             final ChangeListener<Worker.State> loadListener =
                 new ChangeListener<>() {
                   @Override

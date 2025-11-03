@@ -6,6 +6,9 @@ import fr.inria.corese.core.print.ResultFormat;
 import fr.inria.corese.core.query.QueryProcess;
 import fr.inria.corese.core.sparql.triple.parser.ASTQuery;
 import fr.inria.corese.core.sparql.triple.parser.Variable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -22,6 +25,7 @@ import java.util.Set;
  * -> getFormattedCachedQuery(tabId, format) -> clearCacheForTab(tabId).
  */
 public class QueryManager {
+  private static final Logger logger = LoggerFactory.getLogger(QueryManager.class);
   private static QueryManager instance;
 
   private final GraphManager graphManager;
@@ -209,7 +213,7 @@ public class QueryManager {
 
   public void addLogEntry(String entry) {
     logEntries.add(entry);
-    System.out.println("[LOG] " + entry);
+    logger.debug("[QueryManager] {}", entry);
   }
 
   public List<String> getLogEntries() {

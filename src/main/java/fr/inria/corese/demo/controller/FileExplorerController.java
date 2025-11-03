@@ -5,6 +5,9 @@ import fr.inria.corese.demo.factory.popup.PopupFactory;
 import fr.inria.corese.demo.model.FileExplorerModel;
 import fr.inria.corese.demo.model.fileList.FileItem;
 import fr.inria.corese.demo.view.FileExplorerView;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.function.Consumer;
@@ -14,6 +17,8 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
 
 public class FileExplorerController {
+  private static final Logger logger = LoggerFactory.getLogger(FileExplorerController.class);
+  
   private final FileExplorerModel model;
   private final FileExplorerView view;
   private Consumer<File> onFileOpenRequest;
@@ -124,10 +129,10 @@ public class FileExplorerController {
               if (newFile.createNewFile()) {
                 model.addFile(finalSelectedItem, new FileItem(newFile));
               } else {
-                System.err.println("Impossible de créer le fichier: " + fullPath);
+                logger.error("Impossible de créer le fichier: {}", fullPath);
               }
             } catch (IOException e) {
-              e.printStackTrace();
+              logger.error("Error creating file", e);
             }
           }
         });
@@ -151,7 +156,7 @@ public class FileExplorerController {
             if (new File(fullPath).mkdir()) {
               model.addFolder(finalSelectedItem, new FileItem(new File(fullPath)));
             } else {
-              System.err.println("Impossible de créer le fichier: " + fullPath);
+              logger.error("Impossible de créer le dossier: {}", fullPath);
             }
           }
         });

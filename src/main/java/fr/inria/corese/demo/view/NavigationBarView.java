@@ -1,5 +1,8 @@
 package fr.inria.corese.demo.view;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Objects;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
@@ -21,6 +24,8 @@ import javafx.scene.layout.VBox;
  * @since 2025
  */
 public class NavigationBarView extends VBox {
+  private static final Logger logger = LoggerFactory.getLogger(NavigationBarView.class);
+  
   private final ImageView logo;
   private final Button dataButton;
   private final Button rdfEditorButton;
@@ -85,7 +90,7 @@ public class NavigationBarView extends VBox {
 
       VBox.setMargin(logo, new Insets(0, 25, 0, 25));
     } catch (Exception e) {
-      System.err.println("Erreur lors du chargement du logo: " + e.getMessage());
+      logger.error("Erreur lors du chargement du logo", e);
     }
 
     dataButton = createNavigationButton("Data");

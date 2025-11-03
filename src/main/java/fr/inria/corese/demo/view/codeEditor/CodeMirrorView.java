@@ -9,8 +9,12 @@ import javafx.scene.layout.VBox;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import netscape.javascript.JSObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CodeMirrorView extends VBox {
+    private static final Logger logger = LoggerFactory.getLogger(CodeMirrorView.class);
+    
     private final WebView webView;
     private final WebEngine webEngine;
     private final StringProperty contentProperty = new SimpleStringProperty("");
@@ -499,12 +503,17 @@ public class CodeMirrorView extends VBox {
                             updateEditorContent(content);
                         }
                     } catch (Exception e) {
-                        System.err.println("Error during CodeMirror initialization: " + e.getMessage());
-                        e.printStackTrace();
+                        logger.error("Error during CodeMirror initialization", e);
                     }
                     break;
                 case FAILED:
-                    System.err.println("Failed to load CodeMirror editor");
+                    logger.error("Failed to load CodeMirror editor");
+                    break;
+                case READY:
+                case SCHEDULED:
+                case RUNNING:
+                case CANCELLED:
+                    // Pas d'action nécessaire pour ces états
                     break;
             }
         });
@@ -529,7 +538,7 @@ public class CodeMirrorView extends VBox {
                         .replace("\r", "\\r");
                 webEngine.executeScript(String.format("window.setContent('%s');", escapedContent));
             } catch (Exception e) {
-                System.err.println("Error updating editor content: " + e.getMessage());
+                logger.error("Error updating editor content", e);
             }
         }
     }
@@ -540,7 +549,7 @@ public class CodeMirrorView extends VBox {
         try {
             return (String) webEngine.executeScript("window.getContent()");
         } catch (Exception e) {
-            System.err.println("Error getting editor content: " + e.getMessage());
+            logger.error("Error getting editor content", e);
             return "";
         }
     }

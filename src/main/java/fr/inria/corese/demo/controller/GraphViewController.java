@@ -3,8 +3,11 @@ package fr.inria.corese.demo.controller;
 import fr.inria.corese.demo.manager.QueryManager;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GraphViewController {
+  private static final Logger logger = LoggerFactory.getLogger(GraphViewController.class);
 
   private final QueryManager stateManager;
   private ResultsPaneController resultsPaneController;
@@ -25,7 +28,7 @@ public class GraphViewController {
 
   public void displayGraph(Integer tabId) {
     if (resultsPaneController == null) {
-      System.err.println("FATAL ERROR: ResultsPaneController not set!");
+      logger.error("FATAL ERROR: ResultsPaneController not set!");
       return;
     }
     try {
@@ -36,7 +39,7 @@ public class GraphViewController {
             resultsPaneController.displayGraph(ttlResult);
           });
     } catch (Exception e) {
-      e.printStackTrace();
+      logger.error("Error displaying graph for tab {}", tabId, e);
     }
   }
 

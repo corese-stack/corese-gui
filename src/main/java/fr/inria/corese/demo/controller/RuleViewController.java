@@ -5,6 +5,9 @@ import fr.inria.corese.demo.factory.popup.PopupFactory;
 import fr.inria.corese.demo.factory.popup.WarningPopup;
 import fr.inria.corese.demo.manager.RuleManager;
 import fr.inria.corese.demo.view.rule.RuleItem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.util.HashMap;
 import java.util.List;
@@ -20,6 +23,7 @@ import javafx.stage.FileChooser;
  * now decoupled and relies on an injected RuleManager.
  */
 public class RuleViewController {
+  private static final Logger logger = LoggerFactory.getLogger(RuleViewController.class);
 
   private RuleManager ruleManager;
 
@@ -75,8 +79,7 @@ public class RuleViewController {
   /** Initializes the rule displays. This must be called AFTER setRuleManager has been called. */
   public void initializeRules() {
     if (this.ruleManager == null) {
-      System.err.println(
-          "FATAL: RuleViewController.initializeRules() called before RuleManager was set.");
+      logger.error("FATAL: RuleViewController.initializeRules() called before RuleManager was set.");
       return;
     }
     if (rulesInitialized) {
@@ -147,7 +150,7 @@ public class RuleViewController {
   @FXML
   public void handleLoadRuleFile() {
     if (this.ruleManager == null) {
-      System.err.println("Cannot load rule file: RuleManager is not initialized.");
+      logger.error("Cannot load rule file: RuleManager is not initialized.");
       return;
     }
 
@@ -177,7 +180,7 @@ public class RuleViewController {
   }
 
   private void handleShowDocumentation(String ruleName) {
-    System.out.println("Documentation for " + ruleName + " requested.");
+    logger.debug("Documentation for {} requested.", ruleName);
   }
 
   /** Toggles the state of a rule (both predefined and custom). */

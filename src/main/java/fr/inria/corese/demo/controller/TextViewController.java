@@ -3,8 +3,11 @@ package fr.inria.corese.demo.controller;
 import fr.inria.corese.demo.manager.QueryManager;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TextViewController {
+  private static final Logger logger = LoggerFactory.getLogger(TextViewController.class);
 
   private final QueryManager stateManager;
   private ResultsPaneController resultsPaneController;
@@ -19,7 +22,7 @@ public class TextViewController {
 
   public void displayData(Integer tabId, String formatLabel) {
     if (resultsPaneController == null) {
-      System.err.println("FATAL ERROR: TextViewController - ResultsPaneController not set!");
+      logger.error("FATAL ERROR: TextViewController - ResultsPaneController not set!");
       return;
     }
     if (tabId == null) {
@@ -40,8 +43,8 @@ public class TextViewController {
             String errorMsg = "Error formatting result as " + formatLabel + ": " + e.getMessage();
             resultsPaneController.updateXMLView(errorMsg);
             showError("Formatting Error", errorMsg);
-            e.printStackTrace();
           });
+      logger.error("Error formatting result as {} for tab {}", formatLabel, tabId, e);
     }
   }
 
