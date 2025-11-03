@@ -5,9 +5,6 @@ import fr.inria.corese.demo.factory.popup.PopupFactory;
 import fr.inria.corese.demo.factory.popup.WarningPopup;
 import fr.inria.corese.demo.manager.RuleManager;
 import fr.inria.corese.demo.view.rule.RuleItem;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.util.HashMap;
 import java.util.List;
@@ -17,6 +14,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Controller for the rule view. Manages rule display, activation, and loading. This controller is
@@ -30,8 +29,6 @@ public class RuleViewController {
   private final PopupFactory popupFactory;
   private final Map<String, RuleItem> ruleItems;
 
-  private Runnable owlRLAction;
-  private Runnable owlRLExtendedAction;
   private boolean rulesInitialized = false;
   private Runnable onRuleToggled;
   private DataViewController parentController;
@@ -79,7 +76,8 @@ public class RuleViewController {
   /** Initializes the rule displays. This must be called AFTER setRuleManager has been called. */
   public void initializeRules() {
     if (this.ruleManager == null) {
-      logger.error("FATAL: RuleViewController.initializeRules() called before RuleManager was set.");
+      logger.error(
+          "FATAL: RuleViewController.initializeRules() called before RuleManager was set.");
       return;
     }
     if (rulesInitialized) {
@@ -236,14 +234,6 @@ public class RuleViewController {
         customRulesContainer.getChildren().add(ruleItem);
       }
     }
-  }
-
-  public void setOWLRLAction(Runnable action) {
-    this.owlRLAction = action;
-  }
-
-  public void setOWLRLExtendedAction(Runnable action) {
-    this.owlRLExtendedAction = action;
   }
 
   public void setOnRuleToggled(Runnable onRuleToggled) {

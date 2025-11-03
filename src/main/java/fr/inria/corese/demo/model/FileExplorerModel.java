@@ -49,7 +49,7 @@ public class FileExplorerModel {
     rootPath = path;
   }
 
-  public void addFile(TreeItem node, FileItem file) {
+  public void addFile(TreeItem<String> node, FileItem file) {
     files.add(file);
     TreeItem<String> newFile = new TreeItem<>(file.getName());
     FontIcon fileIcon = new FontIcon(MaterialDesignF.FILE_OUTLINE);
@@ -58,7 +58,7 @@ public class FileExplorerModel {
     node.getChildren().add(newFile);
   }
 
-  public void addFolder(TreeItem node, FileItem folder) {
+  public void addFolder(TreeItem<String> node, FileItem folder) {
     folders.add(folder);
     TreeItem<String> newFolder = new TreeItem<>(folder.getName());
     FontIcon folderIcon = new FontIcon(MaterialDesignF.FOLDER_OUTLINE);

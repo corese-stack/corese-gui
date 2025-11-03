@@ -67,6 +67,23 @@ public class IconButtonBarController {
       case UNDO -> button.setOnAction(e -> onUndoButtonClick());
       case REDO -> button.setOnAction(e -> onRedoButtonClick());
       case DOCUMENTATION -> button.setOnAction(e -> onDocumentationButtonClick());
+      // Cases non implémentées - pas d'action pour l'instant
+      case NEW_FILE,
+          NEW_FOLDER,
+          FULL_SCREEN,
+          LOGS,
+          CLOSE_FILE_EXPLORER,
+          COPY,
+          DELETE,
+          ZOOM_IN,
+          RELOAD,
+          OPEN_FOLDER,
+          TEMPLATE,
+          SPLIT,
+          PASTE,
+          ZOOM_OUT -> {
+        // Placeholder pour futures implémentations
+      }
     }
   }
 

@@ -27,10 +27,7 @@ public class TableViewController {
     }
     try {
       String csvResult = stateManager.getFormattedCachedQuery(tabId, "CSV");
-      Platform.runLater(
-          () -> {
-            resultsPaneController.updateTableView(csvResult);
-          });
+      Platform.runLater(() -> resultsPaneController.updateTableView(csvResult));
     } catch (Exception e) {
       logger.error("Error displaying data for tab {}", tabId, e);
       showError("Error displaying data", e.getMessage());

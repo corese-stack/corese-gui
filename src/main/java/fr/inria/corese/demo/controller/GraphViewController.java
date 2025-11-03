@@ -2,7 +2,6 @@ package fr.inria.corese.demo.controller;
 
 import fr.inria.corese.demo.manager.QueryManager;
 import javafx.application.Platform;
-import javafx.scene.control.Alert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,20 +33,9 @@ public class GraphViewController {
     try {
 
       String ttlResult = stateManager.getFormattedCachedQuery(tabId, "TURTLE");
-      Platform.runLater(
-          () -> {
-            resultsPaneController.displayGraph(ttlResult);
-          });
+      Platform.runLater(() -> resultsPaneController.displayGraph(ttlResult));
     } catch (Exception e) {
       logger.error("Error displaying graph for tab {}", tabId, e);
     }
-  }
-
-  private void showError(String title, String message) {
-    Alert alert = new Alert(Alert.AlertType.ERROR);
-    alert.setTitle(title);
-    alert.setHeaderText(null);
-    alert.setContentText(message);
-    alert.showAndWait();
   }
 }

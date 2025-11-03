@@ -33,10 +33,7 @@ public class TextViewController {
     try {
       String formattedResult = stateManager.getFormattedCachedQuery(tabId, formatLabel);
 
-      Platform.runLater(
-          () -> {
-            resultsPaneController.updateXMLView(formattedResult);
-          });
+      Platform.runLater(() -> resultsPaneController.updateXMLView(formattedResult));
     } catch (Exception e) {
       Platform.runLater(
           () -> {
