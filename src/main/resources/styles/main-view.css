@@ -1,0 +1,66 @@
+/* ==========================================================================
+   Corese-GUI MainView Stylesheet
+   ==========================================================================
+   Purpose:
+     Defines layout and visual style for the main application window,
+     including sidebar navigation and main content area.
+   Dependencies:
+     - Atlantafx base theme variables (-color-bg-*, -color-fg-*, etc.)
+     - base.css (for font and accent definitions)
+   -------------------------------------------------------------------------- */
+
+/* Sidebar layout ----------------------------------------------------------- */
+
+.sidebar {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-width: 0 1 0 0;
+    -fx-border-color: -color-border-default;
+    -fx-padding: 12;
+    -fx-spacing: 8;
+    -fx-min-width: 220;
+}
+
+/* Sidebar buttons ---------------------------------------------------------- */
+
+.sidebar .button {
+    -fx-background-color: -color-bg-elevated;
+    -fx-text-fill: -color-fg-default;
+    -fx-background-radius: 6;
+    -fx-padding: 8 12;
+    -fx-alignment: center-left;
+    -fx-font-weight: 500;
+    -fx-graphic-text-gap: 8;
+    -fx-effect: none;
+    -color-bg-gradient: none;
+    /* Disable Atlantafx gradient layer */
+}
+
+/* Hover effect ------------------------------------------------------------- */
+
+.sidebar .button:hover {
+    -fx-background-color: -color-accent-muted;
+}
+
+/* Selected / focused state ------------------------------------------------- */
+
+.sidebar .button:selected,
+.sidebar .button:focused {
+    -fx-background-color: -color-accent-emphasis;
+    -fx-text-fill: white;
+    -fx-font-weight: 600;
+}
+
+/* Content area ------------------------------------------------------------- */
+
+.content-area {
+    -fx-background-color: -color-bg-default;
+    -fx-padding: 16;
+    -fx-effect: dropshadow(gaussian, -color-bg-muted, 6, 0.1, 0, 1);
+}
+
+/* Placeholder / empty state ------------------------------------------------ */
+
+.placeholder {
+    -fx-text-fill: -color-fg-subtle;
+    -fx-font-style: italic;
+}

@@ -1,54 +1,43 @@
 package fr.inria.corese.demo;
 
 import atlantafx.base.theme.NordLight;
+import fr.inria.corese.demo.controller.MainController;
+import fr.inria.corese.demo.view.MainView;
+import fr.inria.corese.demo.view.utils.CssUtils;
+import fr.inria.corese.demo.view.utils.ThemeManager;
 import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * Main entry point for the Corese GUI application.
- * This class initializes the JavaFX application and loads the main view.
+ * Entry point of the Corese-GUI application.
+ *
+ * <p>Initializes JavaFX, applies the global theme and base styles, and launches the main view and
+ * controller.
  */
-public class Main extends Application {
-  private static final Logger logger = LoggerFactory.getLogger(Main.class);
+public final class Main extends Application {
 
   @Override
   public void start(Stage primaryStage) {
-    logger.info("Starting Corese GUI application");
+    // === Apply global theme ===
+    ThemeManager.getInstance().applyTheme(new NordLight());
 
-    Application.setUserAgentStylesheet(new NordLight().getUserAgentStylesheet());
-    logger.debug("Applied NordLight theme");
+    // === Build MVC ===
+    MainView view = new MainView();
+    MainController controller = new MainController(view);
 
-    try {
-      // Charger main-view.fxml comme vue principale
-      String mainView = "/fr/inria/corese/demo/main-view.fxml";
+    // === Create scene ===
+    Scene scene = new Scene(controller.getView().getRoot(), 1400, 850);
 
-      FXMLLoader loader = new FXMLLoader(getClass().getResource(mainView));
-      if (loader.getLocation() == null) {
-        logger.error("Could not find FXML file: {}", mainView);
-        return;
-      }
+    CssUtils.applyBaseStyles(scene);
 
-      Parent root = loader.load();
-      logger.debug("Successfully loaded main view: {}", mainView);
-
-      Scene scene = new Scene(root);
-      primaryStage.setTitle("Corese-GUI");
-      primaryStage.setScene(scene);
-      primaryStage.show();
-      
-      logger.info("Corese GUI application started successfully");
-    } catch (Exception e) {
-      logger.error("Error starting application", e);
-    }
+    // === Configure stage ===
+    primaryStage.setTitle("Corese-GUI");
+    primaryStage.setScene(scene);
+    primaryStage.show();
   }
 
   public static void main(String[] args) {
-    logger.info("Launching Corese GUI with arguments: {}", (Object) args);
     launch(args);
   }
 }

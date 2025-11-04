@@ -7,42 +7,54 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.layout.BorderPane;
 
 /**
- * Controller for the navigation bar. Manages navigation between different views of the application.
- * It caches specific views (like editors) to preserve their state during navigation.
+ * Controller for the navigation bar.
+ *
+ * <p>Manages navigation between different views of the application and notifies a parent controller
+ * when a navigation action occurs. Some views are cached to preserve their state.
  */
-public class NavigationBarController {
-  private final BorderPane mainContent;
+public final class NavigationBarController {
+
+  // ===== Fields =====
+
+  /** Global state and data managers. */
   private final QueryManager stateManager;
+
   private final DataManager dataManager;
+
+  /** The navigation bar view (sidebar UI). */
   private final NavigationBarView view;
+
+  /** The currently active view name. */
   private String currentViewName;
 
+  /** Cached FXML views (stateful). */
   private final Map<String, Node> cachedViews = new HashMap<>();
+
+  /** Cached controllers for preloaded views. */
   private final Map<String, Object> cachedControllers = new HashMap<>();
 
+  /** Set of view names to preload and cache. */
   private final Set<String> cachedViewNames =
       Set.of("data-view", "query-view", "validation-view", "rdf-editor-view");
 
-  /**
-   * Constructor for the navigation bar controller.
-   *
-   * @param mainContent The main content pane
-   */
-  public NavigationBarController(BorderPane mainContent) {
-    if (mainContent == null) {
-      throw new IllegalArgumentException("mainContent cannot be null");
-    }
-    this.mainContent = mainContent;
+  /** Callback used to notify the parent controller when a new view is selected. */
+  private Consumer<String> onNavigate;
+
+  // ===== Constructor =====
+
+  /** Creates a new navigation bar controller. */
+  public NavigationBarController() {
     this.stateManager = QueryManager.getInstance();
     this.dataManager = DataManager.getInstance();
     this.view = new NavigationBarView();
 
+    // Preload cached views at startup
     for (String viewName : cachedViewNames) {
       preloadView(viewName);
     }
@@ -50,11 +62,13 @@ public class NavigationBarController {
     initializeButtons();
   }
 
+  // ===== Initialization =====
+
   /**
-   * Preloads and caches a specified view and its controller. This is called at startup for all
-   * views listed in cachedViewNames.
+   * Preloads and caches a specified view and its controller. Called once for all cached views at
+   * startup.
    *
-   * @param viewName The name of the view to preload (e.g., "query-view").
+   * @param viewName the view name (e.g., "query-view")
    */
   private void preloadView(String viewName) {
     String fxmlPath = "/fr/inria/corese/demo/" + viewName + ".fxml";
@@ -71,20 +85,37 @@ public class NavigationBarController {
     }
   }
 
-  /**
-   * Selects and loads a view into the main content area. It uses the cache for stateful views or
-   * loads them new for stateless views.
-   *
-   * @param viewName The name of the view to select
-   */
-  public void selectView(String viewName) {
-    try {
-      if (currentViewName != null) {
-        dataManager.saveCurrentState();
-        stateManager.addLogEntry(
-            "State saved before navigating from " + currentViewName + " to " + viewName);
-      }
+  /** Initializes button event handlers to trigger navigation events. */
+  private void initializeButtons() {
+    view.getDataButton().setOnAction(e -> handleNavigation("data-view"));
+    view.getRdfEditorButton().setOnAction(e -> handleNavigation("rdf-editor-view"));
+    view.getValidationButton().setOnAction(e -> handleNavigation("validation-view"));
+    view.getQueryButton().setOnAction(e -> handleNavigation("query-view"));
+    view.getSettingsButton().setOnAction(e -> handleNavigation("settings-view"));
+  }
 
+  // ===== Navigation =====
+
+  /**
+   * Called when a navigation button is clicked.
+   *
+   * @param viewName the name of the view to navigate to
+   */
+  private void handleNavigation(String viewName) {
+    stateManager.addLogEntry("Navigation to " + viewName);
+    if (onNavigate != null) {
+      onNavigate.accept(viewName);
+    }
+  }
+
+  /**
+   * Loads or retrieves from cache the content node corresponding to a view name.
+   *
+   * @param viewName the name of the view
+   * @return the loaded or cached content node, or {@code null} if an error occurred
+   */
+  public Node loadViewContent(String viewName) {
+    try {
       currentViewName = viewName;
       Node content;
 
@@ -103,64 +134,24 @@ public class NavigationBarController {
         }
       }
 
+      // Update UI selection
       Button selectedButton = getButtonForView(viewName);
       if (selectedButton != null) {
         view.setButtonSelected(selectedButton);
       }
 
-      mainContent.setCenter(content);
-      stateManager.addLogEntry("View changed to " + viewName);
+      return content;
 
     } catch (IOException e) {
       stateManager.addLogEntry("Error loading view: " + e.getMessage());
       e.printStackTrace();
+      return null;
     }
   }
 
-  /** Initializes the button event handlers. */
-  private void initializeButtons() {
-    view.getDataButton()
-        .setOnAction(
-            e -> {
-              stateManager.addLogEntry("Data button clicked");
-              selectView("data-view");
-            });
+  // ===== Utilities =====
 
-    view.getRdfEditorButton()
-        .setOnAction(
-            e -> {
-              stateManager.addLogEntry("RDF Editor button clicked");
-              selectView("rdf-editor-view");
-            });
-
-    view.getValidationButton()
-        .setOnAction(
-            e -> {
-              stateManager.addLogEntry("Validation button clicked");
-              selectView("validation-view");
-            });
-
-    view.getQueryButton()
-        .setOnAction(
-            e -> {
-              stateManager.addLogEntry("Query button clicked");
-              selectView("query-view");
-            });
-
-    view.getSettingsButton()
-        .setOnAction(
-            e -> {
-              stateManager.addLogEntry("Settings button clicked");
-              selectView("settings-view");
-            });
-  }
-
-  /**
-   * Gets the button for a specific view.
-   *
-   * @param viewName The name of the view
-   * @return The button for the view
-   */
+  /** Returns the corresponding navigation button for a view name. */
   private Button getButtonForView(String viewName) {
     return switch (viewName) {
       case "data-view" -> view.getDataButton();
@@ -172,12 +163,25 @@ public class NavigationBarController {
     };
   }
 
-  /**
-   * Gets the navigation bar view.
-   *
-   * @return The navigation bar view
-   */
+  // ===== Accessors =====
+
+  /** Returns the navigation bar view. */
   public NavigationBarView getView() {
     return view;
+  }
+
+  /** Sets the callback invoked when the user selects a new view. */
+  public void setOnNavigate(Consumer<String> handler) {
+    this.onNavigate = handler;
+  }
+
+  /** Returns the cached content node for a given view name. */
+  public Node getCachedView(String viewName) {
+    return cachedViews.get(viewName);
+  }
+
+  /** Returns the controller associated with a cached view, if any. */
+  public Object getCachedController(String viewName) {
+    return cachedControllers.get(viewName);
   }
 }
