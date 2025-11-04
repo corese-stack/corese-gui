@@ -111,19 +111,19 @@ public class NavigationBarView extends VBox {
    */
   private Button createNavigationButton(String text) {
     Button button = new Button(text);
-    button.setStyle(BUTTON_STYLE_NORMAL);
+    // button.setStyle(BUTTON_STYLE_NORMAL);
 
     button.setOnMouseEntered(
         e -> {
           if (!button.getStyle().equals(BUTTON_STYLE_SELECTED)) {
-            button.setStyle(BUTTON_STYLE_HOVER);
+            // button.setStyle(BUTTON_STYLE_HOVER);
           }
         });
 
     button.setOnMouseExited(
         e -> {
           if (!button.getStyle().equals(BUTTON_STYLE_SELECTED)) {
-            button.setStyle(BUTTON_STYLE_NORMAL);
+            // button.setStyle(BUTTON_STYLE_NORMAL);
           }
         });
 
@@ -140,10 +140,10 @@ public class NavigationBarView extends VBox {
     // Réinitialiser tous les boutons
     for (Button button :
         new Button[] {dataButton, rdfEditorButton, validationButton, queryButton, settingsButton}) {
-      button.setStyle(BUTTON_STYLE_NORMAL);
+      // button.setStyle(BUTTON_STYLE_NORMAL);
     }
     // Définir le style sélectionné pour le bouton actif
-    selectedButton.setStyle(BUTTON_STYLE_SELECTED);
+    // selectedButton.setStyle(BUTTON_STYLE_SELECTED);
   }
 
   // Getters
