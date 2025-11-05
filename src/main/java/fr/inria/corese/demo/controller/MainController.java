@@ -1,114 +1,71 @@
 package fr.inria.corese.demo.controller;
 
+import fr.inria.corese.demo.manager.ViewManager;
 import fr.inria.corese.demo.view.MainView;
-import java.util.Objects;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import fr.inria.corese.demo.view.ViewId;
+import fr.inria.corese.demo.view.utils.TransitionUtils;
+import javafx.scene.Node;
+import javafx.util.Duration;
 
 /**
  * Main controller for the Corese-GUI application.
  *
- * <p>This controller acts as the central coordinator for the application's user interface. It
- * manages the {@link MainView}, initializes its child controllers, and handles navigation between
- * different content views.
- *
- * <p>Responsibilities:
- *
- * <ul>
- *   <li>Attach and initialize the navigation bar controller.
- *   <li>Respond to navigation events triggered by the sidebar.
- *   <li>Load and display the corresponding content views in the main content area.
- * </ul>
- *
- * <p>This class focuses solely on coordinating views and controllers; it does not contain any
- * business logic or state management.
+ * <p>Coordinates navigation between sidebar and content area, delegates view loading to {@link
+ * ViewManager}, and applies smooth transitions.
  */
 public final class MainController {
 
   // ===== Fields =====
 
-  private static final Logger LOGGER = Logger.getLogger(MainController.class.getName());
-
-  /** The root view of the main application window. */
+  /** The main application view. */
   private final MainView view;
 
-  /** Controller responsible for managing navigation and sidebar interactions. */
+  /** Controller for the sidebar navigation. */
   private final NavigationBarController navController;
+
+  /** Manager for loading and caching views. */
+  private final ViewManager viewManager;
 
   // ===== Constructor =====
 
   /**
-   * Creates a new main controller for the specified {@link MainView}.
+   * Creates the main controller with the given main view.
    *
-   * <p>Initializes the navigation bar controller and sets up the default view.
-   *
-   * @param view the main application view (must not be {@code null})
-   * @throws IllegalArgumentException if {@code view} is {@code null}
+   * @param view the main application view
    */
   public MainController(MainView view) {
-    this.view = Objects.requireNonNull(view, "MainView cannot be null");
+    this.view = view;
     this.navController = new NavigationBarController();
-
+    this.viewManager = new ViewManager();
     initialize();
   }
 
-  // ===== Initialization =====
+  // ==== Initialization =====
 
-  /**
-   * Initializes the main interface by attaching the navigation bar and registering event listeners
-   * for navigation actions.
-   */
+  /** Initializes layout and connects event handlers. */
   private void initialize() {
-    try {
-      attachControllers();
-      registerEventHandlers();
+    // Set up the navigation bar in the main view
+    view.setNavigation(navController.getView());
 
-      // Load the default view on startup
-      handleNavigation("data-view");
+    // Handle navigation actions
+    navController.setOnNavigate(this::showView);
 
-      LOGGER.info("MainController initialization complete.");
-    } catch (Exception e) {
-      LOGGER.log(Level.SEVERE, "Error during MainController initialization", e);
-    }
+    // Show the default view at startup
+    this.showView(ViewId.DATA);
   }
-
-  /** Attaches child controller views to the main layout. */
-  private void attachControllers() {
-    view.getNavigationContainer().getChildren().setAll(navController.getView());
-  }
-
-  /** Registers event listeners between controllers. */
-  private void registerEventHandlers() {
-    navController.setOnNavigate(this::handleNavigation);
-  }
-
-  // ===== Navigation Handling =====
 
   /**
-   * Handles navigation requests triggered by the {@link NavigationBarController}.
+   * Displays the requested view with a simple fade transition.
    *
-   * <p>Loads the corresponding view content and displays it in the central content area.
-   *
-   * @param viewName the identifier of the view to display (e.g., "data-view")
+   * @param viewId the identifier of the view to display
    */
-  private void handleNavigation(String viewName) {
-    LOGGER.info(() -> "Navigating to view: " + viewName);
+  private void showView(ViewId viewId) {
+    Node newContent = viewManager.getView(viewId);
 
-    var content = navController.loadViewContent(viewName);
-    if (content != null) {
-      view.getContentArea().setCenter(content);
-    } else {
-      LOGGER.warning(() -> "Failed to load content for view: " + viewName);
-    }
+    TransitionUtils.fadeReplace(view.getContentArea(), newContent, Duration.millis(150));
+    navController.setActiveView(viewId);
   }
 
-  // ===== Accessors =====
-
-  /**
-   * Returns the main view managed by this controller.
-   *
-   * @return the associated {@link MainView} instance
-   */
   public MainView getView() {
     return view;
   }

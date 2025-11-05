@@ -1,0 +1,107 @@
+package fr.inria.corese.demo.view;
+
+import java.util.function.Supplier;
+import javafx.scene.Node;
+
+/**
+ * Enumerates all available views in the Corese-GUI application.
+ *
+ * <p>Each {@code ViewId} represents a distinct section of the UI (e.g., "Data", "Query",
+ * "Settings") and defines how that view should be loaded — either from an FXML file or via a
+ * Java-based factory.
+ *
+ * <p>This enum provides a uniform way to refer to views across controllers, ensuring type safety
+ * and avoiding string-based identifiers.
+ *
+ * <h3>Usage</h3>
+ *
+ * <pre>{@code
+ * ViewId view = ViewId.DATA;
+ * Node content = view.hasFactory()
+ *     ? view.createInstance()
+ *     : FXMLLoader.load(getClass().getResource(view.getFxmlPath()));
+ * }</pre>
+ *
+ * <p>Each entry can define:
+ *
+ * <ul>
+ *   <li>A unique {@code id} used for logging and navigation.
+ *   <li>An optional FXML path (if the view is defined in FXML).
+ *   <li>An optional Java {@code Supplier<Node>} factory (if the view is built programmatically).
+ * </ul>
+ */
+public enum ViewId {
+
+  // ====== Defined Application Views ==========================================
+
+  /** View displaying dataset loading and management features. */
+  DATA("data-view", "/fr/inria/corese/demo/data-view.fxml", null),
+
+  /** View for writing and executing SPARQL queries. */
+  QUERY("query-view", "/fr/inria/corese/demo/query-view.fxml", null),
+
+  /** View for validating RDF data (e.g., SHACL). */
+  VALIDATION("validation-view", "/fr/inria/corese/demo/validation-view.fxml", null),
+
+  /** View providing a text editor for RDF graph manipulation. */
+  RDF_EDITOR("rdf-editor-view", "/fr/inria/corese/demo/rdf-editor-view.fxml", null),
+
+  /** Application configuration and preferences view. */
+  SETTINGS("settings-view", "/fr/inria/corese/demo/settings-view.fxml", null);
+
+  // ===========================================================================
+  // Fields
+  // ===========================================================================
+
+  /** Unique string identifier for this view. */
+  private final String id;
+
+  /** Path to the FXML file defining this view (may be {@code null} if factory-based). */
+  private final String fxmlPath;
+
+  /** Optional factory function that instantiates the view directly in Java (no FXML). */
+  private final Supplier<Node> factory;
+
+  // ===========================================================================
+  // Constructor
+  // ===========================================================================
+
+  ViewId(String id, String fxmlPath, Supplier<Node> factory) {
+    this.id = id;
+    this.fxmlPath = fxmlPath;
+    this.factory = factory;
+  }
+
+  // ===========================================================================
+  // Accessors
+  // ===========================================================================
+
+  /** Returns the unique string identifier of this view (e.g., "query-view"). */
+  public String getId() {
+    return id;
+  }
+
+  /** Returns the FXML path used to load this view (or {@code null} if none). */
+  public String getFxmlPath() {
+    return fxmlPath;
+  }
+
+  /** Returns {@code true} if this view uses a Java-based factory instead of an FXML file. */
+  public boolean hasFactory() {
+    return factory != null;
+  }
+
+  /**
+   * Instantiates the view using its Java-based factory, if defined.
+   *
+   * @return a newly created JavaFX node, or {@code null} if no factory exists
+   */
+  public Node createInstance() {
+    return factory != null ? factory.get() : null;
+  }
+
+  @Override
+  public String toString() {
+    return id;
+  }
+}

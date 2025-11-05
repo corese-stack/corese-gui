@@ -1,0 +1,32 @@
+/* ==========================================================================
+   Corese-GUI Navigation Bar Stylesheet
+   ==========================================================================
+   Purpose:
+     Defines minimal layout adjustments for the sidebar navigation.
+     Visual colors and typography are inherited from the active Atlantafx theme.
+   -------------------------------------------------------------------------- */
+
+/* Root sidebar container --------------------------------------------------- */
+.sidebar {
+    -fx-spacing: 8;
+    -fx-padding: 16;
+    -fx-alignment: TOP_CENTER;
+    -fx-min-width: 220;
+    -fx-pref-width: 220;
+}
+
+/* Navigation buttons ------------------------------------------------------- */
+.sidebar .button {
+    -fx-alignment: CENTER_LEFT;
+    -fx-max-width: infinity;
+}
+
+/* Active (selected) navigation button -------------------------------------- */
+.sidebar .button.accent {
+    /* The "accent" class automatically uses Atlantafx's accent color */
+}
+
+/* Optional hover effect (subtle visual feedback) --------------------------- */
+.sidebar .button:hover {
+    -fx-opacity: 0.9;
+}
