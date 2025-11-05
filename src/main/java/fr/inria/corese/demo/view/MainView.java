@@ -55,8 +55,6 @@ public final class MainView extends AbstractView {
   private void initializeLayout() {
     BorderPane rootPane = (BorderPane) this.getRoot();
 
-    navigationContainer.getStyleClass().addAll("nav-container", "sidebar");
-
     rootPane.setLeft(navigationContainer);
     rootPane.setCenter(contentArea);
   }
