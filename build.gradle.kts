@@ -64,7 +64,7 @@ javafx {
 }
 
 application {
-    mainClass.set("fr.inria.corese.demo.Main")
+    mainClass.set("fr.inria.corese.demo.App")
 }
 
 tasks.withType<JavaCompile> {

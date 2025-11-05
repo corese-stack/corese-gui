@@ -15,7 +15,7 @@ import javafx.stage.Stage;
  * <p>Initializes JavaFX, applies the global theme and base styles, and launches the main view and
  * controller.
  */
-public final class Main extends Application {
+public final class App extends Application {
 
   @Override
   public void start(Stage primaryStage) {
