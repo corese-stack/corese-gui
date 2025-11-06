@@ -6,8 +6,7 @@
 <VBox xmlns="http://javafx.com/javafx"
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="fr.inria.corese.demo.controller.RuleViewController"
-      spacing="4" styleClass="section-container, rules-container"
-      stylesheets="@../../../../styles/application.css, @../../../../styles/titled-pane-styles.css">
+      spacing="4" styleClass="section-container, rules-container">
     <padding>
         <Insets top="4" right="4" bottom="4" left="4"/>
     </padding>

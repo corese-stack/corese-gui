@@ -10,8 +10,7 @@
 <BorderPane fx:id="mainContainer"
             xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
-            fx:controller="fr.inria.corese.demo.controller.RDFEditorViewController"
-            stylesheets="@../../../../styles/application.css">
+            fx:controller="fr.inria.corese.demo.controller.RDFEditorViewController">
 
     <top>
         <TopBar fx:id="topbar"/>
