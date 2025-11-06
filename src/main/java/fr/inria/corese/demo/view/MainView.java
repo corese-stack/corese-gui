@@ -58,10 +58,6 @@ public final class MainView extends AbstractView {
   private void initializeLayout() {
     BorderPane rootPane = (BorderPane) getRoot();
 
-    // Assign style classes for targeted CSS customization
-    navigationContainer.getStyleClass().add("navigation-container");
-    contentArea.getStyleClass().add("content-area");
-
     // Place subcontainers in the main layout
     rootPane.setLeft(navigationContainer);
     rootPane.setCenter(contentArea);
