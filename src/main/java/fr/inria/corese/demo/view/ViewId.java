@@ -47,7 +47,7 @@ public enum ViewId {
   RDF_EDITOR("rdf-editor-view", "/fr/inria/corese/demo/rdf-editor-view.fxml", null),
 
   /** Application configuration and preferences view. */
-  SETTINGS("settings-view", "/fr/inria/corese/demo/settings-view.fxml", null);
+  SETTINGS("settings-view", null, () -> new SettingsView().getRoot());
 
   // ===========================================================================
   // Fields

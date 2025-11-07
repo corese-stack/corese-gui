@@ -1,0 +1,76 @@
+/*
+ * Settings View Styles
+ * Provides styling for the settings view using AtlantaFX color variables.
+ */
+
+.settings-view {
+    -fx-background-color: -color-bg-default;
+}
+
+/* Title */
+.settings-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-default;
+}
+
+/* Section Container */
+.settings-section {
+    -fx-padding: 20;
+    -fx-background-color: -color-bg-subtle;
+    -fx-background-radius: 8px;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+}
+
+/* Section Title */
+.section-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-default;
+}
+
+/* Section Description */
+.section-description {
+    -fx-font-size: 13px;
+    -fx-text-fill: -color-fg-muted;
+}
+
+/* Theme ComboBox */
+.theme-combo-box {
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+}
+
+.theme-combo-box:focused {
+    -fx-border-color: -color-accent-emphasis;
+}
+
+.theme-combo-box .list-cell {
+    -fx-padding: 8 12;
+}
+
+.theme-icon {
+    -fx-icon-size: 12px;
+    -fx-icon-color: -color-accent-emphasis;
+}
+
+/* Accent Color Picker */
+.accent-color-picker {
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+}
+
+.accent-color-picker:focused {
+    -fx-border-color: -color-accent-emphasis;
+}
+
+/* Hover effects */
+.settings-section:hover {
+    -fx-background-color: -color-bg-default;
+}
