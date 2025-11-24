@@ -2,8 +2,9 @@ package fr.inria.corese.demo;
 
 import atlantafx.base.theme.NordLight;
 import fr.inria.corese.demo.controller.MainController;
+import fr.inria.corese.demo.controller.NavigationBarController;
+import fr.inria.corese.demo.manager.ViewManager;
 import fr.inria.corese.demo.view.MainView;
-import fr.inria.corese.demo.view.utils.CssUtils;
 import fr.inria.corese.demo.view.utils.ThemeManager;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -17,22 +18,26 @@ import javafx.stage.Stage;
  */
 public final class App extends Application {
 
+  private static final double DEFAULT_WIDTH = 1400;
+  private static final double DEFAULT_HEIGHT = 850;
+  private static final String APP_TITLE = "Corese-GUI";
+
   @Override
   public void start(Stage primaryStage) {
     // === Apply global theme ===
     ThemeManager.getInstance().applyTheme(new NordLight());
 
     // === Build MVC ===
-    MainView view = new MainView();
-    MainController controller = new MainController(view);
+    MainView mainView = new MainView();
+    NavigationBarController navigationBar = new NavigationBarController();
+    ViewManager viewManager = new ViewManager();
+
+    new MainController(mainView, navigationBar, viewManager);
 
     // === Create scene ===
-    Scene scene = new Scene(controller.getView().getRoot(), 1400, 850);
-
-    CssUtils.applyBaseStyles(scene);
-
+    Scene scene = new Scene(mainView.getRoot(), DEFAULT_WIDTH, DEFAULT_HEIGHT);
     // === Configure stage ===
-    primaryStage.setTitle("Corese-GUI");
+    primaryStage.setTitle(APP_TITLE);
     primaryStage.setScene(scene);
     primaryStage.show();
   }

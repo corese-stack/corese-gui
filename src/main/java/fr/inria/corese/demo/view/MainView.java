@@ -1,8 +1,9 @@
 package fr.inria.corese.demo.view;
 
 import fr.inria.corese.demo.view.base.AbstractView;
-import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
 /**
@@ -66,42 +67,17 @@ public final class MainView extends AbstractView {
   // ===== Public API =====
 
   /**
-   * Replaces the sidebar navigation with the given navigation view.
+   * Sets the navigation sidebar using a root component from a controller.
    *
-   * <p>This method is type-specific because the navigation area is fixed to a single kind of
-   * component ({@link NavigationBarView}).
+   * @param navigationRoot the root node of the navigation component
    */
-  public void setNavigation(NavigationBarView navView) {
-    navigationContainer.getChildren().setAll(navView.getRoot());
+  public void setNavigationRoot(Parent navigationRoot) {
+    navigationContainer.getChildren().setAll(navigationRoot);
+    VBox.setVgrow(navigationRoot, Priority.ALWAYS);
   }
 
-  /**
-   * Replaces the main content area with the specified view node.
-   *
-   * <p>This method accepts any kind of view displayed in the center of the application (data,
-   * query, validation, etc.).
-   */
-  public void setContent(Node node) {
-    contentArea.setCenter(node);
-  }
-
-  // ===== Accessors =====
-
-  /**
-   * Returns the sidebar container node.
-   *
-   * <p>Typically used for advanced layout manipulation or styling.
-   */
-  public VBox getNavigationContainer() {
-    return navigationContainer;
-  }
-
-  /**
-   * Returns the central content area node.
-   *
-   * <p>Typically used for transitions or dynamic content injection.
-   */
-  public BorderPane getContentArea() {
-    return contentArea;
+  /** Replaces the central content area with the given content view. */
+  public void setContent(AbstractView contentView) {
+    contentArea.setCenter(contentView.getRoot());
   }
 }

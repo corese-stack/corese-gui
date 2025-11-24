@@ -1,6 +1,7 @@
 package fr.inria.corese.demo.manager;
 
 import fr.inria.corese.demo.view.ViewId;
+import fr.inria.corese.demo.view.base.AbstractView;
 import java.io.IOException;
 import java.net.URL;
 import java.util.EnumMap;
@@ -14,6 +15,9 @@ import javafx.scene.Node;
  *
  * <p>This class abstracts whether a view is loaded from an FXML file or instantiated directly as a
  * Java class. It also ensures each view is loaded only once and then cached.
+ *
+ * <p>Views are stored as {@link AbstractView} instances when available, falling back to raw {@link
+ * Node} for FXML-loaded views that don't extend AbstractView.
  */
 public final class ViewManager {
 
@@ -21,21 +25,21 @@ public final class ViewManager {
 
   private static final Logger LOGGER = Logger.getLogger(ViewManager.class.getName());
 
-  /** Cache mapping ViewId to their corresponding JavaFX Node instances. */
-  private final Map<ViewId, Node> cache = new EnumMap<>(ViewId.class);
+  /** Cache mapping ViewId to their corresponding AbstractView instances. */
+  private final Map<ViewId, AbstractView> cache = new EnumMap<>(ViewId.class);
 
   /**
-   * Returns the JavaFX node for the given {@link ViewId}.
+   * Returns the view for the given {@link ViewId}.
    *
    * <p>Loads the view on first access (via FXML or factory) and caches it. Never returns {@code
    * null} — throws an exception if the view cannot be loaded.
    *
    * @param viewId the identifier of the view
-   * @return the JavaFX node associated with the view
+   * @return the AbstractView instance associated with the view
    * @throws IllegalArgumentException if the viewId is {@code null} or invalid
    * @throws IllegalStateException if the view cannot be loaded
    */
-  public Node getView(ViewId viewId) {
+  public AbstractView getView(ViewId viewId) {
     if (viewId == null) {
       throw new IllegalArgumentException("ViewId cannot be null.");
     }
@@ -53,11 +57,11 @@ public final class ViewManager {
    * Adapter used by computeIfAbsent to load a view safely and convert checked exceptions into
    * unchecked ones with proper logging.
    */
-  private Node safeLoadView(ViewId viewId) {
+  private AbstractView safeLoadView(ViewId viewId) {
     try {
-      Node content = loadView(viewId);
+      AbstractView view = loadView(viewId);
       LOGGER.fine(() -> "Loaded view: " + viewId);
-      return content;
+      return view;
     } catch (IOException | RuntimeException e) {
       // Rethrow with contextual information (no logging to avoid double-reporting)
       throw new IllegalStateException("Failed to load view: " + viewId, e);
@@ -69,9 +73,9 @@ public final class ViewManager {
    *
    * @throws IOException when FXML loading fails
    */
-  private Node loadView(ViewId viewId) throws IOException {
+  private AbstractView loadView(ViewId viewId) throws IOException {
     if (viewId.hasFactory()) {
-      Node instance = viewId.createInstance();
+      AbstractView instance = viewId.createInstance();
       if (instance == null) {
         throw new IllegalStateException("Factory returned null for view: " + viewId);
       }
@@ -91,6 +95,21 @@ public final class ViewManager {
     }
 
     FXMLLoader loader = new FXMLLoader(resource);
-    return loader.load();
+    Node loadedNode = loader.load();
+    
+    // Wrap FXML-loaded nodes in a simple AbstractView wrapper
+    return new FxmlViewWrapper(loadedNode);
+  }
+
+  /**
+   * Simple wrapper to adapt FXML-loaded nodes into AbstractView instances.
+   *
+   * <p>This allows the ViewManager to consistently work with AbstractView while still supporting
+   * legacy FXML views.
+   */
+  private static final class FxmlViewWrapper extends AbstractView {
+    FxmlViewWrapper(Node node) {
+      super((javafx.scene.Parent) node, null);
+    }
   }
 }

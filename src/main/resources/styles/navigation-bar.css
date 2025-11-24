@@ -2,31 +2,113 @@
    Corese-GUI Navigation Bar Stylesheet
    ==========================================================================
    Purpose:
-     Defines minimal layout adjustments for the sidebar navigation.
-     Visual colors and typography are inherited from the active Atlantafx theme.
+     Defines the collapsible sidebar navigation.
+     Colors and typography inherit from the active AtlantaFX theme.
    -------------------------------------------------------------------------- */
 
-/* Root sidebar container --------------------------------------------------- */
+/* ==========================================================================
+   SIDEBAR CONTAINER
+   ========================================================================== */
+
 .sidebar {
-    -fx-spacing: 8;
-    -fx-padding: 16;
-    -fx-alignment: TOP_CENTER;
-    -fx-min-width: 220;
-    -fx-pref-width: 220;
+  -fx-spacing: 8;
+  -fx-padding: 16 8;
+  -fx-pref-width: 200;
+  -fx-max-width: 200;
+  -fx-background-color: -color-bg-subtle;
+  -fx-border-width: 0 1 0 0;
+  -fx-border-color: -color-border-default;
 }
 
-/* Navigation buttons ------------------------------------------------------- */
-.sidebar .button {
-    -fx-alignment: CENTER_LEFT;
-    -fx-max-width: infinity;
+.sidebar.collapsed {
+  -fx-pref-width: 24;
+  -fx-max-width: 24;
 }
 
-/* Active (selected) navigation button -------------------------------------- */
-.sidebar .button.accent {
-    /* The "accent" class automatically uses Atlantafx's accent color */
+/* ==========================================================================
+   LOGO BUTTON
+   ========================================================================== */
+
+.sidebar-logo {
+  -fx-pref-height: 72;
+  -fx-min-height: 72;
+  -fx-max-height: 72;
+  -fx-background-color: transparent;
 }
 
-/* Optional hover effect (subtle visual feedback) --------------------------- */
-.sidebar .button:hover {
-    -fx-opacity: 0.9;
+.sidebar-logo .image-view {
+  -fx-smooth: true;
 }
+
+/* ==========================================================================
+   TOGGLE BUTTON
+   ========================================================================== */
+
+.sidebar-toggle {
+  -fx-padding: 10;
+  -fx-min-height: 40;
+  -fx-border-width: 0.5 0 0 0;
+  -fx-border-color: -color-border-subtle;
+}
+
+.sidebar-toggle:hover {
+  -fx-background-color: -color-accent-muted;
+  -fx-background-radius: 4;
+}
+
+/* ==========================================================================
+   NAVIGATION BUTTONS
+   ========================================================================== */
+
+.sidebar-button {
+  -fx-alignment: CENTER_LEFT;
+  -fx-padding: 12 16;
+  -fx-min-height: 44;
+  -fx-graphic-text-gap: 16;
+  -fx-background-radius: 4;
+}
+
+.sidebar.collapsed .sidebar-button {
+  -fx-graphic-text-gap: 0;
+}
+
+.sidebar-button-content {
+  -fx-spacing: 16;
+}
+
+/* ==========================================================================
+   ICONS AND TEXT
+   ========================================================================== */
+
+.sidebar-icon {
+  -fx-icon-size: 20;
+  -fx-icon-color: -color-fg-default;
+}
+
+.sidebar-text {
+  -fx-text-fill: -color-fg-default;
+}
+
+/* Selected state - contrasted colors for icon and text */
+.sidebar-button.accent .sidebar-icon {
+  -fx-icon-color: -color-bg-subtle;
+}
+
+.sidebar-button.accent .sidebar-text {
+  -fx-text-fill: -color-bg-subtle;
+}
+
+/* ==========================================================================
+   BUTTON STATES
+   ========================================================================== */
+
+/* Hover state */
+.sidebar-button:hover {
+  -fx-background-color: -color-accent-muted;
+}
+
+/* Selected state */
+.sidebar-button.accent {
+  -fx-background-color: -color-accent-emphasis
+}
+

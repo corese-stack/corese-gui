@@ -1,68 +1,107 @@
 package fr.inria.corese.demo.controller;
 
-import fr.inria.corese.demo.view.NavigationBarView;
-import fr.inria.corese.demo.view.ViewId;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
+import fr.inria.corese.demo.model.NavigationBarModel;
+import fr.inria.corese.demo.view.NavigationBarView;
+import fr.inria.corese.demo.view.ViewId;
+import javafx.scene.Parent;
+
 /**
- * Controller for the application's sidebar navigation.
+ * Controller responsible for handling sidebar navigation actions.
  *
- * <p>Handles navigation button actions and notifies the parent {@link MainController} when a new
- * view is selected.
+ * <p>Coordinates between {@link NavigationBarView} and {@link NavigationBarModel}:
+ *
+ * <ul>
+ *   <li>updates the model when the user clicks navigation or toggle
+ *   <li>updates the view when the model changes
+ *   <li>notifies the outside world via an {@code onNavigate} callback
+ * </ul>
  */
 public final class NavigationBarController {
 
-  // ===== Fields =====
-
   private static final Logger LOGGER = Logger.getLogger(NavigationBarController.class.getName());
 
-  /** The navigation bar view. */
-  private final NavigationBarView view = new NavigationBarView();
+  private final NavigationBarView view;
+  private final NavigationBarModel model;
 
-  /** Callback invoked when a navigation action occurs. */
+  /** Callback invoked when navigation occurs. */
   private Consumer<ViewId> onNavigate;
 
-  // ===== Constructor =====
-
-  /** Creates the navigation bar controller and initializes button actions. */
   public NavigationBarController() {
-    initializeButtonActions();
+    this.model = new NavigationBarModel();
+    this.view = new NavigationBarView();
+
+    initializeBindings();
+    initializeHandlers();
+
+    // Ensure default view is highlighted at startup
+    view.setActiveView(model.getActiveView());
   }
 
-  /** Assigns click actions to all navigation buttons. */
-  private void initializeButtonActions() {
-    view.getDataButton().setOnAction(e -> navigate(ViewId.DATA));
-    view.getRdfEditorButton().setOnAction(e -> navigate(ViewId.RDF_EDITOR));
-    view.getValidationButton().setOnAction(e -> navigate(ViewId.VALIDATION));
-    view.getQueryButton().setOnAction(e -> navigate(ViewId.QUERY));
-    view.getSettingsButton().setOnAction(e -> navigate(ViewId.SETTINGS));
+  // ===== Initialization =====
+
+  /** Wires model changes to view updates. */
+  private void initializeBindings() {
+    // When model.collapsed changes → update view
+    model
+        .collapsedProperty()
+        .addListener(
+            (obs, oldVal, newVal) -> {
+              if (newVal.booleanValue() != view.isCollapsed()) {
+                view.setCollapsed(newVal);
+              }
+            });
+
+    // When model.activeView changes → update selected button
+    model.activeViewProperty().addListener((obs, oldVal, newVal) -> view.setActiveView(newVal));
   }
 
-  // ===== Private Methods =====
+  /** Wires view events to model updates and navigation callback. */
+  private void initializeHandlers() {
+    // Navigation clicks in the view → update model + notify external handler
+    view.setNavigationHandler(this::navigate);
 
-  /** Notifies the parent controller when a navigation action occurs. */
+    // Toggle button in the view → update model.collapsed
+    view.setOnToggle(model::setCollapsed);
+  }
+
+  // ===== Internal behavior =====
+
+  /** Called when the user clicks a navigation button. */
   private void navigate(ViewId viewId) {
-    LOGGER.fine(() -> "Navigation requested: " + viewId);
+    LOGGER.fine(() -> "Navigation triggered: " + viewId);
+    model.setActiveView(viewId);
+
     if (onNavigate != null) {
       onNavigate.accept(viewId);
     }
   }
 
-  // ===== Public Methods =====
+  // ===== Public API =====
 
-  /** Highlights the active navigation button. */
-  public void setActiveView(ViewId activeView) {
-    view.setButtonSelected(view.getButtonForView(activeView));
+  /** Returns the root node of the navigation bar for embedding in parent layouts. */
+  public Parent getRoot() {
+    return view.getRoot();
   }
 
-  // === Accessors ===
-
-  public NavigationBarView getView() {
-    return view;
-  }
-
+  /**
+   * Sets the callback to be invoked when navigation occurs.
+   *
+   * @param handler callback accepting the target ViewId
+   */
   public void setOnNavigate(Consumer<ViewId> handler) {
-    this.onNavigate = handler;
+    this.onNavigate = Objects.requireNonNull(handler, "handler must not be null");
+  }
+
+  /**
+   * Programmatically selects a view by updating the model.
+   *
+   * @param viewId the view to select
+   */
+  public void selectView(ViewId viewId) {
+    model.setActiveView(viewId);
   }
 }

@@ -3,9 +3,6 @@ package fr.inria.corese.demo.controller;
 import fr.inria.corese.demo.manager.ViewManager;
 import fr.inria.corese.demo.view.MainView;
 import fr.inria.corese.demo.view.ViewId;
-import fr.inria.corese.demo.view.utils.TransitionUtils;
-import javafx.scene.Node;
-import javafx.util.Duration;
 
 /**
  * Main controller for the Corese-GUI application.
@@ -32,11 +29,14 @@ public final class MainController {
    * Creates the main controller with the given main view.
    *
    * @param view the main application view
+   * @param navController the navigation bar controller
+   * @param viewManager the view manager for loading views
    */
-  public MainController(MainView view) {
+  public MainController(
+      MainView view, NavigationBarController navController, ViewManager viewManager) {
     this.view = view;
-    this.navController = new NavigationBarController();
-    this.viewManager = new ViewManager();
+    this.navController = navController;
+    this.viewManager = viewManager;
     initialize();
   }
 
@@ -45,13 +45,13 @@ public final class MainController {
   /** Initializes layout and connects event handlers. */
   private void initialize() {
     // Set up the navigation bar in the main view
-    view.setNavigation(navController.getView());
+    view.setNavigationRoot(navController.getRoot());
 
     // Handle navigation actions
-    navController.setOnNavigate(this::showView);
+    navController.setOnNavigate(this::displayView);
 
     // Show the default view at startup
-    this.showView(ViewId.DATA);
+    this.displayView(ViewId.DATA);
   }
 
   /**
@@ -59,14 +59,8 @@ public final class MainController {
    *
    * @param viewId the identifier of the view to display
    */
-  private void showView(ViewId viewId) {
-    Node newContent = viewManager.getView(viewId);
-
-    TransitionUtils.fadeReplace(view.getContentArea(), newContent, Duration.millis(150));
-    navController.setActiveView(viewId);
-  }
-
-  public MainView getView() {
-    return view;
+  private void displayView(ViewId viewId) {
+    view.setContent(viewManager.getView(viewId));
+    navController.selectView(viewId);
   }
 }

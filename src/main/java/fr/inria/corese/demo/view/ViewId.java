@@ -1,7 +1,7 @@
 package fr.inria.corese.demo.view;
 
+import fr.inria.corese.demo.view.base.AbstractView;
 import java.util.function.Supplier;
-import javafx.scene.Node;
 
 /**
  * Enumerates all available views in the Corese-GUI application.
@@ -17,9 +17,9 @@ import javafx.scene.Node;
  *
  * <pre>{@code
  * ViewId view = ViewId.DATA;
- * Node content = view.hasFactory()
+ * AbstractView viewInstance = view.hasFactory()
  *     ? view.createInstance()
- *     : FXMLLoader.load(getClass().getResource(view.getFxmlPath()));
+ *     : loadFromFxml(view.getFxmlPath());
  * }</pre>
  *
  * <p>Each entry can define:
@@ -27,7 +27,8 @@ import javafx.scene.Node;
  * <ul>
  *   <li>A unique {@code id} used for logging and navigation.
  *   <li>An optional FXML path (if the view is defined in FXML).
- *   <li>An optional Java {@code Supplier<Node>} factory (if the view is built programmatically).
+ *   <li>An optional Java {@code Supplier<AbstractView>} factory (if the view is built
+ *       programmatically).
  * </ul>
  */
 public enum ViewId {
@@ -47,7 +48,7 @@ public enum ViewId {
   RDF_EDITOR("rdf-editor-view", "/fr/inria/corese/demo/rdf-editor-view.fxml", null),
 
   /** Application configuration and preferences view. */
-  SETTINGS("settings-view", null, () -> new SettingsView().getRoot());
+  SETTINGS("settings-view", null, SettingsView::new);
 
   // ===========================================================================
   // Fields
@@ -60,13 +61,13 @@ public enum ViewId {
   private final String fxmlPath;
 
   /** Optional factory function that instantiates the view directly in Java (no FXML). */
-  private final Supplier<Node> factory;
+  private final Supplier<AbstractView> factory;
 
   // ===========================================================================
   // Constructor
   // ===========================================================================
 
-  ViewId(String id, String fxmlPath, Supplier<Node> factory) {
+  ViewId(String id, String fxmlPath, Supplier<AbstractView> factory) {
     this.id = id;
     this.fxmlPath = fxmlPath;
     this.factory = factory;
@@ -94,9 +95,9 @@ public enum ViewId {
   /**
    * Instantiates the view using its Java-based factory, if defined.
    *
-   * @return a newly created JavaFX node, or {@code null} if no factory exists
+   * @return a newly created AbstractView instance, or {@code null} if no factory exists
    */
-  public Node createInstance() {
+  public AbstractView createInstance() {
     return factory != null ? factory.get() : null;
   }
 

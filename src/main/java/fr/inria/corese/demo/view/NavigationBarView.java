@@ -1,76 +1,117 @@
 package fr.inria.corese.demo.view;
 
+import atlantafx.base.theme.Styles;
 import fr.inria.corese.demo.view.base.AbstractView;
 import java.util.Objects;
-import javafx.geometry.Insets;
+import java.util.function.Consumer;
+import javafx.animation.Animation;
+import javafx.animation.ParallelTransition;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import org.kordamp.ikonli.Ikon;
+import org.kordamp.ikonli.feather.Feather;
+import org.kordamp.ikonli.javafx.FontIcon;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignD;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignM;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Defines the sidebar layout of the Corese-GUI application.
+ * View component for the sidebar (navigation bar) of the Corese-GUI application.
  *
- * <p>This view contains the navigation buttons and the application logo. Its visual style (colors,
- * typography, hover states) is fully provided by the active Atlantafx theme and {@code
- * navigation-bar.css}.
+ * <p><strong>Responsibilities:</strong>
  *
- * <p>Layout structure:
+ * <ul>
+ *   <li>Defines the UI layout and structure
+ *   <li>Manages collapse/expand animations
+ *   <li>Handles visual state (active button highlighting)
+ * </ul>
  *
- * <pre>
- * +------------------------------+
- * | VBox (root)                 |
- * |  +------------------------+ |
- * |  |  ImageView (logo)      | |
- * |  +------------------------+ |
- * |  |  Button (Data)         | |
- * |  |  Button (RDF Editor)   | |
- * |  |  Button (Validation)   | |
- * |  |  Button (Query)        | |
- * |  |  [spacer]              | |
- * |  |  Button (Settings)     | |
- * +------------------------------+
- * </pre>
+ * <p><strong>Does NOT handle:</strong> Business logic and event coordination are delegated to
+ * {@link fr.inria.corese.demo.controller.NavigationBarController}.
+ *
+ * <p>This class follows the MVC pattern as a pure View component.
  */
 public final class NavigationBarView extends AbstractView {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NavigationBarView.class);
 
-  /** Path to the stylesheet for this view. */
   private static final String STYLESHEET_PATH = "/styles/navigation-bar.css";
 
-  // ===== Buttons =====
-  private final Button dataButton = createButton("Data");
-  private final Button rdfEditorButton = createButton("RDF Editor");
-  private final Button validationButton = createButton("Validation");
-  private final Button queryButton = createButton("Query");
-  private final Button settingsButton = createButton("Settings");
+  // ==== State ====
+  private boolean collapsed = false;
+  private ParallelTransition currentTransition;
+  private Consumer<Boolean> onToggle;
 
-  // ===== Constructor =====
+  // ==== UI elements ====
+  private final Button logo;
+  private final Button dataButton;
+  private final Button rdfEditorButton;
+  private final Button validationButton;
+  private final Button queryButton;
+  private final Button toggleButton;
+  private final Button settingsButton;
+
+  // ==== Constructor ====
+
+  /** Creates a new NavigationBarView instance and initializes the layout. */
   public NavigationBarView() {
-    super(new VBox(8), STYLESHEET_PATH);
+    super(new VBox(), STYLESHEET_PATH);
+
+    this.logo = createLogoButton();
+    this.dataButton = 
+        createNavigationButton(
+            "Data", 
+            MaterialDesignD.DATABASE, 
+            "Load and manage RDF data");
+    this.rdfEditorButton = 
+        createNavigationButton(
+            "RDF Editor", 
+            MaterialDesignF.FILE_DOCUMENT_EDIT, 
+            "Edit RDF data in Turtle, RDF/XML, JSON-LD, and other formats");
+    this.validationButton =
+        createNavigationButton(
+            "Validation", 
+            MaterialDesignS.SHIELD_CHECK, 
+            "Validate RDF data against SHACL shapes and constraints");
+    this.queryButton = 
+        createNavigationButton(
+            "Query", 
+            MaterialDesignM.MAGNIFY, 
+            "Execute SPARQL queries on loaded RDF datasets");
+    this.toggleButton = createToggleButton();
+    this.settingsButton =
+        createNavigationButton(
+            "Settings", 
+            MaterialDesignC.COG, 
+            "Configure application preferences and appearance");
+
     initializeLayout();
   }
 
-  // ===== Initialization =====
+  // ===== Layout & creation =====
 
-  /** Configures layout hierarchy and spacing for the navigation sidebar. */
+  /** Configures the sidebar layout structure. */
   private void initializeLayout() {
-    VBox rootBox = (VBox) getRoot();
-    rootBox.getStyleClass().addAll("sidebar", "surface");
-    rootBox.setAlignment(Pos.TOP_CENTER);
+    VBox root = (VBox) getRoot();
+    root.getStyleClass().add("sidebar");
+    root.setFillWidth(true);
 
-    ImageView logo = createLogo();
     Region spacer = new Region();
     VBox.setVgrow(spacer, Priority.ALWAYS);
 
-    rootBox
-        .getChildren()
+    root.getChildren()
         .setAll(
             logo,
             dataButton,
@@ -78,57 +119,179 @@ public final class NavigationBarView extends AbstractView {
             validationButton,
             queryButton,
             spacer,
+            toggleButton,
             settingsButton);
   }
 
-  /** Loads and configures the application logo. */
-  private ImageView createLogo() {
-    ImageView logoView = new ImageView();
+  /** Creates the top logo button (non-interactive except logging). */
+  private Button createLogoButton() {
+    Button button = new Button();
+    button.getStyleClass().addAll("sidebar-logo", Styles.FLAT);
+    button.setMaxWidth(Double.MAX_VALUE);
+    button.setAlignment(Pos.CENTER);
+
     try {
-      Image logoImg =
+      Image image =
           new Image(
               Objects.requireNonNull(
                   getClass().getResourceAsStream("/images/logo.png"), "Logo resource not found"));
-      logoView.setImage(logoImg);
-      logoView.setFitWidth(48);
-      logoView.setFitHeight(48);
-      VBox.setMargin(logoView, new Insets(0, 0, 16, 0));
+      ImageView view = new ImageView(image);
+      view.setPreserveRatio(true);
+      double logoSize = NavigationBarAnimations.getLogoExpandedSize();
+      view.setFitWidth(logoSize);
+      view.setFitHeight(logoSize);
+      button.setGraphic(view);
     } catch (Exception e) {
-      LOGGER.error("Failed to load logo image.", e);
+      LOGGER.error("Failed to load logo image", e);
     }
-    return logoView;
-  }
 
-  /** Creates a navigation button with default Atlantafx styling. */
-  private Button createButton(String text) {
-    Button button = new Button(text);
-    button.getStyleClass().add("flat"); // neutral Atlantafx style
-    button.setMaxWidth(Double.MAX_VALUE); // take full width
-    button.setAlignment(Pos.CENTER_LEFT);
+    button.setOnAction(e -> LOGGER.info("Logo clicked"));
     return button;
   }
 
-  // ===== Selection Management =====
+  /** Creates a sidebar button with icon and text. */
+  private Button createNavigationButton(String text, Ikon iconCode, String tooltipText) {
+    Button button = new Button();
+    button.getStyleClass().addAll("sidebar-button", Styles.FLAT, Styles.LEFT_PILL);
+    button.setMaxWidth(Double.MAX_VALUE);
+    button.setAlignment(Pos.CENTER_LEFT);
 
-  /** Highlights the active navigation button using the "accent" style. */
-  public void setButtonSelected(Button selectedButton) {
-    getRoot()
-        .lookupAll(".button")
-        .forEach(
-            node -> {
-              if (node instanceof Button b) {
-                b.getStyleClass().remove("accent");
-              }
-            });
+    FontIcon icon = new FontIcon(iconCode);
+    icon.getStyleClass().add("sidebar-icon");
 
-    if (selectedButton != null) {
-      selectedButton.getStyleClass().add("accent");
+    Label label = new Label(text);
+    label.getStyleClass().add("sidebar-text");
+
+    HBox content = new HBox(icon, label);
+    content.getStyleClass().add("sidebar-button-content");
+    content.setAlignment(Pos.CENTER_LEFT);
+
+    button.setGraphic(content);
+    button.setUserData(label);
+    button.setTooltip(new Tooltip(tooltipText));
+
+    return button;
+  }
+
+  /** Creates the toggle button for collapse/expand. */
+  private Button createToggleButton() {
+    Button button = new Button();
+    button.getStyleClass().addAll("sidebar-toggle", Styles.FLAT, Styles.ROUNDED);
+    button.setMaxWidth(Double.MAX_VALUE);
+    button.setAlignment(Pos.CENTER);
+
+    FontIcon icon = new FontIcon(Feather.CHEVRONS_LEFT);
+    icon.getStyleClass().add("sidebar-icon");
+    button.setGraphic(icon);
+
+    button.setTooltip(new Tooltip("Collapse sidebar"));
+    button.setOnAction(
+        e -> {
+          if (onToggle != null) {
+            onToggle.accept(!collapsed);
+          }
+        });
+
+    return button;
+  }
+
+  // ===== Collapse / expand =====
+
+  /** Allows the controller/model to set collapse state. */
+  public void setCollapsed(boolean value) {
+    if (this.collapsed != value) {
+      toggleSidebar();
     }
   }
 
-  /** Returns the button associated with a specific {@link ViewId}. */
-  public Button getButtonForView(ViewId view) {
-    return switch (view) {
+  /** Performs the collapse/expand animation. */
+  private void toggleSidebar() {
+    if (currentTransition != null && currentTransition.getStatus() == Animation.Status.RUNNING) {
+      currentTransition.stop();
+    }
+
+    collapsed = !collapsed;
+
+    VBox root = (VBox) getRoot();
+    FontIcon toggleIcon = (FontIcon) toggleButton.getGraphic();
+    ImageView logoView = (ImageView) logo.getGraphic();
+
+    Button[] navigationButtons =
+        new Button[] {dataButton, rdfEditorButton, validationButton, queryButton, settingsButton};
+
+    currentTransition =
+        NavigationBarAnimations.createToggleAnimation(
+            root, toggleIcon, logoView, navigationButtons, collapsed);
+
+    currentTransition.setOnFinished(
+        e -> {
+          if (collapsed) {
+            root.getStyleClass().add("collapsed");
+            toggleButton.getTooltip().setText("Expand sidebar");
+          } else {
+            root.getStyleClass().remove("collapsed");
+            toggleButton.getTooltip().setText("Collapse sidebar");
+          }
+          currentTransition = null;
+        });
+
+    currentTransition.play();
+  }
+
+  // ===== Selection & handlers =====
+
+  /**
+   * Sets the active view and highlights the corresponding button.
+   *
+   * @param viewId the view to highlight
+   */
+  public void setActiveView(ViewId viewId) {
+    Button targetButton = getButtonForViewId(viewId);
+    if (targetButton == null) {
+      return;
+    }
+
+    // Remove accent from all buttons
+    getRoot()
+        .lookupAll(".sidebar-button")
+        .forEach(
+            node -> {
+              if (node instanceof Button button) {
+                button.getStyleClass().remove(Styles.ACCENT);
+              }
+            });
+
+    // Highlight the target button
+    targetButton.getStyleClass().add(Styles.ACCENT);
+  }
+
+  /**
+   * Sets the navigation handler to be called when a navigation button is clicked.
+   *
+   * @param handler the navigation handler
+   */
+  public void setNavigationHandler(Consumer<ViewId> handler) {
+    for (ViewId id : ViewId.values()) {
+      Button button = getButtonForViewId(id);
+      if (button != null) {
+        button.setOnAction(
+            e -> {
+              if (handler != null) {
+                handler.accept(id);
+              }
+            });
+      }
+    }
+  }
+
+  /**
+   * Returns the button corresponding to the given view ID.
+   *
+   * @param viewId the view ID
+   * @return the corresponding button
+   */
+  private Button getButtonForViewId(ViewId viewId) {
+    return switch (viewId) {
       case DATA -> dataButton;
       case RDF_EDITOR -> rdfEditorButton;
       case VALIDATION -> validationButton;
@@ -137,24 +300,21 @@ public final class NavigationBarView extends AbstractView {
     };
   }
 
-  // ===== Accessors =====
-  public Button getDataButton() {
-    return dataButton;
+  /**
+   * Returns whether the sidebar is currently collapsed.
+   *
+   * @return true if collapsed, false otherwise
+   */
+  public boolean isCollapsed() {
+    return collapsed;
   }
 
-  public Button getRdfEditorButton() {
-    return rdfEditorButton;
-  }
-
-  public Button getValidationButton() {
-    return validationButton;
-  }
-
-  public Button getQueryButton() {
-    return queryButton;
-  }
-
-  public Button getSettingsButton() {
-    return settingsButton;
+  /**
+   * Sets the toggle handler to be called when the sidebar is collapsed or expanded.
+   *
+   * @param handler the toggle handler
+   */
+  public void setOnToggle(Consumer<Boolean> handler) {
+    this.onToggle = handler;
   }
 }
