@@ -25,8 +25,6 @@ public final class CssUtils {
 
   private static final Logger LOGGER = Logger.getLogger(CssUtils.class.getName());
 
-  private static final String BASE_STYLESHEET = "/styles/base.css";
-
   // ===== Constructor =====
 
   private CssUtils() {
@@ -34,15 +32,6 @@ public final class CssUtils {
   }
 
   // ===== Public API =====
-
-  /**
-   * Applies the base application stylesheet to a given scene.
-   *
-   * @param scene the target scene
-   */
-  public static void applyBaseStyles(Scene scene) {
-    applySceneStyles(scene, BASE_STYLESHEET);
-  }
 
   /**
    * Applies a stylesheet to a specific view (typically its root layout node).

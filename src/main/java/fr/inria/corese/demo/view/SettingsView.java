@@ -1,12 +1,17 @@
 package fr.inria.corese.demo.view;
 
-import atlantafx.base.theme.*;
+import atlantafx.base.theme.Styles;
+import fr.inria.corese.demo.AppConstants;
+import fr.inria.corese.demo.controller.SettingsController;
+import fr.inria.corese.demo.model.SettingsModel;
 import fr.inria.corese.demo.view.base.AbstractView;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.slf4j.Logger;
@@ -15,271 +20,344 @@ import org.slf4j.LoggerFactory;
 /**
  * Settings view for configuring application preferences.
  *
- * <p>This view allows users to customize:
- *
+ * <p>This view follows the MVC pattern:
  * <ul>
- *   <li>Application theme (Nord Light, Nord Dark, Primer Light, Primer Dark, etc.)
- *   <li>Accent color
+ *   <li><b>Model:</b> {@link SettingsModel} - stores settings data
+ *   <li><b>View:</b> This class - displays UI
+ *   <li><b>Controller:</b> {@link SettingsController} - handles business logic
  * </ul>
- *
- * <p>Layout structure:
- *
- * <pre>
- * +--------------------------------+
- * | VBox (root)                   |
- * |  +---------------------------+ |
- * |  | Label (Settings)          | |
- * |  +---------------------------+ |
- * |  | VBox (Theme Section)      | |
- * |  |  - ComboBox (themes)      | |
- * |  +---------------------------+ |
- * |  | VBox (Accent Section)     | |
- * |  |  - ColorPicker            | |
- * |  +---------------------------+ |
- * +--------------------------------+
- * </pre>
  */
 public final class SettingsView extends AbstractView {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SettingsView.class);
   private static final String STYLESHEET_PATH = "/styles/settings-view.css";
 
+  // ===== MVC Components =====
+  private final SettingsModel model;
+  private final SettingsController controller;
+
   // ===== UI Components =====
-  private final ComboBox<ThemeOption> themeComboBox;
-  private final ColorPicker accentColorPicker;
+  private ComboBox<String> themeComboBox;
+  private ToggleButton lightBtn;
+  private ToggleButton darkBtn;
+  private HBox colorSelectionBox;
 
   // ===== Constructor =====
 
   public SettingsView() {
-    super(new VBox(), STYLESHEET_PATH);
-
-    this.themeComboBox = createThemeComboBox();
-    this.accentColorPicker = createAccentColorPicker();
+    super(new ScrollPane(), STYLESHEET_PATH);
+    
+    this.model = new SettingsModel();
+    this.controller = new SettingsController(model);
 
     initializeLayout();
+    setupBindings();
+    updateControlsDisabledState();
   }
 
   // ===== Initialization =====
 
-  /** Configures the layout hierarchy and spacing for the settings view. */
   private void initializeLayout() {
-    VBox root = (VBox) getRoot();
-    root.getStyleClass().add("settings-view");
-    root.setPadding(new Insets(30));
-    root.setSpacing(30);
-    root.setAlignment(Pos.TOP_LEFT);
-    root.setFillWidth(true);
+    ScrollPane scrollPane = (ScrollPane) getRoot();
+    scrollPane.getStyleClass().add("settings-scroll-pane");
+    scrollPane.setFitToWidth(true);
 
-    // Title
-    Label titleLabel = new Label("Settings");
-    titleLabel.getStyleClass().add("settings-title");
+    VBox content = new VBox();
+    content.getStyleClass().add("settings-content");
 
-    // Theme section
-    VBox themeSection = createSection("Theme", "Choose the application theme", themeComboBox);
-
-    // Accent color section
-    VBox accentSection =
-        createSection("Accent Color", "Customize the accent color", accentColorPicker);
-
-    root.getChildren().addAll(titleLabel, themeSection, accentSection);
+    content.getChildren().addAll(
+        createAppearanceSection(),
+        createAboutSection()
+    );
+    
+    scrollPane.setContent(content);
   }
 
-  /**
-   * Creates a settings section with a title, description, and control.
-   *
-   * @param title Section title
-   * @param description Section description
-   * @param control The control to display (ComboBox, ColorPicker, etc.)
-   * @return VBox containing the section
-   */
-  private VBox createSection(String title, String description, Control control) {
-    VBox section = new VBox(10);
+  private void setupBindings() {
+    model.themeProperty().addListener((obs, oldTheme, newTheme) -> {
+      if (newTheme != null) updateThemeSelection();
+    });
+
+    model.accentColorProperty().addListener((obs, oldColor, newColor) -> {
+      if (newColor != null) updateAccentColorSelection();
+    });
+    
+    model.useSystemThemeProperty().addListener((obs, oldValue, newValue) -> updateControlsDisabledState());
+  }
+
+  // ===== Appearance Section =====
+
+  private VBox createAppearanceSection() {
+    VBox section = new VBox();
     section.getStyleClass().add("settings-section");
 
-    // Section header
-    Label titleLabel = new Label(title);
-    titleLabel.getStyleClass().add("section-title");
+    Label sectionTitle = new Label("Appearance");
+    sectionTitle.getStyleClass().add(Styles.TITLE_3);
 
-    Label descLabel = new Label(description);
-    descLabel.getStyleClass().add("section-description");
+    // System Theme Checkbox
+    CheckBox systemThemeCheckBox = new CheckBox("Use system theme and accent color");
+    systemThemeCheckBox.getStyleClass().add("system-theme-checkbox");
+    systemThemeCheckBox.selectedProperty().bindBidirectional(model.useSystemThemeProperty());
 
-    // Control container
-    HBox controlBox = new HBox(10);
-    controlBox.setAlignment(Pos.CENTER_LEFT);
-    controlBox.getChildren().add(control);
+    // Theme Selection
+    VBox themeBox = createThemeControl();
+    
+    // Accent Color Selection
+    VBox accentBox = createAccentColorControl();
 
-    section.getChildren().addAll(titleLabel, descLabel, controlBox);
+    section.getChildren().addAll(sectionTitle, systemThemeCheckBox, themeBox, accentBox);
     return section;
   }
 
-  // ===== Theme Management =====
+  private VBox createThemeControl() {
+    VBox container = new VBox();
+    container.getStyleClass().add("theme-control-container");
 
-  /** Creates and configures the theme selection ComboBox. */
-  private ComboBox<ThemeOption> createThemeComboBox() {
-    ComboBox<ThemeOption> comboBox = new ComboBox<>();
-    comboBox.getStyleClass().add("theme-combo-box");
-    comboBox.setPrefWidth(250);
+    Label label = new Label("Theme");
+    label.getStyleClass().add("control-label");
 
-    // Add available themes
-    comboBox
-        .getItems()
-        .addAll(
-            new ThemeOption("Nord Light", new NordLight()),
-            new ThemeOption("Nord Dark", new NordDark()),
-            new ThemeOption("Primer Light", new PrimerLight()),
-            new ThemeOption("Primer Dark", new PrimerDark()),
-            new ThemeOption("Cupertino Light", new CupertinoLight()),
-            new ThemeOption("Cupertino Dark", new CupertinoDark()),
-            new ThemeOption("Dracula", new Dracula()));
+    HBox controls = new HBox();
+    controls.getStyleClass().add("theme-controls-row");
 
-    // Set cell factory for custom rendering
-    comboBox.setCellFactory(
-        param ->
-            new ListCell<>() {
-              @Override
-              protected void updateItem(ThemeOption item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                  setText(null);
-                  setGraphic(null);
-                } else {
-                  setText(item.name());
-                  FontIcon icon = new FontIcon(Feather.CIRCLE);
-                  icon.getStyleClass().add("theme-icon");
-                  setGraphic(icon);
-                }
-              }
-            });
+    themeComboBox = new ComboBox<>();
+    themeComboBox.getStyleClass().add("theme-combo-box");
+    themeComboBox.getItems().addAll(controller.getBaseThemes());
+    themeComboBox.setOnAction(e -> handleThemeChange());
 
-    comboBox.setButtonCell(
-        new ListCell<>() {
-          @Override
-          protected void updateItem(ThemeOption item, boolean empty) {
-            super.updateItem(item, empty);
-            if (empty || item == null) {
-              setText(null);
-              setGraphic(null);
-            } else {
-              setText(item.name());
-              FontIcon icon = new FontIcon(Feather.CIRCLE);
-              icon.getStyleClass().add("theme-icon");
-              setGraphic(icon);
-            }
-          }
-        });
+    // Variant Buttons
+    lightBtn = createVariantButton(Feather.SUN, "Light mode", false);
+    darkBtn = createVariantButton(Feather.MOON, "Dark mode", true);
 
-    // Select current theme
-    String currentThemeName = getCurrentThemeName();
-    comboBox
-        .getItems()
-        .stream()
-        .filter(option -> option.theme().getClass().getSimpleName().equals(currentThemeName))
-        .findFirst()
-        .ifPresent(comboBox::setValue);
+    ToggleGroup variantGroup = new ToggleGroup();
+    lightBtn.setToggleGroup(variantGroup);
+    darkBtn.setToggleGroup(variantGroup);
 
-    // Handle theme changes
-    comboBox.setOnAction(
-        e -> {
-          ThemeOption selected = comboBox.getValue();
-          if (selected != null) {
-            applyTheme(selected.theme());
-          }
-        });
+    updateThemeSelection();
 
-    return comboBox;
+    controls.getChildren().addAll(themeComboBox, lightBtn, darkBtn);
+    container.getChildren().addAll(label, controls);
+    return container;
   }
 
-  /** Gets the current theme class name. */
-  private String getCurrentThemeName() {
-    try {
-      var currentTheme = javafx.application.Application.getUserAgentStylesheet();
-      if (currentTheme.contains("nord-light")) return "NordLight";
-      if (currentTheme.contains("nord-dark")) return "NordDark";
-      if (currentTheme.contains("primer-light")) return "PrimerLight";
-      if (currentTheme.contains("primer-dark")) return "PrimerDark";
-      if (currentTheme.contains("cupertino-light")) return "CupertinoLight";
-      if (currentTheme.contains("cupertino-dark")) return "CupertinoDark";
-      if (currentTheme.contains("dracula")) return "Dracula";
-    } catch (Exception e) {
-      LOGGER.warn("Could not determine current theme", e);
+  private ToggleButton createVariantButton(Feather icon, String tooltip, boolean isDark) {
+    ToggleButton btn = new ToggleButton();
+    btn.setGraphic(new FontIcon(icon));
+    btn.getStyleClass().addAll("theme-variant-button", Styles.BUTTON_ICON);
+    btn.setTooltip(new Tooltip(tooltip));
+    btn.setOnAction(e -> switchThemeVariant(isDark));
+    return btn;
+  }
+
+  private void switchThemeVariant(boolean isDark) {
+    String baseName = themeComboBox.getValue();
+    if (baseName == null) return;
+
+    String newTheme = baseName + (isDark ? " Dark" : " Light");
+    controller.applyThemeByName(newTheme);
+  }
+
+  private VBox createAccentColorControl() {
+    VBox container = new VBox();
+    container.getStyleClass().add("accent-color-control");
+
+    Label label = new Label("Accent Color");
+    label.getStyleClass().add("control-label");
+
+    HBox colorsRow = new HBox();
+    colorsRow.getStyleClass().add("color-selection-box");
+    colorSelectionBox = colorsRow;
+
+    for (Color color : AppConstants.getAccentColors()) {
+      colorsRow.getChildren().add(createColorButton(color));
     }
-    return "NordLight"; // default
+
+    colorsRow.getChildren().add(createCustomColorPickerButton());
+
+    container.getChildren().addAll(label, colorsRow);
+    return container;
   }
 
-  /** Applies the selected theme to the application. */
-  private void applyTheme(Theme theme) {
-    try {
-      javafx.application.Application.setUserAgentStylesheet(theme.getUserAgentStylesheet());
-      LOGGER.info("Applied theme: {}", theme.getClass().getSimpleName());
-    } catch (Exception e) {
-      LOGGER.error("Failed to apply theme", e);
-      showError("Failed to apply theme: " + e.getMessage());
+  private Button createColorButton(Color color) {
+    Button btn = new Button();
+    btn.getStyleClass().add("color-button");
+    
+    Circle circle = new Circle(10, color);
+    circle.getStyleClass().add("color-circle");
+    btn.setGraphic(circle);
+
+    if (color.equals(model.getAccentColor())) {
+      btn.getStyleClass().add("selected");
+    }
+
+    btn.setOnAction(e -> applyAccentColor(color));
+    return btn;
+  }
+
+  private void applyAccentColor(Color color) {
+    model.setAccentColor(color);
+  }
+
+  private void updateAccentColorSelection() {
+    Color color = model.getAccentColor();
+    if (color == null) return;
+    
+    boolean isPreset = isPresetColor(color);
+    
+    for (Node node : colorSelectionBox.getChildren()) {
+        updateColorNodeSelection(node, color, isPreset);
     }
   }
 
-  // ===== Accent Color Management =====
+  private boolean isPresetColor(Color color) {
+    for (Color c : AppConstants.getAccentColors()) {
+        if (c.equals(color)) return true;
+    }
+    return false;
+  }
 
-  /** Creates and configures the accent color picker. */
-  private ColorPicker createAccentColorPicker() {
-    ColorPicker picker = new ColorPicker();
-    picker.getStyleClass().add("accent-color-picker");
-    picker.setPrefWidth(250);
+  private void updateColorNodeSelection(Node node, Color targetColor, boolean isPreset) {
+    node.getStyleClass().remove("selected");
+    
+    if (node instanceof Button btn && btn.getGraphic() instanceof Circle circle) {
+        if (circle.getFill().equals(targetColor)) {
+            btn.getStyleClass().add("selected");
+        }
+    } else if (node instanceof ColorPicker picker && !isPreset) {
+        picker.getStyleClass().add("selected");
+        if (!targetColor.equals(picker.getValue())) {
+            picker.setValue(targetColor);
+        }
+    }
+  }
 
-    // Set current accent color (default to AtlantaFX blue)
-    picker.setValue(javafx.scene.paint.Color.web("#0078D4"));
-
-    // Handle color changes
-    picker.setOnAction(
-        e -> {
-          javafx.scene.paint.Color color = picker.getValue();
-          if (color != null) {
-            applyAccentColor(color);
-          }
-        });
-
+  private Node createCustomColorPickerButton() {
+    ColorPicker picker = new ColorPicker(model.getAccentColor());
+    picker.getStyleClass().addAll(Styles.BUTTON_ICON, "custom-color-button");
+    
+    picker.setOnAction(e -> {
+      Color selectedColor = picker.getValue();
+      if (selectedColor != null) {
+        applyAccentColor(selectedColor);
+      }
+    });
+    
     return picker;
   }
 
-  /** Applies the selected accent color to the application. */
-  private void applyAccentColor(javafx.scene.paint.Color color) {
+  private void handleThemeChange() {
+    String baseName = themeComboBox.getValue();
+    if (baseName == null) return;
+
+    boolean isDark = darkBtn.isSelected();
+    controller.applyTheme(baseName, isDark);
+  }
+
+  private void updateThemeSelection() {
+    String currentTheme = controller.getCurrentThemeName();
+    if (currentTheme == null) return;
+
+    String baseName = controller.getBaseThemeName(currentTheme);
+    boolean isDark = controller.isDarkTheme(currentTheme);
+
+    if (themeComboBox.getItems().contains(baseName)) {
+      themeComboBox.setValue(baseName);
+    }
+
+    if (isDark) darkBtn.setSelected(true);
+    else lightBtn.setSelected(true);
+    
+    boolean shouldDisable = model.isUseSystemTheme();
+    
+    lightBtn.setDisable(shouldDisable);
+    darkBtn.setDisable(shouldDisable);
+  }
+
+  private void updateControlsDisabledState() {
+    boolean disable = model.isUseSystemTheme();
+    themeComboBox.setDisable(disable);
+    colorSelectionBox.setDisable(disable);
+    
+    if (disable) {
+        colorSelectionBox.getChildren().forEach(node -> node.getStyleClass().remove("selected"));
+    } else {
+        updateAccentColorSelection();
+    }
+    
+    lightBtn.setDisable(disable);
+    darkBtn.setDisable(disable);
+  }
+
+  // ===== About Section =====
+
+  private VBox createAboutSection() {
+    VBox section = new VBox();
+    section.getStyleClass().add("settings-section");
+
+    Label sectionTitle = new Label("About");
+    sectionTitle.getStyleClass().add(Styles.TITLE_3);
+
+    HBox appInfoBox = new HBox();
+    appInfoBox.getStyleClass().add("app-info-box");
+
+    ImageView logo = createLogo();
+
+    VBox infoBox = new VBox();
+    infoBox.getStyleClass().add("app-info-text");
+    
+    Label appNameLabel = new Label(AppConstants.APP_NAME);
+    appNameLabel.getStyleClass().add("app-name");
+
+    Label versionLabel = new Label("Version " + AppConstants.APP_VERSION);
+    versionLabel.getStyleClass().add("app-version");
+
+    infoBox.getChildren().addAll(appNameLabel, versionLabel);
+    appInfoBox.getChildren().addAll(logo, infoBox);
+
+    VBox linksBox = new VBox();
+    linksBox.getStyleClass().add("links-container");
+
+    HBox linksRow = new HBox();
+    linksRow.getStyleClass().add("links-row");
+
+    linksRow.getChildren().addAll(
+        createLinkButton("Website", AppConstants.WEBSITE_URL, Feather.GLOBE),
+        createLinkButton("GitHub", AppConstants.GITHUB_URL, Feather.GITHUB),
+        createLinkButton("Issues", AppConstants.ISSUES_URL, Feather.ALERT_CIRCLE),
+        createLinkButton("Forum", AppConstants.FORUM_URL, Feather.MESSAGE_CIRCLE)
+    );
+    
+    linksBox.getChildren().add(linksRow);
+
+    section.getChildren().addAll(sectionTitle, appInfoBox, linksBox);
+    return section;
+  }
+
+  private ImageView createLogo() {
+    ImageView logo = new ImageView();
+    logo.getStyleClass().add("app-logo");
+    logo.setFitWidth(64);
+    logo.setFitHeight(64);
+    logo.setPreserveRatio(true);
+    
     try {
-      // Convert color to CSS format
-      String cssColor =
-          String.format(
-              "#%02X%02X%02X",
-              (int) (color.getRed() * 255),
-              (int) (color.getGreen() * 255),
-              (int) (color.getBlue() * 255));
-
-      // Apply to root style
-      String style = "-color-accent-emphasis: " + cssColor + ";";
-      getRoot().getScene().getRoot().setStyle(style);
-
-      LOGGER.info("Applied accent color: {}", cssColor);
+      Image logoImage = new Image(getClass().getResourceAsStream("/images/logo.png"));
+      logo.setImage(logoImage);
     } catch (Exception e) {
-      LOGGER.error("Failed to apply accent color", e);
-      showError("Failed to apply accent color: " + e.getMessage());
+      LOGGER.warn("Failed to load logo", e);
     }
+    
+    return logo;
   }
 
-  // ===== Error Handling =====
-
-  /** Shows an error alert to the user. */
-  private void showError(String message) {
-    Alert alert = new Alert(Alert.AlertType.ERROR);
-    alert.setTitle("Settings Error");
-    alert.setHeaderText("An error occurred");
-    alert.setContentText(message);
-    alert.showAndWait();
+  private Button createLinkButton(String text, String url, Feather icon) {
+    Button button = new Button(text);
+    button.getStyleClass().addAll("link-button", Styles.BUTTON_OUTLINED);
+    button.setGraphic(new FontIcon(icon));
+    button.setOnAction(e -> openURL(url));
+    return button;
   }
 
-  // ===== Helper Classes =====
-
-  /** Record to hold theme information. */
-  private record ThemeOption(String name, Theme theme) {
-    @Override
-    public String toString() {
-      return name;
-    }
+  private void openURL(String url) {
+    controller.openURL(url);
   }
 }
