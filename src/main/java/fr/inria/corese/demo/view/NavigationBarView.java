@@ -2,7 +2,7 @@ package fr.inria.corese.demo.view;
 
 import atlantafx.base.theme.Styles;
 import fr.inria.corese.demo.view.base.AbstractView;
-import java.util.Objects;
+import fr.inria.corese.demo.view.utils.SvgImageLoader;
 import java.util.function.Consumer;
 import javafx.animation.Animation;
 import javafx.animation.ParallelTransition;
@@ -71,32 +71,25 @@ public final class NavigationBarView extends AbstractView {
     super(new VBox(), STYLESHEET_PATH);
 
     this.logo = createLogoButton();
-    this.dataButton = 
+    this.dataButton =
+        createNavigationButton("Data", MaterialDesignD.DATABASE, "Load and manage RDF data");
+    this.rdfEditorButton =
         createNavigationButton(
-            "Data", 
-            MaterialDesignD.DATABASE, 
-            "Load and manage RDF data");
-    this.rdfEditorButton = 
-        createNavigationButton(
-            "RDF Editor", 
-            MaterialDesignF.FILE_DOCUMENT_EDIT, 
+            "RDF Editor",
+            MaterialDesignF.FILE_DOCUMENT_EDIT,
             "Edit RDF data in Turtle, RDF/XML, JSON-LD, and other formats");
     this.validationButton =
         createNavigationButton(
-            "Validation", 
-            MaterialDesignS.SHIELD_CHECK, 
+            "Validation",
+            MaterialDesignS.SHIELD_CHECK,
             "Validate RDF data against SHACL shapes and constraints");
-    this.queryButton = 
+    this.queryButton =
         createNavigationButton(
-            "Query", 
-            MaterialDesignM.MAGNIFY, 
-            "Execute SPARQL queries on loaded RDF datasets");
+            "Query", MaterialDesignM.MAGNIFY, "Execute SPARQL queries on loaded RDF datasets");
     this.toggleButton = createToggleButton();
     this.settingsButton =
         createNavigationButton(
-            "Settings", 
-            MaterialDesignC.COG, 
-            "Configure application preferences and appearance");
+            "Settings", MaterialDesignC.COG, "Configure application preferences and appearance");
 
     initializeLayout();
   }
@@ -132,25 +125,29 @@ public final class NavigationBarView extends AbstractView {
     button.setAlignment(Pos.CENTER);
 
     try {
-      Image image =
-          new Image(
-              Objects.requireNonNull(
-                  getClass().getResourceAsStream("/images/corese-logo.png"), "Logo resource not found"));
-      ImageView view = new ImageView(image);
-      view.setPreserveRatio(true);
       double logoSize = NavigationBarAnimations.getLogoExpandedSize();
-      view.setFitWidth(logoSize);
-      view.setFitHeight(logoSize);
-      button.setGraphic(view);
+      // Load SVG with 2x scaling for high DPI
+      Image image = SvgImageLoader.loadSvgImage("/images/corese-logo.svg", logoSize, logoSize, 2.0);
+
+      if (image != null) {
+        ImageView view = new ImageView(image);
+        view.getStyleClass().add("app-logo");
+        view.setPreserveRatio(true);
+        view.setSmooth(true);
+        view.setFitWidth(logoSize);
+        view.setFitHeight(logoSize);
+        button.setGraphic(view);
+      }
     } catch (Exception e) {
       LOGGER.error("Failed to load logo image", e);
     }
 
-    button.setOnAction(e -> {
-        if (onLogoClick != null) {
+    button.setOnAction(
+        e -> {
+          if (onLogoClick != null) {
             onLogoClick.run();
-        }
-    });
+          }
+        });
     return button;
   }
 

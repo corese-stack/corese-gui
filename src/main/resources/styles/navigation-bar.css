@@ -36,8 +36,9 @@
   -fx-background-color: transparent;
 }
 
-.sidebar-logo .image-view {
+.app-logo {
   -fx-smooth: true;
+  -fx-effect: dropshadow(gaussian, -color-logo-shadow, 10, 0, 0, 0);
 }
 
 /* ==========================================================================
@@ -45,15 +46,13 @@
    ========================================================================== */
 
 .sidebar-toggle {
-  -fx-padding: 10;
-  -fx-min-height: 40;
-  -fx-border-width: 0.5 0 0 0;
-  -fx-border-color: -color-border-subtle;
+  -fx-padding: 12 16;
+  -fx-min-height: 44;
+  -fx-background-radius: 4;
 }
 
 .sidebar-toggle:hover {
   -fx-background-color: -color-accent-muted;
-  -fx-background-radius: 4;
 }
 
 /* ==========================================================================
@@ -61,19 +60,21 @@
    ========================================================================== */
 
 .sidebar-button {
-  -fx-alignment: CENTER_LEFT;
   -fx-padding: 12 16;
   -fx-min-height: 44;
-  -fx-graphic-text-gap: 16;
   -fx-background-radius: 4;
-}
-
-.sidebar.collapsed .sidebar-button {
-  -fx-graphic-text-gap: 0;
 }
 
 .sidebar-button-content {
   -fx-spacing: 16;
+}
+
+.sidebar-button:hover {
+  -fx-background-color: -color-accent-muted;
+}
+
+.sidebar-button.accent {
+  -fx-background-color: -color-accent-emphasis
 }
 
 /* ==========================================================================
@@ -97,18 +98,3 @@
 .sidebar-button.accent .sidebar-text {
   -fx-text-fill: -color-bg-subtle;
 }
-
-/* ==========================================================================
-   BUTTON STATES
-   ========================================================================== */
-
-/* Hover state */
-.sidebar-button:hover {
-  -fx-background-color: -color-accent-muted;
-}
-
-/* Selected state */
-.sidebar-button.accent {
-  -fx-background-color: -color-accent-emphasis
-}
-

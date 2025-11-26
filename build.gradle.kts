@@ -20,6 +20,7 @@ dependencies {
     implementation("org.openjfx:javafx-controls:21")
     implementation("org.openjfx:javafx-fxml:21")
     implementation("org.openjfx:javafx-web:21")
+    implementation("org.openjfx:javafx-swing:21")
     implementation("org.openjfx:javafx-base:22.0.1")
 
     // AtlantaFX - Theme moderne pour JavaFX
@@ -56,11 +57,14 @@ dependencies {
     implementation("org.slf4j:slf4j-api:2.0.9")
     implementation("ch.qos.logback:logback-classic:1.4.11")
     implementation("ch.qos.logback:logback-core:1.4.11")
+
+    // JSVG for SVG rendering
+    implementation("com.github.weisj:jsvg:1.6.1")
 }
 
 javafx {
     version = "21"
-    modules("javafx.controls", "javafx.fxml", "javafx.web")
+    modules("javafx.controls", "javafx.fxml", "javafx.web", "javafx.swing")
 }
 
 application {

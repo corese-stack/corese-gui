@@ -8,6 +8,7 @@ import fr.inria.corese.demo.controller.SettingsController;
 import fr.inria.corese.demo.model.SettingsModel;
 import fr.inria.corese.demo.view.base.AbstractView;
 import fr.inria.corese.demo.view.utils.BrowserUtils;
+import fr.inria.corese.demo.view.utils.SvgImageLoader;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
@@ -205,13 +206,14 @@ public final class SettingsView extends AbstractView {
 
     HBox linksBox = new HBox(10);
     linksBox.setAlignment(Pos.CENTER_RIGHT);
-    linksBox.getChildren().addAll(
-        createLinkButton("Website", AppConstants.WEBSITE_URL, Feather.GLOBE),
-        createLinkButton("GitHub", AppConstants.GITHUB_URL, Feather.GITHUB),
-        createLinkButton("Issues", AppConstants.ISSUES_URL, Feather.ALERT_CIRCLE),
-        createLinkButton("Forum", AppConstants.FORUM_URL, Feather.MESSAGE_CIRCLE)
-    );
-    
+    linksBox
+        .getChildren()
+        .addAll(
+            createLinkButton("Website", AppConstants.WEBSITE_URL, Feather.GLOBE),
+            createLinkButton("GitHub", AppConstants.GITHUB_URL, Feather.GITHUB),
+            createLinkButton("Issues", AppConstants.ISSUES_URL, Feather.ALERT_CIRCLE),
+            createLinkButton("Forum", AppConstants.FORUM_URL, Feather.MESSAGE_CIRCLE));
+
     aboutTile.setAction(linksBox);
 
     section.getChildren().addAll(sectionTitle, aboutTile);
@@ -223,11 +225,15 @@ public final class SettingsView extends AbstractView {
     coreseLogo.setFitWidth(64);
     coreseLogo.setFitHeight(64);
     coreseLogo.setPreserveRatio(true);
-    coreseLogo.setEffect(new javafx.scene.effect.DropShadow(10, javafx.scene.paint.Color.rgb(0, 0, 0, 0.15)));
+    coreseLogo.setSmooth(true);
+    coreseLogo.getStyleClass().add("app-logo");
 
     try {
-      Image logoImage = new Image(getClass().getResourceAsStream("/images/corese-gui-logo.png"));
-      coreseLogo.setImage(logoImage);
+      // Load SVG with 2x scaling
+      Image logoImage = SvgImageLoader.loadSvgImage("/images/corese-gui-logo.svg", 64, 64, 2.0);
+      if (logoImage != null) {
+        coreseLogo.setImage(logoImage);
+      }
     } catch (Exception e) {
       LOGGER.warn("Failed to load logo", e);
     }

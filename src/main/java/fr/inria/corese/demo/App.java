@@ -4,6 +4,7 @@ import fr.inria.corese.demo.controller.MainController;
 import fr.inria.corese.demo.controller.NavigationBarController;
 import fr.inria.corese.demo.manager.ViewManager;
 import fr.inria.corese.demo.view.MainView;
+import fr.inria.corese.demo.view.utils.SvgImageLoader;
 import fr.inria.corese.demo.view.utils.ThemeManager;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -43,17 +44,25 @@ public final class App extends Application {
     primaryStage.setTitle(AppConstants.APP_TITLE + " — " + AppConstants.APP_VERSION);
     primaryStage.setMinWidth(AppConstants.MIN_WIDTH);
     primaryStage.setMinHeight(AppConstants.MIN_HEIGHT);
-    
+
     // Set application icon
     try {
-        Image icon = new Image(Objects.requireNonNull(
-            getClass().getResourceAsStream("/images/corese-gui-logo.png"), 
-            "Application icon not found"
-        ));
+      // Load SVG icon with high resolution (e.g. 128x128)
+      Image icon = SvgImageLoader.loadSvgImage("/images/corese-gui-logo.svg", 128, 128);
+      if (icon != null) {
         primaryStage.getIcons().add(icon);
+      } else {
+        // Fallback to PNG if SVG fails
+        Image pngIcon =
+            new Image(
+                Objects.requireNonNull(
+                    getClass().getResourceAsStream("/images/corese-gui-logo.png"),
+                    "Application icon not found"));
+        primaryStage.getIcons().add(pngIcon);
+      }
     } catch (Exception e) {
-        // Log but don't crash if icon fails
-        LOGGER.log(Level.WARNING, "Failed to load application icon", e);
+      // Log but don't crash if icon fails
+      LOGGER.log(Level.WARNING, "Failed to load application icon", e);
     }
 
     primaryStage.setScene(scene);

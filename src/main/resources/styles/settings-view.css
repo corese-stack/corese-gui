@@ -22,3 +22,8 @@
     -fx-padding: 25px;
     -fx-spacing: 20px;
 }
+
+.app-logo {
+  -fx-smooth: true;
+  -fx-effect: dropshadow(gaussian, -color-logo-shadow, 10, 0, 0, 0);
+}
