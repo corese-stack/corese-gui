@@ -5,6 +5,7 @@ import fr.inria.corese.demo.AppConstants;
 import fr.inria.corese.demo.controller.SettingsController;
 import fr.inria.corese.demo.model.SettingsModel;
 import fr.inria.corese.demo.view.base.AbstractView;
+import fr.inria.corese.demo.view.utils.BrowserUtils;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
@@ -299,7 +300,7 @@ public final class SettingsView extends AbstractView {
     HBox appInfoBox = new HBox();
     appInfoBox.getStyleClass().add("app-info-box");
 
-    ImageView logo = createLogo();
+    ImageView coreseLogo = createLogo();
 
     VBox infoBox = new VBox();
     infoBox.getStyleClass().add("app-info-text");
@@ -311,7 +312,7 @@ public final class SettingsView extends AbstractView {
     versionLabel.getStyleClass().add("app-version");
 
     infoBox.getChildren().addAll(appNameLabel, versionLabel);
-    appInfoBox.getChildren().addAll(logo, infoBox);
+    appInfoBox.getChildren().addAll(coreseLogo, infoBox);
 
     VBox linksBox = new VBox();
     linksBox.getStyleClass().add("links-container");
@@ -333,20 +334,20 @@ public final class SettingsView extends AbstractView {
   }
 
   private ImageView createLogo() {
-    ImageView logo = new ImageView();
-    logo.getStyleClass().add("app-logo");
-    logo.setFitWidth(64);
-    logo.setFitHeight(64);
-    logo.setPreserveRatio(true);
+    ImageView coreseLogo = new ImageView();
+    coreseLogo.getStyleClass().add("app-logo");
+    coreseLogo.setFitWidth(64);
+    coreseLogo.setFitHeight(64);
+    coreseLogo.setPreserveRatio(true);
     
     try {
-      Image logoImage = new Image(getClass().getResourceAsStream("/images/logo.png"));
-      logo.setImage(logoImage);
+      Image logoImage = new Image(getClass().getResourceAsStream("/images/corese-gui-logo.png"));
+      coreseLogo.setImage(logoImage);
     } catch (Exception e) {
       LOGGER.warn("Failed to load logo", e);
     }
     
-    return logo;
+    return coreseLogo;
   }
 
   private Button createLinkButton(String text, String url, Feather icon) {
@@ -358,6 +359,6 @@ public final class SettingsView extends AbstractView {
   }
 
   private void openURL(String url) {
-    controller.openURL(url);
+    BrowserUtils.openUrl(url);
   }
 }

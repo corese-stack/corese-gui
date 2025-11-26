@@ -9,6 +9,7 @@ import javafx.stage.Stage;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.prefs.Preferences;
 
 /**
  * Manages the global visual theme and accent color of the Corese-GUI application.
@@ -19,18 +20,24 @@ import java.util.logging.Logger;
  *   <li>Theme selection and application (JavaFX User Agent Stylesheet)</li>
  *   <li>Accent color management (CSS variables)</li>
  *   <li>System theme detection and automatic switching</li>
+ *   <li>Persistence of user preferences</li>
  * </ul>
  */
 @SuppressWarnings("java:S6548")
 public final class ThemeManager {
 
     private static final Logger LOGGER = Logger.getLogger(ThemeManager.class.getName());
+    private static final String PREF_THEME = "app.theme";
+    private static final String PREF_ACCENT_COLOR = "app.accentColor";
+    private static final String PREF_SYSTEM_THEME = "app.systemThemeEnabled";
 
     // ===== Properties =====
 
     private final ObjectProperty<Theme> theme = new SimpleObjectProperty<>();
     private final ObjectProperty<Color> accentColor = new SimpleObjectProperty<>(Color.web("#0078D4"));
     private final BooleanProperty systemThemeEnabled = new SimpleBooleanProperty(false);
+    private final Preferences preferences = Preferences.userNodeForPackage(ThemeManager.class);
+    private boolean loadingPreferences = false;
 
     // ===== Fields =====
 
@@ -43,6 +50,7 @@ public final class ThemeManager {
         this.systemThemeMonitor = new SystemThemeMonitor();
         initializeSystemThemeMonitor();
         setupPropertyListeners();
+        loadPreferences();
     }
 
     private static class Holder {
@@ -88,6 +96,7 @@ public final class ThemeManager {
         theme.addListener((obs, oldTheme, newTheme) -> {
             if (newTheme != null) {
                 applyThemeInternal(newTheme);
+                savePreferences();
             }
         });
 
@@ -95,6 +104,7 @@ public final class ThemeManager {
         accentColor.addListener((obs, oldColor, newColor) -> {
             if (newColor != null) {
                 applyAccentColorInternal(newColor);
+                savePreferences();
             }
         });
 
@@ -106,6 +116,7 @@ public final class ThemeManager {
             } else {
                 systemThemeMonitor.stop();
             }
+            savePreferences();
         });
     }
 
@@ -332,5 +343,68 @@ public final class ThemeManager {
             }
         }
         return null;
+    }
+
+    // ===== Persistence =====
+
+    private void loadPreferences() {
+        loadingPreferences = true;
+        try {
+            // Load all values first to avoid partial application triggering saves
+            // Default to true (System Theme) for first run
+            boolean useSystem = preferences.getBoolean(PREF_SYSTEM_THEME, true);
+            String themeName = preferences.get(PREF_THEME, null);
+            String colorHex = preferences.get(PREF_ACCENT_COLOR, null);
+
+            // Apply settings
+            setSystemThemeEnabled(useSystem);
+
+            if (!useSystem) {
+                if (themeName != null) {
+                    Theme loadedTheme = getThemeByName(themeName);
+                    if (loadedTheme != null) {
+                        setTheme(loadedTheme);
+                    }
+                } else if (getTheme() == null) {
+                    // Default fallback if no theme is set/saved
+                    setTheme(AppTheme.PRIMER_LIGHT.getTheme());
+                }
+
+                if (colorHex != null) {
+                    try {
+                        setAccentColor(Color.web(colorHex));
+                    } catch (IllegalArgumentException e) {
+                        LOGGER.warning("Invalid saved accent color: " + colorHex);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to load preferences", e);
+        } finally {
+            loadingPreferences = false;
+        }
+    }
+
+    private void savePreferences() {
+        if (loadingPreferences) return;
+
+        try {
+            preferences.putBoolean(PREF_SYSTEM_THEME, isSystemThemeEnabled());
+
+            if (!isSystemThemeEnabled()) {
+                if (getTheme() != null) {
+                    String themeName = getCurrentThemeName();
+                    if (themeName != null) {
+                        preferences.put(PREF_THEME, themeName);
+                    }
+                }
+
+                if (getAccentColor() != null) {
+                    preferences.put(PREF_ACCENT_COLOR, toCssColor(getAccentColor()));
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to save preferences", e);
+        }
     }
 }

@@ -27,6 +27,7 @@ public final class AppConstants {
   // ===== URLs =====
   public static final String GITHUB_URL = "https://github.com/corese-stack/corese-gui";
   public static final String WEBSITE_URL = "https://corese-stack.github.io/corese-gui/";
+  public static final String PROJECT_URL = "https://project.inria.fr/corese/";
   public static final String ISSUES_URL = "https://github.com/corese-stack/corese-gui/issues";
   public static final String FORUM_URL = "https://github.com/orgs/corese-stack/discussions";
 

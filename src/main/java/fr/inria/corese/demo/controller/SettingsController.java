@@ -3,11 +3,7 @@ package fr.inria.corese.demo.controller;
 import atlantafx.base.theme.Theme;
 import fr.inria.corese.demo.model.SettingsModel;
 import fr.inria.corese.demo.view.utils.ThemeManager;
-import java.awt.Desktop;
-import java.net.URI;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Controller for the Settings view.
@@ -17,7 +13,6 @@ import org.slf4j.LoggerFactory;
  */
 public final class SettingsController {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SettingsController.class);
     private final SettingsModel model;
     private final ThemeManager themeManager;
 
@@ -102,19 +97,5 @@ public final class SettingsController {
         if (theme != null) {
             model.setTheme(theme);
         }
-    }
-
-    public void openURL(String url) {
-        new Thread(() -> {
-            try {
-                if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-                    Desktop.getDesktop().browse(new URI(url));
-                } else {
-                    LOGGER.warn("Desktop browsing not supported, cannot open URL: {}", url);
-                }
-            } catch (Exception e) {
-                LOGGER.error("Failed to open URL: {}", url, e);
-            }
-        }).start();
     }
 }

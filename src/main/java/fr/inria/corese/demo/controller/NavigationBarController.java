@@ -1,9 +1,11 @@
 package fr.inria.corese.demo.controller;
 
+import fr.inria.corese.demo.view.utils.BrowserUtils;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
+import fr.inria.corese.demo.AppConstants;
 import fr.inria.corese.demo.model.NavigationBarModel;
 import fr.inria.corese.demo.view.NavigationBarView;
 import fr.inria.corese.demo.view.ViewId;
@@ -66,6 +68,9 @@ public final class NavigationBarController {
 
     // Toggle button in the view → update model.collapsed
     view.setOnToggle(model::setCollapsed);
+    
+    // Logo click -> open website
+    view.setOnLogoClick(() -> BrowserUtils.openUrl(AppConstants.PROJECT_URL));
   }
 
   // ===== Internal behavior =====

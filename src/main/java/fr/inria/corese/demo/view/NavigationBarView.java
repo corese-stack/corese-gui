@@ -53,6 +53,7 @@ public final class NavigationBarView extends AbstractView {
   private boolean collapsed = false;
   private ParallelTransition currentTransition;
   private Consumer<Boolean> onToggle;
+  private Runnable onLogoClick;
 
   // ==== UI elements ====
   private final Button logo;
@@ -134,7 +135,7 @@ public final class NavigationBarView extends AbstractView {
       Image image =
           new Image(
               Objects.requireNonNull(
-                  getClass().getResourceAsStream("/images/logo.png"), "Logo resource not found"));
+                  getClass().getResourceAsStream("/images/corese-logo.png"), "Logo resource not found"));
       ImageView view = new ImageView(image);
       view.setPreserveRatio(true);
       double logoSize = NavigationBarAnimations.getLogoExpandedSize();
@@ -145,7 +146,11 @@ public final class NavigationBarView extends AbstractView {
       LOGGER.error("Failed to load logo image", e);
     }
 
-    button.setOnAction(e -> LOGGER.info("Logo clicked"));
+    button.setOnAction(e -> {
+        if (onLogoClick != null) {
+            onLogoClick.run();
+        }
+    });
     return button;
   }
 
@@ -316,5 +321,14 @@ public final class NavigationBarView extends AbstractView {
    */
   public void setOnToggle(Consumer<Boolean> handler) {
     this.onToggle = handler;
+  }
+
+  /**
+   * Sets the handler to be called when the logo is clicked.
+   *
+   * @param handler the logo click handler
+   */
+  public void setOnLogoClick(Runnable handler) {
+    this.onLogoClick = handler;
   }
 }

@@ -23,9 +23,6 @@ public final class App extends Application {
     ThemeManager themeManager = ThemeManager.getInstance();
     themeManager.setPrimaryStage(primaryStage);
 
-    // Enable system theme monitoring by default
-    themeManager.setSystemThemeEnabled(true);
-
     // === Build MVC ===
     MainView mainView = new MainView();
     NavigationBarController navigationBar = new NavigationBarController();
