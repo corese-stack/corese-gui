@@ -6,8 +6,6 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import javafx.scene.paint.Color;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -255,36 +253,89 @@ public final class SystemThemeDetector {
   private static Color getKdeAccentColor() {
     try {
       Path config = Paths.get(System.getProperty("user.home"), ".config", "kdeglobals");
-      if (Files.exists(config)) {
-        String content = Files.readString(config);
-        // Look for [General] -> AccentColor=r,g,b
-        Pattern p = Pattern.compile("AccentColor=(\\d+),(\\d+),(\\d+)");
-        Matcher m = p.matcher(content);
-        if (m.find()) {
-          int r = Integer.parseInt(m.group(1));
-          int g = Integer.parseInt(m.group(2));
-          int b = Integer.parseInt(m.group(3));
-          return Color.rgb(r, g, b);
-        }
+      if (!Files.exists(config)) return null;
 
-        // Fallback: Look for Selection Background
-        // [Colors:Selection] -> BackgroundNormal=r,g,b
-        Pattern p2 =
-            Pattern.compile(
-                "\\[Colors:Selection\\][^\\n]*\\n.*BackgroundNormal=(\\d+),(\\d+),(\\d+)",
-                Pattern.DOTALL);
-        Matcher m2 = p2.matcher(content);
-        if (m2.find()) {
-          int r = Integer.parseInt(m2.group(1));
-          int g = Integer.parseInt(m2.group(2));
-          int b = Integer.parseInt(m2.group(3));
-          return Color.rgb(r, g, b);
-        }
-      }
+      return parseKdeGlobals(Files.readAllLines(config));
     } catch (Exception e) {
-      // Ignore
+      LOGGER.warn("Failed to parse KDE globals", e);
     }
     return null;
+  }
+
+  private static Color parseKdeGlobals(java.util.List<String> lines) {
+      KdeColorParser parser = new KdeColorParser();
+      for (String line : lines) {
+          if (parser.processLine(line)) {
+              return parser.getFoundAccentColor();
+          }
+      }
+      return parser.getFallbackColor();
+  }
+
+  private static class KdeColorParser {
+      private String currentSection = "";
+      private Color selectionColor = null;
+      private Color headerColor = null;
+      private Color foundAccentColor = null;
+
+      public boolean processLine(String line) {
+          line = line.trim();
+          if (isSectionHeader(line)) {
+              currentSection = line;
+              return false;
+          }
+          if (line.contains("=")) {
+              Color color = checkKdeLine(currentSection, line);
+              if (color != null) {
+                  if ("[General]".equals(currentSection)) {
+                      foundAccentColor = color;
+                      return true;
+                  }
+                  if ("[Colors:Selection]".equals(currentSection)) selectionColor = color;
+                  else if ("[Colors:Header]".equals(currentSection)) headerColor = color;
+              }
+          }
+          return false;
+      }
+
+      public Color getFoundAccentColor() { return foundAccentColor; }
+      public Color getFallbackColor() { return selectionColor != null ? selectionColor : headerColor; }
+
+      private boolean isSectionHeader(String line) {
+          return line.startsWith("[") && line.endsWith("]");
+      }
+
+      private Color checkKdeLine(String section, String line) {
+          String[] parts = line.split("=", 2);
+          String key = parts[0].trim();
+          String value = parts[1].trim();
+
+          if ("[General]".equals(section) && "AccentColor".equals(key)) {
+              return parseKdeRgb(value);
+          }
+          if ("[Colors:Selection]".equals(section) && "BackgroundNormal".equals(key)) {
+              return parseKdeRgb(value);
+          }
+          if ("[Colors:Header]".equals(section) && "BackgroundNormal".equals(key)) {
+              return parseKdeRgb(value);
+          }
+          return null;
+      }
+
+      private Color parseKdeRgb(String value) {
+          try {
+              String[] components = value.split(",");
+              if (components.length >= 3) {
+                  int r = Integer.parseInt(components[0].trim());
+                  int g = Integer.parseInt(components[1].trim());
+                  int b = Integer.parseInt(components[2].trim());
+                  return Color.rgb(r, g, b);
+              }
+          } catch (Exception e) {
+              // ignore
+          }
+          return null;
+      }
   }
 
   // ==========================================
