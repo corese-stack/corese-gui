@@ -5,8 +5,12 @@ import fr.inria.corese.demo.controller.NavigationBarController;
 import fr.inria.corese.demo.manager.ViewManager;
 import fr.inria.corese.demo.view.MainView;
 import fr.inria.corese.demo.view.utils.ThemeManager;
+import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javafx.application.Application;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
 /**
@@ -16,6 +20,8 @@ import javafx.stage.Stage;
  * controller.
  */
 public final class App extends Application {
+
+  private static final Logger LOGGER = Logger.getLogger(App.class.getName());
 
   @Override
   public void start(Stage primaryStage) {
@@ -35,6 +41,19 @@ public final class App extends Application {
         new Scene(mainView.getRoot(), AppConstants.DEFAULT_WIDTH, AppConstants.DEFAULT_HEIGHT);
     // === Configure stage ===
     primaryStage.setTitle(AppConstants.APP_TITLE);
+    
+    // Set application icon
+    try {
+        Image icon = new Image(Objects.requireNonNull(
+            getClass().getResourceAsStream("/images/corese-gui-logo.png"), 
+            "Application icon not found"
+        ));
+        primaryStage.getIcons().add(icon);
+    } catch (Exception e) {
+        // Log but don't crash if icon fails
+        LOGGER.log(Level.WARNING, "Failed to load application icon", e);
+    }
+
     primaryStage.setScene(scene);
     primaryStage.show();
   }
