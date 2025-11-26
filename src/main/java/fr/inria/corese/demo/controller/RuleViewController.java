@@ -4,13 +4,12 @@ import fr.inria.corese.demo.factory.popup.IPopup;
 import fr.inria.corese.demo.factory.popup.PopupFactory;
 import fr.inria.corese.demo.factory.popup.WarningPopup;
 import fr.inria.corese.demo.manager.RuleManager;
+import fr.inria.corese.demo.view.RuleView;
 import fr.inria.corese.demo.view.rule.RuleItem;
 import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javafx.fxml.FXML;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
@@ -25,6 +24,7 @@ public class RuleViewController {
   private static final Logger logger = LoggerFactory.getLogger(RuleViewController.class);
 
   private RuleManager ruleManager;
+  private final RuleView view;
 
   private final PopupFactory popupFactory;
   private final Map<String, RuleItem> ruleItems;
@@ -33,16 +33,12 @@ public class RuleViewController {
   private Runnable onRuleToggled;
   private DataViewController parentController;
 
-  // FXML bindings
-  @FXML private VBox rdfsRulesContainer;
-  @FXML private VBox owlRulesContainer;
-  @FXML private VBox customRulesContainer;
-  @FXML private Button loadRuleButton;
-
   /** Constructor for the rule view controller. It no longer creates its own managers. */
-  public RuleViewController() {
+  public RuleViewController(RuleView view) {
+    this.view = view;
     this.ruleItems = new HashMap<>();
     this.popupFactory = PopupFactory.getInstance();
+    initialize();
   }
 
   /**
@@ -59,17 +55,16 @@ public class RuleViewController {
     this.parentController = parentController;
   }
 
-  @FXML
-  public void initialize() {
-    if (customRulesContainer != null) {
+  private void initialize() {
+    if (view.getCustomRulesContainer() != null) {
       Label noRulesLabel = new Label("No custom rules loaded");
       noRulesLabel.setStyle("-fx-font-style: italic; -fx-text-fill: #888888;");
-      customRulesContainer.getChildren().clear();
-      customRulesContainer.getChildren().add(noRulesLabel);
+      view.getCustomRulesContainer().getChildren().clear();
+      view.getCustomRulesContainer().getChildren().add(noRulesLabel);
     }
 
-    if (loadRuleButton != null) {
-      loadRuleButton.setOnAction(e -> handleLoadRuleFile());
+    if (view.getLoadRuleButton() != null) {
+      view.getLoadRuleButton().setOnAction(e -> handleLoadRuleFile());
     }
   }
 
@@ -85,19 +80,19 @@ public class RuleViewController {
       return;
     }
 
-    if (rdfsRulesContainer != null && owlRulesContainer != null) {
-      rdfsRulesContainer.getChildren().clear();
-      owlRulesContainer.getChildren().clear();
+    if (view.getRdfsRulesContainer() != null && view.getOwlRulesContainer() != null) {
+      view.getRdfsRulesContainer().getChildren().clear();
+      view.getOwlRulesContainer().getChildren().clear();
 
       // RDFS rules
-      addRuleItem(rdfsRulesContainer, "RDFS Subset");
-      addRuleItem(rdfsRulesContainer, "RDFS RL");
+      addRuleItem(view.getRdfsRulesContainer(), "RDFS Subset");
+      addRuleItem(view.getRdfsRulesContainer(), "RDFS RL");
 
       // OWL rules
-      addRuleItem(owlRulesContainer, "OWL RL");
-      addRuleItem(owlRulesContainer, "OWL RL Extended");
-      addRuleItem(owlRulesContainer, "OWL RL Test");
-      addRuleItem(owlRulesContainer, "OWL Clean");
+      addRuleItem(view.getOwlRulesContainer(), "OWL RL");
+      addRuleItem(view.getOwlRulesContainer(), "OWL RL Extended");
+      addRuleItem(view.getOwlRulesContainer(), "OWL RL Test");
+      addRuleItem(view.getOwlRulesContainer(), "OWL Clean");
 
       rulesInitialized = true;
     }
@@ -145,7 +140,6 @@ public class RuleViewController {
   }
 
   /** Opens a FileChooser to load a custom .rul file. */
-  @FXML
   public void handleLoadRuleFile() {
     if (this.ruleManager == null) {
       logger.error("Cannot load rule file: RuleManager is not initialized.");
@@ -156,7 +150,7 @@ public class RuleViewController {
     fileChooser
         .getExtensionFilters()
         .add(new FileChooser.ExtensionFilter("Rule files (*.rul)", "*.rul"));
-    File selectedFile = fileChooser.showOpenDialog(loadRuleButton.getScene().getWindow());
+    File selectedFile = fileChooser.showOpenDialog(view.getLoadRuleButton().getScene().getWindow());
 
     if (selectedFile != null) {
       try {
@@ -192,9 +186,7 @@ public class RuleViewController {
       case "OWL RL Extended" -> ruleManager.setOWLRLExtendedEnabled(isSelected);
       case "OWL RL Test" -> ruleManager.setOWLRLTestEnabled(isSelected);
       case "OWL Clean" -> ruleManager.setOWLCleanEnabled(isSelected);
-      default -> {
-        ruleManager.setCustomRuleEnabled(ruleName, isSelected);
-      }
+      default -> ruleManager.setCustomRuleEnabled(ruleName, isSelected);
     }
 
     if (onRuleToggled != null) {
@@ -211,15 +203,15 @@ public class RuleViewController {
 
   /** Clears and re-populates the list of custom rules in the UI. */
   private void displayCustomRules() {
-    if (customRulesContainer == null) return;
-    customRulesContainer.getChildren().clear();
+    if (view.getCustomRulesContainer() == null) return;
+    view.getCustomRulesContainer().getChildren().clear();
 
     List<File> customRules = ruleManager.getLoadedRuleFiles();
 
     if (customRules.isEmpty()) {
       Label noRulesLabel = new Label("No custom rules loaded");
       noRulesLabel.setStyle("-fx-font-style: italic; -fx-text-fill: #888888;");
-      customRulesContainer.getChildren().add(noRulesLabel);
+      view.getCustomRulesContainer().getChildren().add(noRulesLabel);
     } else {
       for (File ruleFile : customRules) {
         String ruleName = ruleFile.getName();
@@ -231,7 +223,7 @@ public class RuleViewController {
             .getCheckBox()
             .setOnAction(e -> handleRuleToggle(ruleName, ruleItem.getCheckBox().isSelected()));
 
-        customRulesContainer.getChildren().add(ruleItem);
+        view.getCustomRulesContainer().getChildren().add(ruleItem);
       }
     }
   }
@@ -240,3 +232,4 @@ public class RuleViewController {
     this.onRuleToggled = onRuleToggled;
   }
 }
+

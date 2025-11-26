@@ -1,5 +1,6 @@
 package fr.inria.corese.demo.view;
 
+import fr.inria.corese.demo.controller.DataViewController;
 import fr.inria.corese.demo.view.base.AbstractView;
 import java.util.function.Supplier;
 
@@ -33,12 +34,17 @@ import java.util.function.Supplier;
  */
 public enum ViewId {
 
-  // ====== Defined Application Views ==========================================
+    // ====== Defined Application Views ==========================================
 
   /** View displaying dataset loading and management features. */
-  DATA("data-view", "/fr/inria/corese/demo/data-view.fxml", null),
+  DATA("data-view", null, () -> {
+    DataView view = new DataView();
+    new DataViewController(view);
+    return view;
+  }),
 
   /** View for writing and executing SPARQL queries. */
+
   QUERY("query-view", "/fr/inria/corese/demo/query-view.fxml", null),
 
   /** View for validating RDF data (e.g., SHACL). */

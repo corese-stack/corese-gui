@@ -52,4 +52,20 @@ public class ProjectStatisticsView extends VBox {
   private void setupLayout() {
     getChildren().addAll(semanticElementsLabel, tripletLabel, graphLabel, rulesLoadedLabel);
   }
+
+  public void setSemanticElementsCount(int count) {
+    semanticElementsLabel.setText("Number of semantic elements loaded: " + count);
+  }
+
+  public void setTripletCount(int count) {
+    tripletLabel.setText("Number of triplet: " + count);
+  }
+
+  public void setGraphCount(int count) {
+    graphLabel.setText("Number of graph: " + count);
+  }
+
+  public void setRulesLoadedCount(int count) {
+    rulesLoadedLabel.setText("Number of rules loaded: " + count);
+  }
 }

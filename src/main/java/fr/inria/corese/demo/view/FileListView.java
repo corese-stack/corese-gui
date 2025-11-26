@@ -4,11 +4,9 @@ import fr.inria.corese.demo.enums.icon.IconButtonType;
 import fr.inria.corese.demo.model.fileList.FileItem;
 import fr.inria.corese.demo.model.fileList.FileListModel;
 import fr.inria.corese.demo.view.icon.IconButtonView;
-import java.io.IOException;
 import java.util.function.Consumer;
 import javafx.beans.binding.Bindings;
-import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -36,15 +34,14 @@ import javafx.scene.layout.VBox;
  * @since 2025
  */
 public class FileListView extends VBox {
-  private FileListModel model;
   private Consumer<FileItem> onRemoveAction;
   private EmptyStateView emptyStateView;
   private Button clearButton;
   private Button reloadButton;
   private Button loadButton;
 
-  @FXML private ListView<FileItem> fileList;
-  @FXML private FlowPane buttonContainer;
+  private ListView<FileItem> fileList;
+  private FlowPane buttonContainer;
 
   /**
    * Constructeur par défaut.
@@ -52,29 +49,19 @@ public class FileListView extends VBox {
    * <p>Initialise : - Chargement du FXML - Configuration des boutons d'icônes
    */
   public FileListView() {
-    loadFxml();
+    initializeLayout();
     setupIconButtons();
   }
 
   /**
-   * Charge la vue à partir d'un fichier FXML.
-   *
-   * <p>Gère : - Le chargement du fichier FXML - La configuration de la vue de liste - La
-   * configuration de l'état vide
+   * Charge la vue.
    */
-  private void loadFxml() {
-    try {
-      FXMLLoader loader =
-          new FXMLLoader(getClass().getResource("/fr/inria/corese/demo/fileList-view.fxml"));
-      loader.setRoot(this);
-      loader.setController(this);
-      loader.load();
-      setupListView();
-      setupEmptyState();
-
-    } catch (IOException e) {
-      throw new RuntimeException("Impossible de charger FileListView.fxml", e);
-    }
+  private void initializeLayout() {
+    fileList = new ListView<>();
+    buttonContainer = new FlowPane();
+    
+    setupListView();
+    setupEmptyState();
   }
 
   /**
@@ -89,11 +76,14 @@ public class FileListView extends VBox {
     clearButton = new IconButtonView(IconButtonType.DELETE);
 
     // Ajouter les boutons au conteneur vertical dans l'ordre souhaité
+    buttonContainer.setOrientation(javafx.geometry.Orientation.VERTICAL);
+    buttonContainer.setVgap(5);
+    buttonContainer.setAlignment(Pos.TOP_LEFT);
+    buttonContainer.setPrefWidth(40);
+    buttonContainer.setPadding(new Insets(5, 5, 0, 0));
+    
     buttonContainer.getChildren().clear();
     buttonContainer.getChildren().addAll(loadButton, reloadButton, clearButton);
-
-    // S'assurer que les boutons sont bien alignés en haut à gauche
-    buttonContainer.setAlignment(Pos.TOP_LEFT);
   }
 
   /**
@@ -114,7 +104,6 @@ public class FileListView extends VBox {
    * @param model Le modèle de liste de fichiers à associer
    */
   public void setModel(FileListModel model) {
-    this.model = model;
     if (model != null && fileList != null) {
       fileList.setItems(model.getFiles());
       emptyStateView.visibleProperty().bind(Bindings.isEmpty(model.getFiles()));
@@ -142,27 +131,18 @@ public class FileListView extends VBox {
     // Create a StackPane to hold both the ListView and empty state
     StackPane contentContainer = new StackPane();
 
-    // Get the current fileList from the FXML
-    if (fileList != null) {
-      // Remove the ListView from its current parent (maintenant un HBox)
-      HBox parent = (HBox) fileList.getParent();
-      int index = parent.getChildren().indexOf(fileList);
-      parent.getChildren().remove(fileList);
+    // Add both to the stack pane, with the ListView ALWAYS visible
+    contentContainer.getChildren().addAll(fileList, emptyStateView);
+    HBox.setHgrow(contentContainer, Priority.ALWAYS);
 
-      // Add both to the stack pane, with the ListView ALWAYS visible
-      contentContainer.getChildren().addAll(fileList, emptyStateView);
+    // Assurez-vous que le conteneur a les mêmes styles que fileList pour l'encadré
+    contentContainer.getStyleClass().add("list-view-container");
 
-      // Add the stack pane to the parent at the same position
-      parent.getChildren().add(index, contentContainer);
-      HBox.setHgrow(contentContainer, Priority.ALWAYS);
-
-      // Assurez-vous que le conteneur a les mêmes styles que fileList pour l'encadré
-      contentContainer.getStyleClass().add("list-view-container");
-    } else {
-      // Si fileList est toujours null
-      getChildren().add(0, contentContainer);
-      VBox.setVgrow(contentContainer, Priority.ALWAYS);
-    }
+    HBox mainContainer = new HBox();
+    VBox.setVgrow(mainContainer, Priority.ALWAYS);
+    mainContainer.getChildren().addAll(buttonContainer, contentContainer);
+    
+    getChildren().add(mainContainer);
 
     // Initially hide the empty state until model is set
     emptyStateView.setVisible(false);

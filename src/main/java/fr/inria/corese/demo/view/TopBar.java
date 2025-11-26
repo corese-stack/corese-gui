@@ -2,14 +2,15 @@ package fr.inria.corese.demo.view;
 
 import fr.inria.corese.demo.enums.icon.IconButtonType;
 import fr.inria.corese.demo.view.icon.IconButtonView;
-import java.io.IOException;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 
 /**
  * Barre supérieure de navigation et d'actions dans l'interface utilisateur.
@@ -26,8 +27,8 @@ import javafx.scene.layout.HBox;
  */
 public class TopBar extends HBox {
 
-  @FXML private HBox leftButtonsContainer;
-  @FXML private HBox rightButtonsContainer;
+  private HBox leftButtonsContainer;
+  private HBox rightButtonsContainer;
 
   private final Map<IconButtonType, IconButtonView> buttons;
 
@@ -38,25 +39,29 @@ public class TopBar extends HBox {
    * barre supérieure
    */
   public TopBar() {
-    this.buttons = new HashMap<>();
-    loadFxml();
+    this.buttons = new EnumMap<>(IconButtonType.class);
+    initializeLayout();
     getStyleClass().add("top-bar");
   }
 
   /**
-   * Charge l'interface à partir d'un fichier FXML.
-   *
-   * <p>Gère le chargement et les erreurs potentielles.
+   * Charge l'interface.
    */
-  private void loadFxml() {
-    FXMLLoader loader = new FXMLLoader(getClass().getResource("/fr/inria/corese/demo/topbar.fxml"));
-    loader.setRoot(this);
-    loader.setController(this);
-    try {
-      loader.load();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+  private void initializeLayout() {
+    setSpacing(0);
+
+    leftButtonsContainer = new HBox(2);
+    leftButtonsContainer.setAlignment(Pos.CENTER_LEFT);
+    leftButtonsContainer.setPadding(new Insets(0, 0, 0, 5));
+
+    Region spacer = new Region();
+    HBox.setHgrow(spacer, Priority.ALWAYS);
+
+    rightButtonsContainer = new HBox(2);
+    rightButtonsContainer.setAlignment(Pos.CENTER_RIGHT);
+    rightButtonsContainer.setPadding(new Insets(0, 5, 0, 0));
+
+    getChildren().addAll(leftButtonsContainer, spacer, rightButtonsContainer);
   }
 
   /**
