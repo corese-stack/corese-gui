@@ -40,7 +40,9 @@ public final class App extends Application {
     Scene scene =
         new Scene(mainView.getRoot(), AppConstants.DEFAULT_WIDTH, AppConstants.DEFAULT_HEIGHT);
     // === Configure stage ===
-    primaryStage.setTitle(AppConstants.APP_TITLE);
+    primaryStage.setTitle(AppConstants.APP_TITLE + " — " + AppConstants.APP_VERSION);
+    primaryStage.setMinWidth(AppConstants.MIN_WIDTH);
+    primaryStage.setMinHeight(AppConstants.MIN_HEIGHT);
     
     // Set application icon
     try {

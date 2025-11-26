@@ -1,18 +1,18 @@
 package fr.inria.corese.demo.view;
 
+import atlantafx.base.controls.Tile;
+import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
 import fr.inria.corese.demo.AppConstants;
 import fr.inria.corese.demo.controller.SettingsController;
 import fr.inria.corese.demo.model.SettingsModel;
 import fr.inria.corese.demo.view.base.AbstractView;
 import fr.inria.corese.demo.view.utils.BrowserUtils;
-import javafx.scene.Node;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.slf4j.Logger;
@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
  * Settings view for configuring application preferences.
  *
  * <p>This view follows the MVC pattern:
+ *
  * <ul>
  *   <li><b>Model:</b> {@link SettingsModel} - stores settings data
  *   <li><b>View:</b> This class - displays UI
@@ -39,15 +40,15 @@ public final class SettingsView extends AbstractView {
 
   // ===== UI Components =====
   private ComboBox<String> themeComboBox;
-  private ToggleButton lightBtn;
-  private ToggleButton darkBtn;
-  private HBox colorSelectionBox;
+  private ToggleButton lightModeButton;
+  private ToggleButton darkModeButton;
+  private ColorPicker accentColorPicker;
 
   // ===== Constructor =====
 
   public SettingsView() {
     super(new ScrollPane(), STYLESHEET_PATH);
-    
+
     this.model = new SettingsModel();
     this.controller = new SettingsController(model);
 
@@ -60,30 +61,27 @@ public final class SettingsView extends AbstractView {
 
   private void initializeLayout() {
     ScrollPane scrollPane = (ScrollPane) getRoot();
-    scrollPane.getStyleClass().add("settings-scroll-pane");
     scrollPane.setFitToWidth(true);
 
     VBox content = new VBox();
     content.getStyleClass().add("settings-content");
 
-    content.getChildren().addAll(
-        createAppearanceSection(),
-        createAboutSection()
-    );
-    
+    content.getChildren().addAll(createAppearanceSection(), createAboutSection());
+
     scrollPane.setContent(content);
   }
 
   private void setupBindings() {
-    model.themeProperty().addListener((obs, oldTheme, newTheme) -> {
-      if (newTheme != null) updateThemeSelection();
-    });
+    model
+        .themeProperty()
+        .addListener(
+            (obs, oldTheme, newTheme) -> {
+              if (newTheme != null) updateThemeSelection();
+            });
 
-    model.accentColorProperty().addListener((obs, oldColor, newColor) -> {
-      if (newColor != null) updateAccentColorSelection();
-    });
-    
-    model.useSystemThemeProperty().addListener((obs, oldValue, newValue) -> updateControlsDisabledState());
+    model
+        .useSystemThemeProperty()
+        .addListener((obs, oldValue, newValue) -> updateControlsDisabledState());
   }
 
   // ===== Appearance Section =====
@@ -95,58 +93,64 @@ public final class SettingsView extends AbstractView {
     Label sectionTitle = new Label("Appearance");
     sectionTitle.getStyleClass().add(Styles.TITLE_3);
 
-    // System Theme Checkbox
-    CheckBox systemThemeCheckBox = new CheckBox("Use system theme and accent color");
-    systemThemeCheckBox.getStyleClass().add("system-theme-checkbox");
-    systemThemeCheckBox.selectedProperty().bindBidirectional(model.useSystemThemeProperty());
+    // System Theme Tile
+    Tile systemThemeTile = new Tile("System Theme", "Use system theme and accent color");
+    ToggleSwitch systemThemeSwitch = new ToggleSwitch();
+    systemThemeSwitch.selectedProperty().bindBidirectional(model.useSystemThemeProperty());
+    systemThemeTile.setAction(systemThemeSwitch);
 
-    // Theme Selection
-    VBox themeBox = createThemeControl();
-    
-    // Accent Color Selection
-    VBox accentBox = createAccentColorControl();
-
-    section.getChildren().addAll(sectionTitle, systemThemeCheckBox, themeBox, accentBox);
-    return section;
-  }
-
-  private VBox createThemeControl() {
-    VBox container = new VBox();
-    container.getStyleClass().add("theme-control-container");
-
-    Label label = new Label("Theme");
-    label.getStyleClass().add("control-label");
-
-    HBox controls = new HBox();
-    controls.getStyleClass().add("theme-controls-row");
+    // Theme Tile
+    Tile themeTile = new Tile("Theme", "Select application interface theme");
 
     themeComboBox = new ComboBox<>();
-    themeComboBox.getStyleClass().add("theme-combo-box");
     themeComboBox.getItems().addAll(controller.getBaseThemes());
     themeComboBox.setOnAction(e -> handleThemeChange());
 
-    // Variant Buttons
-    lightBtn = createVariantButton(Feather.SUN, "Light mode", false);
-    darkBtn = createVariantButton(Feather.MOON, "Dark mode", true);
+    // Mode Toggle Group
+    ToggleGroup modeGroup = new ToggleGroup();
 
-    ToggleGroup variantGroup = new ToggleGroup();
-    lightBtn.setToggleGroup(variantGroup);
-    darkBtn.setToggleGroup(variantGroup);
+    lightModeButton = new ToggleButton(null, new FontIcon(Feather.SUN));
+    lightModeButton.getStyleClass().addAll(Styles.LEFT_PILL);
+    lightModeButton.setToggleGroup(modeGroup);
+    lightModeButton.setOnAction(
+        e -> {
+          if (lightModeButton.isSelected()) switchThemeVariant(false);
+        });
+
+    darkModeButton = new ToggleButton(null, new FontIcon(Feather.MOON));
+    darkModeButton.getStyleClass().addAll(Styles.RIGHT_PILL);
+    darkModeButton.setToggleGroup(modeGroup);
+    darkModeButton.setOnAction(
+        e -> {
+          if (darkModeButton.isSelected()) switchThemeVariant(true);
+        });
+
+    // Enforce selection
+    modeGroup
+        .selectedToggleProperty()
+        .addListener(
+            (obs, oldVal, newVal) -> {
+              if (newVal == null) oldVal.setSelected(true);
+            });
 
     updateThemeSelection();
 
-    controls.getChildren().addAll(themeComboBox, lightBtn, darkBtn);
-    container.getChildren().addAll(label, controls);
-    return container;
-  }
+    HBox modeBox = new HBox(lightModeButton, darkModeButton);
+    modeBox.setAlignment(Pos.CENTER_LEFT);
 
-  private ToggleButton createVariantButton(Feather icon, String tooltip, boolean isDark) {
-    ToggleButton btn = new ToggleButton();
-    btn.setGraphic(new FontIcon(icon));
-    btn.getStyleClass().addAll("theme-variant-button", Styles.BUTTON_ICON);
-    btn.setTooltip(new Tooltip(tooltip));
-    btn.setOnAction(e -> switchThemeVariant(isDark));
-    return btn;
+    HBox themeActions = new HBox(15, themeComboBox, modeBox);
+    themeActions.setAlignment(Pos.CENTER_RIGHT);
+    themeTile.setAction(themeActions);
+
+    // Accent Color Tile
+    Tile accentColorTile = new Tile("Accent Color", "Choose your preferred accent color");
+
+    accentColorPicker = new ColorPicker();
+    accentColorPicker.valueProperty().bindBidirectional(model.accentColorProperty());
+    accentColorTile.setAction(accentColorPicker);
+
+    section.getChildren().addAll(sectionTitle, systemThemeTile, themeTile, accentColorTile);
+    return section;
   }
 
   private void switchThemeVariant(boolean isDark) {
@@ -155,102 +159,6 @@ public final class SettingsView extends AbstractView {
 
     String newTheme = baseName + (isDark ? " Dark" : " Light");
     controller.applyThemeByName(newTheme);
-  }
-
-  private VBox createAccentColorControl() {
-    VBox container = new VBox();
-    container.getStyleClass().add("accent-color-control");
-
-    Label label = new Label("Accent Color");
-    label.getStyleClass().add("control-label");
-
-    HBox colorsRow = new HBox();
-    colorsRow.getStyleClass().add("color-selection-box");
-    colorSelectionBox = colorsRow;
-
-    for (Color color : AppConstants.getAccentColors()) {
-      colorsRow.getChildren().add(createColorButton(color));
-    }
-
-    colorsRow.getChildren().add(createCustomColorPickerButton());
-
-    container.getChildren().addAll(label, colorsRow);
-    return container;
-  }
-
-  private Button createColorButton(Color color) {
-    Button btn = new Button();
-    btn.getStyleClass().add("color-button");
-    
-    Circle circle = new Circle(10, color);
-    circle.getStyleClass().add("color-circle");
-    btn.setGraphic(circle);
-
-    if (color.equals(model.getAccentColor())) {
-      btn.getStyleClass().add("selected");
-    }
-
-    btn.setOnAction(e -> applyAccentColor(color));
-    return btn;
-  }
-
-  private void applyAccentColor(Color color) {
-    model.setAccentColor(color);
-  }
-
-  private void updateAccentColorSelection() {
-    Color color = model.getAccentColor();
-    if (color == null) return;
-    
-    boolean isPreset = isPresetColor(color);
-    
-    for (Node node : colorSelectionBox.getChildren()) {
-        updateColorNodeSelection(node, color, isPreset);
-    }
-  }
-
-  private boolean isPresetColor(Color color) {
-    for (Color c : AppConstants.getAccentColors()) {
-        if (c.equals(color)) return true;
-    }
-    return false;
-  }
-
-  private void updateColorNodeSelection(Node node, Color targetColor, boolean isPreset) {
-    node.getStyleClass().remove("selected");
-    
-    if (node instanceof Button btn && btn.getGraphic() instanceof Circle circle) {
-        if (circle.getFill().equals(targetColor)) {
-            btn.getStyleClass().add("selected");
-        }
-    } else if (node instanceof ColorPicker picker && !isPreset) {
-        picker.getStyleClass().add("selected");
-        if (!targetColor.equals(picker.getValue())) {
-            picker.setValue(targetColor);
-        }
-    }
-  }
-
-  private Node createCustomColorPickerButton() {
-    ColorPicker picker = new ColorPicker(model.getAccentColor());
-    picker.getStyleClass().addAll(Styles.BUTTON_ICON, "custom-color-button");
-    
-    picker.setOnAction(e -> {
-      Color selectedColor = picker.getValue();
-      if (selectedColor != null) {
-        applyAccentColor(selectedColor);
-      }
-    });
-    
-    return picker;
-  }
-
-  private void handleThemeChange() {
-    String baseName = themeComboBox.getValue();
-    if (baseName == null) return;
-
-    boolean isDark = darkBtn.isSelected();
-    controller.applyTheme(baseName, isDark);
   }
 
   private void updateThemeSelection() {
@@ -264,28 +172,23 @@ public final class SettingsView extends AbstractView {
       themeComboBox.setValue(baseName);
     }
 
-    if (isDark) darkBtn.setSelected(true);
-    else lightBtn.setSelected(true);
-    
+    if (isDark) {
+      if (!darkModeButton.isSelected()) darkModeButton.setSelected(true);
+    } else {
+      if (!lightModeButton.isSelected()) lightModeButton.setSelected(true);
+    }
+
     boolean shouldDisable = model.isUseSystemTheme();
-    
-    lightBtn.setDisable(shouldDisable);
-    darkBtn.setDisable(shouldDisable);
+    lightModeButton.setDisable(shouldDisable);
+    darkModeButton.setDisable(shouldDisable);
   }
 
   private void updateControlsDisabledState() {
     boolean disable = model.isUseSystemTheme();
     themeComboBox.setDisable(disable);
-    colorSelectionBox.setDisable(disable);
-    
-    if (disable) {
-        colorSelectionBox.getChildren().forEach(node -> node.getStyleClass().remove("selected"));
-    } else {
-        updateAccentColorSelection();
-    }
-    
-    lightBtn.setDisable(disable);
-    darkBtn.setDisable(disable);
+    accentColorPicker.setDisable(disable);
+    lightModeButton.setDisable(disable);
+    darkModeButton.setDisable(disable);
   }
 
   // ===== About Section =====
@@ -297,68 +200,60 @@ public final class SettingsView extends AbstractView {
     Label sectionTitle = new Label("About");
     sectionTitle.getStyleClass().add(Styles.TITLE_3);
 
-    HBox appInfoBox = new HBox();
-    appInfoBox.getStyleClass().add("app-info-box");
+    Tile aboutTile = new Tile(AppConstants.APP_NAME, "Version " + AppConstants.APP_VERSION);
+    aboutTile.setGraphic(createLogo());
 
-    ImageView coreseLogo = createLogo();
-
-    VBox infoBox = new VBox();
-    infoBox.getStyleClass().add("app-info-text");
-    
-    Label appNameLabel = new Label(AppConstants.APP_NAME);
-    appNameLabel.getStyleClass().add("app-name");
-
-    Label versionLabel = new Label("Version " + AppConstants.APP_VERSION);
-    versionLabel.getStyleClass().add("app-version");
-
-    infoBox.getChildren().addAll(appNameLabel, versionLabel);
-    appInfoBox.getChildren().addAll(coreseLogo, infoBox);
-
-    VBox linksBox = new VBox();
-    linksBox.getStyleClass().add("links-container");
-
-    HBox linksRow = new HBox();
-    linksRow.getStyleClass().add("links-row");
-
-    linksRow.getChildren().addAll(
+    HBox linksBox = new HBox(10);
+    linksBox.setAlignment(Pos.CENTER_RIGHT);
+    linksBox.getChildren().addAll(
         createLinkButton("Website", AppConstants.WEBSITE_URL, Feather.GLOBE),
         createLinkButton("GitHub", AppConstants.GITHUB_URL, Feather.GITHUB),
         createLinkButton("Issues", AppConstants.ISSUES_URL, Feather.ALERT_CIRCLE),
         createLinkButton("Forum", AppConstants.FORUM_URL, Feather.MESSAGE_CIRCLE)
     );
     
-    linksBox.getChildren().add(linksRow);
+    aboutTile.setAction(linksBox);
 
-    section.getChildren().addAll(sectionTitle, appInfoBox, linksBox);
+    section.getChildren().addAll(sectionTitle, aboutTile);
     return section;
   }
 
   private ImageView createLogo() {
     ImageView coreseLogo = new ImageView();
-    coreseLogo.getStyleClass().add("app-logo");
     coreseLogo.setFitWidth(64);
     coreseLogo.setFitHeight(64);
     coreseLogo.setPreserveRatio(true);
-    
+    coreseLogo.setEffect(new javafx.scene.effect.DropShadow(10, javafx.scene.paint.Color.rgb(0, 0, 0, 0.15)));
+
     try {
       Image logoImage = new Image(getClass().getResourceAsStream("/images/corese-gui-logo.png"));
       coreseLogo.setImage(logoImage);
     } catch (Exception e) {
       LOGGER.warn("Failed to load logo", e);
     }
-    
+
     return coreseLogo;
   }
 
   private Button createLinkButton(String text, String url, Feather icon) {
-    Button button = new Button(text);
-    button.getStyleClass().addAll("link-button", Styles.BUTTON_OUTLINED);
-    button.setGraphic(new FontIcon(icon));
+    Button button = new Button(text, new FontIcon(icon));
+    button.getStyleClass().addAll(Styles.BUTTON_OUTLINED);
     button.setOnAction(e -> openURL(url));
     return button;
   }
 
   private void openURL(String url) {
     BrowserUtils.openUrl(url);
+  }
+
+  private void handleThemeChange() {
+    String baseName = themeComboBox.getValue();
+    if (baseName == null) return;
+
+    // Preserve current darkness state when changing base theme
+    String currentTheme = controller.getCurrentThemeName();
+    boolean isDark = currentTheme != null && controller.isDarkTheme(currentTheme);
+
+    controller.applyTheme(baseName, isDark);
   }
 }
