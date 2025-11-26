@@ -140,15 +140,15 @@ public final class SystemThemeDetector {
       try {
         int index = Integer.parseInt(result.trim());
         return switch (index) {
-          case -1 -> Color.web("#007AFF"); // Graphite (Standard Blue)
-          case 0 -> Color.web("#FF3B30"); // Red
-          case 1 -> Color.web("#FF9500"); // Orange
-          case 2 -> Color.web("#FFCC00"); // Yellow
-          case 3 -> Color.web("#34C759"); // Green
-          case 4 -> Color.web("#007AFF"); // Blue
-          case 5 -> Color.web("#5856D6"); // Purple
-          case 6 -> Color.web("#FF2D55"); // Pink
-          default -> Color.web("#007AFF");
+          case -1 -> Color.web("#989898"); // Graphite (Standard Gray)
+          case 0 -> Color.web("#E1383D"); // Red
+          case 1 -> Color.web("#F1831E"); // Orange
+          case 2 -> Color.web("#FEC726"); // Yellow
+          case 3 -> Color.web("#61BA46"); // Green
+          case 4 -> Color.web("#027AFE"); // Blue
+          case 5 -> Color.web("#963D96"); // Purple
+          case 6 -> Color.web("#F54F9E"); // Pink
+          default -> Color.web("#027AFE");
         };
       } catch (NumberFormatException e) {
         LOGGER.warn("Failed to parse macOS accent color index: {}", result);
