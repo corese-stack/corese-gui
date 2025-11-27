@@ -9,66 +9,55 @@ import fr.inria.corese.demo.manager.QueryManager;
 import fr.inria.corese.demo.model.ValidationModel;
 import fr.inria.corese.demo.view.CustomButton;
 import fr.inria.corese.demo.view.EmptyStateViewFactory;
-import fr.inria.corese.demo.view.TopBar;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import fr.inria.corese.demo.view.ValidationView;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
-import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
-import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ValidationViewController {
   private static final Logger logger = LoggerFactory.getLogger(ValidationViewController.class);
 
-  // --- FXML Fields ---
-  @FXML private BorderPane mainBorderPane;
-  @FXML private SplitPane mainSplitPane;
-  @FXML private StackPane editorContainer;
-  @FXML private SplitPane resultsSplitPane;
-  @FXML private TopBar topBar;
-  @FXML private TabPane resultsTabPane;
-  @FXML private Tab tableTab;
-  @FXML private Tab graphTab;
-  @FXML private Tab textTab;
-
+  private final ValidationView view;
+  private final ValidationModel validationModel;
+  private final GraphManager graphManager;
+  
   private TabEditorController tabEditorController;
-  private final ValidationModel validationModel = new ValidationModel();
-  private final GraphManager graphManager = GraphManager.getInstance();
+  private ResultsPaneController resultsPaneController;
   private Node emptyStateView;
   private Graph lastReportGraph;
-
-  private ResultsPaneController resultsPaneController;
 
   private static final List<String> REPORT_FORMATS =
       List.of("TURTLE", "RDF/XML", "JSON-LD", "N-TRIPLES", "N-QUADS", "TRIG");
 
-  @FXML
-  public void initialize() {
-    checkFXMLInjections();
+  public ValidationViewController(ValidationView view) {
+    this.view = view;
+    this.validationModel = new ValidationModel();
+    this.graphManager = GraphManager.getInstance();
+    initialize();
+  }
+
+  private void initialize() {
     try {
       resultsPaneController = new ResultsPaneController();
-      tableTab.setContent(resultsPaneController.getTableBox());
-      graphTab.setContent(resultsPaneController.getGraphView());
-      textTab.setContent(resultsPaneController.getTextViewBox());
+      view.getTableTab().setContent(resultsPaneController.getTableBox());
+      view.getGraphTab().setContent(resultsPaneController.getGraphView());
+      view.getTextTab().setContent(resultsPaneController.getTextViewBox());
 
-      tableTab.setDisable(true);
-      graphTab.setDisable(true);
-      textTab.setDisable(false);
-      resultsTabPane.getSelectionModel().select(textTab);
+      view.getTableTab().setDisable(true);
+      view.getGraphTab().setDisable(true);
+      view.getTextTab().setDisable(false);
+      view.getResultsTabPane().getSelectionModel().select(view.getTextTab());
 
       resultsPaneController
           .getTextFormatComboBox()
@@ -87,7 +76,7 @@ public class ValidationViewController {
       setupEmptyState();
 
     } catch (Exception e) {
-      e.printStackTrace();
+      logger.error("Error initializing ValidationViewController", e);
     }
   }
 
@@ -98,7 +87,7 @@ public class ValidationViewController {
     this.emptyStateView =
         EmptyStateViewFactory.createValidationEmptyStateView(newShapesAction, loadShapesAction);
 
-    editorContainer.getChildren().add(0, emptyStateView);
+    view.getEditorContainer().getChildren().add(0, emptyStateView);
     updateEmptyStateVisibility();
 
     tabEditorController
@@ -131,8 +120,8 @@ public class ValidationViewController {
 
   private void initializeTopBar() {
     List<IconButtonType> buttons = new ArrayList<>(List.of(IconButtonType.OPEN_FILE));
-    topBar.addLeftButtons(buttons);
-    topBar.getButton(IconButtonType.OPEN_FILE).setOnAction(e -> onOpenFilesButtonClick());
+    view.getTopBar().addLeftButtons(buttons);
+    view.getTopBar().getButton(IconButtonType.OPEN_FILE).setOnAction(e -> onOpenFilesButtonClick());
   }
 
   public void executeValidation() {
@@ -173,11 +162,11 @@ public class ValidationViewController {
                   validationModel.validate(dataGraph, shapesContent);
               Platform.runLater(
                   () -> {
-                    tableTab.setDisable(true);
-                    graphTab.setDisable(true);
-                    textTab.setDisable(false);
+                    view.getTableTab().setDisable(true);
+                    view.getGraphTab().setDisable(true);
+                    view.getTextTab().setDisable(false);
                     resultsPaneController.setTextFormats(REPORT_FORMATS, "TURTLE");
-                    resultsTabPane.getSelectionModel().select(textTab);
+                    view.getResultsTabPane().getSelectionModel().select(view.getTextTab());
 
                     if (result.getErrorMessage() != null) {
                       String errorMsg =
@@ -225,7 +214,7 @@ public class ValidationViewController {
     tabEditorController = new TabEditorController(IconButtonBarType.VALIDATION);
     tabEditorController.getView().setMaxWidth(Double.MAX_VALUE);
     tabEditorController.getView().setMaxHeight(Double.MAX_VALUE);
-    editorContainer.getChildren().add(tabEditorController.getView());
+    view.getEditorContainer().getChildren().add(tabEditorController.getView());
   }
 
   private void setupValidateButtonForEachTab() {
@@ -233,26 +222,30 @@ public class ValidationViewController {
         .getView()
         .getTabPane()
         .getTabs()
-        .addListener(
-            (ListChangeListener<Tab>)
-                c -> {
-                  while (c.next()) {
-                    if (c.wasAdded()) {
-                      for (Tab tab : c.getAddedSubList()) {
-                        if (tab != tabEditorController.getView().getAddTab()) {
-                          Platform.runLater(
-                              () -> {
-                                CodeEditorController controller =
-                                    tabEditorController.getModel().getControllerForTab(tab);
-                                if (controller != null) {
-                                  configureEditorValidateButton(controller);
-                                }
-                              });
-                        }
-                      }
-                    }
-                  }
-                });
+        .addListener(this::onTabsChanged);
+  }
+
+  private void onTabsChanged(ListChangeListener.Change<? extends Tab> c) {
+    while (c.next()) {
+      if (c.wasAdded()) {
+        handleAddedTabs(c.getAddedSubList());
+      }
+    }
+  }
+
+  private void handleAddedTabs(List<? extends Tab> addedTabs) {
+    for (Tab tab : addedTabs) {
+      if (tab != tabEditorController.getView().getAddTab()) {
+        Platform.runLater(() -> configureTab(tab));
+      }
+    }
+  }
+
+  private void configureTab(Tab tab) {
+    CodeEditorController controller = tabEditorController.getModel().getControllerForTab(tab);
+    if (controller != null) {
+      configureEditorValidateButton(controller);
+    }
   }
 
   private void configureEditorValidateButton(CodeEditorController controller) {
@@ -290,18 +283,5 @@ public class ValidationViewController {
     alert.setHeaderText(null);
     alert.setContentText(content);
     alert.showAndWait();
-  }
-
-  private void checkFXMLInjections() {
-    if (mainBorderPane == null
-        || mainSplitPane == null
-        || editorContainer == null
-        || topBar == null
-        || resultsTabPane == null
-        || tableTab == null
-        || graphTab == null
-        || textTab == null) {
-      logger.warn("One or more FXML fields in ValidationViewController were not injected.");
-    }
   }
 }

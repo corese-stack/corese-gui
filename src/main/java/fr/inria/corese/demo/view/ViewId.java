@@ -1,6 +1,7 @@
 package fr.inria.corese.demo.view;
 
 import fr.inria.corese.demo.controller.DataViewController;
+import fr.inria.corese.demo.controller.ValidationViewController;
 import fr.inria.corese.demo.view.base.AbstractView;
 import java.util.function.Supplier;
 
@@ -48,7 +49,11 @@ public enum ViewId {
   QUERY("query-view", "/fr/inria/corese/demo/query-view.fxml", null),
 
   /** View for validating RDF data (e.g., SHACL). */
-  VALIDATION("validation-view", "/fr/inria/corese/demo/validation-view.fxml", null),
+  VALIDATION("validation-view", null, () -> {
+    ValidationView view = new ValidationView();
+    new ValidationViewController(view);
+    return view;
+  }),
 
   /** View providing a text editor for RDF graph manipulation. */
   RDF_EDITOR("rdf-editor-view", "/fr/inria/corese/demo/rdf-editor-view.fxml", null),
