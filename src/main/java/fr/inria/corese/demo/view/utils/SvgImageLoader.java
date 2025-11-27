@@ -5,7 +5,6 @@ import com.github.weisj.jsvg.parser.SVGLoader;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.InputStream;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
 import org.slf4j.Logger;
@@ -27,16 +26,16 @@ public class SvgImageLoader {
    * @param height The desired height of the image.
    * @return A JavaFX Image containing the rendered SVG, or null if loading fails.
    */
-  @SuppressWarnings("deprecation")
   public static Image loadSvgImage(String resourcePath, double width, double height) {
-    try (InputStream is = SvgImageLoader.class.getResourceAsStream(resourcePath)) {
-      if (is == null) {
-        LOGGER.error("SVG resource not found: {}", resourcePath);
-        return null;
-      }
+    java.net.URL url = SvgImageLoader.class.getResource(resourcePath);
+    if (url == null) {
+      LOGGER.error("SVG resource not found: {}", resourcePath);
+      return null;
+    }
 
+    try {
       SVGLoader loader = new SVGLoader();
-      SVGDocument svgDocument = loader.load(is);
+      SVGDocument svgDocument = loader.load(url);
 
       if (svgDocument == null) {
         LOGGER.error("Failed to parse SVG document: {}", resourcePath);

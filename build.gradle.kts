@@ -41,8 +41,7 @@ dependencies {
     implementation("ch.qos.logback:logback-core:1.5.21")
 
     // JSVG for SVG rendering
-    // TODO : bump to 2.0.0
-    implementation("com.github.weisj:jsvg:1.7.2")
+    implementation("com.github.weisj:jsvg:2.0.0")
 }
 
 javafx {
