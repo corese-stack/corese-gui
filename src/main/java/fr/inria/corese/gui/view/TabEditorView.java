@@ -11,11 +11,11 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignR;
 
 import fr.inria.corese.gui.view.codeEditor.CodeEditorView;
 
@@ -26,7 +26,6 @@ public class TabEditorView extends VBox {
   private MenuItem newFileItem;
   private MenuItem openFileItem;
   private MenuItem templatesItem;
-  private FontIcon modifiedFile;
   private EmptyStateView emptyStateView;
   private StackPane mainContainer;
 
@@ -74,10 +73,6 @@ public class TabEditorView extends VBox {
 
     tabPane.getTabs().add(addTab);
 
-    modifiedFile = new FontIcon(MaterialDesignC.CHECKBOX_BLANK_CIRCLE);
-    modifiedFile.setIconSize(5);
-    modifiedFile.setIconColor(Color.web("#2196F3"));
-
     emptyStateView = new EmptyStateView(MaterialDesignC.CODE_TAGS, "No file opened\nOpen a file from the file explorer to display its content in the code editor");
     emptyStateView.setMaxWidth(Double.MAX_VALUE);
     emptyStateView.setMaxHeight(Double.MAX_VALUE);
@@ -114,10 +109,9 @@ public class TabEditorView extends VBox {
   }
 
   public void updateTabIcon(Tab tab, boolean isModified) {
-    FontIcon icon = new FontIcon(MaterialDesignR.RECORD);
-    icon.setIconSize(2);
     if (isModified) {
-      tab.setGraphic(icon);
+      Circle circle = new Circle(4, Color.web("#2196F3"));
+      tab.setGraphic(circle);
     } else {
       tab.setGraphic(null);
     }

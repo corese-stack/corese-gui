@@ -71,7 +71,6 @@ public class CodeEditorModel {
   private void updateDisplayName() {
     String name = "Untitled";
     if (filePath.get() != null) name = new File(filePath.get()).getName();
-    if (modified.get()) name += " *";
     displayName.set(name);
   }
 
