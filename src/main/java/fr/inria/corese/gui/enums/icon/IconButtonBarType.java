@@ -17,6 +17,7 @@ public enum IconButtonBarType {
 
   VALIDATION(
       IconButtonType.SAVE,
+      IconButtonType.OPEN_FILE,
       IconButtonType.EXPORT,
       IconButtonType.CLEAR,
       IconButtonType.UNDO,

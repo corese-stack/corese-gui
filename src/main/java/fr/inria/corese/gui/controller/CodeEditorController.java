@@ -29,7 +29,7 @@ public class CodeEditorController {
     this.iconButtonBarController.getModel().setCodeEditorModel(this.model);
     view.getIconButtonBarView().getChildren().add(iconButtonBarController.getView());
 
-    if (type.equals(IconButtonBarType.VALIDATION) || type.equals(IconButtonBarType.QUERY)) {
+    if (type.equals(IconButtonBarType.QUERY)) {
       view.displayRunButton();
     }
 

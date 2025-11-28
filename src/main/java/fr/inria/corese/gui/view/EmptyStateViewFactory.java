@@ -57,10 +57,12 @@ public class EmptyStateViewFactory {
     Button newButton = new Button("New Shapes File");
     newButton.setTooltip(new Tooltip("CTRL + N"));
     newButton.setOnAction(e -> onNewShapesFile.run());
+    newButton.getStyleClass().add("custom-button");
 
     Button loadButton = new Button("Load Shapes File");
     loadButton.setTooltip(new Tooltip("CTRL + O"));
     loadButton.setOnAction(e -> onLoadShapesFile.run());
+    loadButton.getStyleClass().add("custom-button");
 
     HBox buttonBox = new HBox(10, newButton, loadButton);
     buttonBox.setAlignment(Pos.CENTER);

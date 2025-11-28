@@ -45,6 +45,27 @@ public class TabEditorController {
                     }
                   }
                 });
+    
+    // Handle selection of the "Add Tab"
+    view.getTabPane().getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+        if (newTab == view.getAddTab()) {
+            // If the user clicked the add tab, create a new tab
+            Platform.runLater(() -> {
+                addNewTab("Untitled", "");
+                // The addNewTab method selects the new tab, so we don't need to do anything else
+                // But if for some reason it failed, we should go back to the old tab
+                if (view.getTabPane().getSelectionModel().getSelectedItem() == view.getAddTab()) {
+                     if (oldTab != null && view.getTabPane().getTabs().contains(oldTab)) {
+                         view.getTabPane().getSelectionModel().select(oldTab);
+                     } else if (view.getTabPane().getTabs().size() > 1) {
+                         view.getTabPane().getSelectionModel().select(0);
+                     }
+                }
+            });
+        }
+    });
+    
+    // Also handle button click directly as fallback/primary interaction
     view.getAddTabButton().setOnAction(e -> addNewTab("Untitled", ""));
   }
 
@@ -54,6 +75,11 @@ public class TabEditorController {
     model.addTabModel(tab, codeEditorController);
 
     tab.textProperty().bind(codeEditorController.getModel().displayNameProperty());
+    
+    // Bind modified property to tab icon
+    codeEditorController.getModel().modifiedProperty().addListener((obs, oldVal, newVal) -> 
+        view.updateTabIcon(tab, newVal)
+    );
 
     int addTabIndex = view.getTabPane().getTabs().size() - 1;
     view.getTabPane().getTabs().add(Math.max(0, addTabIndex), tab);
@@ -77,11 +103,21 @@ public class TabEditorController {
   }
 
   public Tab addNewTab(File file) {
+    // Check if file is already open
+    for (Tab tab : view.getTabPane().getTabs()) {
+      if (tab == view.getAddTab()) continue;
+      CodeEditorController controller = model.getControllerForTab(tab);
+      if (controller != null && file.getAbsolutePath().equals(controller.getModel().getFilePath())) {
+        view.getTabPane().getSelectionModel().select(tab);
+        return tab;
+      }
+    }
+
     try {
       String content = Files.readString(file.toPath());
       return addNewTabHelper(file.getName(), content, file.getPath());
     } catch (IOException e) {
-      showError("Error Opening File", "Could not read file: " + e.getMessage());
+      showError("Could not read file: " + e.getMessage());
       return null;
     }
   }
@@ -108,37 +144,42 @@ public class TabEditorController {
   public boolean handleCloseFile(Tab tab) {
     if (tab == null || tab == view.getAddTab()) return false;
     CodeEditorController controller = model.getControllerForTab(tab);
-    boolean shouldClose = true;
+    
+    if (controller == null || !controller.getModel().isModified()) {
+        closeTab(tab);
+        return true;
+    }
 
-    if (controller != null && controller.getModel().isModified()) {
-      Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-      alert.setTitle("Unsaved Changes");
-      alert.setHeaderText("Save changes to " + controller.getModel().getDisplayName() + "?");
-      ButtonType save = new ButtonType("Save");
-      ButtonType dontSave = new ButtonType("Don't Save");
-      ButtonType cancel = new ButtonType("Cancel");
-      alert.getButtonTypes().setAll(save, dontSave, cancel);
+    Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+    alert.setTitle("Unsaved Changes");
+    alert.setHeaderText("Save changes to " + controller.getModel().getDisplayName() + "?");
+    ButtonType save = new ButtonType("Save");
+    ButtonType dontSave = new ButtonType("Don't Save");
+    ButtonType cancel = new ButtonType("Cancel");
+    alert.getButtonTypes().setAll(save, dontSave, cancel);
 
-      Optional<ButtonType> result = alert.showAndWait();
-      if (result.isPresent()) {
-        if (result.get() == save) {
-          controller.saveFile();
-          if (controller.getModel().isModified()) shouldClose = false;
-        } else if (result.get() == cancel) {
-          shouldClose = false;
+    Optional<ButtonType> result = alert.showAndWait();
+    if (result.isPresent()) {
+      if (result.get() == save) {
+        controller.saveFile();
+        if (!controller.getModel().isModified()) {
+            closeTab(tab);
+            return true;
         }
-      } else {
-        shouldClose = false;
+      } else if (result.get() == dontSave) {
+        closeTab(tab);
+        return true;
       }
     }
-    if (shouldClose) {
-      view.getTabPane().getTabs().remove(tab);
-      model.removeTabModel(tab);
-    }
-    return shouldClose;
+    return false;
   }
 
-  private void showError(String title, String content) {
+  private void closeTab(Tab tab) {
+      view.getTabPane().getTabs().remove(tab);
+      model.removeTabModel(tab);
+  }
+
+  private void showError(String content) {
     Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, content).showAndWait());
   }
 

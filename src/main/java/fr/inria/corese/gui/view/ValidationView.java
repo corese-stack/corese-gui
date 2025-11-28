@@ -2,11 +2,9 @@ package fr.inria.corese.gui.view;
 
 import fr.inria.corese.gui.view.base.AbstractView;
 import javafx.geometry.Orientation;
+import javafx.scene.Node;
 import javafx.scene.control.SplitPane;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.StackPane;
 
 /**
  * View for the Validation screen.
@@ -15,74 +13,39 @@ import javafx.scene.layout.StackPane;
  */
 public class ValidationView extends AbstractView {
 
-  private final TopBar topBar;
-  private final StackPane editorContainer;
-  private final TabPane resultsTabPane;
-  private final Tab tableTab;
-  private final Tab graphTab;
-  private final Tab textTab;
+  private final SplitPane mainSplitPane;
 
   public ValidationView() {
-    super(new BorderPane(), null); // No specific CSS for now, or reuse existing if needed
+    super(new BorderPane(), null);
 
-    // Initialize components
-    this.topBar = new TopBar();
-    this.editorContainer = new StackPane();
-    this.resultsTabPane = new TabPane();
-    this.tableTab = new Tab("Table");
-    this.graphTab = new Tab("Graph");
-    this.textTab = new Tab("Text");
-
-    initializeLayout();
-  }
-
-  private void initializeLayout() {
-    BorderPane root = (BorderPane) getRoot();
-
-    // Top Bar
-    root.setTop(topBar);
-
-    // Editor Container
-    editorContainer.setMinHeight(150.0);
-
-    // Results Tab Pane
-    resultsTabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-    resultsTabPane.getTabs().addAll(tableTab, graphTab, textTab);
-
-    // Main Split Pane (Vertical split between Editor and Results)
-    SplitPane mainSplitPane = new SplitPane();
+    mainSplitPane = new SplitPane();
     mainSplitPane.setOrientation(Orientation.VERTICAL);
-    
-    // Note: In the original FXML, there was an inner SplitPane around resultsTabPane.
-    // It seems redundant if it only contains one item, so we add resultsTabPane directly.
-    mainSplitPane.getItems().addAll(editorContainer, resultsTabPane);
 
+    BorderPane root = (BorderPane) getRoot();
     root.setCenter(mainSplitPane);
   }
 
-  // ===== Getters =====
-
-  public TopBar getTopBar() {
-    return topBar;
+  public void setEditorView(Node node) {
+    if (mainSplitPane.getItems().isEmpty()) {
+      mainSplitPane.getItems().add(node);
+    } else {
+      mainSplitPane.getItems().set(0, node);
+    }
   }
 
-  public StackPane getEditorContainer() {
-    return editorContainer;
+  public void setResultView(Node node) {
+    if (mainSplitPane.getItems().size() < 1) {
+       // Ensure there is a first item
+       mainSplitPane.getItems().add(new BorderPane());
+    }
+    if (mainSplitPane.getItems().size() < 2) {
+      mainSplitPane.getItems().add(node);
+    } else {
+      mainSplitPane.getItems().set(1, node);
+    }
   }
-
-  public TabPane getResultsTabPane() {
-    return resultsTabPane;
-  }
-
-  public Tab getTableTab() {
-    return tableTab;
-  }
-
-  public Tab getGraphTab() {
-    return graphTab;
-  }
-
-  public Tab getTextTab() {
-    return textTab;
+  
+  public SplitPane getMainSplitPane() {
+      return mainSplitPane;
   }
 }

@@ -2,10 +2,10 @@ package fr.inria.corese.gui.view;
 
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.view.icon.IconButtonView;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
-import javafx.scene.control.Label;
 import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeView;
 import javafx.scene.layout.HBox;
@@ -34,13 +34,7 @@ public class FileExplorerView extends HBox {
   }
 
   private void initializeComponents() {
-    Label emptyStateTitle = new Label("No files loaded");
-    Label emptyStateMessage = new Label("Open a folder or load a file\nin the file explorer");
-    String emptyStateImage =
-        "M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9"
-            + " 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z";
-
-    emptyStateView = new EmptyStateView(emptyStateTitle, emptyStateMessage, emptyStateImage);
+    emptyStateView = new EmptyStateView(MaterialDesignF.FOLDER_OPEN, "No files loaded\nOpen a folder or load a file in the file explorer");
     emptyStateView.setMaxWidth(Double.MAX_VALUE);
     emptyStateView.setMaxHeight(Double.MAX_VALUE);
     VBox.setVgrow(emptyStateView, Priority.ALWAYS);

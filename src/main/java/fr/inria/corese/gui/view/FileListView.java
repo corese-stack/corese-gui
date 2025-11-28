@@ -20,6 +20,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
 
 /**
  * Vue de gestion de liste de fichiers dans une application sémantique.
@@ -121,13 +122,7 @@ public class FileListView extends VBox {
   /** Retourne l'espace quand il n'y a pas de fichiers chargés. */
   private void setupEmptyState() {
     // Create empty state view
-    Label emptyStateTitle = new Label("No files loaded");
-    Label emptyStateMessage =
-        new Label("Open a folder or load a TTL file\nto visualize semantic graphs");
-    String emptyStateImage =
-        "M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9"
-            + " 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z";
-    emptyStateView = new EmptyStateView(emptyStateTitle, emptyStateMessage, emptyStateImage);
+    emptyStateView = new EmptyStateView(MaterialDesignF.FILE_DOCUMENT, "No files loaded\nOpen a folder or load a TTL file to visualize semantic graphs");
 
     // Create a StackPane to hold both the ListView and empty state
     StackPane contentContainer = new StackPane();

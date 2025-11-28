@@ -2,7 +2,9 @@
 package fr.inria.corese.gui.enums.button;
 
 public enum ButtonType {
-  RUN("Run", "file-button");
+  RUN("Run", "file-button"),
+  COPY("Copy", "file-button"),
+  EXPORT("Export", "file-button");
 
   private final String label;
   private final String styleClass;
