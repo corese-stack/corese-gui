@@ -3,7 +3,8 @@ package fr.inria.corese.gui.view;
 import javafx.animation.ScaleTransition;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
-import javafx.scene.control.Button;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SplitMenuButton;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.layout.Priority;
@@ -21,7 +22,10 @@ import fr.inria.corese.gui.view.codeEditor.CodeEditorView;
 public class TabEditorView extends VBox {
   private TabPane tabPane;
   private Tab addTab;
-  private Button addTabButton;
+  private SplitMenuButton addTabButton;
+  private MenuItem newFileItem;
+  private MenuItem openFileItem;
+  private MenuItem templatesItem;
   private FontIcon modifiedFile;
   private EmptyStateView emptyStateView;
   private StackPane mainContainer;
@@ -31,7 +35,12 @@ public class TabEditorView extends VBox {
     tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
     tabPane.setTabMaxWidth(150);
 
-    addTabButton = new Button();
+    addTabButton = new SplitMenuButton();
+    newFileItem = new MenuItem("New File");
+    openFileItem = new MenuItem("Open File");
+    templatesItem = new MenuItem("Templates");
+    addTabButton.getItems().addAll(newFileItem, openFileItem, templatesItem);
+
     FontIcon addIcon = new FontIcon(MaterialDesignP.PLUS);
     addIcon.setIconSize(10);
 
@@ -118,8 +127,20 @@ public class TabEditorView extends VBox {
     return addTab;
   }
 
-  public Button getAddTabButton() {
+  public SplitMenuButton getAddTabButton() {
     return addTabButton;
+  }
+
+  public MenuItem getNewFileItem() {
+    return newFileItem;
+  }
+
+  public MenuItem getOpenFileItem() {
+    return openFileItem;
+  }
+
+  public MenuItem getTemplatesItem() {
+    return templatesItem;
   }
 
   public TabPane getTabPane() {

@@ -17,6 +17,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.stage.FileChooser;
 
 public class TabEditorController {
   private final TabEditorView view;
@@ -73,8 +74,28 @@ public class TabEditorController {
         }
     });
     
-    // Also handle button click directly as fallback/primary interaction
+    // Handle SplitMenuButton actions
     view.getAddTabButton().setOnAction(e -> addNewTab("Untitled", ""));
+    view.getNewFileItem().setOnAction(e -> addNewTab("Untitled", ""));
+    view.getOpenFileItem().setOnAction(e -> openFile());
+    view.getTemplatesItem().setOnAction(e -> openTemplates());
+  }
+
+  private void openFile() {
+    FileChooser fileChooser = new FileChooser();
+    fileChooser.setTitle("Open File");
+    File file = fileChooser.showOpenDialog(view.getScene().getWindow());
+    if (file != null) {
+      addNewTab(file);
+    }
+  }
+
+  private void openTemplates() {
+    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+    alert.setTitle("Templates");
+    alert.setHeaderText("Templates not implemented yet");
+    alert.setContentText("This feature will be available soon.");
+    alert.showAndWait();
   }
 
   private Tab addNewTabHelper(String title, String content, String filePath) {

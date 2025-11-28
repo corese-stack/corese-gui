@@ -32,13 +32,40 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 
+import fr.inria.corese.gui.view.rule.CustomPagination;
+import javafx.beans.value.ChangeListener;
+import javafx.concurrent.Worker;
+import javafx.scene.Node;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import javafx.scene.web.WebView;
+import java.util.ArrayList;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class ResultController {
+    private static final Logger logger = LoggerFactory.getLogger(ResultController.class);
+
     private final ResultView view;
     private final TextArea xmlResultTextArea;
     private final TableView<ValidationReportItem> reportTable;
     private final ChoiceBox<String> textFormatChoiceBox;
     private final CustomButton copyButton;
     private final CustomButton exportButton;
+
+    // SPARQL Result Components
+    private final TableView<String[]> resultTable;
+    private final CustomPagination customPagination;
+    private final TextField rowsPerPageField;
+    private final Label totalRowsLabel;
+    private final List<String[]> allRows;
+    private int rowsPerPage = 50;
+    private final WebView graphView;
 
     public ResultController() {
         this.view = new ResultView();
@@ -57,6 +84,14 @@ public class ResultController {
         this.exportButton.setText("");
         this.exportButton.setGraphic(new FontIcon(MaterialDesignE.EXPORT));
         this.exportButton.setTooltip(new Tooltip("Export to File"));
+
+        // Initialize SPARQL components
+        this.resultTable = new TableView<>();
+        this.allRows = new ArrayList<>();
+        this.rowsPerPageField = new TextField("50");
+        this.totalRowsLabel = new Label("total rows: 0");
+        this.customPagination = new CustomPagination(1, this::updateTableForPage);
+        this.graphView = new WebView();
 
         initialize();
     }
@@ -78,12 +113,50 @@ public class ResultController {
         
         BorderPane textPane = new BorderPane();
         textPane.setCenter(textContent);
+        
+        // Use IconButtonBarView for consistency
+        view.getIconButtonBarView().addCustomButton(copyButton);
+        view.getIconButtonBarView().addCustomButton(exportButton);
         textPane.setRight(view.getIconButtonBarView());
+        
         view.getTextTab().setContent(textPane);
 
-        // Visual Tab Content
+        // Visual Tab Content (Validation Report)
         initializeReportTable();
         view.getVisualTab().setContent(reportTable);
+
+        // Table Tab Content (SPARQL Result)
+        initializeTableTab();
+
+        // Graph Tab Content
+        view.getGraphTab().setContent(graphView);
+    }
+
+    private void initializeTableTab() {
+        customPagination.setVisible(false);
+        customPagination.setManaged(false);
+
+        rowsPerPageField.setPrefWidth(60);
+        Label perPageLabel = new Label("Rows per page:");
+        rowsPerPageField.textProperty().addListener((obs, oldVal, newVal) -> {
+            try {
+                rowsPerPage = Math.max(1, Integer.parseInt(newVal));
+            } catch (NumberFormatException ex) {
+                // ignore
+            }
+            updatePagination();
+        });
+
+        HBox controlsPane = new HBox(10);
+        controlsPane.setAlignment(Pos.CENTER_LEFT);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        controlsPane.getChildren().addAll(perPageLabel, rowsPerPageField, spacer, totalRowsLabel);
+
+        VBox tableBox = new VBox(5, controlsPane, resultTable, customPagination);
+        VBox.setVgrow(resultTable, Priority.ALWAYS);
+        
+        view.getTableTab().setContent(tableBox);
     }
 
     private void initializeReportTable() {
@@ -112,9 +185,6 @@ public class ResultController {
 
         copyButton.setOnAction(event -> handleCopy());
         exportButton.setOnAction(event -> handleExport());
-
-        view.getIconButtonBarView().addCustomButton(copyButton);
-        view.getIconButtonBarView().addCustomButton(exportButton);
     }
 
     private void handleCopy() {
@@ -246,6 +316,105 @@ public class ResultController {
 
     public ChoiceBox<String> getTextFormatChoiceBox() {
         return textFormatChoiceBox;
+    }
+
+    public void updateTableView(String csvResult) {
+        Platform.runLater(() -> {
+            resultTable.getItems().clear();
+            resultTable.getColumns().clear();
+            allRows.clear();
+            if (csvResult == null || csvResult.isEmpty()) {
+                updatePagination();
+                return;
+            }
+            String[] lines = csvResult.split("\\r?\\n");
+            if (lines.length > 0) {
+                String[] headers = lines[0].split(",", -1);
+                for (int col = 0; col < headers.length; col++) {
+                    final int colIndex = col;
+                    TableColumn<String[], String> tc = new TableColumn<>(headers[col].trim());
+                    tc.setCellValueFactory(cdf -> new javafx.beans.property.SimpleStringProperty(
+                            (colIndex < cdf.getValue().length) ? cdf.getValue()[colIndex] : ""));
+                    tc.prefWidthProperty().bind(resultTable.widthProperty().divide(Math.max(1, headers.length)));
+                    resultTable.getColumns().add(tc);
+                }
+                for (int i = 1; i < lines.length; i++) {
+                    allRows.add(lines[i].split(",", -1));
+                }
+            }
+            updatePagination();
+        });
+    }
+
+    private void updatePagination() {
+        totalRowsLabel.setText("total rows: " + allRows.size());
+        if (allRows.isEmpty()) {
+            customPagination.setVisible(false);
+            customPagination.setManaged(false);
+            return;
+        }
+        int pageCount = (int) Math.ceil((double) allRows.size() / rowsPerPage);
+        customPagination.setPageCount(pageCount);
+        customPagination.setVisible(pageCount > 1);
+        customPagination.setManaged(pageCount > 1);
+        customPagination.setCurrentPageIndex(0);
+    }
+
+    private void updateTableForPage(int pageIndex) {
+        int fromIndex = pageIndex * rowsPerPage;
+        int toIndex = Math.min(fromIndex + rowsPerPage, allRows.size());
+        if (fromIndex >= allRows.size()) {
+            resultTable.getItems().clear();
+            return;
+        }
+        resultTable.getItems().setAll(allRows.subList(fromIndex, toIndex));
+    }
+
+    public void displayGraph(String ttlData) {
+        Platform.runLater(() -> {
+            if (ttlData == null || ttlData.isBlank()) {
+                graphView.getEngine().load("about:blank");
+                return;
+            }
+            try {
+                String htmlPath = getClass().getResource("/web/index.html").toExternalForm();
+                final ChangeListener<Worker.State> loadListener = new ChangeListener<>() {
+                    @Override
+                    public void changed(javafx.beans.value.ObservableValue<? extends Worker.State> observable,
+                                        Worker.State oldValue, Worker.State newValue) {
+                        if (newValue == Worker.State.SUCCEEDED) {
+                            graphView.getEngine().getLoadWorker().stateProperty().removeListener(this);
+
+                            String escapedTtl = ttlData.replace("\\", "\\\\")
+                                    .replace("'", "\\'")
+                                    .replace("\n", "\\n")
+                                    .replace("\r", "");
+
+                            String script = "(function() {    var container = document.getElementById('container');  "
+                                    + "  if (!container) { setTimeout(arguments.callee, 50); return; }   "
+                                    + " var old = document.getElementById('myGraph');    if (old &&"
+                                    + " old.parentNode) { old.parentNode.removeChild(old); }    var"
+                                    + " newGraph = document.createElement('kg-graph');    newGraph.id ="
+                                    + " 'myGraph';    newGraph.setAttribute('width', '100%');   "
+                                    + " newGraph.setAttribute('height', '100%');   "
+                                    + " container.appendChild(newGraph);    function setTTL() {      var"
+                                    + " el = document.getElementById('myGraph');      if (el) { el.ttl ="
+                                    + " '" + escapedTtl + "'; }"
+                                    + "      else { setTimeout(setTTL, 50); }"
+                                    + "    }"
+                                    + "    setTTL();"
+                                    + "  })();";
+
+                            graphView.getEngine().executeScript(script);
+                        }
+                    }
+                };
+                graphView.getEngine().getLoadWorker().stateProperty().addListener(loadListener);
+                graphView.getEngine().load(htmlPath);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     private void showError(String title, String message) {

@@ -11,6 +11,8 @@ public class ResultView extends AbstractView {
     private final TabPane tabPane;
     private final Tab textTab;
     private final Tab visualTab;
+    private final Tab tableTab;
+    private final Tab graphTab;
     private final IconButtonBarView iconButtonBarView;
 
     public ResultView() {
@@ -21,7 +23,10 @@ public class ResultView extends AbstractView {
         tabPane = new TabPane();
         textTab = new Tab("Text");
         visualTab = new Tab("Visual");
+        tableTab = new Tab("Table");
+        graphTab = new Tab("Graph");
         
+        // Default tabs
         tabPane.getTabs().addAll(textTab, visualTab);
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
 
@@ -32,5 +37,7 @@ public class ResultView extends AbstractView {
     public TabPane getTabPane() { return tabPane; }
     public Tab getTextTab() { return textTab; }
     public Tab getVisualTab() { return visualTab; }
+    public Tab getTableTab() { return tableTab; }
+    public Tab getGraphTab() { return graphTab; }
     public IconButtonBarView getIconButtonBarView() { return iconButtonBarView; }
 }

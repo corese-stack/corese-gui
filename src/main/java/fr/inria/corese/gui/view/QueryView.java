@@ -1,7 +1,6 @@
 package fr.inria.corese.gui.view;
 
-import fr.inria.corese.gui.view.base.AbstractView;
-import javafx.geometry.Orientation;
+import fr.inria.corese.gui.view.base.SplitEditorView;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -9,10 +8,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
-public class QueryView extends AbstractView {
+public class QueryView extends SplitEditorView {
 
-    private TopBar topBar;
-    private SplitPane mainSplitPane;
     private StackPane editorContainer;
     private SplitPane resultsSplitPane;
     private TabPane resultsTabPane;
@@ -22,14 +19,12 @@ public class QueryView extends AbstractView {
     private StackPane resultsContainer;
 
     public QueryView() {
-        super(new BorderPane(), null);
+        super("/styles/split-editor-view.css");
         initializeComponents();
         setupLayout();
     }
 
     private void initializeComponents() {
-        topBar = new TopBar();
-        mainSplitPane = new SplitPane();
         editorContainer = new StackPane();
         resultsSplitPane = new SplitPane();
         resultsTabPane = new TabPane();
@@ -43,13 +38,6 @@ public class QueryView extends AbstractView {
         BorderPane root = (BorderPane) getRoot();
         root.setPrefSize(800, 600);
 
-        // Top
-        root.setTop(topBar);
-
-        // Center
-        mainSplitPane.setOrientation(Orientation.VERTICAL);
-        VBox.setVgrow(mainSplitPane, javafx.scene.layout.Priority.ALWAYS);
-
         // Editor Container
         VBox.setVgrow(editorContainer, javafx.scene.layout.Priority.ALWAYS);
         editorContainer.setMinHeight(150.0);
@@ -62,17 +50,8 @@ public class QueryView extends AbstractView {
 
         resultsSplitPane.getItems().add(resultsContainer);
 
-        mainSplitPane.getItems().addAll(editorContainer, resultsSplitPane);
-
-        root.setCenter(mainSplitPane);
-    }
-
-    public TopBar getTopBar() {
-        return topBar;
-    }
-
-    public SplitPane getMainSplitPane() {
-        return mainSplitPane;
+        setEditorView(editorContainer);
+        setResultView(resultsSplitPane);
     }
 
     public StackPane getEditorContainer() {

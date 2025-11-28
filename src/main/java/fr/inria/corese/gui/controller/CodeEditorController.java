@@ -29,10 +29,6 @@ public class CodeEditorController {
     this.iconButtonBarController.getModel().setCodeEditorModel(this.model);
     view.getIconButtonBarView().getChildren().add(iconButtonBarController.getView());
 
-    if (type.equals(IconButtonBarType.QUERY)) {
-      view.displayRunButton();
-    }
-
     model.setContent(initialContent);
     Platform.runLater(this::initializeEditor);
   }

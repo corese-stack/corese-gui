@@ -88,6 +88,9 @@ public class ValidationController {
 
     setupFloatingValidateButton();
     setupTabListeners();
+    
+    // Configure TabEditor Menu Actions
+    tabEditorController.getView().getOpenFileItem().setVisible(false);
   }
 
   private void setupTabListeners() {
@@ -126,39 +129,6 @@ public class ValidationController {
     validateButton.visibleProperty().bind(tabEditorController.getView().visibleProperty());
     validateButton.managedProperty().bind(tabEditorController.getView().visibleProperty());
 
-    // Disable button when current editor content is empty
-    validateButton
-        .disableProperty()
-        .bind(
-            javafx.beans.binding.Bindings.createBooleanBinding(
-                () -> {
-                  Tab selectedTab =
-                      tabEditorController
-                          .getView()
-                          .getTabPane()
-                          .getSelectionModel()
-                          .getSelectedItem();
-                  if (selectedTab == null
-                      || selectedTab == tabEditorController.getView().getAddTab()) {
-                    return true;
-                  }
-                  CodeEditorController controller =
-                      tabEditorController.getModel().getControllerForTab(selectedTab);
-                  return controller == null || controller.getModel().getContent().trim().isEmpty();
-                },
-                tabEditorController
-                    .getView()
-                    .getTabPane()
-                    .getSelectionModel()
-                    .selectedItemProperty(),
-                // We need to listen to content changes of the active tab.
-                // This is a simplification; ideally we'd rebind when tab changes.
-                // For now, let's just bind to the tab selection and rely on the fact that
-                // we might need a more complex binding if we want real-time updates while typing.
-                // To do it properly, we need a listener on the tab selection that updates the
-                // binding.
-                tabEditorController.getView().getTabPane().getTabs()));
-
     // Better approach for disable property:
     tabEditorController
         .getView()
@@ -184,14 +154,9 @@ public class ValidationController {
       return;
     }
 
-    CodeEditorController controller =
-        tabEditorController.getModel().getControllerForTab(selectedTab);
-    if (controller != null) {
-      validateButton.disableProperty().bind(controller.getModel().contentProperty().isEmpty());
-    } else {
-      validateButton.disableProperty().unbind();
-      validateButton.setDisable(true);
-    }
+    // Always enable the button when a valid tab is selected
+    validateButton.disableProperty().unbind();
+    validateButton.setDisable(false);
   }
 
   // ...existing code...
