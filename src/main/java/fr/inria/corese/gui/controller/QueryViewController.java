@@ -10,11 +10,11 @@ import fr.inria.corese.gui.factory.popup.TemplatePopup;
 import fr.inria.corese.gui.manager.QueryManager;
 import fr.inria.corese.gui.view.CustomButton;
 import fr.inria.corese.gui.view.EmptyStateViewFactory;
+import fr.inria.corese.gui.view.QueryView;
 import fr.inria.corese.gui.view.TopBar;
 import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
-import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.SplitPane;
@@ -30,19 +30,20 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 public class QueryViewController {
-  @FXML private StackPane editorContainer;
-  @FXML private BorderPane mainBorderPane;
-  @FXML private SplitPane mainSplitPane;
-  @FXML private TabPane resultsTabPane;
-  @FXML private TopBar topBar;
-  @FXML private Tab tableTab;
-  @FXML private Tab graphTab;
-  @FXML private Tab textTab;
+  private final QueryView view;
+  private StackPane editorContainer;
+  private BorderPane mainBorderPane;
+  private SplitPane mainSplitPane;
+  private TabPane resultsTabPane;
+  private TopBar topBar;
+  private Tab tableTab;
+  private Tab graphTab;
+  private Tab textTab;
 
-  @FXML private StackPane resultsContainer;
+  private StackPane resultsContainer;
 
   private boolean isSplitView = false;
-  @FXML private SplitPane resultsSplitPane;
+  private SplitPane resultsSplitPane;
   private Node textViewNode;
 
   private TabEditorController tabEditorController;
@@ -59,12 +60,27 @@ public class QueryViewController {
   private static final List<String> GRAPH_FORMATS =
       List.of("TURTLE", "RDF_XML", "JSON-LD", "N-TRIPLES", "N-QUADS", "TriG");
 
+  public QueryViewController(QueryView view) {
+    this.view = view;
+    this.editorContainer = view.getEditorContainer();
+    this.mainBorderPane = (BorderPane) view.getRoot();
+    this.mainSplitPane = view.getMainSplitPane();
+    this.resultsTabPane = view.getResultsTabPane();
+    this.topBar = view.getTopBar();
+    this.tableTab = view.getTableTab();
+    this.graphTab = view.getGraphTab();
+    this.textTab = view.getTextTab();
+    this.resultsContainer = view.getResultsContainer();
+    this.resultsSplitPane = view.getResultsSplitPane();
+
+    initialize();
+  }
+
   public void setHostServices(HostServices hostServices) {
     this.hostServices = hostServices;
   }
 
-  @FXML
-  public void initialize() {
+  private void initialize() {
     tabEditorController = new TabEditorController(IconButtonBarType.QUERY);
     resultsPaneController = new ResultsPaneController();
     tableViewController = new TableViewController();
@@ -157,7 +173,6 @@ public class QueryViewController {
    * Toggles the results view between a single TabPane and a split view where the Text view is shown
    * side-by-side.
    */
-  @FXML
   private void toggleSplitView() {
     if (this.textViewNode == null) {
       this.textViewNode = textTab.getContent();

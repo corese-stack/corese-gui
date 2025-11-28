@@ -3,6 +3,7 @@ package fr.inria.corese.gui.view;
 import java.util.function.Supplier;
 
 import fr.inria.corese.gui.controller.DataViewController;
+import fr.inria.corese.gui.controller.QueryViewController;
 import fr.inria.corese.gui.controller.ValidationController;
 import fr.inria.corese.gui.view.base.AbstractView;
 
@@ -47,7 +48,11 @@ public enum ViewId {
 
   /** View for writing and executing SPARQL queries. */
 
-  QUERY("query-view", "/fr/inria/corese/gui/query-view.fxml", null),
+  QUERY("query-view", null, () -> {
+    QueryView view = new QueryView();
+    new QueryViewController(view);
+    return view;
+  }),
 
   /** View for validating RDF data (e.g., SHACL). */
   VALIDATION("validation-view", null, () -> {
