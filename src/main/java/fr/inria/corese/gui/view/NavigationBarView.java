@@ -3,7 +3,6 @@ package fr.inria.corese.gui.view;
 import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.view.base.AbstractView;
 import fr.inria.corese.gui.view.utils.SvgImageLoader;
-
 import java.util.function.Consumer;
 import javafx.animation.Animation;
 import javafx.animation.ParallelTransition;
@@ -58,8 +57,8 @@ public final class NavigationBarView extends AbstractView {
   // ==== UI elements ====
   private final Button logo;
   private final Button dataButton;
-  private final Button validationButton;
   private final Button queryButton;
+  private final Button validationButton;
   private final Button toggleButton;
   private final Button settingsButton;
 
@@ -72,14 +71,14 @@ public final class NavigationBarView extends AbstractView {
     this.logo = createLogoButton();
     this.dataButton =
         createNavigationButton("Data", MaterialDesignD.DATABASE, "Load and manage RDF data");
+    this.queryButton =
+        createNavigationButton(
+            "Query", MaterialDesignM.MAGNIFY, "Execute SPARQL queries on loaded RDF datasets");
     this.validationButton =
         createNavigationButton(
             "Validation",
             MaterialDesignS.SHIELD_CHECK,
             "Validate RDF data against SHACL shapes and constraints");
-    this.queryButton =
-        createNavigationButton(
-            "Query", MaterialDesignM.MAGNIFY, "Execute SPARQL queries on loaded RDF datasets");
     this.toggleButton = createToggleButton();
     this.settingsButton =
         createNavigationButton(
@@ -101,13 +100,7 @@ public final class NavigationBarView extends AbstractView {
 
     root.getChildren()
         .setAll(
-            logo,
-            dataButton,
-            validationButton,
-            queryButton,
-            spacer,
-            toggleButton,
-            settingsButton);
+            logo, dataButton, queryButton, validationButton, spacer, toggleButton, settingsButton);
   }
 
   /** Creates the top logo button (non-interactive except logging). */
