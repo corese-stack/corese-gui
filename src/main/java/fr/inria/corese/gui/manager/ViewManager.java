@@ -52,6 +52,22 @@ public final class ViewManager {
   }
 
   /**
+   * Preloads all views defined in {@link ViewId}.
+   *
+   * <p>Iterates through all enum constants and ensures their views are loaded and cached.
+   * This is useful for avoiding initialization delays when switching views for the first time.
+   */
+  public void preloadAllViews() {
+    for (ViewId viewId : ViewId.values()) {
+      try {
+        getView(viewId);
+      } catch (Exception e) {
+        LOGGER.warning("Failed to preload view: " + viewId + ". Error: " + e.getMessage());
+      }
+    }
+  }
+
+  /**
    * Adapter used by computeIfAbsent to load a view safely and convert checked exceptions into
    * unchecked ones with proper logging.
    */

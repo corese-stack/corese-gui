@@ -50,6 +50,9 @@ public final class MainController {
     // Handle navigation actions
     navController.setOnNavigate(this::displayView);
 
+    // Preload all views to avoid lag/logs on first switch
+    viewManager.preloadAllViews();
+
     // Show the default view at startup
     this.displayView(ViewId.DATA);
   }

@@ -22,6 +22,7 @@ public class TabEditorController {
   private final TabEditorView view;
   private final TabEditorModel model;
   private final IconButtonBarType type;
+  private CodeEditorController preloadedController;
 
   public TabEditorController(IconButtonBarType type) {
     this.view = new TabEditorView();
@@ -29,6 +30,13 @@ public class TabEditorController {
     this.type = type;
     initializeTabPane();
     initializeKeyboardShortcuts();
+    Platform.runLater(this::preloadNextEditor);
+  }
+
+  private void preloadNextEditor() {
+    if (preloadedController == null) {
+      preloadedController = new CodeEditorController(type, "");
+    }
   }
 
   private void initializeTabPane() {
@@ -70,7 +78,16 @@ public class TabEditorController {
   }
 
   private Tab addNewTabHelper(String title, String content, String filePath) {
-    CodeEditorController codeEditorController = new CodeEditorController(type, content);
+    CodeEditorController codeEditorController;
+    if (preloadedController != null) {
+      codeEditorController = preloadedController;
+      preloadedController = null;
+      codeEditorController.getModel().setContent(content);
+      Platform.runLater(this::preloadNextEditor);
+    } else {
+      codeEditorController = new CodeEditorController(type, content);
+    }
+
     Tab tab = view.createEditorTab(title, codeEditorController.getView());
     model.addTabModel(tab, codeEditorController);
 

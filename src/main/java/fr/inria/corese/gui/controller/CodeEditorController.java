@@ -33,12 +33,11 @@ public class CodeEditorController {
       view.displayRunButton();
     }
 
-    Platform.runLater(() -> initializeEditor(initialContent));
+    model.setContent(initialContent);
+    Platform.runLater(this::initializeEditor);
   }
 
-  private void initializeEditor(String initialContent) {
-    model.setContent(initialContent);
-
+  private void initializeEditor() {
     view.getCodeMirrorView().contentProperty().bindBidirectional(model.contentProperty());
   }
 
