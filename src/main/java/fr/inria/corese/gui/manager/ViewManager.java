@@ -1,14 +1,11 @@
 package fr.inria.corese.gui.manager;
 
-import java.io.IOException;
-import java.net.URL;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.logging.Logger;
 
 import fr.inria.corese.gui.view.ViewId;
 import fr.inria.corese.gui.view.base.AbstractView;
-import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 
 /**
@@ -63,54 +60,20 @@ public final class ViewManager {
       AbstractView view = loadView(viewId);
       LOGGER.fine(() -> "Loaded view: " + viewId);
       return view;
-    } catch (IOException | RuntimeException e) {
+    } catch (RuntimeException e) {
       // Rethrow with contextual information (no logging to avoid double-reporting)
       throw new IllegalStateException("Failed to load view: " + viewId, e);
     }
   }
 
   /**
-   * Loads a view either via factory or from an FXML resource.
-   *
-   * @throws IOException when FXML loading fails
+   * Loads a view via factory.
    */
-  private AbstractView loadView(ViewId viewId) throws IOException {
-    if (viewId.hasFactory()) {
-      AbstractView instance = viewId.createInstance();
-      if (instance == null) {
-        throw new IllegalStateException("Factory returned null for view: " + viewId);
-      }
-      return instance;
+  private AbstractView loadView(ViewId viewId) {
+    AbstractView instance = viewId.createInstance();
+    if (instance == null) {
+      throw new IllegalStateException("Factory returned null for view: " + viewId);
     }
-
-    // FXML-based view
-    String fxmlPath = viewId.getFxmlPath();
-    if (fxmlPath == null || fxmlPath.isEmpty()) {
-      throw new IllegalArgumentException("No FXML path defined for view: " + viewId);
-    }
-
-    URL resource = ViewManager.class.getResource(fxmlPath);
-    if (resource == null) {
-      throw new IllegalArgumentException(
-          "FXML resource not found on classpath: " + fxmlPath + " for view: " + viewId);
-    }
-
-    FXMLLoader loader = new FXMLLoader(resource);
-    Node loadedNode = loader.load();
-    
-    // Wrap FXML-loaded nodes in a simple AbstractView wrapper
-    return new FxmlViewWrapper(loadedNode);
-  }
-
-  /**
-   * Simple wrapper to adapt FXML-loaded nodes into AbstractView instances.
-   *
-   * <p>This allows the ViewManager to consistently work with AbstractView while still supporting
-   * legacy FXML views.
-   */
-  private static final class FxmlViewWrapper extends AbstractView {
-    FxmlViewWrapper(Node node) {
-      super((javafx.scene.Parent) node, null);
-    }
+    return instance;
   }
 }

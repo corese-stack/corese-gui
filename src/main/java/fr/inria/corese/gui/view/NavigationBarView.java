@@ -22,7 +22,6 @@ import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignD;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignM;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
 import org.slf4j.Logger;
@@ -59,7 +58,6 @@ public final class NavigationBarView extends AbstractView {
   // ==== UI elements ====
   private final Button logo;
   private final Button dataButton;
-  private final Button rdfEditorButton;
   private final Button validationButton;
   private final Button queryButton;
   private final Button toggleButton;
@@ -74,11 +72,6 @@ public final class NavigationBarView extends AbstractView {
     this.logo = createLogoButton();
     this.dataButton =
         createNavigationButton("Data", MaterialDesignD.DATABASE, "Load and manage RDF data");
-    this.rdfEditorButton =
-        createNavigationButton(
-            "RDF Editor",
-            MaterialDesignF.FILE_DOCUMENT_EDIT,
-            "Edit RDF data in Turtle, RDF/XML, JSON-LD, and other formats");
     this.validationButton =
         createNavigationButton(
             "Validation",
@@ -110,7 +103,6 @@ public final class NavigationBarView extends AbstractView {
         .setAll(
             logo,
             dataButton,
-            rdfEditorButton,
             validationButton,
             queryButton,
             spacer,
@@ -220,7 +212,7 @@ public final class NavigationBarView extends AbstractView {
     ImageView logoView = (ImageView) logo.getGraphic();
 
     Button[] navigationButtons =
-        new Button[] {dataButton, rdfEditorButton, validationButton, queryButton, settingsButton};
+        new Button[] {dataButton, validationButton, queryButton, settingsButton};
 
     currentTransition =
         NavigationBarAnimations.createToggleAnimation(
@@ -296,7 +288,6 @@ public final class NavigationBarView extends AbstractView {
   private Button getButtonForViewId(ViewId viewId) {
     return switch (viewId) {
       case DATA -> dataButton;
-      case RDF_EDITOR -> rdfEditorButton;
       case VALIDATION -> validationButton;
       case QUERY -> queryButton;
       case SETTINGS -> settingsButton;

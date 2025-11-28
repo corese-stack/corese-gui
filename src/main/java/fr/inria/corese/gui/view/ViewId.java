@@ -61,9 +61,6 @@ public enum ViewId {
     return view;
   }),
 
-  /** View providing a text editor for RDF graph manipulation. */
-  RDF_EDITOR("rdf-editor-view", "/fr/inria/corese/gui/rdf-editor-view.fxml", null),
-
   /** Application configuration and preferences view. */
   SETTINGS("settings-view", null, SettingsView::new);
 
@@ -74,9 +71,6 @@ public enum ViewId {
   /** Unique string identifier for this view. */
   private final String id;
 
-  /** Path to the FXML file defining this view (may be {@code null} if factory-based). */
-  private final String fxmlPath;
-
   /** Optional factory function that instantiates the view directly in Java (no FXML). */
   private final Supplier<AbstractView> factory;
 
@@ -86,7 +80,6 @@ public enum ViewId {
 
   ViewId(String id, String fxmlPath, Supplier<AbstractView> factory) {
     this.id = id;
-    this.fxmlPath = fxmlPath;
     this.factory = factory;
   }
 
@@ -97,16 +90,6 @@ public enum ViewId {
   /** Returns the unique string identifier of this view (e.g., "query-view"). */
   public String getId() {
     return id;
-  }
-
-  /** Returns the FXML path used to load this view (or {@code null} if none). */
-  public String getFxmlPath() {
-    return fxmlPath;
-  }
-
-  /** Returns {@code true} if this view uses a Java-based factory instead of an FXML file. */
-  public boolean hasFactory() {
-    return factory != null;
   }
 
   /**
