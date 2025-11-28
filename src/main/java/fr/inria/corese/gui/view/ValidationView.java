@@ -13,10 +13,18 @@ import javafx.scene.layout.BorderPane;
  */
 public class ValidationView extends AbstractView {
 
+  // ===== Fields =====
+
   private final SplitPane mainSplitPane;
 
+  // ===== Constructor =====
+
+  /**
+   * Creates the ValidationView with a horizontal split pane containing the editor and results
+   * areas.
+   */
   public ValidationView() {
-    super(new BorderPane(), null);
+    super(new BorderPane(), "/styles/validation-view.css");
 
     mainSplitPane = new SplitPane();
     mainSplitPane.setOrientation(Orientation.VERTICAL);
@@ -25,6 +33,13 @@ public class ValidationView extends AbstractView {
     root.setCenter(mainSplitPane);
   }
 
+  // ==== Public Methods =====
+
+  /**
+   * Sets the editor view in the left pane of the split pane.
+   *
+   * @param node the editor view node to set
+   */
   public void setEditorView(Node node) {
     if (mainSplitPane.getItems().isEmpty()) {
       mainSplitPane.getItems().add(node);
@@ -33,19 +48,20 @@ public class ValidationView extends AbstractView {
     }
   }
 
+  /**
+   * Sets the results view in the right pane of the split pane.
+   *
+   * @param node the results view node to set
+   */
   public void setResultView(Node node) {
-    if (mainSplitPane.getItems().size() < 1) {
-       // Ensure there is a first item
-       mainSplitPane.getItems().add(new BorderPane());
+    if (mainSplitPane.getItems().isEmpty()) {
+      // Ensure there is a first item
+      mainSplitPane.getItems().add(new BorderPane());
     }
     if (mainSplitPane.getItems().size() < 2) {
       mainSplitPane.getItems().add(node);
     } else {
       mainSplitPane.getItems().set(1, node);
     }
-  }
-  
-  public SplitPane getMainSplitPane() {
-      return mainSplitPane;
   }
 }

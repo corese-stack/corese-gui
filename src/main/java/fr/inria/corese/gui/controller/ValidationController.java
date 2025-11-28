@@ -6,11 +6,13 @@ import fr.inria.corese.gui.enums.icon.IconButtonBarType;
 import fr.inria.corese.gui.manager.GraphManager;
 import fr.inria.corese.gui.manager.QueryManager;
 import fr.inria.corese.gui.model.ValidationModel;
-import fr.inria.corese.gui.view.CustomButton;
 import fr.inria.corese.gui.view.EmptyStateView;
 import fr.inria.corese.gui.view.ValidationView;
+import java.io.File;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -27,18 +29,13 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.util.List;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-
 public class ValidationController {
   private static final Logger logger = LoggerFactory.getLogger(ValidationController.class);
 
   private final ValidationView view;
   private final ValidationModel validationModel;
   private final GraphManager graphManager;
-  
+
   private TabEditorController tabEditorController;
   private ResultController resultController;
   private Node emptyStateView;
@@ -58,16 +55,20 @@ public class ValidationController {
       resultController = new ResultController();
       view.setResultView(resultController.getView().getRoot());
 
-      resultController.getTextFormatChoiceBox().getSelectionModel().selectedItemProperty().addListener(
-          (obs, oldVal, newVal) -> {
-            if (newVal != null && lastReportGraph != null) {
-              formatAndDisplayReport(lastReportGraph, newVal);
-            }
-          });
+      resultController
+          .getTextFormatChoiceBox()
+          .getSelectionModel()
+          .selectedItemProperty()
+          .addListener(
+              (obs, oldVal, newVal) -> {
+                if (newVal != null && lastReportGraph != null) {
+                  formatAndDisplayReport(lastReportGraph, newVal);
+                }
+              });
 
       // Initialize Editor Component
       initializeTabEditor();
-      
+
       // Setup Empty State
       setupEmptyState();
 
@@ -80,11 +81,11 @@ public class ValidationController {
     tabEditorController = new TabEditorController(IconButtonBarType.VALIDATION);
     tabEditorController.getView().setMaxWidth(Double.MAX_VALUE);
     tabEditorController.getView().setMaxHeight(Double.MAX_VALUE);
-    
+
     // Wrap in StackPane for EmptyState and Floating Button
     editorContainer = new StackPane(tabEditorController.getView());
     view.setEditorView(editorContainer);
-    
+
     setupFloatingValidateButton();
     setupTabListeners();
   }
@@ -94,17 +95,19 @@ public class ValidationController {
         .getView()
         .getTabPane()
         .getTabs()
-        .addListener((ListChangeListener<Tab>) c -> {
-            while (c.next()) {
-              if (c.wasAdded()) {
-                for (Tab tab : c.getAddedSubList()) {
-                  if (tab != tabEditorController.getView().getAddTab()) {
-                    Platform.runLater(() -> configureTab(tab));
+        .addListener(
+            (ListChangeListener<Tab>)
+                c -> {
+                  while (c.next()) {
+                    if (c.wasAdded()) {
+                      for (Tab tab : c.getAddedSubList()) {
+                        if (tab != tabEditorController.getView().getAddTab()) {
+                          Platform.runLater(() -> configureTab(tab));
+                        }
+                      }
+                    }
                   }
-                }
-              }
-            }
-        });
+                });
   }
 
   private void setupFloatingValidateButton() {
@@ -113,75 +116,85 @@ public class ValidationController {
     playIcon.setIconSize(24);
     playIcon.setIconColor(javafx.scene.paint.Color.WHITE);
     validateButton.setGraphic(playIcon);
-    
-    validateButton.setStyle(
-        "-fx-background-color: -color-accent-emphasis; " +
-        "-fx-text-fill: -color-fg-emphasis; " +
-        "-fx-background-radius: 50%; " +
-        "-fx-min-width: 56px; " +
-        "-fx-min-height: 56px; " +
-        "-fx-max-width: 56px; " +
-        "-fx-max-height: 56px; " +
-        "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 8, 0, 0, 4); " +
-        "-fx-cursor: hand;"
-    );
-    
+
+    validateButton.getStyleClass().add("floating-validate-button");
+
     validateButton.setTooltip(new Tooltip("Run Validation (Ctrl+Enter)"));
     validateButton.setOnAction(e -> executeValidation());
-    
+
     // Bind visibility to the editor view visibility (hidden when empty state is shown)
     validateButton.visibleProperty().bind(tabEditorController.getView().visibleProperty());
     validateButton.managedProperty().bind(tabEditorController.getView().visibleProperty());
-    
+
     // Disable button when current editor content is empty
-    validateButton.disableProperty().bind(
-        javafx.beans.binding.Bindings.createBooleanBinding(() -> {
-            Tab selectedTab = tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
-            if (selectedTab == null || selectedTab == tabEditorController.getView().getAddTab()) {
-                return true;
-            }
-            CodeEditorController controller = tabEditorController.getModel().getControllerForTab(selectedTab);
-            return controller == null || controller.getModel().getContent().trim().isEmpty();
-        }, 
-        tabEditorController.getView().getTabPane().getSelectionModel().selectedItemProperty(),
-        // We need to listen to content changes of the active tab. 
-        // This is a simplification; ideally we'd rebind when tab changes.
-        // For now, let's just bind to the tab selection and rely on the fact that 
-        // we might need a more complex binding if we want real-time updates while typing.
-        // To do it properly, we need a listener on the tab selection that updates the binding.
-        tabEditorController.getView().getTabPane().getTabs()
-        )
-    );
-    
+    validateButton
+        .disableProperty()
+        .bind(
+            javafx.beans.binding.Bindings.createBooleanBinding(
+                () -> {
+                  Tab selectedTab =
+                      tabEditorController
+                          .getView()
+                          .getTabPane()
+                          .getSelectionModel()
+                          .getSelectedItem();
+                  if (selectedTab == null
+                      || selectedTab == tabEditorController.getView().getAddTab()) {
+                    return true;
+                  }
+                  CodeEditorController controller =
+                      tabEditorController.getModel().getControllerForTab(selectedTab);
+                  return controller == null || controller.getModel().getContent().trim().isEmpty();
+                },
+                tabEditorController
+                    .getView()
+                    .getTabPane()
+                    .getSelectionModel()
+                    .selectedItemProperty(),
+                // We need to listen to content changes of the active tab.
+                // This is a simplification; ideally we'd rebind when tab changes.
+                // For now, let's just bind to the tab selection and rely on the fact that
+                // we might need a more complex binding if we want real-time updates while typing.
+                // To do it properly, we need a listener on the tab selection that updates the
+                // binding.
+                tabEditorController.getView().getTabPane().getTabs()));
+
     // Better approach for disable property:
-    tabEditorController.getView().getTabPane().getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
-        updateValidateButtonState(validateButton);
-    });
-    
+    tabEditorController
+        .getView()
+        .getTabPane()
+        .getSelectionModel()
+        .selectedItemProperty()
+        .addListener(
+            (obs, oldTab, newTab) -> updateValidateButtonState(validateButton));
+
     StackPane.setAlignment(validateButton, Pos.BOTTOM_RIGHT);
     // Add margins to avoid overlap with scrollbars and toolbars
     StackPane.setMargin(validateButton, new Insets(0, 80, 50, 0));
-    
+
     editorContainer.getChildren().add(validateButton);
   }
 
   private void updateValidateButtonState(Button validateButton) {
-      Tab selectedTab = tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
-      if (selectedTab == null || selectedTab == tabEditorController.getView().getAddTab()) {
-          validateButton.disableProperty().unbind();
-          validateButton.setDisable(true);
-          return;
-      }
-      
-      CodeEditorController controller = tabEditorController.getModel().getControllerForTab(selectedTab);
-      if (controller != null) {
-          validateButton.disableProperty().bind(controller.getModel().contentProperty().isEmpty());
-      } else {
-          validateButton.disableProperty().unbind();
-          validateButton.setDisable(true);
-      }
+    Tab selectedTab =
+        tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
+    if (selectedTab == null || selectedTab == tabEditorController.getView().getAddTab()) {
+      validateButton.disableProperty().unbind();
+      validateButton.setDisable(true);
+      return;
+    }
+
+    CodeEditorController controller =
+        tabEditorController.getModel().getControllerForTab(selectedTab);
+    if (controller != null) {
+      validateButton.disableProperty().bind(controller.getModel().contentProperty().isEmpty());
+    } else {
+      validateButton.disableProperty().unbind();
+      validateButton.setDisable(true);
+    }
   }
-// ...existing code...
+
+  // ...existing code...
   private void configureTab(Tab tab) {
     CodeEditorController controller = tabEditorController.getModel().getControllerForTab(tab);
     if (controller != null) {
@@ -201,7 +214,8 @@ public class ValidationController {
               }
             });
   }
-// ...existing code...
+
+  // ...existing code...
 
   private void setupEmptyState() {
     Runnable newShapesAction = () -> tabEditorController.addNewTab("untitled-shapes.ttl", "");
@@ -217,11 +231,12 @@ public class ValidationController {
     loadButton.setOnAction(e -> loadShapesAction.run());
     loadButton.getStyleClass().add("custom-button");
 
-    this.emptyStateView = new EmptyStateView(
-        MaterialDesignS.SHIELD_CHECK_OUTLINE,
-        "No shapes files open.\nCreate a new shapes file or load an existing one.",
-        newButton, loadButton
-    );
+    this.emptyStateView =
+        new EmptyStateView(
+            MaterialDesignS.SHIELD_CHECK_OUTLINE,
+            "No shapes files open.\nCreate a new shapes file or load an existing one.",
+            newButton,
+            loadButton);
 
     editorContainer.getChildren().add(0, emptyStateView);
     updateEmptyStateVisibility();
@@ -292,7 +307,11 @@ public class ValidationController {
                   validationModel.validate(dataGraph, shapesContent);
               Platform.runLater(
                   () -> {
-                    resultController.getView().getTabPane().getSelectionModel().select(resultController.getView().getTextTab());
+                    resultController
+                        .getView()
+                        .getTabPane()
+                        .getSelectionModel()
+                        .select(resultController.getView().getTextTab());
 
                     if (result.getErrorMessage() != null) {
                       String errorMsg =

@@ -1,0 +1,22 @@
+/* Validation View Styles */
+
+.floating-validate-button {
+    -fx-background-color: -color-accent-emphasis;
+    -fx-text-fill: -color-fg-emphasis;
+    -fx-background-radius: 50%;
+    -fx-min-width: 56px;
+    -fx-min-height: 56px;
+    -fx-max-width: 56px;
+    -fx-max-height: 56px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 8, 0, 0, 4);
+    -fx-cursor: hand;
+}
+
+.floating-validate-button:hover {
+    -fx-background-color: derive(-color-accent-emphasis, -10%);
+}
+
+.floating-validate-button:pressed {
+    -fx-background-color: derive(-color-accent-emphasis, -20%);
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 4, 0, 0, 2);
+}
