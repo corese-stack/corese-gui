@@ -31,6 +31,7 @@ public final class ThemeManager {
   private static final String PREF_THEME = "app.theme";
   private static final String PREF_ACCENT_COLOR = "app.accentColor";
   private static final String PREF_SYSTEM_THEME = "app.systemThemeEnabled";
+  private static final String PREF_SIDEBAR_COLLAPSED = "app.sidebarCollapsed";
 
   // ===== Properties =====
 
@@ -38,6 +39,7 @@ public final class ThemeManager {
   private final ObjectProperty<Color> accentColor =
       new SimpleObjectProperty<>(Color.web("#0078D4"));
   private final BooleanProperty systemThemeEnabled = new SimpleBooleanProperty(false);
+  private final BooleanProperty sidebarCollapsed = new SimpleBooleanProperty(false);
   private final Preferences preferences = Preferences.userNodeForPackage(ThemeManager.class);
   private boolean loadingPreferences = false;
 
@@ -126,6 +128,12 @@ public final class ThemeManager {
           } else {
             systemThemeMonitor.stop();
           }
+          savePreferences();
+        });
+
+    // When sidebar collapsed changes, save it
+    sidebarCollapsed.addListener(
+        (obs, oldVal, newVal) -> {
           savePreferences();
         });
   }
@@ -220,6 +228,18 @@ public final class ThemeManager {
 
   public void setSystemThemeEnabled(boolean enabled) {
     this.systemThemeEnabled.set(enabled);
+  }
+
+  public BooleanProperty sidebarCollapsedProperty() {
+    return sidebarCollapsed;
+  }
+
+  public boolean isSidebarCollapsed() {
+    return sidebarCollapsed.get();
+  }
+
+  public void setSidebarCollapsed(boolean collapsed) {
+    this.sidebarCollapsed.set(collapsed);
   }
 
   // ===== Internal Application Logic =====
@@ -404,9 +424,11 @@ public final class ThemeManager {
       boolean useSystem = preferences.getBoolean(PREF_SYSTEM_THEME, true);
       String themeName = preferences.get(PREF_THEME, null);
       String colorHex = preferences.get(PREF_ACCENT_COLOR, null);
+      boolean collapsed = preferences.getBoolean(PREF_SIDEBAR_COLLAPSED, false);
 
       // Apply settings
       setSystemThemeEnabled(useSystem);
+      setSidebarCollapsed(collapsed);
 
       if (!useSystem) {
         if (themeName != null) {
@@ -439,6 +461,7 @@ public final class ThemeManager {
 
     try {
       preferences.putBoolean(PREF_SYSTEM_THEME, isSystemThemeEnabled());
+      preferences.putBoolean(PREF_SIDEBAR_COLLAPSED, isSidebarCollapsed());
 
       if (!isSystemThemeEnabled()) {
         if (getTheme() != null) {

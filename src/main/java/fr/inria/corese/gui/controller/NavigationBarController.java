@@ -9,6 +9,7 @@ import fr.inria.corese.gui.model.NavigationBarModel;
 import fr.inria.corese.gui.view.NavigationBarView;
 import fr.inria.corese.gui.view.ViewId;
 import fr.inria.corese.gui.view.utils.BrowserUtils;
+import fr.inria.corese.gui.view.utils.ThemeManager;
 import javafx.scene.Parent;
 
 /**
@@ -37,6 +38,10 @@ public final class NavigationBarController {
     this.view = new NavigationBarView();
 
     initializeBindings();
+
+    // Bind model collapsed state to ThemeManager preference
+    model.collapsedProperty().bindBidirectional(ThemeManager.getInstance().sidebarCollapsedProperty());
+
     initializeHandlers();
 
     // Ensure default view is highlighted at startup
