@@ -30,6 +30,7 @@ public class TabEditorView extends VBox {
   private StackPane mainContainer;
 
   public TabEditorView() {
+    this.getStylesheets().add(getClass().getResource("/styles/buttons.css").toExternalForm());
     tabPane = new TabPane();
     tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
     tabPane.setTabMaxWidth(150);
@@ -41,7 +42,7 @@ public class TabEditorView extends VBox {
     addTabButton.getItems().addAll(newFileItem, openFileItem, templatesItem);
 
     FontIcon addIcon = new FontIcon(MaterialDesignP.PLUS);
-    addIcon.setIconSize(10);
+    addIcon.setIconSize(18);
 
     ScaleTransition scaleIn = new ScaleTransition(Duration.millis(150), addIcon);
     scaleIn.setToX(1.1);
@@ -63,8 +64,7 @@ public class TabEditorView extends VBox {
           scaleOut.playFromStart();
         });
     addTabButton.setGraphic(addIcon);
-    addTabButton.getStyleClass().add("flat-button");
-    addTabButton.setStyle("-fx-font-size: 14px; -fx-padding: 5 10;");
+    addTabButton.getStyleClass().add("add-tab-button");
 
     addTab = new Tab();
     addTab.setGraphic(addTabButton);

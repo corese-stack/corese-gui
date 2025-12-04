@@ -15,6 +15,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
@@ -51,6 +52,16 @@ public class QueryViewController {
 
     resultController = new ResultController();
     view.setResultView(resultController.getView().getRoot());
+
+    // Configure tabs for Query View: Remove Visual, Add Table and Graph
+    TabPane resultTabs = resultController.getView().getTabPane();
+    resultTabs.getTabs().remove(resultController.getView().getVisualTab());
+    if (!resultTabs.getTabs().contains(resultController.getView().getTableTab())) {
+        resultTabs.getTabs().add(resultController.getView().getTableTab());
+    }
+    if (!resultTabs.getTabs().contains(resultController.getView().getGraphTab())) {
+        resultTabs.getTabs().add(resultController.getView().getGraphTab());
+    }
 
     setupFloatingRunButton();
     setupTabListeners();

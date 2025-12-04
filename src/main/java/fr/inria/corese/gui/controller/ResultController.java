@@ -3,15 +3,15 @@ package fr.inria.corese.gui.controller;
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.kgram.core.Mappings;
 import fr.inria.corese.core.query.QueryProcess;
-import fr.inria.corese.gui.enums.button.ButtonType;
+import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.model.ValidationReportItem;
-import fr.inria.corese.gui.view.CustomButton;
 import fr.inria.corese.gui.view.ResultView;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -24,9 +24,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import javafx.util.Duration;
-import org.kordamp.ikonli.javafx.FontIcon;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignE;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,7 +32,6 @@ import java.nio.file.Files;
 import fr.inria.corese.gui.view.rule.CustomPagination;
 import javafx.beans.value.ChangeListener;
 import javafx.concurrent.Worker;
-import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
@@ -55,8 +51,8 @@ public class ResultController {
     private final TextArea xmlResultTextArea;
     private final TableView<ValidationReportItem> reportTable;
     private final ChoiceBox<String> textFormatChoiceBox;
-    private final CustomButton copyButton;
-    private final CustomButton exportButton;
+    private Button copyButton;
+    private Button exportButton;
 
     // SPARQL Result Components
     private final TableView<String[]> resultTable;
@@ -75,16 +71,6 @@ public class ResultController {
         this.reportTable = new TableView<>();
         this.textFormatChoiceBox = new ChoiceBox<>();
         
-        this.copyButton = new CustomButton(ButtonType.COPY);
-        this.copyButton.setText("");
-        this.copyButton.setGraphic(new FontIcon(MaterialDesignC.CONTENT_COPY));
-        this.copyButton.setTooltip(new Tooltip("Copy to Clipboard"));
-        
-        this.exportButton = new CustomButton(ButtonType.EXPORT);
-        this.exportButton.setText("");
-        this.exportButton.setGraphic(new FontIcon(MaterialDesignE.EXPORT));
-        this.exportButton.setTooltip(new Tooltip("Export to File"));
-
         // Initialize SPARQL components
         this.resultTable = new TableView<>();
         this.allRows = new ArrayList<>();
@@ -100,6 +86,11 @@ public class ResultController {
         // Text Tab Content
         xmlResultTextArea.setEditable(false);
         
+        // Use IconButtonBarView for consistency
+        view.getIconButtonBarView().initializeButtons(List.of(IconButtonType.COPY, IconButtonType.EXPORT));
+        this.copyButton = view.getIconButtonBarView().getButton(IconButtonType.COPY);
+        this.exportButton = view.getIconButtonBarView().getButton(IconButtonType.EXPORT);
+
         initializeToolbar();
         
         // Wrap TextArea in StackPane to overlay the format choice box
@@ -114,9 +105,6 @@ public class ResultController {
         BorderPane textPane = new BorderPane();
         textPane.setCenter(textContent);
         
-        // Use IconButtonBarView for consistency
-        view.getIconButtonBarView().addCustomButton(copyButton);
-        view.getIconButtonBarView().addCustomButton(exportButton);
         textPane.setRight(view.getIconButtonBarView());
         
         view.getTextTab().setContent(textPane);
@@ -192,11 +180,14 @@ public class ResultController {
         content.putString(xmlResultTextArea.getText());
         Clipboard.getSystemClipboard().setContent(content);
         
-        String originalText = copyButton.getText();
-        copyButton.setText("Copied!");
-        PauseTransition pause = new PauseTransition(Duration.seconds(1.5));
-        pause.setOnFinished(e -> copyButton.setText(originalText));
-        pause.play();
+        Tooltip tooltip = copyButton.getTooltip();
+        if (tooltip != null) {
+            String originalText = tooltip.getText();
+            tooltip.setText("Copied!");
+            PauseTransition pause = new PauseTransition(Duration.seconds(1.5));
+            pause.setOnFinished(e -> tooltip.setText(originalText));
+            pause.play();
+        }
     }
 
     private void handleExport() {
