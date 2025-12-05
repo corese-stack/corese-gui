@@ -27,7 +27,7 @@ import java.util.function.Consumer;
 public final class SystemThemeMonitor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SystemThemeMonitor.class);
-    private static final long POLL_INTERVAL_MS = 20;
+    private static final long POLL_INTERVAL_MS = 250;
 
     private final AtomicBoolean running = new AtomicBoolean(false);
     private ScheduledExecutorService scheduler;
