@@ -8,6 +8,17 @@ import javafx.scene.layout.BorderPane;
 /**
  * A generic view with a vertical split pane, typically used for an editor (top) and results
  * (bottom).
+ *
+ * <pre>
+ * +------------------------------------------------+
+ * |  SplitPane (Vertical)                          |
+ * |  +------------------------------------------+  |
+ * |  |  Editor Area                             |  |
+ * |  +------------------------------------------+  |
+ * |  |  Results Area                            |  |
+ * |  +------------------------------------------+  |
+ * +------------------------------------------------+
+ * </pre>
  */
 public class SplitEditorView extends AbstractView {
 
@@ -41,6 +52,15 @@ public class SplitEditorView extends AbstractView {
   /**
    * Sets the editor view in the top/left pane of the split pane.
    *
+   * @param view the editor view to set
+   */
+  public void setEditorView(AbstractView view) {
+    setEditorView(view.getRoot());
+  }
+
+  /**
+   * Sets the editor view in the top/left pane of the split pane.
+   *
    * @param node the editor view node to set
    */
   public void setEditorView(Node node) {
@@ -49,6 +69,15 @@ public class SplitEditorView extends AbstractView {
     } else {
       mainSplitPane.getItems().set(0, node);
     }
+  }
+
+  /**
+   * Sets the results view in the bottom/right pane of the split pane.
+   *
+   * @param view the results view to set
+   */
+  public void setResultView(AbstractView view) {
+    setResultView(view.getRoot());
   }
 
   /**

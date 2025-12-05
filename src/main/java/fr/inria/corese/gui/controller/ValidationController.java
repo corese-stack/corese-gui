@@ -1,10 +1,6 @@
 package fr.inria.corese.gui.controller;
 
-import fr.inria.corese.core.Graph;
-import fr.inria.corese.core.sparql.api.ResultFormatDef;
 import fr.inria.corese.gui.enums.icon.IconButtonBarType;
-import fr.inria.corese.gui.manager.GraphManager;
-import fr.inria.corese.gui.manager.QueryManager;
 import fr.inria.corese.gui.model.ValidationModel;
 import fr.inria.corese.gui.view.EmptyStateView;
 import fr.inria.corese.gui.view.ValidationView;
@@ -29,54 +25,74 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Controller for the Validation View.
+ *
+ * <p>This controller manages the interaction between the Validation View, the Validation Model, and
+ * the user. It handles the setup of the editor, the execution of SHACL validation, and the display
+ * of results.
+ */
 public class ValidationController {
+
+  // Logger
   private static final Logger logger = LoggerFactory.getLogger(ValidationController.class);
 
+  // MVC Components
   private final ValidationView view;
   private final ValidationModel validationModel;
-  private final GraphManager graphManager;
 
+  // Sub-Controllers
   private TabEditorController tabEditorController;
   private ResultController resultController;
+
+  // UI Elements
   private Node emptyStateView;
-  private Graph lastReportGraph;
   private StackPane editorContainer;
 
+  // ===== Constructor =====
+
+  /**
+   * Constructor.
+   *
+   * @param view The ValidationView associated with this controller.
+   */
   public ValidationController(ValidationView view) {
     this.view = view;
     this.validationModel = new ValidationModel();
-    this.graphManager = GraphManager.getInstance();
     initialize();
   }
 
+  /** Initializes the controller components and UI. */
   private void initialize() {
     try {
       // Initialize Result Component
       resultController = new ResultController();
-      view.setResultView(resultController.getView().getRoot());
+      view.setResultView(resultController.getViewRoot());
 
+      // Listener for result format changes (e.g., Turtle, JSON-LD)
       resultController
           .getTextFormatChoiceBox()
           .getSelectionModel()
           .selectedItemProperty()
           .addListener(
               (obs, oldVal, newVal) -> {
-                if (newVal != null && lastReportGraph != null) {
-                  formatAndDisplayReport(lastReportGraph, newVal);
+                if (newVal != null) {
+                  updateReportDisplay(newVal);
                 }
               });
 
       // Initialize Editor Component
       initializeTabEditor();
 
-      // Setup Empty State
+      // Setup Empty State (when no tabs are open)
       setupEmptyState();
 
     } catch (Exception e) {
-      logger.error("Error initializing ValidationViewController", e);
+      logger.error("Error initializing ValidationController", e);
     }
   }
 
+  /** Initializes the tab editor for SHACL shapes. */
   private void initializeTabEditor() {
     tabEditorController = new TabEditorController(IconButtonBarType.VALIDATION);
     tabEditorController.getView().setMaxWidth(Double.MAX_VALUE);
@@ -88,11 +104,12 @@ public class ValidationController {
 
     setupFloatingValidateButton();
     setupTabListeners();
-    
+
     // Configure TabEditor Menu Actions
     tabEditorController.getView().getOpenFileItem().setVisible(false);
   }
 
+  /** Sets up listeners for tab changes to configure new tabs. */
   private void setupTabListeners() {
     tabEditorController
         .getView()
@@ -113,6 +130,7 @@ public class ValidationController {
                 });
   }
 
+  /** Sets up the floating action button for triggering validation. */
   private void setupFloatingValidateButton() {
     Button validateButton = new Button();
     FontIcon playIcon = new FontIcon(MaterialDesignP.PLAY);
@@ -129,14 +147,13 @@ public class ValidationController {
     validateButton.visibleProperty().bind(tabEditorController.getView().visibleProperty());
     validateButton.managedProperty().bind(tabEditorController.getView().visibleProperty());
 
-    // Better approach for disable property:
+    // Enable/Disable based on tab selection
     tabEditorController
         .getView()
         .getTabPane()
         .getSelectionModel()
         .selectedItemProperty()
-        .addListener(
-            (obs, oldTab, newTab) -> updateValidateButtonState(validateButton));
+        .addListener((obs, oldTab, newTab) -> updateValidateButtonState(validateButton));
 
     StackPane.setAlignment(validateButton, Pos.BOTTOM_RIGHT);
     // Add margins to avoid overlap with scrollbars and toolbars
@@ -145,6 +162,7 @@ public class ValidationController {
     editorContainer.getChildren().add(validateButton);
   }
 
+  /** Updates the state (enabled/disabled) of the validate button. */
   private void updateValidateButtonState(Button validateButton) {
     Tab selectedTab =
         tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
@@ -159,7 +177,7 @@ public class ValidationController {
     validateButton.setDisable(false);
   }
 
-  // ...existing code...
+  /** Configures a newly added tab (shortcuts, etc.). */
   private void configureTab(Tab tab) {
     CodeEditorController controller = tabEditorController.getModel().getControllerForTab(tab);
     if (controller != null) {
@@ -167,6 +185,7 @@ public class ValidationController {
     }
   }
 
+  /** Configures keyboard shortcuts for the editor. */
   private void configureEditorShortcuts(CodeEditorController controller) {
     // Only shortcuts, no button in toolbar
     controller
@@ -180,8 +199,7 @@ public class ValidationController {
             });
   }
 
-  // ...existing code...
-
+  /** Sets up the empty state view (shown when no tabs are open). */
   private void setupEmptyState() {
     Runnable newShapesAction = () -> tabEditorController.addNewTab("untitled-shapes.ttl", "");
     Runnable loadShapesAction = this::onOpenFilesButtonClick;
@@ -219,6 +237,7 @@ public class ValidationController {
                 });
   }
 
+  /** Updates the visibility of the empty state view based on the number of open tabs. */
   private void updateEmptyStateVisibility() {
     long realTabCount =
         tabEditorController.getView().getTabPane().getTabs().stream()
@@ -234,11 +253,14 @@ public class ValidationController {
     tabEditorController.getView().setManaged(!noTabsOpen);
   }
 
+  /**
+   * Executes the validation logic. Validates the data graph against the shapes in the active tab.
+   */
   public void executeValidation() {
     resultController.clearResults();
-    lastReportGraph = null;
 
-    if (graphManager.getGraph().size() == 0) {
+    // Check if data is loaded in the GraphManager
+    if (!validationModel.isDataLoaded()) {
       String message = "Cannot validate: No data has been loaded in the 'Data' view.";
       resultController.updateText(message);
       showError("No Data Loaded", message);
@@ -265,18 +287,16 @@ public class ValidationController {
       return;
     }
 
+    // Run validation in a background thread to avoid blocking the UI
     new Thread(
             () -> {
-              Graph dataGraph = graphManager.getGraph();
-              ValidationModel.ValidationResult result =
-                  validationModel.validate(dataGraph, shapesContent);
+              // Delegate validation to the model
+              ValidationModel.ValidationResult result = validationModel.validate(shapesContent);
+
               Platform.runLater(
                   () -> {
-                    resultController
-                        .getView()
-                        .getTabPane()
-                        .getSelectionModel()
-                        .select(resultController.getView().getTextTab());
+                    // Select the text tab to show results
+                    resultController.selectTextTab();
 
                     if (result.getErrorMessage() != null) {
                       String errorMsg =
@@ -284,43 +304,32 @@ public class ValidationController {
                       resultController.updateText(errorMsg);
                       showError("Invalid SHACL Content", result.getErrorMessage());
                     } else {
-                      this.lastReportGraph = result.getReportGraph();
-                      formatAndDisplayReport(this.lastReportGraph, "TURTLE");
-                      resultController.displayReport(this.lastReportGraph);
+                      // Display the report in the default format (Turtle)
+                      updateReportDisplay("TURTLE");
+
+                      // Pass the report graph to the result controller for other visualizations
+                      // Note: We pass the Graph object here as required by ResultController,
+                      // but we do not store it in this controller.
+                      resultController.displayReport(result.getReportGraph());
                     }
                   });
             })
         .start();
   }
 
-  private void formatAndDisplayReport(Graph reportGraph, String format) {
-    if (reportGraph == null || format == null) return;
-
-    ResultFormatDef.format coreseFormat;
-    switch (format.toUpperCase()) {
-      case "RDF/XML":
-        coreseFormat = ResultFormatDef.format.RDF_XML_FORMAT;
-        break;
-      case "JSON-LD":
-        coreseFormat = ResultFormatDef.format.JSONLD_FORMAT;
-        break;
-      case "N-TRIPLES":
-        coreseFormat = ResultFormatDef.format.NTRIPLES_FORMAT;
-        break;
-      case "N-QUADS":
-        coreseFormat = ResultFormatDef.format.NQUADS_FORMAT;
-        break;
-      case "TRIG":
-        coreseFormat = ResultFormatDef.format.TRIG_FORMAT;
-        break;
-      default:
-        coreseFormat = ResultFormatDef.format.TURTLE_FORMAT;
-        break;
+  /**
+   * Updates the text area with the validation report in the specified format.
+   *
+   * @param format The format to display the report in (e.g., "TURTLE").
+   */
+  private void updateReportDisplay(String format) {
+    String formattedReport = validationModel.formatLastReport(format);
+    if (formattedReport != null) {
+      resultController.updateText(formattedReport);
     }
-    String formattedReport = QueryManager.getInstance().formatGraph(reportGraph, coreseFormat);
-    resultController.updateText(formattedReport);
   }
 
+  /** Opens a file chooser to load shapes files. */
   private void onOpenFilesButtonClick() {
     FileChooser fileChooser = new FileChooser();
     fileChooser.setTitle("Open Shapes File");
@@ -333,6 +342,12 @@ public class ValidationController {
     }
   }
 
+  /**
+   * Displays an error alert.
+   *
+   * @param title The title of the alert.
+   * @param content The content message of the alert.
+   */
   private void showError(String title, String content) {
     Alert alert = new Alert(Alert.AlertType.ERROR);
     alert.setTitle(title);

@@ -6,6 +6,17 @@ import fr.inria.corese.gui.view.base.SplitEditorView;
  * View for the Validation screen.
  *
  * <p>Displays a code editor for SHACL shapes and a results pane for validation reports.
+ *
+ * <pre>
+ * +------------------------------------------------+
+ * |  ValidationView (SplitEditorView)              |
+ * |  +------------------------------------------+  |
+ * |  |  TabEditorView (Shapes Editor)           |  |
+ * |  +------------------------------------------+  |
+ * |  |  ResultView (Validation Report)          |  |
+ * |  +------------------------------------------+  |
+ * +------------------------------------------------+
+ * </pre>
  */
 public class ValidationView extends SplitEditorView {
 

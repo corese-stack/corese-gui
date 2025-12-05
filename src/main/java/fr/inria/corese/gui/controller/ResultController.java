@@ -305,8 +305,25 @@ public class ResultController {
         return view;
     }
 
+    /**
+     * Returns the root node of the view.
+     * This allows the controller to expose the UI component without exposing the View class.
+     *
+     * @return The root Parent node of the view.
+     */
+    public javafx.scene.Parent getViewRoot() {
+        return view.getRoot();
+    }
+
     public ChoiceBox<String> getTextFormatChoiceBox() {
         return textFormatChoiceBox;
+    }
+
+    /**
+     * Selects the Text tab in the view.
+     */
+    public void selectTextTab() {
+        view.getTabPane().getSelectionModel().select(view.getTextTab());
     }
 
     public void updateTableView(String csvResult) {
