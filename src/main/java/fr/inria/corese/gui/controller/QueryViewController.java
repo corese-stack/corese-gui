@@ -76,21 +76,17 @@ public class QueryViewController {
     });
     
     // Result format listener
-    resultController.getTextFormatChoiceBox().getSelectionModel().selectedItemProperty().addListener(
-        (obs, oldVal, newVal) -> {
-            if (newVal != null) {
-                Tab selectedQueryTab = tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
-                if (selectedQueryTab != null && selectedQueryTab != tabEditorController.getView().getAddTab()) {
-                    // We need to re-fetch or re-format data. 
-                    // For now, let's assume we just re-display if we have cached result.
-                    // But ResultController handles text update. 
-                    // We might need to ask QueryManager to format again.
-                    // This part might need refinement as ResultController logic was slightly different.
-                    // For simplicity, we'll leave it for now or implement if needed.
-                }
-            }
+    resultController.setOnFormatChanged(newVal -> {
+        Tab selectedQueryTab = tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
+        if (selectedQueryTab != null && selectedQueryTab != tabEditorController.getView().getAddTab()) {
+            // We need to re-fetch or re-format data. 
+            // For now, let's assume we just re-display if we have cached result.
+            // But ResultController handles text update. 
+            // We might need to ask QueryManager to format again.
+            // This part might need refinement as ResultController logic was slightly different.
+            // For simplicity, we'll leave it for now or implement if needed.
         }
-    );
+    });
   }
 
   private void setupFloatingRunButton() {

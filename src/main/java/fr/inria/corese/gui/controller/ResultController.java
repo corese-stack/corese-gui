@@ -41,6 +41,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.web.WebView;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -167,9 +168,21 @@ public class ResultController {
         reportTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
     }
 
+    private Consumer<String> onFormatChanged;
+
+    public void setOnFormatChanged(Consumer<String> listener) {
+        this.onFormatChanged = listener;
+    }
+
     private void initializeToolbar() {
         textFormatChoiceBox.getItems().setAll("TURTLE", "RDF/XML", "JSON-LD", "N-TRIPLES", "N-QUADS", "TRIG");
         textFormatChoiceBox.getSelectionModel().select("TURTLE");
+
+        textFormatChoiceBox.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && onFormatChanged != null) {
+                onFormatChanged.accept(newVal);
+            }
+        });
 
         copyButton.setOnAction(event -> handleCopy());
         exportButton.setOnAction(event -> handleExport());
@@ -313,10 +326,6 @@ public class ResultController {
      */
     public javafx.scene.Parent getViewRoot() {
         return view.getRoot();
-    }
-
-    public ChoiceBox<String> getTextFormatChoiceBox() {
-        return textFormatChoiceBox;
     }
 
     /**

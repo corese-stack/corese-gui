@@ -86,6 +86,37 @@ public class TabEditorView extends VBox {
   }
 
   /**
+   * Adds a floating node (e.g., a button) to the editor view.
+   *
+   * @param node The node to add.
+   * @param position The position of the node within the stack pane.
+   * @param margin The margin to apply to the node.
+   */
+  public void addFloatingNode(javafx.scene.Node node, Pos position, javafx.geometry.Insets margin) {
+    StackPane.setAlignment(node, position);
+    StackPane.setMargin(node, margin);
+    mainContainer.getChildren().add(node);
+  }
+
+  /**
+   * Sets the empty state view to be displayed when no tabs are open.
+   *
+   * @param emptyStateView The empty state view node.
+   */
+  public void setEmptyStateView(javafx.scene.Node emptyStateView) {
+    if (this.emptyStateView != null) {
+      mainContainer.getChildren().remove(this.emptyStateView);
+    }
+    // Add at index 0 to be behind the tab pane (or manage visibility)
+    // Actually, usually empty state replaces the content or sits on top if content is hidden.
+    // Let's add it to the stack.
+    mainContainer.getChildren().add(0, emptyStateView);
+    
+    // Bind visibility: Show empty state only when TabPane is hidden or empty?
+    // The controller will manage visibility.
+  }
+
+  /**
    * Creates a Tab with the given title and code editor view without adding it to the TabPane
    *
    * @param title The title of the tab

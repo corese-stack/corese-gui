@@ -23,6 +23,8 @@ public class TabEditorController {
   private final TabEditorView view;
   private final TabEditorModel model;
   private final IconButtonBarType type;
+  private Runnable onExecutionRequest;
+  private javafx.scene.Node emptyStateNode;
 
   public TabEditorController(IconButtonBarType type) {
     this.view = new TabEditorView();
@@ -30,6 +32,48 @@ public class TabEditorController {
     this.type = type;
     initializeTabPane();
     initializeKeyboardShortcuts();
+  }
+
+  /**
+   * Sets the action to be executed when the user triggers the execution command
+   * (e.g., pressing Ctrl+Enter in the editor).
+   *
+   * @param action The action to execute.
+   */
+  public void setOnExecutionRequest(Runnable action) {
+    this.onExecutionRequest = action;
+  }
+
+  /**
+   * Sets the empty state view to display when no tabs are open.
+   * Automatically manages the visibility of the tab pane and the empty state.
+   *
+   * @param emptyStateNode The node to display.
+   */
+  public void setEmptyState(javafx.scene.Node emptyStateNode) {
+    this.emptyStateNode = emptyStateNode;
+    view.setEmptyStateView(emptyStateNode);
+    updateEmptyStateVisibility();
+  }
+
+  /**
+   * Adds a floating action node (e.g. a button) to the editor view.
+   *
+   * @param node The node to add.
+   * @param position The position.
+   * @param margin The margin.
+   */
+  public void addFloatingNode(javafx.scene.Node node, javafx.geometry.Pos position, javafx.geometry.Insets margin) {
+    view.addFloatingNode(node, position, margin);
+  }
+
+  /**
+   * Returns the root node of the view.
+   *
+   * @return The root Parent node.
+   */
+  public javafx.scene.Parent getViewRoot() {
+      return view;
   }
 
   private void initializeTabPane() {
@@ -44,6 +88,7 @@ public class TabEditorController {
                     } else if (!view.getTabPane().getTabs().contains(view.getAddTab())) {
                       view.getTabPane().getTabs().add(view.getAddTab());
                     }
+                    Platform.runLater(this::updateEmptyStateVisibility);
                   }
                 });
     
@@ -119,7 +164,32 @@ public class TabEditorController {
           handleCloseFile(tab);
         });
 
+    // Bind execution shortcut (Ctrl+Enter)
+    codeEditorController.getView().setOnKeyPressed(event -> {
+        if (new KeyCodeCombination(KeyCode.ENTER, KeyCombination.CONTROL_DOWN).match(event)) {
+            if (onExecutionRequest != null) {
+                onExecutionRequest.run();
+                event.consume();
+            }
+        }
+    });
+
     return tab;
+  }
+
+  private void updateEmptyStateVisibility() {
+      if (emptyStateNode == null) return;
+      
+      long realTabCount = view.getTabPane().getTabs().stream()
+              .filter(t -> t != view.getAddTab())
+              .count();
+      boolean noTabsOpen = (realTabCount == 0);
+
+      emptyStateNode.setVisible(noTabsOpen);
+      emptyStateNode.setManaged(noTabsOpen);
+      
+      view.getTabPane().setVisible(!noTabsOpen);
+      view.getTabPane().setManaged(!noTabsOpen);
   }
 
   public Tab addNewTab(String title, String content) {
