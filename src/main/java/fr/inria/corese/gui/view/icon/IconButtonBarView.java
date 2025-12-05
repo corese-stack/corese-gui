@@ -15,7 +15,7 @@ public class IconButtonBarView extends VBox {
   public IconButtonBarView() {
     setSpacing(10);
     setAlignment(Pos.TOP_CENTER);
-    setStyle("-fx-background-color: transparent;");
+    getStyleClass().add("secondary-bar");
   }
 
   public void initializeButtons(List<IconButtonType> buttonTypes) {

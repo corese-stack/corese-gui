@@ -16,3 +16,10 @@
 .active-button {
     -fx-background-color: #800080;
 }
+
+.secondary-bar {
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 0 0 0 1;
+    -fx-padding: 5px;
+}

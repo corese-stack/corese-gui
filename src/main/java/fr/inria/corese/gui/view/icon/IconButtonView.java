@@ -2,7 +2,6 @@ package fr.inria.corese.gui.view.icon;
 
 import javafx.scene.control.Button;
 import javafx.scene.control.Tooltip;
-import javafx.scene.paint.Color;
 import org.kordamp.ikonli.Ikon;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignB;
@@ -21,10 +20,8 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignV;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 
 public class IconButtonView extends Button {
-  private IconButtonType iconButtonType;
 
   public IconButtonView(IconButtonType type) {
-    iconButtonType = type;
     createIcon(type);
   }
 
@@ -61,39 +58,18 @@ public class IconButtonView extends Button {
     Tooltip tooltip = new Tooltip(tooltipText);
     Tooltip.install(this, tooltip);
 
-    fontIcon.setIconSize(25); // Taille de l'icône en pixels
-    setStyle(
-        "-fx-background-color: transparent;"
-            + "-fx-pref-width: 6;"
-            + "-fx-pref-height: 6;"
-            + "-fx-border-color: transparent;");
-
-    setOnMouseEntered(
-        e -> {
-          setStyle(
-              "-fx-background-color: #2196F3;"
-                  + "-fx-pref-width: 6;"
-                  + "-fx-pref-height: 6;"
-                  + "-fx-border-color: transparent;");
-          fontIcon.setIconColor(Color.WHITE);
-          tooltip.setStyle("-fx-font-size: 14;");
-        });
-
-    setOnMouseExited(
-        e -> {
-          setStyle(
-              "-fx-background-color: transparent;"
-                  + "-fx-pref-width: 6;"
-                  + "-fx-pref-height: 6;"
-                  + "-fx-border-color: transparent;");
-          fontIcon.setIconColor(Color.BLACK);
-        });
+    fontIcon.setIconSize(25);
+    
+    // Use AtlantaFX styles
+    getStyleClass().add("flat");
+    
+    // Bind icon color to button text color to respect theme
+    fontIcon.iconColorProperty().bind(textFillProperty());
 
     setGraphic(fontIcon);
   }
 
   public void setType(IconButtonType iconButtonType) {
-    this.iconButtonType = iconButtonType;
     createIcon(iconButtonType);
   }
 }
