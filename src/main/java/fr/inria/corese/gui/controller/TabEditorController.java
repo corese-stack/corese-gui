@@ -1,21 +1,22 @@
 package fr.inria.corese.gui.controller;
 
+import fr.inria.corese.gui.enums.icon.IconButtonType;
+import fr.inria.corese.gui.model.TabEditorModel;
+import fr.inria.corese.gui.view.FloatingButton;
+import fr.inria.corese.gui.view.TabEditorView;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
-
-import fr.inria.corese.gui.enums.icon.IconButtonType;
-import fr.inria.corese.gui.model.TabEditorModel;
-import fr.inria.corese.gui.view.TabEditorView;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.collections.ListChangeListener;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.Tooltip;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Tab;
 import javafx.scene.input.KeyCode;
@@ -23,10 +24,7 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.FileChooser;
-import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 
 public class TabEditorController {
   private final TabEditorView view;
@@ -44,8 +42,8 @@ public class TabEditorController {
   }
 
   /**
-   * Sets the action to be executed when the user triggers the execution command
-   * (e.g., pressing Ctrl+Enter in the editor).
+   * Sets the action to be executed when the user triggers the execution command (e.g., pressing
+   * Ctrl+Enter in the editor).
    *
    * @param action The action to execute.
    */
@@ -54,8 +52,8 @@ public class TabEditorController {
   }
 
   /**
-   * Sets the empty state view to display when no tabs are open.
-   * Automatically manages the visibility of the tab pane and the empty state.
+   * Sets the empty state view to display when no tabs are open. Automatically manages the
+   * visibility of the tab pane and the empty state.
    *
    * @param emptyStateNode The node to display.
    */
@@ -81,38 +79,33 @@ public class TabEditorController {
    * @param position The position.
    * @param margin The margin.
    */
-  public void addFloatingNode(javafx.scene.Node node, javafx.geometry.Pos position, javafx.geometry.Insets margin) {
+  public void addFloatingNode(
+      javafx.scene.Node node, javafx.geometry.Pos position, javafx.geometry.Insets margin) {
     view.addFloatingNode(node, position, margin);
   }
 
   /**
-   * Adds a standard "Run/Execute" floating button to the editor.
-   * The button is automatically bound to the execution request action
-   * and enabled/disabled based on the tab selection.
+   * Adds a standard "Run/Execute" floating button to the editor. The button is automatically bound
+   * to the execution request action and enabled/disabled based on the tab selection.
    *
    * @param tooltipText The text to display in the tooltip.
    */
   public void addExecutionButton(String tooltipText) {
-    Button runButton = new Button();
-    FontIcon playIcon = new FontIcon(MaterialDesignP.PLAY);
-    playIcon.setIconSize(24);
-    playIcon.setIconColor(javafx.scene.paint.Color.WHITE);
-    runButton.setGraphic(playIcon);
+    Button runButton = new FloatingButton(MaterialDesignP.PLAY, tooltipText);
 
-    runButton.getStyleClass().add("floating-validate-button");
-    runButton.setTooltip(new Tooltip(tooltipText));
-    
-    runButton.setOnAction(e -> {
-        if (onExecutionRequest != null) {
+    runButton.setOnAction(
+        e -> {
+          if (onExecutionRequest != null) {
             onExecutionRequest.run();
-        }
-    });
+          }
+        });
 
     // Enable/Disable based on tab selection and content
-    view.getTabPane().getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> 
-        updateExecutionButtonState(runButton, newTab)
-    );
-    
+    view.getTabPane()
+        .getSelectionModel()
+        .selectedItemProperty()
+        .addListener((obs, oldTab, newTab) -> updateExecutionButtonState(runButton, newTab));
+
     // Initial state
     updateExecutionButtonState(runButton, view.getTabPane().getSelectionModel().getSelectedItem());
 
@@ -124,26 +117,26 @@ public class TabEditorController {
   }
 
   private void updateExecutionButtonState(Button runButton, Tab selectedTab) {
-      if (selectedTab == null || selectedTab == view.getAddTab()) {
-          runButton.disableProperty().unbind();
-          runButton.setDisable(true);
-          return;
-      }
-      
-      CodeEditorController controller = model.getControllerForTab(selectedTab);
-      if (controller != null) {
-          BooleanBinding isEmpty = Bindings.createBooleanBinding(
+    if (selectedTab == null || selectedTab == view.getAddTab()) {
+      runButton.disableProperty().unbind();
+      runButton.setDisable(true);
+      return;
+    }
+
+    CodeEditorController controller = model.getControllerForTab(selectedTab);
+    if (controller != null) {
+      BooleanBinding isEmpty =
+          Bindings.createBooleanBinding(
               () -> {
-                  String c = controller.getModel().getContent();
-                  return c == null || c.trim().isEmpty();
+                String c = controller.getModel().getContent();
+                return c == null || c.trim().isEmpty();
               },
-              controller.getModel().contentProperty()
-          );
-          runButton.disableProperty().bind(isEmpty);
-      } else {
-          runButton.disableProperty().unbind();
-          runButton.setDisable(true);
-      }
+              controller.getModel().contentProperty());
+      runButton.disableProperty().bind(isEmpty);
+    } else {
+      runButton.disableProperty().unbind();
+      runButton.setDisable(true);
+    }
   }
 
   /**
@@ -152,7 +145,7 @@ public class TabEditorController {
    * @return The root Parent node.
    */
   public javafx.scene.Parent getViewRoot() {
-      return getView();
+    return getView();
   }
 
   private void initializeTabPane() {
@@ -170,26 +163,33 @@ public class TabEditorController {
                     Platform.runLater(this::updateEmptyStateVisibility);
                   }
                 });
-    
+
     // Handle selection of the "Add Tab"
-    view.getTabPane().getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
-        if (newTab == view.getAddTab()) {
-            // If the user clicked the add tab, create a new tab
-            Platform.runLater(() -> {
-                addNewTab("Untitled", "");
-                // The addNewTab method selects the new tab, so we don't need to do anything else
-                // But if for some reason it failed, we should go back to the old tab
-                if (view.getTabPane().getSelectionModel().getSelectedItem() == view.getAddTab()) {
-                     if (oldTab != null && view.getTabPane().getTabs().contains(oldTab)) {
-                         view.getTabPane().getSelectionModel().select(oldTab);
-                     } else if (view.getTabPane().getTabs().size() > 1) {
-                         view.getTabPane().getSelectionModel().select(0);
-                     }
-                }
+    view.getTabPane()
+        .getSelectionModel()
+        .selectedItemProperty()
+        .addListener(
+            (obs, oldTab, newTab) -> {
+              if (newTab == view.getAddTab()) {
+                // If the user clicked the add tab, create a new tab
+                Platform.runLater(
+                    () -> {
+                      addNewTab("Untitled", "");
+                      // The addNewTab method selects the new tab, so we don't need to do anything
+                      // else
+                      // But if for some reason it failed, we should go back to the old tab
+                      if (view.getTabPane().getSelectionModel().getSelectedItem()
+                          == view.getAddTab()) {
+                        if (oldTab != null && view.getTabPane().getTabs().contains(oldTab)) {
+                          view.getTabPane().getSelectionModel().select(oldTab);
+                        } else if (view.getTabPane().getTabs().size() > 1) {
+                          view.getTabPane().getSelectionModel().select(0);
+                        }
+                      }
+                    });
+              }
             });
-        }
-    });
-    
+
     // Handle SplitMenuButton actions
     view.getAddTabButton().setOnAction(e -> addNewTab("Untitled", ""));
     view.getNewFileItem().setOnAction(e -> addNewTab("Untitled", ""));
@@ -221,11 +221,12 @@ public class TabEditorController {
     model.addTabModel(tab, codeEditorController);
 
     tab.textProperty().bind(codeEditorController.getModel().displayNameProperty());
-    
+
     // Bind modified property to tab icon
-    codeEditorController.getModel().modifiedProperty().addListener((obs, oldVal, newVal) -> 
-        view.updateTabIcon(tab, newVal)
-    );
+    codeEditorController
+        .getModel()
+        .modifiedProperty()
+        .addListener((obs, oldVal, newVal) -> view.updateTabIcon(tab, newVal));
     // Initialize icon state
     view.updateTabIcon(tab, codeEditorController.getModel().isModified());
 
@@ -244,29 +245,32 @@ public class TabEditorController {
         });
 
     // Bind execution shortcut (Ctrl+Enter)
-    codeEditorController.getView().setOnKeyPressed(event -> {
-        if (new KeyCodeCombination(KeyCode.ENTER, KeyCombination.CONTROL_DOWN).match(event) && onExecutionRequest != null) {
-            onExecutionRequest.run();
-            event.consume();
-        }
-    });
+    codeEditorController
+        .getView()
+        .setOnKeyPressed(
+            event -> {
+              if (new KeyCodeCombination(KeyCode.ENTER, KeyCombination.CONTROL_DOWN).match(event)
+                  && onExecutionRequest != null) {
+                onExecutionRequest.run();
+                event.consume();
+              }
+            });
 
     return tab;
   }
 
   private void updateEmptyStateVisibility() {
-      if (emptyStateNode == null) return;
-      
-      long realTabCount = view.getTabPane().getTabs().stream()
-              .filter(t -> t != view.getAddTab())
-              .count();
-      boolean noTabsOpen = (realTabCount == 0);
+    if (emptyStateNode == null) return;
 
-      emptyStateNode.setVisible(noTabsOpen);
-      emptyStateNode.setManaged(noTabsOpen);
-      
-      view.getTabPane().setVisible(!noTabsOpen);
-      view.getTabPane().setManaged(!noTabsOpen);
+    long realTabCount =
+        view.getTabPane().getTabs().stream().filter(t -> t != view.getAddTab()).count();
+    boolean noTabsOpen = (realTabCount == 0);
+
+    emptyStateNode.setVisible(noTabsOpen);
+    emptyStateNode.setManaged(noTabsOpen);
+
+    view.getTabPane().setVisible(!noTabsOpen);
+    view.getTabPane().setManaged(!noTabsOpen);
   }
 
   public Tab addNewTab(String title, String content) {
@@ -278,7 +282,8 @@ public class TabEditorController {
     for (Tab tab : view.getTabPane().getTabs()) {
       if (tab == view.getAddTab()) continue;
       CodeEditorController controller = model.getControllerForTab(tab);
-      if (controller != null && file.getAbsolutePath().equals(controller.getModel().getFilePath())) {
+      if (controller != null
+          && file.getAbsolutePath().equals(controller.getModel().getFilePath())) {
         view.getTabPane().getSelectionModel().select(tab);
         return tab;
       }
@@ -315,10 +320,10 @@ public class TabEditorController {
   public boolean handleCloseFile(Tab tab) {
     if (tab == null || tab == view.getAddTab()) return false;
     CodeEditorController controller = model.getControllerForTab(tab);
-    
+
     if (controller == null || !controller.getModel().isModified()) {
-        closeTab(tab);
-        return true;
+      closeTab(tab);
+      return true;
     }
 
     Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
@@ -334,8 +339,8 @@ public class TabEditorController {
       if (result.get() == save) {
         controller.saveFile();
         if (!controller.getModel().isModified()) {
-            closeTab(tab);
-            return true;
+          closeTab(tab);
+          return true;
         }
       } else if (result.get() == dontSave) {
         closeTab(tab);
@@ -346,8 +351,8 @@ public class TabEditorController {
   }
 
   private void closeTab(Tab tab) {
-      view.getTabPane().getTabs().remove(tab);
-      model.removeTabModel(tab);
+    view.getTabPane().getTabs().remove(tab);
+    model.removeTabModel(tab);
   }
 
   private void showError(String content) {

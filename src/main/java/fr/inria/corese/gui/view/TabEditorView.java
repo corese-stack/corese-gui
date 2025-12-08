@@ -30,7 +30,6 @@ public class TabEditorView extends VBox {
   private StackPane mainContainer;
 
   public TabEditorView() {
-    this.getStylesheets().add(getClass().getResource("/styles/buttons.css").toExternalForm());
     tabPane = new TabPane();
     tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
     tabPane.setTabMaxWidth(150);

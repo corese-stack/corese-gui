@@ -89,12 +89,6 @@ public class DataView extends AbstractView {
 
     root.setCenter(centerContent);
     
-    // Stylesheets
-    root.getStylesheets().addAll(
-        "/styles/buttons.css",
-        "/styles/list-view-styles.css",
-        "/styles/titled-pane-styles.css"
-    );
   }
 
   public TopBar getTopBar() {

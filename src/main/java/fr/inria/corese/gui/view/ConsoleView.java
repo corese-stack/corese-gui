@@ -13,8 +13,6 @@ public class ConsoleView extends StackPane {
   private final IconButtonView exportButton;
 
   public ConsoleView() {
-    String cssPath = "/styles/console-validation.css";
-    this.getStylesheets().add(getClass().getResource(cssPath).toExternalForm());
 
     consoleOutput = new TextArea();
     consoleOutput.setEditable(true);

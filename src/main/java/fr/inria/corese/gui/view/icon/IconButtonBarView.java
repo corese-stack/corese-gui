@@ -10,12 +10,15 @@ import javafx.scene.control.Button;
 import javafx.scene.layout.VBox;
 
 public class IconButtonBarView extends VBox {
+  private static final String STYLESHEET = "/styles/icon-button-bar.css";
   private final Map<IconButtonType, Button> buttons = new LinkedHashMap<>();
 
   public IconButtonBarView() {
+    getStylesheets().add(getClass().getResource(STYLESHEET).toExternalForm());
     setSpacing(10);
     setAlignment(Pos.TOP_CENTER);
     getStyleClass().add("secondary-bar");
+    setMaxHeight(Double.MAX_VALUE);
   }
 
   public void initializeButtons(List<IconButtonType> buttonTypes) {
@@ -26,7 +29,6 @@ public class IconButtonBarView extends VBox {
           buttons.put(type, button);
         });
     getChildren().addAll(buttons.values());
-    setHeight(50);
   }
 
   public Button getButton(IconButtonType type) {

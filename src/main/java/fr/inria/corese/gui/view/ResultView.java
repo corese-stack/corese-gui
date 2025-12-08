@@ -32,6 +32,7 @@ public class ResultView extends AbstractView {
 
         BorderPane root = (BorderPane) getRoot();
         root.setCenter(tabPane);
+        root.setRight(iconButtonBarView);
     }
 
     public TabPane getTabPane() { return tabPane; }

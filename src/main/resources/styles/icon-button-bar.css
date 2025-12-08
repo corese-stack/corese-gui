@@ -1,0 +1,10 @@
+/* Secondary Toolbar (Right side) */
+.secondary-bar {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 0 0 0 1;
+    -fx-padding: 5px;
+    -fx-min-width: 48px;
+    -fx-pref-width: 48px;
+    -fx-alignment: top-center;
+}

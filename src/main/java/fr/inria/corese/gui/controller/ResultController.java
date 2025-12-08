@@ -68,7 +68,6 @@ public class ResultController {
     public ResultController(List<IconButtonType> buttons) {
         this.buttons = buttons;
         this.view = new ResultView();
-        this.view.getRoot().getStylesheets().add(getClass().getResource("/styles/custom-button.css").toExternalForm());
 
         this.xmlResultTextArea = new TextArea();
         this.reportTable = new TableView<>();

@@ -4,7 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import fr.inria.corese.gui.enums.icon.IconButtonType;
-import fr.inria.corese.gui.factory.icon.IconButtonBarFactory;
 import fr.inria.corese.gui.model.codeEditor.CodeEditorModel;
 import fr.inria.corese.gui.view.codeEditor.CodeEditorView;
 
@@ -25,11 +24,17 @@ public class CodeEditorController {
   public CodeEditorController(List<IconButtonType> buttons, String initialContent) {
     this.view = new CodeEditorView();
     this.model = new CodeEditorModel();
-    this.iconButtonBarController = IconButtonBarFactory.create(buttons, this);
+    
+    // Use the existing IconButtonBarView from the view instead of creating a new one via Factory
+    this.iconButtonBarController = new IconButtonBarController(
+        new fr.inria.corese.gui.model.IconButtonBarModel(buttons), 
+        view.getIconButtonBarView(), 
+        this
+    );
 
     this.iconButtonBarController.getModel().setCodeEditorModel(this.model);
     this.iconButtonBarController.bindToModel();
-    view.getIconButtonBarView().getChildren().add(iconButtonBarController.getView());
+    // No need to add child, as we are using the view's component directly
 
     model.setContent(initialContent);
     Platform.runLater(this::initializeEditor);
