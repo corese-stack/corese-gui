@@ -63,8 +63,10 @@ public class ResultController {
     private final List<String[]> allRows;
     private int rowsPerPage = 50;
     private final WebView graphView;
+    private final List<IconButtonType> buttons;
 
-    public ResultController() {
+    public ResultController(List<IconButtonType> buttons) {
+        this.buttons = buttons;
         this.view = new ResultView();
         this.view.getRoot().getStylesheets().add(getClass().getResource("/styles/custom-button.css").toExternalForm());
 
@@ -83,12 +85,16 @@ public class ResultController {
         initialize();
     }
 
+    public ResultController() {
+        this(List.of(IconButtonType.COPY, IconButtonType.EXPORT));
+    }
+
     private void initialize() {
         // Text Tab Content
         xmlResultTextArea.setEditable(false);
         
         // Use IconButtonBarView for consistency
-        view.getIconButtonBarView().initializeButtons(List.of(IconButtonType.COPY, IconButtonType.EXPORT));
+        view.getIconButtonBarView().initializeButtons(buttons);
         this.copyButton = view.getIconButtonBarView().getButton(IconButtonType.COPY);
         this.exportButton = view.getIconButtonBarView().getButton(IconButtonType.EXPORT);
 

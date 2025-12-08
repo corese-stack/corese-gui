@@ -3,9 +3,10 @@ package fr.inria.corese.gui.controller;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.Optional;
 
-import fr.inria.corese.gui.enums.icon.IconButtonBarType;
+import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.model.TabEditorModel;
 import fr.inria.corese.gui.view.TabEditorView;
 import javafx.application.Platform;
@@ -22,14 +23,14 @@ import javafx.stage.FileChooser;
 public class TabEditorController {
   private final TabEditorView view;
   private final TabEditorModel model;
-  private final IconButtonBarType type;
+  private final List<IconButtonType> buttons;
   private Runnable onExecutionRequest;
   private javafx.scene.Node emptyStateNode;
 
-  public TabEditorController(IconButtonBarType type) {
+  public TabEditorController(List<IconButtonType> buttons) {
     this.view = new TabEditorView();
     this.model = new TabEditorModel();
-    this.type = type;
+    this.buttons = buttons;
     initializeTabPane();
     initializeKeyboardShortcuts();
   }
@@ -136,7 +137,7 @@ public class TabEditorController {
   }
 
   private Tab addNewTabHelper(String title, String content, String filePath) {
-    CodeEditorController codeEditorController = new CodeEditorController(type, content);
+    CodeEditorController codeEditorController = new CodeEditorController(buttons, content);
 
     Tab tab = view.createEditorTab(title, codeEditorController.getView());
     model.addTabModel(tab, codeEditorController);
@@ -285,7 +286,7 @@ public class TabEditorController {
     return model;
   }
 
-  public IconButtonBarType getType() {
-    return type;
+  public List<IconButtonType> getButtons() {
+    return buttons;
   }
 }

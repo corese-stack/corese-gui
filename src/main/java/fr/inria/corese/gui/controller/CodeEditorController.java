@@ -3,7 +3,7 @@ package fr.inria.corese.gui.controller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import fr.inria.corese.gui.enums.icon.IconButtonBarType;
+import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.factory.icon.IconButtonBarFactory;
 import fr.inria.corese.gui.model.codeEditor.CodeEditorModel;
 import fr.inria.corese.gui.view.codeEditor.CodeEditorView;
@@ -11,6 +11,7 @@ import fr.inria.corese.gui.view.codeEditor.CodeEditorView;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.List;
 import javafx.application.Platform;
 import javafx.stage.FileChooser;
 
@@ -21,10 +22,10 @@ public class CodeEditorController {
   private final CodeEditorModel model;
   private final IconButtonBarController iconButtonBarController;
 
-  public CodeEditorController(IconButtonBarType type, String initialContent) {
+  public CodeEditorController(List<IconButtonType> buttons, String initialContent) {
     this.view = new CodeEditorView();
     this.model = new CodeEditorModel();
-    this.iconButtonBarController = IconButtonBarFactory.create(type, this);
+    this.iconButtonBarController = IconButtonBarFactory.create(buttons, this);
 
     this.iconButtonBarController.getModel().setCodeEditorModel(this.model);
     view.getIconButtonBarView().getChildren().add(iconButtonBarController.getView());

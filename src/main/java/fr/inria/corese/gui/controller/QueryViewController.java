@@ -1,8 +1,9 @@
 package fr.inria.corese.gui.controller;
 
 import java.io.File;
+import java.util.List;
 
-import fr.inria.corese.gui.enums.icon.IconButtonBarType;
+import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.factory.popup.TemplatePopup;
 import fr.inria.corese.gui.manager.QueryManager;
 import fr.inria.corese.gui.view.EmptyStateViewFactory;
@@ -42,7 +43,13 @@ public class QueryViewController {
   }
 
   private void initialize() {
-    tabEditorController = new TabEditorController(IconButtonBarType.QUERY);
+    tabEditorController =
+        new TabEditorController(
+            List.of(
+                IconButtonType.SAVE,
+                IconButtonType.CLEAR,
+                IconButtonType.UNDO,
+                IconButtonType.REDO));
     tabEditorController.getView().setMaxWidth(Double.MAX_VALUE);
     tabEditorController.getView().setMaxHeight(Double.MAX_VALUE);
 
@@ -50,7 +57,7 @@ public class QueryViewController {
     editorContainer.getChildren().add(tabEditorController.getView());
     view.setEditorView(editorContainer);
 
-    resultController = new ResultController();
+    resultController = new ResultController(List.of(IconButtonType.COPY, IconButtonType.EXPORT));
     view.setResultView(resultController.getView().getRoot());
 
     // Configure tabs for Query View: Remove Visual, Add Table and Graph

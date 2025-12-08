@@ -1,10 +1,11 @@
 package fr.inria.corese.gui.controller;
 
-import fr.inria.corese.gui.enums.icon.IconButtonBarType;
+import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.model.ValidationModel;
 import fr.inria.corese.gui.view.EmptyStateView;
 import fr.inria.corese.gui.view.ValidationView;
 import java.io.File;
+import java.util.List;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -57,7 +58,7 @@ public class ValidationController {
   private void initialize() {
     try {
       // Initialize Result Component
-      resultController = new ResultController();
+      resultController = new ResultController(List.of(IconButtonType.COPY, IconButtonType.EXPORT));
       view.setResultView(resultController.getViewRoot());
 
       // Listener for result format changes (e.g., Turtle, JSON-LD)
@@ -73,7 +74,15 @@ public class ValidationController {
 
   /** Initializes the tab editor for SHACL shapes. */
   private void initializeTabEditor() {
-    tabEditorController = new TabEditorController(IconButtonBarType.VALIDATION);
+    tabEditorController =
+        new TabEditorController(
+            List.of(
+                IconButtonType.SAVE,
+                IconButtonType.OPEN_FILE,
+                IconButtonType.EXPORT,
+                IconButtonType.CLEAR,
+                IconButtonType.UNDO,
+                IconButtonType.REDO));
     tabEditorController.getView().setMaxWidth(Double.MAX_VALUE);
     tabEditorController.getView().setMaxHeight(Double.MAX_VALUE);
 
