@@ -26,9 +26,6 @@ import org.slf4j.LoggerFactory;
  */
 public class ValidationController {
 
-  // Logger
-  private static final Logger logger = LoggerFactory.getLogger(ValidationController.class);
-
   // MVC Components
   private final ValidationView view;
   private final ValidationModel validationModel;
@@ -82,9 +79,6 @@ public class ValidationController {
 
     // Add floating validate button
     tabEditorController.addExecutionButton("Run Validation");
-
-    // Configure TabEditor Menu Actions
-    tabEditorController.setOnOpenFileAction(e -> onOpenFilesButtonClick());
 
     // Set the editor view in the main view
     view.setEditorView(tabEditorController.getViewRoot());
