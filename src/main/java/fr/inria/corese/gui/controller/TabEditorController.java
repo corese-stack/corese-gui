@@ -10,6 +10,8 @@ import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.model.TabEditorModel;
 import fr.inria.corese.gui.view.TabEditorView;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.collections.ListChangeListener;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -106,21 +108,42 @@ public class TabEditorController {
         }
     });
 
-    // Enable/Disable based on tab selection
-    view.getTabPane().getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
-        boolean isValidTab = newTab != null && newTab != view.getAddTab();
-        runButton.setDisable(!isValidTab);
-    });
+    // Enable/Disable based on tab selection and content
+    view.getTabPane().getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> 
+        updateExecutionButtonState(runButton, newTab)
+    );
     
     // Initial state
-    Tab selected = view.getTabPane().getSelectionModel().getSelectedItem();
-    runButton.setDisable(selected == null || selected == view.getAddTab());
+    updateExecutionButtonState(runButton, view.getTabPane().getSelectionModel().getSelectedItem());
 
     // Bind visibility to TabPane visibility (hide when empty state is shown)
     runButton.visibleProperty().bind(view.getTabPane().visibleProperty());
     runButton.managedProperty().bind(view.getTabPane().visibleProperty());
 
     addFloatingNode(runButton, Pos.BOTTOM_RIGHT, new Insets(0, 80, 50, 0));
+  }
+
+  private void updateExecutionButtonState(Button runButton, Tab selectedTab) {
+      if (selectedTab == null || selectedTab == view.getAddTab()) {
+          runButton.disableProperty().unbind();
+          runButton.setDisable(true);
+          return;
+      }
+      
+      CodeEditorController controller = model.getControllerForTab(selectedTab);
+      if (controller != null) {
+          BooleanBinding isEmpty = Bindings.createBooleanBinding(
+              () -> {
+                  String c = controller.getModel().getContent();
+                  return c == null || c.trim().isEmpty();
+              },
+              controller.getModel().contentProperty()
+          );
+          runButton.disableProperty().bind(isEmpty);
+      } else {
+          runButton.disableProperty().unbind();
+          runButton.setDisable(true);
+      }
   }
 
   /**

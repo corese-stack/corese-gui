@@ -74,7 +74,6 @@ public class ValidationController {
         new TabEditorController(
             List.of(
                 IconButtonType.SAVE,
-                IconButtonType.OPEN_FILE,
                 IconButtonType.EXPORT,
                 IconButtonType.CLEAR,
                 IconButtonType.UNDO,

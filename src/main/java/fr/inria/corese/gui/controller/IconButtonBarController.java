@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.controller;
 
 import fr.inria.corese.core.Graph;
+import fr.inria.corese.core.api.Loader;
 import fr.inria.corese.core.load.Load;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.factory.popup.DocumentationPopup;
@@ -13,6 +14,8 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.stage.FileChooser;
@@ -33,16 +36,37 @@ public class IconButtonBarController {
     initializeButtonHandlers();
   }
 
+  /**
+   * Binds the controller to the CodeEditorModel.
+   * Must be called after the CodeEditorModel is set in the IconButtonBarModel.
+   */
+  public void bindToModel() {
+      if (model.getCodeEditorModel() != null) {
+          // Undo/Redo listeners
+          model.getCodeEditorModel().contentProperty().addListener((obs, o, n) -> updateUndoRedoButtons());
+          updateUndoRedoButtons();
+          
+          // Save Button state
+          Button saveButton = view.getButton(IconButtonType.SAVE);
+          if (saveButton != null) {
+              BooleanBinding isEmpty = Bindings.createBooleanBinding(
+                  () -> {
+                      String c = model.getCodeEditorModel().getContent();
+                      return c == null || c.trim().isEmpty();
+                  },
+                  model.getCodeEditorModel().contentProperty()
+              );
+              
+              saveButton.disableProperty().bind(
+                  model.getCodeEditorModel().modifiedProperty().not()
+                  .or(isEmpty)
+              );
+          }
+      }
+  }
+
   private void initializeButtonHandlers() {
     model.getAvailableButtons().forEach(this::initializeHandler);
-
-    if (model.getCodeEditorModel() != null) {
-      model
-          .getCodeEditorModel()
-          .contentProperty()
-          .addListener((obs, o, n) -> updateUndoRedoButtons());
-    }
-    updateUndoRedoButtons();
   }
 
   private void initializeHandler(IconButtonType type) {
@@ -59,9 +83,7 @@ public class IconButtonBarController {
               });
       case OPEN_FILE ->
           button.setOnAction(
-              e -> {
-                onOpenFilesButtonClick();
-              });
+              e -> onOpenFilesButtonClick());
       case EXPORT -> button.setOnAction(e -> onExportButtonClick());
       case IMPORT -> button.setOnAction(e -> onImportButtonClick());
       case CLEAR -> button.setOnAction(e -> onClearButtonClick());
@@ -130,30 +152,6 @@ public class IconButtonBarController {
   }
 
   private void onExportButtonClick() {
-    /*
-     * --- OLD LOGIC (Commented out as requested) ---
-     *
-     * if (model.getCodeEditorModel() == null)
-     * return;
-     * FileChooser fileChooser = new FileChooser();
-     * fileChooser.setTitle("Export File");
-     * fileChooser.getExtensionFilters().add(new
-     * FileChooser.ExtensionFilter("Text Files", "*.txt"));
-     *
-     * File file = fileChooser.showSaveDialog(view.getScene().getWindow());
-     * if (file != null) {
-     * if (!file.getName().toLowerCase().endsWith(".txt")) {
-     * file = new File(file.getAbsolutePath() + ".txt");
-     * }
-     * try {
-     * Files.writeString(file.toPath(), model.getCodeEditorModel().getContent());
-     * } catch (Exception e) {
-     * showError("Error Exporting File", "Could not export the file: " +
-     * e.getMessage());
-     * }
-     * }
-     */
-
     if (model.getCodeEditorModel() == null) {
       return;
     }
@@ -169,7 +167,7 @@ public class IconButtonBarController {
       Load.create(graphToExport)
           .parse(
               new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8)),
-              Load.format.TURTLE_FORMAT);
+              Loader.format.TURTLE_FORMAT);
     } catch (Exception e) {
       showError(
           "Parsing Error",

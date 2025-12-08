@@ -28,6 +28,7 @@ public class CodeEditorController {
     this.iconButtonBarController = IconButtonBarFactory.create(buttons, this);
 
     this.iconButtonBarController.getModel().setCodeEditorModel(this.model);
+    this.iconButtonBarController.bindToModel();
     view.getIconButtonBarView().getChildren().add(iconButtonBarController.getView());
 
     model.setContent(initialContent);

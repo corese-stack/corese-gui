@@ -23,6 +23,7 @@ public class CodeMirrorView extends VBox {
   private boolean initialized = false;
   private boolean isInternalUpdate = false;
   private boolean isDarkTheme = false;
+  private final JavaBridge bridge = new JavaBridge();
 
   public CodeMirrorView() {
     webView = new WebView();
@@ -99,7 +100,7 @@ public class CodeMirrorView extends VBox {
                 case SUCCEEDED:
                   try {
                     JSObject window = (JSObject) webEngine.executeScript("window");
-                    window.setMember("bridge", new JavaBridge());
+                    window.setMember("bridge", bridge);
                     initialized = true;
 
                     String content = contentProperty.get();
