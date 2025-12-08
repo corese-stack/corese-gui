@@ -52,24 +52,21 @@ public class ValidationController {
 
   /** Initializes the controller components and UI. */
   private void initialize() {
-    try {
-      // Initialize Result Component
-      resultController = new ResultController(List.of(IconButtonType.COPY, IconButtonType.EXPORT));
-      view.setResultView(resultController.getViewRoot());
+    initializeResultView();
+    initializeEditor();
+  }
 
-      // Listener for result format changes (e.g., Turtle, JSON-LD)
-      resultController.setOnFormatChanged(this::updateReportDisplay);
+  private void initializeResultView() {
+    // Initialize Result Component
+    resultController = new ResultController(List.of(IconButtonType.COPY, IconButtonType.EXPORT));
+    view.setResultView(resultController.getViewRoot());
 
-      // Initialize Editor Component
-      initializeTabEditor();
-
-    } catch (Exception e) {
-      logger.error("Error initializing ValidationController", e);
-    }
+    // Listener for result format changes (e.g., Turtle, JSON-LD)
+    resultController.setOnFormatChanged(this::updateReportDisplay);
   }
 
   /** Initializes the tab editor for SHACL shapes. */
-  private void initializeTabEditor() {
+  private void initializeEditor() {
     tabEditorController =
         new TabEditorController(
             List.of(
@@ -82,13 +79,13 @@ public class ValidationController {
     // Configure the editor
     tabEditorController.setOnExecutionRequest(this::executeValidation);
     tabEditorController.setEmptyState(createEmptyStateView());
-    
+
     // Add floating validate button
     tabEditorController.addExecutionButton("Run Validation");
 
     // Configure TabEditor Menu Actions
     tabEditorController.setOnOpenFileAction(e -> onOpenFilesButtonClick());
-    
+
     // Set the editor view in the main view
     view.setEditorView(tabEditorController.getViewRoot());
   }
@@ -109,10 +106,10 @@ public class ValidationController {
     loadButton.getStyleClass().add("custom-button");
 
     return new EmptyStateView(
-            MaterialDesignS.SHIELD_CHECK_OUTLINE,
-            "No shapes files open.\nCreate a new shapes file or load an existing one.",
-            newButton,
-            loadButton);
+        MaterialDesignS.SHIELD_CHECK_OUTLINE,
+        "No shapes files open.\nCreate a new shapes file or load an existing one.",
+        newButton,
+        loadButton);
   }
 
   /**
