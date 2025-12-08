@@ -46,21 +46,27 @@ public class IconButtonBarController {
           model.getCodeEditorModel().contentProperty().addListener((obs, o, n) -> updateUndoRedoButtons());
           updateUndoRedoButtons();
           
+          BooleanBinding isEmpty = Bindings.createBooleanBinding(
+              () -> {
+                  String c = model.getCodeEditorModel().getContent();
+                  return c == null || c.trim().isEmpty();
+              },
+              model.getCodeEditorModel().contentProperty()
+          );
+
           // Save Button state
           Button saveButton = view.getButton(IconButtonType.SAVE);
           if (saveButton != null) {
-              BooleanBinding isEmpty = Bindings.createBooleanBinding(
-                  () -> {
-                      String c = model.getCodeEditorModel().getContent();
-                      return c == null || c.trim().isEmpty();
-                  },
-                  model.getCodeEditorModel().contentProperty()
-              );
-              
               saveButton.disableProperty().bind(
                   model.getCodeEditorModel().modifiedProperty().not()
                   .or(isEmpty)
               );
+          }
+
+          // Clear Button state
+          Button clearButton = view.getButton(IconButtonType.CLEAR);
+          if (clearButton != null) {
+              clearButton.disableProperty().bind(isEmpty);
           }
       }
   }
