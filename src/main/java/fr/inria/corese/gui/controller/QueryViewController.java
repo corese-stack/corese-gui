@@ -10,14 +10,10 @@ import fr.inria.corese.gui.view.EmptyStateViewFactory;
 import fr.inria.corese.gui.view.QueryView;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
-import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -25,8 +21,6 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import org.kordamp.ikonli.javafx.FontIcon;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 
 public class QueryViewController {
   private final QueryView view;
@@ -70,13 +64,13 @@ public class QueryViewController {
         resultTabs.getTabs().add(resultController.getView().getGraphTab());
     }
 
-    setupFloatingRunButton();
+    tabEditorController.addExecutionButton("Run Query (Ctrl+Enter)");
     setupTabListeners();
     setupKeyboardShortcuts();
     setupEmptyState();
     
     // Configure TabEditor Menu Actions
-    tabEditorController.getView().getOpenFileItem().setOnAction(e -> onOpenFilesButtonClick());
+    tabEditorController.setOnOpenFileAction(e -> onOpenFilesButtonClick());
     tabEditorController.getView().getTemplatesItem().setOnAction(e -> {
          Stage stage = (Stage) view.getRoot().getScene().getWindow();
          TemplatePopup.show(stage, query -> tabEditorController.addNewTab("untitled", query));
@@ -91,53 +85,12 @@ public class QueryViewController {
             // But ResultController handles text update. 
             // We might need to ask QueryManager to format again.
             // This part might need refinement as ResultController logic was slightly different.
-            // For simplicity, we'll leave it for now or implement if needed.
+                        // For simplicity, we'll leave it for now or implement if needed.
         }
     });
   }
 
-  private void setupFloatingRunButton() {
-    Button runButton = new Button();
-    FontIcon playIcon = new FontIcon(MaterialDesignP.PLAY);
-    playIcon.setIconSize(24);
-    playIcon.setIconColor(javafx.scene.paint.Color.WHITE);
-    runButton.setGraphic(playIcon);
-    
-    runButton.getStyleClass().add("floating-validate-button"); // Reuse the same style class
-    
-    runButton.setTooltip(new Tooltip("Run Query (Ctrl+Enter)"));
-    runButton.setOnAction(e -> executeQuery());
-    
-    // Bind visibility
-    runButton.visibleProperty().bind(tabEditorController.getView().visibleProperty());
-    runButton.managedProperty().bind(tabEditorController.getView().visibleProperty());
-    
-    // Disable logic
-    tabEditorController.getView().getTabPane().getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> 
-        updateRunButtonState(runButton));
-    
-    StackPane.setAlignment(runButton, Pos.BOTTOM_RIGHT);
-    StackPane.setMargin(runButton, new Insets(0, 80, 50, 0));
-    
-    editorContainer.getChildren().add(runButton);
-  }
 
-  private void updateRunButtonState(Button runButton) {
-      Tab selectedTab = tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
-      if (selectedTab == null || selectedTab == tabEditorController.getView().getAddTab()) {
-          runButton.disableProperty().unbind();
-          runButton.setDisable(true);
-          return;
-      }
-      
-      CodeEditorController controller = tabEditorController.getModel().getControllerForTab(selectedTab);
-      if (controller != null) {
-          runButton.disableProperty().bind(controller.getModel().contentProperty().isEmpty());
-      } else {
-          runButton.disableProperty().unbind();
-          runButton.setDisable(true);
-      }
-  }
 
   private void setupTabListeners() {
     tabEditorController.getView().getTabPane().getSelectionModel().selectedItemProperty()

@@ -12,6 +12,8 @@ import fr.inria.corese.gui.view.TabEditorView;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Tab;
 import javafx.scene.input.KeyCode;
@@ -19,6 +21,10 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.FileChooser;
+import org.kordamp.ikonli.javafx.FontIcon;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 
 public class TabEditorController {
   private final TabEditorView view;
@@ -58,6 +64,15 @@ public class TabEditorController {
   }
 
   /**
+   * Sets the action to be executed when the "Open File" menu item is clicked.
+   *
+   * @param action The action to execute.
+   */
+  public void setOnOpenFileAction(javafx.event.EventHandler<javafx.event.ActionEvent> action) {
+    view.getOpenFileItem().setOnAction(action);
+  }
+
+  /**
    * Adds a floating action node (e.g. a button) to the editor view.
    *
    * @param node The node to add.
@@ -69,12 +84,52 @@ public class TabEditorController {
   }
 
   /**
+   * Adds a standard "Run/Execute" floating button to the editor.
+   * The button is automatically bound to the execution request action
+   * and enabled/disabled based on the tab selection.
+   *
+   * @param tooltipText The text to display in the tooltip.
+   */
+  public void addExecutionButton(String tooltipText) {
+    Button runButton = new Button();
+    FontIcon playIcon = new FontIcon(MaterialDesignP.PLAY);
+    playIcon.setIconSize(24);
+    playIcon.setIconColor(javafx.scene.paint.Color.WHITE);
+    runButton.setGraphic(playIcon);
+
+    runButton.getStyleClass().add("floating-validate-button");
+    runButton.setTooltip(new Tooltip(tooltipText));
+    
+    runButton.setOnAction(e -> {
+        if (onExecutionRequest != null) {
+            onExecutionRequest.run();
+        }
+    });
+
+    // Enable/Disable based on tab selection
+    view.getTabPane().getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+        boolean isValidTab = newTab != null && newTab != view.getAddTab();
+        runButton.setDisable(!isValidTab);
+    });
+    
+    // Initial state
+    Tab selected = view.getTabPane().getSelectionModel().getSelectedItem();
+    runButton.setDisable(selected == null || selected == view.getAddTab());
+
+    // Bind visibility to TabPane visibility (hide when empty state is shown)
+    runButton.visibleProperty().bind(view.getTabPane().visibleProperty());
+    runButton.managedProperty().bind(view.getTabPane().visibleProperty());
+
+    addFloatingNode(runButton, Pos.BOTTOM_RIGHT, new Insets(0, 80, 50, 0));
+  }
+
+  /**
    * Returns the root node of the view.
    *
    * @return The root Parent node.
    */
   public javafx.scene.Parent getViewRoot() {
-      return view;
+      return getView();
   }
 
   private void initializeTabPane() {
@@ -167,11 +222,9 @@ public class TabEditorController {
 
     // Bind execution shortcut (Ctrl+Enter)
     codeEditorController.getView().setOnKeyPressed(event -> {
-        if (new KeyCodeCombination(KeyCode.ENTER, KeyCombination.CONTROL_DOWN).match(event)) {
-            if (onExecutionRequest != null) {
-                onExecutionRequest.run();
-                event.consume();
-            }
+        if (new KeyCodeCombination(KeyCode.ENTER, KeyCombination.CONTROL_DOWN).match(event) && onExecutionRequest != null) {
+            onExecutionRequest.run();
+            event.consume();
         }
     });
 

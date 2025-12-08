@@ -7,16 +7,12 @@ import fr.inria.corese.gui.view.ValidationView;
 import java.io.File;
 import java.util.List;
 import javafx.application.Platform;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Tab;
 import javafx.scene.control.Tooltip;
 import javafx.stage.FileChooser;
-import org.kordamp.ikonli.javafx.FontIcon;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,52 +85,13 @@ public class ValidationController {
     tabEditorController.setEmptyState(createEmptyStateView());
     
     // Add floating validate button
-    Button validateButton = createValidateButton();
-    tabEditorController.addFloatingNode(validateButton, Pos.BOTTOM_RIGHT, new Insets(0, 80, 50, 0));
+    tabEditorController.addExecutionButton("Run Validation");
 
     // Configure TabEditor Menu Actions
-    tabEditorController.getView().getOpenFileItem().setVisible(false);
+    tabEditorController.setOnOpenFileAction(e -> onOpenFilesButtonClick());
     
     // Set the editor view in the main view
     view.setEditorView(tabEditorController.getViewRoot());
-  }
-
-  private Button createValidateButton() {
-    Button validateButton = new Button();
-    FontIcon playIcon = new FontIcon(MaterialDesignP.PLAY);
-    playIcon.setIconSize(24);
-    playIcon.setIconColor(javafx.scene.paint.Color.WHITE);
-    validateButton.setGraphic(playIcon);
-
-    validateButton.getStyleClass().add("floating-validate-button");
-    validateButton.setTooltip(new Tooltip("Run Validation (Ctrl+Enter)"));
-    validateButton.setOnAction(e -> executeValidation());
-
-    // Enable/Disable based on tab selection
-    // We can access the tab pane from the controller's view for this specific logic
-    tabEditorController
-        .getView()
-        .getTabPane()
-        .getSelectionModel()
-        .selectedItemProperty()
-        .addListener((obs, oldTab, newTab) -> updateValidateButtonState(validateButton));
-        
-    return validateButton;
-  }
-
-  /** Updates the state (enabled/disabled) of the validate button. */
-  private void updateValidateButtonState(Button validateButton) {
-    Tab selectedTab =
-        tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
-    if (selectedTab == null || selectedTab == tabEditorController.getView().getAddTab()) {
-      validateButton.disableProperty().unbind();
-      validateButton.setDisable(true);
-      return;
-    }
-
-    // Always enable the button when a valid tab is selected
-    validateButton.disableProperty().unbind();
-    validateButton.setDisable(false);
   }
 
   /** Creates the empty state view (shown when no tabs are open). */
