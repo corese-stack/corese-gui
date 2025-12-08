@@ -68,6 +68,12 @@ public class IconButtonBarController {
           if (clearButton != null) {
               clearButton.disableProperty().bind(isEmpty);
           }
+
+          // Export Button state
+          Button exportButton = view.getButton(IconButtonType.EXPORT);
+          if (exportButton != null) {
+              exportButton.disableProperty().bind(isEmpty);
+          }
       }
   }
 
