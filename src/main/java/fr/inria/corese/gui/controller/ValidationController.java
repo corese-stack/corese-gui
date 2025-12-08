@@ -83,8 +83,6 @@ public class ValidationController {
                 IconButtonType.CLEAR,
                 IconButtonType.UNDO,
                 IconButtonType.REDO));
-    tabEditorController.getView().setMaxWidth(Double.MAX_VALUE);
-    tabEditorController.getView().setMaxHeight(Double.MAX_VALUE);
 
     // Configure the editor
     tabEditorController.setOnExecutionRequest(this::executeValidation);
