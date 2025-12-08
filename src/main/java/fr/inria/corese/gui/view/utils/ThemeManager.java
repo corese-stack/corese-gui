@@ -181,15 +181,22 @@ public final class ThemeManager {
    * Manually triggers detection and application of system settings.
    *
    * <p>This queries the OS for the current theme mode and accent color and applies them to the
-   * application properties.
+   * application properties. This is done asynchronously to avoid blocking the UI.
    */
   public void detectAndApplySystemSettings() {
-    try {
-      setTheme(SystemThemeDetector.getSystemTheme());
-      setAccentColor(SystemThemeDetector.getSystemAccentColor());
-    } catch (Exception e) {
-      LOGGER.log(Level.WARNING, "Failed to detect system settings", e);
-    }
+    new Thread(() -> {
+        try {
+            Theme systemTheme = SystemThemeDetector.getSystemTheme();
+            Color systemAccent = SystemThemeDetector.getSystemAccentColor();
+            
+            javafx.application.Platform.runLater(() -> {
+                setTheme(systemTheme);
+                setAccentColor(systemAccent);
+            });
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to detect system settings", e);
+        }
+    }).start();
   }
 
   // ===== Property Accessors =====
