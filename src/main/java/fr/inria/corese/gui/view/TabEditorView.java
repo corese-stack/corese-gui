@@ -10,7 +10,6 @@ import javafx.scene.control.TabPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -18,6 +17,7 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 
 import fr.inria.corese.gui.view.codeEditor.CodeEditorView;
+import fr.inria.corese.gui.view.utils.ThemeManager;
 
 public class TabEditorView extends VBox {
   private TabPane tabPane;
@@ -28,8 +28,10 @@ public class TabEditorView extends VBox {
   private MenuItem templatesItem;
   private EmptyStateView emptyStateView;
   private StackPane mainContainer;
+  private final ThemeManager themeManager;
 
   public TabEditorView() {
+    this.themeManager = ThemeManager.getInstance();
     tabPane = new TabPane();
     tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
     tabPane.setTabMaxWidth(150);
@@ -82,6 +84,10 @@ public class TabEditorView extends VBox {
     mainContainer.getChildren().addAll(tabPane);
     VBox.setVgrow(mainContainer, Priority.ALWAYS);
     getChildren().addAll(mainContainer);
+
+    themeManager
+        .accentColorProperty()
+        .addListener((obs, oldColor, newColor) -> refreshModifiedTabIcons(themeManager.getAccentColor()));
   }
 
   /**
@@ -140,7 +146,7 @@ public class TabEditorView extends VBox {
 
   public void updateTabIcon(Tab tab, boolean isModified) {
     if (isModified) {
-      Circle circle = new Circle(4, Color.web("#2196F3"));
+      Circle circle = new Circle(4, themeManager.getAccentColor());
       tab.setGraphic(circle);
     } else {
       tab.setGraphic(null);
@@ -169,5 +175,20 @@ public class TabEditorView extends VBox {
 
   public TabPane getTabPane() {
     return tabPane;
+  }
+
+  private void refreshModifiedTabIcons(javafx.scene.paint.Color accentColor) {
+    if (accentColor == null) {
+      return;
+    }
+    tabPane
+        .getTabs()
+        .stream()
+        .filter(tab -> tab != addTab && tab.getGraphic() instanceof Circle)
+        .forEach(
+            tab -> {
+              Circle circle = (Circle) tab.getGraphic();
+              circle.setFill(accentColor);
+            });
   }
 }
