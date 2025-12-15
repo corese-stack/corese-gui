@@ -122,7 +122,7 @@ public class ValidationController {
 
     Tab selectedTab =
         tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
-    if (selectedTab == null || selectedTab == tabEditorController.getView().getAddTab()) {
+    if (selectedTab == null) {
       return;
     }
 

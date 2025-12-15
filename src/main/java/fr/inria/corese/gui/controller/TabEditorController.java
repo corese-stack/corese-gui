@@ -117,7 +117,7 @@ public class TabEditorController {
   }
 
   private void updateExecutionButtonState(Button runButton, Tab selectedTab) {
-    if (selectedTab == null || selectedTab == view.getAddTab()) {
+    if (selectedTab == null) {
       runButton.disableProperty().unbind();
       runButton.setDisable(true);
       return;
@@ -152,43 +152,7 @@ public class TabEditorController {
     view.getTabPane()
         .getTabs()
         .addListener(
-            (ListChangeListener<Tab>)
-                c -> {
-                  while (c.next()) {
-                    if (c.wasRemoved() && view.getTabPane().getTabs().isEmpty()) {
-                      Platform.runLater(() -> view.getTabPane().getTabs().add(view.getAddTab()));
-                    } else if (!view.getTabPane().getTabs().contains(view.getAddTab())) {
-                      view.getTabPane().getTabs().add(view.getAddTab());
-                    }
-                    Platform.runLater(this::updateEmptyStateVisibility);
-                  }
-                });
-
-    // Handle selection of the "Add Tab"
-    view.getTabPane()
-        .getSelectionModel()
-        .selectedItemProperty()
-        .addListener(
-            (obs, oldTab, newTab) -> {
-              if (newTab == view.getAddTab()) {
-                // If the user clicked the add tab, create a new tab
-                Platform.runLater(
-                    () -> {
-                      addNewTab("Untitled", "");
-                      // The addNewTab method selects the new tab, so we don't need to do anything
-                      // else
-                      // But if for some reason it failed, we should go back to the old tab
-                      if (view.getTabPane().getSelectionModel().getSelectedItem()
-                          == view.getAddTab()) {
-                        if (oldTab != null && view.getTabPane().getTabs().contains(oldTab)) {
-                          view.getTabPane().getSelectionModel().select(oldTab);
-                        } else if (view.getTabPane().getTabs().size() > 1) {
-                          view.getTabPane().getSelectionModel().select(0);
-                        }
-                      }
-                    });
-              }
-            });
+            (ListChangeListener<Tab>) c -> Platform.runLater(this::updateEmptyStateVisibility));
 
     // Handle SplitMenuButton actions
     view.getAddTabButton().setOnAction(e -> addNewTab("Untitled", ""));
@@ -230,8 +194,7 @@ public class TabEditorController {
     // Initialize icon state
     view.updateTabIcon(tab, codeEditorController.getModel().isModified());
 
-    int addTabIndex = view.getTabPane().getTabs().size() - 1;
-    view.getTabPane().getTabs().add(Math.max(0, addTabIndex), tab);
+    view.getTabPane().getTabs().add(tab);
     view.getTabPane().getSelectionModel().select(tab);
 
     if (filePath != null) {
@@ -262,8 +225,7 @@ public class TabEditorController {
   private void updateEmptyStateVisibility() {
     if (emptyStateNode == null) return;
 
-    long realTabCount =
-        view.getTabPane().getTabs().stream().filter(t -> t != view.getAddTab()).count();
+    long realTabCount = view.getTabPane().getTabs().size();
     boolean noTabsOpen = (realTabCount == 0);
 
     emptyStateNode.setVisible(noTabsOpen);
@@ -280,7 +242,6 @@ public class TabEditorController {
   public Tab addNewTab(File file) {
     // Check if file is already open
     for (Tab tab : view.getTabPane().getTabs()) {
-      if (tab == view.getAddTab()) continue;
       CodeEditorController controller = model.getControllerForTab(tab);
       if (controller != null
           && file.getAbsolutePath().equals(controller.getModel().getFilePath())) {
@@ -311,14 +272,14 @@ public class TabEditorController {
 
   private void handleSaveShortcut() {
     Tab selectedTab = view.getTabPane().getSelectionModel().getSelectedItem();
-    if (selectedTab != null && selectedTab != view.getAddTab()) {
+    if (selectedTab != null) {
       CodeEditorController activeController = model.getControllerForTab(selectedTab);
       if (activeController != null) activeController.saveFile();
     }
   }
 
   public boolean handleCloseFile(Tab tab) {
-    if (tab == null || tab == view.getAddTab()) return false;
+    if (tab == null) return false;
     CodeEditorController controller = model.getControllerForTab(tab);
 
     if (controller == null || !controller.getModel().isModified()) {

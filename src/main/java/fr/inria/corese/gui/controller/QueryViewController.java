@@ -91,8 +91,7 @@ public class QueryViewController {
         newVal -> {
           Tab selectedQueryTab =
               tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
-          if (selectedQueryTab != null
-              && selectedQueryTab != tabEditorController.getView().getAddTab()) {
+          if (selectedQueryTab != null) {
             // We need to re-fetch or re-format data.
             // For now, let's assume we just re-display if we have cached result.
             // But ResultController handles text update.
@@ -126,9 +125,7 @@ public class QueryViewController {
                     }
                     if (c.wasAdded()) {
                       for (Tab tab : c.getAddedSubList()) {
-                        if (tab != tabEditorController.getView().getAddTab()) {
-                          Platform.runLater(() -> configureTab(tab));
-                        }
+                        Platform.runLater(() -> configureTab(tab));
                       }
                     }
                   }
@@ -179,10 +176,7 @@ public class QueryViewController {
   }
 
   private void updateEmptyStateVisibility() {
-    long realTabCount =
-        tabEditorController.getView().getTabPane().getTabs().stream()
-            .filter(t -> t != tabEditorController.getView().getAddTab())
-            .count();
+    long realTabCount = tabEditorController.getView().getTabPane().getTabs().size();
     boolean noTabsOpen = (realTabCount == 0);
 
     if (emptyStateView != null) {
@@ -196,7 +190,7 @@ public class QueryViewController {
   private void updateResultsForSelectedQueryTab(Tab selectedQueryTab) {
     resultController.clearResults();
 
-    if (selectedQueryTab == null || selectedQueryTab == tabEditorController.getView().getAddTab()) {
+    if (selectedQueryTab == null) {
       return;
     }
 
@@ -242,7 +236,7 @@ public class QueryViewController {
   public void executeQuery() {
     Tab selectedTab =
         tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
-    if (selectedTab == null || selectedTab == tabEditorController.getView().getAddTab()) {
+    if (selectedTab == null) {
       return;
     }
 
@@ -334,8 +328,7 @@ public class QueryViewController {
                                 .getTabPane()
                                 .getSelectionModel()
                                 .getSelectedItem();
-                        if (selectedTab != null
-                            && selectedTab != tabEditorController.getView().getAddTab()) {
+                        if (selectedTab != null) {
                           CodeEditorController controller =
                               tabEditorController.getModel().getControllerForTab(selectedTab);
                           if (controller != null) {
@@ -357,13 +350,11 @@ public class QueryViewController {
 
   public void openQueryFile(File file) {
     for (Tab tab : tabEditorController.getView().getTabPane().getTabs()) {
-      if (tab != tabEditorController.getView().getAddTab()) {
-        CodeEditorController controller = tabEditorController.getModel().getControllerForTab(tab);
-        if (controller != null
-            && file.getAbsolutePath().equals(controller.getModel().getFilePath())) {
-          tabEditorController.getView().getTabPane().getSelectionModel().select(tab);
-          return;
-        }
+      CodeEditorController controller = tabEditorController.getModel().getControllerForTab(tab);
+      if (controller != null
+          && file.getAbsolutePath().equals(controller.getModel().getFilePath())) {
+        tabEditorController.getView().getTabPane().getSelectionModel().select(tab);
+        return;
       }
     }
     tabEditorController.addNewTab(file);

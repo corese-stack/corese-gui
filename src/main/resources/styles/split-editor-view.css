@@ -1,2 +1,17 @@
 /* Split Editor View Styles */
 
+/* Add tab button styling */
+.add-tab-button {
+    -fx-background-color: transparent;
+    -fx-border-width: 0 0 2 0;
+    -fx-border-color: -color-border-default;
+
+}
+
+.add-tab-button:hover {
+    -fx-background-color: -color-bg-subtle;
+}
+
+.add-tab-button:pressed {
+    -fx-background-color: -color-border-default;
+}

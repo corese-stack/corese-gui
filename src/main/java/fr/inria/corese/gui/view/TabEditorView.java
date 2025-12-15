@@ -1,149 +1,201 @@
 package fr.inria.corese.gui.view;
 
-import javafx.animation.ScaleTransition;
+import fr.inria.corese.gui.view.codeEditor.CodeEditorView;
+import fr.inria.corese.gui.view.utils.ThemeManager;
+import java.util.HashMap;
+import java.util.Map;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SplitMenuButton;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
-import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 
-import fr.inria.corese.gui.view.codeEditor.CodeEditorView;
-import fr.inria.corese.gui.view.utils.ThemeManager;
-
+/**
+ * View component for the tabbed editor interface. Displays code editor tabs with an add button
+ * fixed at the right of the tab bar.
+ *
+ * <p>The content is managed separately from the TabPane to allow the tab header to have a fixed
+ * height while the content fills the remaining space.
+ */
 public class TabEditorView extends VBox {
-  private TabPane tabPane;
-  private Tab addTab;
-  private SplitMenuButton addTabButton;
-  private MenuItem newFileItem;
-  private MenuItem openFileItem;
-  private MenuItem templatesItem;
-  private EmptyStateView emptyStateView;
-  private StackPane mainContainer;
+
+  private static final String STYLESHEET = "/styles/split-editor-view.css";
+
+  private final TabPane tabPane;
+  private final SplitMenuButton addTabButton;
+  private final MenuItem newFileItem;
+  private final MenuItem openFileItem;
+  private final MenuItem templatesItem;
+  private final StackPane contentContainer;
   private final ThemeManager themeManager;
+
+  // Map to store tab content separately (TabPane content area is hidden)
+  private final Map<Tab, Node> tabContentMap = new HashMap<>();
 
   public TabEditorView() {
     this.themeManager = ThemeManager.getInstance();
-    tabPane = new TabPane();
-    tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
-    tabPane.setTabMaxWidth(150);
 
-    addTabButton = new SplitMenuButton();
+    // Initialize TabPane (header only - content managed separately)
+    tabPane = createTabPane();
+
+    // Initialize Add Button
+    addTabButton = createAddTabButton();
     newFileItem = new MenuItem("New File");
     openFileItem = new MenuItem("Open File");
     templatesItem = new MenuItem("Templates");
     addTabButton.getItems().addAll(newFileItem, openFileItem, templatesItem);
 
+    // Create header bar with tabs and button
+    HBox tabHeader = createTabHeader();
+
+    // Content container for tab content and floating elements
+    contentContainer = new StackPane();
+    VBox.setVgrow(contentContainer, Priority.ALWAYS);
+
+    getChildren().addAll(tabHeader, contentContainer);
+
+    // Load stylesheet
+    getStylesheets().add(getClass().getResource(STYLESHEET).toExternalForm());
+
+    // Listen for tab selection changes
+    tabPane
+        .getSelectionModel()
+        .selectedItemProperty()
+        .addListener((obs, oldTab, newTab) -> showContentForTab(newTab));
+
+    // Also trigger content update when tabs are added
+    tabPane
+        .getTabs()
+        .addListener(
+            (javafx.collections.ListChangeListener<Tab>)
+                change -> {
+                  while (change.next()) {
+                    if (change.wasRemoved()) {
+                      for (Tab removedTab : change.getRemoved()) {
+                        tabContentMap.remove(removedTab);
+                      }
+                    }
+                    if (change.wasAdded()) {
+                      // When a tab is added and selected, show its content
+                      Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+                      if (selectedTab != null && change.getAddedSubList().contains(selectedTab)) {
+                        javafx.application.Platform.runLater(() -> showContentForTab(selectedTab));
+                      }
+                    }
+                  }
+                  // If all tabs removed, clear content
+                  if (tabPane.getTabs().isEmpty()) {
+                    showContentForTab(null);
+                  }
+                });
+
+    // Listen for accent color changes
+    themeManager
+        .accentColorProperty()
+        .addListener((obs, oldColor, newColor) -> refreshModifiedTabIcons());
+  }
+
+  /** Creates and configures the TabPane. */
+  private TabPane createTabPane() {
+    TabPane pane = new TabPane();
+    pane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
+    pane.setTabMaxWidth(150);
+    pane.getStyleClass().add("editor-tab-pane");
+    return pane;
+  }
+
+  /** Creates the add tab button with icon. */
+  private SplitMenuButton createAddTabButton() {
+    SplitMenuButton button = new SplitMenuButton();
+
     FontIcon addIcon = new FontIcon(MaterialDesignP.PLUS);
     addIcon.setIconSize(18);
 
-    ScaleTransition scaleIn = new ScaleTransition(Duration.millis(150), addIcon);
-    scaleIn.setToX(1.1);
-    scaleIn.setToY(1.1);
+    button.setGraphic(addIcon);
+    button.getStyleClass().add("add-tab-button");
 
-    ScaleTransition scaleOut = new ScaleTransition(Duration.millis(150), addIcon);
-    scaleOut.setToX(1.0);
-    scaleOut.setToY(1.0);
-
-    addIcon.setOnMouseEntered(
-        e -> {
-          addIcon.setCursor(Cursor.HAND);
-          scaleIn.playFromStart();
-        });
-
-    addIcon.setOnMouseExited(
-        e -> {
-          addIcon.setCursor(Cursor.DEFAULT);
-          scaleOut.playFromStart();
-        });
-    addTabButton.setGraphic(addIcon);
-    addTabButton.getStyleClass().add("add-tab-button");
-
-    addTab = new Tab();
-    addTab.setGraphic(addTabButton);
-    addTab.setClosable(false);
-    addTab.getStyleClass().add("add-tab");
-
-    tabPane.getTabs().add(addTab);
-
-    emptyStateView = new EmptyStateView(MaterialDesignC.CODE_TAGS, "No file opened\nOpen a file from the file explorer to display its content in the code editor");
-    emptyStateView.setMaxWidth(Double.MAX_VALUE);
-    emptyStateView.setMaxHeight(Double.MAX_VALUE);
-    VBox.setVgrow(emptyStateView, Priority.ALWAYS);
-    emptyStateView.setAlignment(Pos.CENTER);
-
-    mainContainer = new StackPane();
-    mainContainer.getChildren().addAll(tabPane);
-    VBox.setVgrow(mainContainer, Priority.ALWAYS);
-    getChildren().addAll(mainContainer);
-
-    themeManager
-        .accentColorProperty()
-        .addListener((obs, oldColor, newColor) -> refreshModifiedTabIcons(themeManager.getAccentColor()));
+    return button;
   }
 
-  /**
-   * Adds a floating node (e.g., a button) to the editor view.
-   *
-   * @param node The node to add.
-   * @param position The position of the node within the stack pane.
-   * @param margin The margin to apply to the node.
-   */
-  public void addFloatingNode(javafx.scene.Node node, Pos position, javafx.geometry.Insets margin) {
+  /** Creates the header bar containing tabs and add button. */
+  private HBox createTabHeader() {
+    HBox header = new HBox(4);
+    header.setAlignment(Pos.BOTTOM_LEFT);
+
+    // TabPane takes available horizontal space
+    HBox.setHgrow(tabPane, Priority.ALWAYS);
+
+    // Bind button visibility to tabPane visibility
+    addTabButton.visibleProperty().bind(tabPane.visibleProperty());
+    addTabButton.managedProperty().bind(tabPane.managedProperty());
+
+    header.getChildren().addAll(tabPane, addTabButton);
+
+    return header;
+  }
+
+  /** Shows the content for the selected tab. */
+  private void showContentForTab(Tab selectedTab) {
+    // Remove previous tab content wrapper
+    contentContainer.getChildren().removeIf(node -> "tab-content-wrapper".equals(node.getId()));
+
+    if (selectedTab != null) {
+      Node content = tabContentMap.get(selectedTab);
+      if (content != null) {
+        StackPane wrapper = new StackPane(content);
+        wrapper.setId("tab-content-wrapper");
+        // Insert at index 0 so floating nodes stay on top
+        contentContainer.getChildren().add(0, wrapper);
+      }
+    }
+  }
+
+  /** Adds a floating node to the editor view. */
+  public void addFloatingNode(Node node, Pos position, Insets margin) {
     StackPane.setAlignment(node, position);
     StackPane.setMargin(node, margin);
-    mainContainer.getChildren().add(node);
+    contentContainer.getChildren().add(node);
   }
 
-  /**
-   * Sets the empty state view to be displayed when no tabs are open.
-   *
-   * @param emptyStateView The empty state view node.
-   */
-  public void setEmptyStateView(javafx.scene.Node emptyStateView) {
-    if (this.emptyStateView != null) {
-      mainContainer.getChildren().remove(this.emptyStateView);
-    }
-    // Add at index 0 to be behind the tab pane (or manage visibility)
-    // Actually, usually empty state replaces the content or sits on top if content is hidden.
-    // Let's add it to the stack.
-    mainContainer.getChildren().add(0, emptyStateView);
-    
-    // Bind visibility: Show empty state only when TabPane is hidden or empty?
-    // The controller will manage visibility.
+  /** Sets the empty state view displayed when no tabs are open. */
+  public void setEmptyStateView(Node emptyStateView) {
+    emptyStateView.setId("empty-state-view");
+    // Remove existing empty state if present
+    contentContainer.getChildren().removeIf(node -> "empty-state-view".equals(node.getId()));
+    // Insert at index 0 to be behind other content
+    contentContainer.getChildren().add(0, emptyStateView);
   }
 
-  /**
-   * Creates a Tab with the given title and code editor view without adding it to the TabPane
-   *
-   * @param title The title of the tab
-   * @param codeEditorView The code editor view to be displayed in the tab
-   * @return The created tab
-   */
+  /** Creates a Tab with the given title and code editor view. */
   public Tab createEditorTab(String title, CodeEditorView codeEditorView) {
     Tab tab = new Tab(title);
     codeEditorView.setMaxWidth(Double.MAX_VALUE);
     codeEditorView.setMaxHeight(Double.MAX_VALUE);
-    tab.setContent(codeEditorView);
-
+    // Store content in map instead of tab.setContent()
+    tabContentMap.put(tab, codeEditorView);
     return tab;
   }
 
+  /** Creates and adds a new editor tab, selecting it. */
   public Tab addNewEditorTab(String title, CodeEditorView codeEditorView) {
     Tab tab = createEditorTab(title, codeEditorView);
-    tabPane.getTabs().add(tabPane.getTabs().size() - 1, tab);
+    tabPane.getTabs().add(tab);
     tabPane.getSelectionModel().select(tab);
+    // Force content display
+    showContentForTab(tab);
     return tab;
   }
 
+  /** Updates the tab icon to show modification state. */
   public void updateTabIcon(Tab tab, boolean isModified) {
     if (isModified) {
       Circle circle = new Circle(4, themeManager.getAccentColor());
@@ -153,9 +205,18 @@ public class TabEditorView extends VBox {
     }
   }
 
-  public Tab getAddTab() {
-    return addTab;
+  /** Refreshes all modified tab icons with the current accent color. */
+  private void refreshModifiedTabIcons() {
+    javafx.scene.paint.Color accentColor = themeManager.getAccentColor();
+    if (accentColor == null) {
+      return;
+    }
+    tabPane.getTabs().stream()
+        .filter(tab -> tab.getGraphic() instanceof Circle)
+        .forEach(tab -> ((Circle) tab.getGraphic()).setFill(accentColor));
   }
+
+  // --- Getters ---
 
   public SplitMenuButton getAddTabButton() {
     return addTabButton;
@@ -177,18 +238,8 @@ public class TabEditorView extends VBox {
     return tabPane;
   }
 
-  private void refreshModifiedTabIcons(javafx.scene.paint.Color accentColor) {
-    if (accentColor == null) {
-      return;
-    }
-    tabPane
-        .getTabs()
-        .stream()
-        .filter(tab -> tab != addTab && tab.getGraphic() instanceof Circle)
-        .forEach(
-            tab -> {
-              Circle circle = (Circle) tab.getGraphic();
-              circle.setFill(accentColor);
-            });
+  /** Gets the content associated with a tab. */
+  public Node getTabContent(Tab tab) {
+    return tabContentMap.get(tab);
   }
 }
