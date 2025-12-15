@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.view;
 
 import fr.inria.corese.gui.view.codeEditor.CodeEditorView;
+import fr.inria.corese.gui.view.utils.TabPaneUtils;
 import fr.inria.corese.gui.view.utils.ThemeManager;
 import java.util.HashMap;
 import java.util.Map;
@@ -108,7 +109,7 @@ public class TabEditorView extends VBox {
   private TabPane createTabPane() {
     TabPane pane = new TabPane();
     pane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
-    pane.setTabMaxWidth(150);
+    TabPaneUtils.enableFullWidth(pane);
     pane.getStyleClass().add("editor-tab-pane");
     return pane;
   }

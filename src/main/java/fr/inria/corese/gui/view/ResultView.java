@@ -2,6 +2,7 @@ package fr.inria.corese.gui.view;
 
 import fr.inria.corese.gui.view.base.AbstractView;
 import fr.inria.corese.gui.view.icon.IconButtonBarView;
+import fr.inria.corese.gui.view.utils.TabPaneUtils;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.layout.BorderPane;
@@ -29,6 +30,7 @@ public class ResultView extends AbstractView {
         // Default tabs
         tabPane.getTabs().addAll(textTab, visualTab);
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        TabPaneUtils.enableFullWidth(tabPane);
 
         BorderPane root = (BorderPane) getRoot();
         root.setCenter(tabPane);

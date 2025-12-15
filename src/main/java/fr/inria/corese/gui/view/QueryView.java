@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.view;
 
 import fr.inria.corese.gui.view.base.SplitEditorView;
+import fr.inria.corese.gui.view.utils.TabPaneUtils;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -44,6 +45,7 @@ public class QueryView extends SplitEditorView {
 
         // Results
         resultsTabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        TabPaneUtils.enableFullWidth(resultsTabPane);
         resultsTabPane.getTabs().addAll(tableTab, graphTab, textTab);
 
         resultsContainer.getChildren().add(resultsTabPane);
