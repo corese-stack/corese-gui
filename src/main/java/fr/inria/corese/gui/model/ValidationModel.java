@@ -17,30 +17,6 @@ public class ValidationModel {
 
   private ValidationResult lastResult;
 
-  public static final class ValidationResult {
-    private final boolean conforms;
-    private final Graph reportGraph;
-    private final String errorMessage;
-
-    public ValidationResult(boolean conforms, Graph reportGraph, String errorMessage) {
-      this.conforms = conforms;
-      this.reportGraph = reportGraph;
-      this.errorMessage = errorMessage;
-    }
-
-    public boolean isConforms() {
-      return conforms;
-    }
-
-    public Graph getReportGraph() {
-      return reportGraph;
-    }
-
-    public String getErrorMessage() {
-      return errorMessage;
-    }
-  }
-
   /**
    * Checks if there is data loaded in the graph to validate.
    *

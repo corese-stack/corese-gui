@@ -27,3 +27,11 @@
     -fx-icon-color: -color-fg-emphasis;
     -fx-icon-size: 24px;
 }
+
+.floating-button .progress-indicator {
+    -fx-progress-color: white;
+    -fx-accent: white;
+}
+.floating-button .progress-indicator .indicator {
+    -fx-background-color: white;
+}

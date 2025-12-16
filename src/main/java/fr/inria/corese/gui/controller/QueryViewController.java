@@ -17,27 +17,22 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 public class QueryViewController {
   private final QueryView view;
-  private StackPane editorContainer;
   private TabEditorController tabEditorController;
-  private ResultController resultController;
   private Node emptyStateView;
   private final QueryManager stateManager = QueryManager.getInstance();
 
   public QueryViewController(QueryView view) {
     this.view = view;
-    this.editorContainer = view.getEditorContainer();
     initialize();
   }
 
   private void initialize() {
     initializeEditor();
-    initializeResultView();
   }
 
   private void initializeEditor() {
@@ -51,14 +46,25 @@ public class QueryViewController {
     tabEditorController.getView().setMaxWidth(Double.MAX_VALUE);
     tabEditorController.getView().setMaxHeight(Double.MAX_VALUE);
 
-    // Wrap in StackPane for EmptyState and Floating Button
-    editorContainer.getChildren().add(tabEditorController.getView());
-    view.setEditorView(editorContainer);
+    tabEditorController.setResultControllerFactory(tab -> createResultController());
+    tabEditorController.setOnExecutionRequest(this::executeQuery);
+
+    view.setMainContent(tabEditorController.getViewRoot());
 
     tabEditorController.addExecutionButton("Run Query (Ctrl+Enter)");
     setupTabListeners();
     setupKeyboardShortcuts();
-    setupEmptyState();
+    
+    // Create empty state via View
+    Node emptyState = view.createEmptyState(
+        () -> tabEditorController.addNewTab("untitled", ""),
+        this::onOpenFilesButtonClick,
+        () -> {
+             Stage stage = (Stage) view.getRoot().getScene().getWindow();
+             TemplatePopup.show(stage, query -> tabEditorController.addNewTab("untitled", query));
+        }
+    );
+    tabEditorController.setEmptyState(emptyState);
 
     // Configure TabEditor Menu Actions
     tabEditorController.setOnOpenFileAction(e -> onOpenFilesButtonClick());
@@ -72,34 +78,27 @@ public class QueryViewController {
             });
   }
 
-  private void initializeResultView() {
-    resultController = new ResultController(List.of(IconButtonType.COPY, IconButtonType.EXPORT));
-    view.setResultView(resultController.getView().getRoot());
-
+  private ResultController createResultController() {
+    ResultController controller = new ResultController(List.of(IconButtonType.COPY, IconButtonType.EXPORT));
+    
     // Configure tabs for Query View: Remove Visual, Add Table and Graph
-    TabPane resultTabs = resultController.getView().getTabPane();
-    resultTabs.getTabs().remove(resultController.getView().getVisualTab());
-    if (!resultTabs.getTabs().contains(resultController.getView().getTableTab())) {
-      resultTabs.getTabs().add(resultController.getView().getTableTab());
+    TabPane resultTabs = controller.getView().getTabPane();
+    resultTabs.getTabs().remove(controller.getView().getVisualTab());
+    if (!resultTabs.getTabs().contains(controller.getView().getTableTab())) {
+      resultTabs.getTabs().add(controller.getView().getTableTab());
     }
-    if (!resultTabs.getTabs().contains(resultController.getView().getGraphTab())) {
-      resultTabs.getTabs().add(resultController.getView().getGraphTab());
+    if (!resultTabs.getTabs().contains(controller.getView().getGraphTab())) {
+      resultTabs.getTabs().add(controller.getView().getGraphTab());
     }
 
-    // Result format listener
-    resultController.setOnFormatChanged(
-        newVal -> {
-          Tab selectedQueryTab =
-              tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
-          if (selectedQueryTab != null) {
-            // We need to re-fetch or re-format data.
-            // For now, let's assume we just re-display if we have cached result.
-            // But ResultController handles text update.
-            // We might need to ask QueryManager to format again.
-            // This part might need refinement as ResultController logic was slightly different.
-            // For simplicity, we'll leave it for now or implement if needed.
-          }
-        });
+    controller.setOnFormatChanged(newVal -> {
+        Tab selectedQueryTab = tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
+        if (selectedQueryTab != null) {
+             // Re-display logic if needed
+        }
+    });
+    
+    return controller;
   }
 
   private void setupTabListeners() {
@@ -129,7 +128,6 @@ public class QueryViewController {
                       }
                     }
                   }
-                  Platform.runLater(this::updateEmptyStateVisibility);
                 });
   }
 
@@ -149,50 +147,15 @@ public class QueryViewController {
     }
   }
 
-  private void setupEmptyState() {
-    // Empty state logic similar to ValidationController but for Query
-    // We can reuse EmptyStateViewFactory or create custom one
-    // For now, let's rely on the listener in initialize() that sets it up when scene is ready
-    // or just call it here if scene is available (it might not be yet)
-
-    view.getRoot()
-        .sceneProperty()
-        .addListener(
-            (obs, oldScene, newScene) -> {
-              if (newScene != null) {
-                Stage stage = (Stage) newScene.getWindow();
-                emptyStateView =
-                    EmptyStateViewFactory.createQueryEmptyStateView(
-                        () -> tabEditorController.addNewTab("untitled", ""),
-                        this::onOpenFilesButtonClick,
-                        s ->
-                            TemplatePopup.show(
-                                s, query -> tabEditorController.addNewTab("untitled", query)),
-                        stage);
-                editorContainer.getChildren().add(0, emptyStateView);
-                updateEmptyStateVisibility();
-              }
-            });
-  }
-
-  private void updateEmptyStateVisibility() {
-    long realTabCount = tabEditorController.getView().getTabPane().getTabs().size();
-    boolean noTabsOpen = (realTabCount == 0);
-
-    if (emptyStateView != null) {
-      emptyStateView.setVisible(noTabsOpen);
-      emptyStateView.setManaged(noTabsOpen);
-    }
-    tabEditorController.getView().setVisible(!noTabsOpen);
-    tabEditorController.getView().setManaged(!noTabsOpen);
-  }
-
   private void updateResultsForSelectedQueryTab(Tab selectedQueryTab) {
-    resultController.clearResults();
-
     if (selectedQueryTab == null) {
       return;
     }
+    
+    ResultController resultController = tabEditorController.getCurrentResultController();
+    if (resultController == null) return;
+
+    resultController.clearResults();
 
     final Integer queryTabId = selectedQueryTab.hashCode();
     var cachedEntry = stateManager.getCachedResult(queryTabId);
@@ -202,8 +165,6 @@ public class QueryViewController {
     }
 
     String queryType = cachedEntry.getQueryType();
-    // We need to access tabs from ResultView via ResultController
-    // ResultController should expose methods to select tabs or we access view directly
 
     switch (queryType) {
       case "SELECT", "ASK":
@@ -239,6 +200,9 @@ public class QueryViewController {
     if (selectedTab == null) {
       return;
     }
+    
+    ResultController resultController = tabEditorController.getCurrentResultController();
+    if (resultController == null) return;
 
     CodeEditorController codeEditorController =
         tabEditorController.getModel().getControllerForTab(selectedTab);
@@ -252,6 +216,8 @@ public class QueryViewController {
     resultController.clearResults();
     stateManager.clearCacheForTab(tabId);
 
+    tabEditorController.setExecutionState(true);
+
     new Thread(
             () -> {
               try {
@@ -260,13 +226,18 @@ public class QueryViewController {
 
                 Platform.runLater(
                     () -> {
+                      tabEditorController.setExecutionState(false);
                       if (cachedEntry != null) {
+                        tabEditorController.showResultPane();
                         updateResultsForSelectedQueryTab(selectedTab);
                       }
                     });
 
               } catch (Exception e) {
-                Platform.runLater(() -> showError("Query Execution Error", e.getMessage()));
+                Platform.runLater(() -> {
+                    tabEditorController.setExecutionState(false);
+                    showError("Query Execution Error", e.getMessage());
+                });
                 e.printStackTrace();
               }
             })

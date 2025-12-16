@@ -57,10 +57,15 @@ public class TabEditorView extends VBox {
 
     // Create header bar with tabs and button
     HBox tabHeader = createTabHeader();
+    // Ensure header doesn't grow vertically
+    VBox.setVgrow(tabHeader, Priority.NEVER);
 
     // Content container for tab content and floating elements
     contentContainer = new StackPane();
     VBox.setVgrow(contentContainer, Priority.ALWAYS);
+    
+    // Allow the view to shrink if needed
+    setMinHeight(0);
 
     getChildren().addAll(tabHeader, contentContainer);
 
@@ -176,19 +181,21 @@ public class TabEditorView extends VBox {
     contentContainer.getChildren().add(0, emptyStateView);
   }
 
-  /** Creates a Tab with the given title and code editor view. */
-  public Tab createEditorTab(String title, CodeEditorView codeEditorView) {
+  /** Creates a Tab with the given title and content node. */
+  public Tab createEditorTab(String title, Node content) {
     Tab tab = new Tab(title);
-    codeEditorView.setMaxWidth(Double.MAX_VALUE);
-    codeEditorView.setMaxHeight(Double.MAX_VALUE);
+    if (content instanceof javafx.scene.layout.Region) {
+        ((javafx.scene.layout.Region) content).setMaxWidth(Double.MAX_VALUE);
+        ((javafx.scene.layout.Region) content).setMaxHeight(Double.MAX_VALUE);
+    }
     // Store content in map instead of tab.setContent()
-    tabContentMap.put(tab, codeEditorView);
+    tabContentMap.put(tab, content);
     return tab;
   }
 
   /** Creates and adds a new editor tab, selecting it. */
-  public Tab addNewEditorTab(String title, CodeEditorView codeEditorView) {
-    Tab tab = createEditorTab(title, codeEditorView);
+  public Tab addNewEditorTab(String title, Node content) {
+    Tab tab = createEditorTab(title, content);
     tabPane.getTabs().add(tab);
     tabPane.getSelectionModel().select(tab);
     // Force content display

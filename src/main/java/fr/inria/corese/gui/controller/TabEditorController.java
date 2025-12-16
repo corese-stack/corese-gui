@@ -9,22 +9,39 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.collections.ListChangeListener;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
+import javafx.util.Duration;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 
 public class TabEditorController {
   private final TabEditorView view;
@@ -32,6 +49,10 @@ public class TabEditorController {
   private final List<IconButtonType> buttons;
   private Runnable onExecutionRequest;
   private javafx.scene.Node emptyStateNode;
+  private Function<Tab, ResultController> resultControllerFactory;
+  private String executionButtonTooltip;
+
+  private final Map<Tab, FloatingButton> tabExecutionButtons = new HashMap<>();
 
   public TabEditorController(List<IconButtonType> buttons) {
     this.view = new TabEditorView();
@@ -52,6 +73,50 @@ public class TabEditorController {
   }
 
   /**
+   * Sets the execution state for the current tab.
+   *
+   * @param loading True if execution is in progress, false otherwise.
+   */
+  public void setExecutionState(boolean loading) {
+    Tab selectedTab = view.getTabPane().getSelectionModel().getSelectedItem();
+    if (selectedTab != null) {
+        FloatingButton button = tabExecutionButtons.get(selectedTab);
+        if (button != null) {
+            button.setLoading(loading);
+        }
+    }
+  }
+
+  /**
+   * Shows the result pane for the current tab with an animation.
+   */
+  public void showResultPane() {
+    Tab selectedTab = view.getTabPane().getSelectionModel().getSelectedItem();
+    if (selectedTab != null) {
+        Node content = view.getTabContent(selectedTab);
+        if (content instanceof SplitPane) {
+            SplitPane splitPane = (SplitPane) content;
+            if (splitPane.getItems().size() < 2) {
+                ResultController resultController = model.getResultControllerForTab(selectedTab);
+                if (resultController != null) {
+                    Node resultRoot = resultController.getView().getRoot();
+                    splitPane.getItems().add(resultRoot);
+                    
+                    // Animate the divider from bottom (1.0) to visible (0.6)
+                    splitPane.setDividerPositions(1.0);
+                    
+                    Timeline timeline = new Timeline(
+                        new KeyFrame(Duration.millis(300), 
+                            new KeyValue(splitPane.getDividers().get(0).positionProperty(), 0.6))
+                    );
+                    timeline.play();
+                }
+            }
+        }
+    }
+  }
+
+  /**
    * Sets the empty state view to display when no tabs are open. Automatically manages the
    * visibility of the tab pane and the empty state.
    *
@@ -61,6 +126,26 @@ public class TabEditorController {
     this.emptyStateNode = emptyStateNode;
     view.setEmptyStateView(emptyStateNode);
     updateEmptyStateVisibility();
+  }
+
+  /**
+   * Sets the factory to create a ResultController for each new tab.
+   * If set, each tab will contain a SplitPane with the editor and the result view.
+   *
+   * @param factory The factory function.
+   */
+  public void setResultControllerFactory(Function<Tab, ResultController> factory) {
+    this.resultControllerFactory = factory;
+  }
+
+  /**
+   * Returns the ResultController for the currently selected tab.
+   *
+   * @return The ResultController, or null if none.
+   */
+  public ResultController getCurrentResultController() {
+    Tab selectedTab = view.getTabPane().getSelectionModel().getSelectedItem();
+    return model.getResultControllerForTab(selectedTab);
   }
 
   /**
@@ -91,7 +176,11 @@ public class TabEditorController {
    * @param tooltipText The text to display in the tooltip.
    */
   public void addExecutionButton(String tooltipText) {
-    Button runButton = new FloatingButton(MaterialDesignP.PLAY, tooltipText);
+    this.executionButtonTooltip = tooltipText;
+  }
+
+  private FloatingButton createExecutionButton(Tab tab) {
+    FloatingButton runButton = new FloatingButton(MaterialDesignP.PLAY, executionButtonTooltip);
 
     runButton.setOnAction(
         e -> {
@@ -99,31 +188,8 @@ public class TabEditorController {
             onExecutionRequest.run();
           }
         });
-
-    // Enable/Disable based on tab selection and content
-    view.getTabPane()
-        .getSelectionModel()
-        .selectedItemProperty()
-        .addListener((obs, oldTab, newTab) -> updateExecutionButtonState(runButton, newTab));
-
-    // Initial state
-    updateExecutionButtonState(runButton, view.getTabPane().getSelectionModel().getSelectedItem());
-
-    // Bind visibility to TabPane visibility (hide when empty state is shown)
-    runButton.visibleProperty().bind(view.getTabPane().visibleProperty());
-    runButton.managedProperty().bind(view.getTabPane().visibleProperty());
-
-    addFloatingNode(runButton, Pos.BOTTOM_RIGHT, new Insets(0, 80, 50, 0));
-  }
-
-  private void updateExecutionButtonState(Button runButton, Tab selectedTab) {
-    if (selectedTab == null) {
-      runButton.disableProperty().unbind();
-      runButton.setDisable(true);
-      return;
-    }
-
-    CodeEditorController controller = model.getControllerForTab(selectedTab);
+    
+    CodeEditorController controller = model.getControllerForTab(tab);
     if (controller != null) {
       BooleanBinding isEmpty =
           Bindings.createBooleanBinding(
@@ -132,11 +198,10 @@ public class TabEditorController {
                 return c == null || c.trim().isEmpty();
               },
               controller.getModel().contentProperty());
-      runButton.disableProperty().bind(isEmpty);
-    } else {
-      runButton.disableProperty().unbind();
-      runButton.setDisable(true);
+      runButton.disableProperty().bind(isEmpty.or(runButton.loadingProperty()));
     }
+
+    return runButton;
   }
 
   /**
@@ -181,8 +246,37 @@ public class TabEditorController {
   private Tab addNewTabHelper(String title, String content, String filePath) {
     CodeEditorController codeEditorController = new CodeEditorController(buttons, content);
 
-    Tab tab = view.createEditorTab(title, codeEditorController.getView());
+    // Wrap editor in StackPane to add floating button
+    StackPane editorWrapper = new StackPane(codeEditorController.getView());
+    
+    Node tabContent = editorWrapper;
+    ResultController resultController = null;
+
+    if (resultControllerFactory != null) {
+      resultController = resultControllerFactory.apply(null);
+      if (resultController != null) {
+        SplitPane splitPane = new SplitPane();
+        splitPane.setOrientation(Orientation.VERTICAL);
+        // Initially only add the editor wrapper. Result view will be added on demand.
+        splitPane.getItems().add(editorWrapper);
+        tabContent = splitPane;
+      }
+    }
+
+    Tab tab = view.createEditorTab(title, tabContent);
     model.addTabModel(tab, codeEditorController);
+    if (resultController != null) {
+      model.addTabResultController(tab, resultController);
+    }
+    
+    // Create and add execution button if configured
+    if (executionButtonTooltip != null) {
+        FloatingButton runButton = createExecutionButton(tab);
+        tabExecutionButtons.put(tab, runButton);
+        StackPane.setAlignment(runButton, Pos.BOTTOM_RIGHT);
+        StackPane.setMargin(runButton, new Insets(0, 40, 40, 0));
+        editorWrapper.getChildren().add(runButton);
+    }
 
     tab.textProperty().bind(codeEditorController.getModel().displayNameProperty());
 

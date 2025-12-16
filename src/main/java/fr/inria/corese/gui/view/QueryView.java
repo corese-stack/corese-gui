@@ -1,86 +1,51 @@
 package fr.inria.corese.gui.view;
 
-import fr.inria.corese.gui.view.base.SplitEditorView;
-import fr.inria.corese.gui.view.utils.TabPaneUtils;
-import javafx.scene.control.SplitPane;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
+import fr.inria.corese.gui.view.base.AbstractView;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignM;
 
-public class QueryView extends SplitEditorView {
-
-    private StackPane editorContainer;
-    private SplitPane resultsSplitPane;
-    private TabPane resultsTabPane;
-    private Tab tableTab;
-    private Tab graphTab;
-    private Tab textTab;
-    private StackPane resultsContainer;
+public class QueryView extends AbstractView {
 
     public QueryView() {
-        super("/styles/split-editor-view.css");
-        initializeComponents();
-        setupLayout();
+        super(new BorderPane(), "/styles/split-editor-view.css");
     }
 
-    private void initializeComponents() {
-        editorContainer = new StackPane();
-        resultsSplitPane = new SplitPane();
-        resultsTabPane = new TabPane();
-        tableTab = new Tab("Table");
-        graphTab = new Tab("Graph");
-        textTab = new Tab("Text");
-        resultsContainer = new StackPane();
+    public void setMainContent(Node node) {
+        ((BorderPane) getRoot()).setCenter(node);
     }
 
-    private void setupLayout() {
-        BorderPane root = (BorderPane) getRoot();
-        root.setPrefSize(800, 600);
+    /**
+     * Creates the empty state view for the query screen.
+     *
+     * @param onNewAction Action to perform when "New Query" is clicked.
+     * @param onLoadAction Action to perform when "Load Query" is clicked.
+     * @param onTemplateAction Action to perform when "Templates" is clicked.
+     * @return The configured EmptyStateView node.
+     */
+    public Node createEmptyState(Runnable onNewAction, Runnable onLoadAction, Runnable onTemplateAction) {
+        Button newButton = new Button("New Query");
+        newButton.setTooltip(new Tooltip("CTRL + N"));
+        newButton.setOnAction(e -> onNewAction.run());
+        newButton.getStyleClass().add("custom-button");
 
-        // Editor Container
-        VBox.setVgrow(editorContainer, javafx.scene.layout.Priority.ALWAYS);
-        editorContainer.setMinHeight(150.0);
+        Button loadButton = new Button("Load Query");
+        loadButton.setTooltip(new Tooltip("CTRL + O"));
+        loadButton.setOnAction(e -> onLoadAction.run());
+        loadButton.getStyleClass().add("custom-button");
 
-        // Results
-        resultsTabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-        TabPaneUtils.enableFullWidth(resultsTabPane);
-        resultsTabPane.getTabs().addAll(tableTab, graphTab, textTab);
+        Button templateButton = new Button("Templates");
+        templateButton.setTooltip(new Tooltip("CTRL + T"));
+        templateButton.setOnAction(e -> onTemplateAction.run());
+        templateButton.getStyleClass().add("custom-button");
 
-        resultsContainer.getChildren().add(resultsTabPane);
-
-        resultsSplitPane.getItems().add(resultsContainer);
-
-        setEditorView(editorContainer);
-        setResultView(resultsSplitPane);
-    }
-
-    public StackPane getEditorContainer() {
-        return editorContainer;
-    }
-
-    public SplitPane getResultsSplitPane() {
-        return resultsSplitPane;
-    }
-
-    public TabPane getResultsTabPane() {
-        return resultsTabPane;
-    }
-
-    public Tab getTableTab() {
-        return tableTab;
-    }
-
-    public Tab getGraphTab() {
-        return graphTab;
-    }
-
-    public Tab getTextTab() {
-        return textTab;
-    }
-    
-    public StackPane getResultsContainer() {
-        return resultsContainer;
+        return new EmptyStateView(
+            MaterialDesignM.MAGNIFY,
+            "No queries open.\nCreate a new query, load one, or use a template.",
+            newButton,
+            loadButton,
+            templateButton);
     }
 }
