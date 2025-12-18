@@ -18,38 +18,65 @@ import javafx.stage.FileChooser;
 /**
  * Controller for the Validation View.
  *
- * <p>This controller manages the interaction between the Validation View, the Validation Model, and
- * the user. It handles the setup of the editor, the execution of SHACL validation, and the display
- * of results.
+ * <p>This controller acts as the main orchestrator for the SHACL Validation feature. It follows the
+ * MVC pattern, mediating between the {@link ValidationView} and the {@link ValidationModel}.
+ *
+ * <p>Responsibilities:
+ *
+ * <ul>
+ *   <li>Initializing the editor interface via {@link TabEditorController}.
+ *   <li>Managing the lifecycle of {@link ValidationModel} instances associated with each tab.
+ *   <li>Handling user actions such as running validation, opening files, and updating results.
+ * </ul>
  */
 public class ValidationController {
 
-  // MVC Components
+  // ==============================================================================================
+  // Fields
+  // ==============================================================================================
+
+  /** The main view associated with this controller. */
   private final ValidationView view;
-  private final Map<Tab, ValidationModel> tabModels = new HashMap<>();
-
-  // Sub-Controllers
-  private TabEditorController tabEditorController;
-
-  // ===== Constructor =====
 
   /**
-   * Constructor.
+   * Mapping between UI Tabs and their specific Validation Models. This allows maintaining separate
+   * validation states (shapes, results) for each open tab.
+   */
+  private final Map<Tab, ValidationModel> tabModels = new HashMap<>();
+
+  /** Sub-controller for managing the tabbed code editor interface. */
+  private TabEditorController tabEditorController;
+
+  // ==============================================================================================
+  // Constructor
+  // ==============================================================================================
+
+  /**
+   * Constructs a new ValidationController.
    *
-   * @param view The ValidationView associated with this controller.
+   * @param view The ValidationView to be managed.
    */
   public ValidationController(ValidationView view) {
     this.view = view;
     initialize();
   }
 
-  /** Initializes the controller components and UI. */
+  // ==============================================================================================
+  // Initialization
+  // ==============================================================================================
+
+  /**
+   * Initializes the controller by setting up the editor, configuring it, and integrating it into
+   * the view.
+   */
   private void initialize() {
-    initializeEditor();
+    configureEditor();
+    configureEmptyState();
+    setupViewIntegration();
   }
 
-  /** Initializes the tab editor for SHACL shapes. */
-  private void initializeEditor() {
+  /** Initializes the generic tab editor with specific toolbar buttons. */
+  private void configureEditor() {
     tabEditorController =
         new TabEditorController(
             List.of(
@@ -59,56 +86,62 @@ public class ValidationController {
                 IconButtonType.UNDO,
                 IconButtonType.REDO));
 
-    // Configure the editor
+    // Factory for creating result views when a tab is created
     tabEditorController.setResultControllerFactory(tab -> createResultController());
+
+    // Bind the execution action (Run Validation)
     tabEditorController.setOnExecutionRequest(this::executeValidation);
-    
-    // Create empty state via View
-    Node emptyState = view.createEmptyState(
-        () -> tabEditorController.addNewTab("untitled-shapes.ttl", ""),
-        this::onOpenFilesButtonClick
-    );
-    tabEditorController.setEmptyState(emptyState);
 
-    // Add floating validate button
+    // Add the specific "Run Validation" floating button
     tabEditorController.addExecutionButton("Run Validation");
+  }
 
-    // Set the editor view in the main view
+  /** Configures the empty state view to be displayed when no tabs are open. */
+  private void configureEmptyState() {
+    // Define the "Empty State" view (what is shown when no tabs are open)
+    // The View is responsible for the UI creation (Icon, Text, Buttons)
+    // The Controller provides the behavior (Actions)
+    Node emptyState =
+        view.createEmptyState(this::onNewFileButtonClick, this::onOpenFilesButtonClick);
+
+    // Pass the created node to the generic editor controller
+    tabEditorController.setEmptyState(emptyState);
+  }
+
+  /** Integrates the editor into the main view and sets up listeners. */
+  private void setupViewIntegration() {
+    // Embed the editor's view into the main ValidationView
     view.setMainContent(tabEditorController.getViewRoot());
 
-    // Listen for tab removal to clean up models
-    tabEditorController.getView().getTabPane().getTabs().addListener((ListChangeListener<Tab>) c -> {
-        while (c.next()) {
-            if (c.wasRemoved()) {
-                for (Tab tab : c.getRemoved()) {
-                    tabModels.remove(tab);
-                }
-            }
-        }
-    });
+    // Manage memory: Remove the model when a tab is closed
+    tabEditorController.addTabListener(this::onTabsChanged);
   }
 
-  private ResultController createResultController() {
-    ResultController controller = new ResultController(List.of(IconButtonType.COPY, IconButtonType.EXPORT));
-    controller.setOnFormatChanged(this::updateReportDisplay);
-    return controller;
-  }
+  // ==============================================================================================
+  // Public Actions (User Interactions)
+  // ==============================================================================================
 
   /**
-   * Executes the validation logic. Validates the data graph against the shapes in the active tab.
+   * Executes the SHACL validation process.
+   *
+   * <p>This method retrieves the shapes from the active tab, validates them against the data loaded
+   * in the GraphManager (via {@link ValidationModel}), and updates the UI with the result.
+   * Validation runs on a background thread to keep the UI responsive.
    */
   public void executeValidation() {
-    Tab selectedTab = tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
+    Tab selectedTab = tabEditorController.getSelectedTab();
     if (selectedTab == null) return;
 
     ResultController resultController = tabEditorController.getCurrentResultController();
     if (resultController == null) return;
 
+    // Clear previous results
     resultController.clearResults();
 
+    // Retrieve or create the model for the current tab
     ValidationModel model = tabModels.computeIfAbsent(selectedTab, k -> new ValidationModel());
 
-    // Check if data is loaded in the GraphManager
+    // Pre-check: Ensure data is loaded
     if (!model.isDataLoaded()) {
       String message = "Cannot validate: No data has been loaded in the 'Data' view.";
       resultController.updateText(message);
@@ -116,61 +149,87 @@ public class ValidationController {
       return;
     }
 
-    CodeEditorController codeEditorController =
-        tabEditorController.getModel().getControllerForTab(selectedTab);
-    if (codeEditorController == null) {
-      return;
-    }
-
-    final String shapesContent = codeEditorController.getView().getText();
+    // Retrieve shapes content from the editor
+    final String shapesContent = tabEditorController.getEditorContent(selectedTab);
     if (shapesContent == null || shapesContent.trim().isEmpty()) {
-      String message = "Cannot validate: The current tab is empty...";
+      String message = "Cannot validate: The current tab is empty.";
       resultController.updateText(message);
       showError("Empty Shapes", message);
       return;
     }
 
-    // Run validation in a background thread to avoid blocking the UI
+    // UI: Indicate execution start
     tabEditorController.setExecutionState(true);
-    new Thread(
-            () -> {
-              // Delegate validation to the model
-              ValidationResult result = model.validate(shapesContent);
 
-              Platform.runLater(
-                  () -> {
-                    tabEditorController.setExecutionState(false);
-                    tabEditorController.showResultPane();
-                    
-                    // Select the text tab to show results
-                    resultController.selectTextTab();
+    // Execute validation asynchronously
+    new Thread(() -> runValidationTask(model, shapesContent, resultController)).start();
+  }
 
-                    if (result.getErrorMessage() != null) {
-                      String errorMsg =
-                          "Validation Failed: Invalid SHACL Syntax\n\n" + result.getErrorMessage();
-                      resultController.updateText(errorMsg);
-                      showError("Invalid SHACL Content", result.getErrorMessage());
-                    } else {
-                      // Display the report in the default format (Turtle)
-                      updateReportDisplay("TURTLE");
+  // ==============================================================================================
+  // Internal Logic & Helpers
+  // ==============================================================================================
 
-                      // Pass the report graph to the result controller for other visualizations
-                      resultController.displayReport(result.getReportGraph());
-                    }
-                  });
-            })
-        .start();
+  /**
+   * Runs the validation task in a background thread.
+   *
+   * @param model The validation model.
+   * @param shapesContent The SHACL shapes content.
+   * @param resultController The controller to update with results.
+   */
+  private void runValidationTask(
+      ValidationModel model, String shapesContent, ResultController resultController) {
+    try {
+      // Perform validation logic
+      ValidationResult result = model.validate(shapesContent);
+
+      // Update UI on JavaFX Application Thread
+      Platform.runLater(() -> handleValidationResult(result, resultController));
+    } catch (Throwable e) {
+      e.printStackTrace();
+      Platform.runLater(
+          () -> {
+            tabEditorController.setExecutionState(false);
+            showError("Validation Error", "An unexpected error occurred: " + e.getMessage());
+          });
+    }
+  }
+
+  /**
+   * Handles the display of validation results on the UI thread.
+   *
+   * @param result The result object from the validation process.
+   * @param resultController The controller managing the result view.
+   */
+  private void handleValidationResult(ValidationResult result, ResultController resultController) {
+    tabEditorController.setExecutionState(false);
+    tabEditorController.showResultPane();
+
+    // Ensure the text tab is visible to show the report
+    resultController.selectTextTab();
+
+    if (result.getErrorMessage() != null) {
+      // Handle validation errors (e.g., syntax errors in shapes)
+      String errorMsg = "Validation Failed: Invalid SHACL Syntax\n\n" + result.getErrorMessage();
+      resultController.updateText(errorMsg);
+      showError("Invalid SHACL Content", result.getErrorMessage());
+    } else {
+      // Success: Display the report
+      updateReportDisplay("TURTLE"); // Default format
+
+      // Pass the report graph for potential visualization
+      resultController.displayReport(result.getReportGraph());
+    }
   }
 
   /**
    * Updates the text area with the validation report in the specified format.
    *
-   * @param format The format to display the report in (e.g., "TURTLE").
+   * @param format The desired format (e.g., "TURTLE", "JSON-LD").
    */
   private void updateReportDisplay(String format) {
-    Tab selectedTab = tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
+    Tab selectedTab = tabEditorController.getSelectedTab();
     if (selectedTab == null) return;
-    
+
     ValidationModel model = tabModels.get(selectedTab);
     if (model == null) return;
 
@@ -183,13 +242,48 @@ public class ValidationController {
     }
   }
 
-  /** Opens a file chooser to load shapes files. */
+  /**
+   * Creates a new {@link ResultController} configured for validation results.
+   *
+   * @return A configured ResultController instance.
+   */
+  private ResultController createResultController() {
+    ResultController controller =
+        new ResultController(List.of(IconButtonType.COPY, IconButtonType.EXPORT));
+    // Update the displayed report format when the user changes preferences (e.g., Turtle vs
+    // JSON-LD)
+    controller.setOnFormatChanged(this::updateReportDisplay);
+    return controller;
+  }
+
+  /**
+   * Listener to clean up models when tabs are closed.
+   *
+   * @param change The change event from the TabPane.
+   */
+  private void onTabsChanged(ListChangeListener.Change<? extends Tab> change) {
+    while (change.next()) {
+      if (change.wasRemoved()) {
+        for (Tab tab : change.getRemoved()) {
+          tabModels.remove(tab);
+        }
+      }
+    }
+  }
+
+  /** Creates a new untitled tab for SHACL shapes. */
+  private void onNewFileButtonClick() {
+    tabEditorController.addNewTab("untitled-shapes.ttl", "");
+  }
+
+  /** Opens a file chooser dialog to load SHACL shapes files. */
   private void onOpenFilesButtonClick() {
     FileChooser fileChooser = new FileChooser();
     fileChooser.setTitle("Open Shapes File");
     fileChooser
         .getExtensionFilters()
         .addAll(new FileChooser.ExtensionFilter("RDF Files", "*.ttl", "*.rdf", "*.n3", "*.shacl"));
+
     File file = fileChooser.showOpenDialog(null);
     if (file != null) {
       tabEditorController.addNewTab(file);
@@ -197,10 +291,10 @@ public class ValidationController {
   }
 
   /**
-   * Displays an error alert.
+   * Helper method to display error alerts.
    *
-   * @param title The title of the alert.
-   * @param content The content message of the alert.
+   * @param title The title of the alert window.
+   * @param content The error message to display.
    */
   private void showError(String title, String content) {
     Alert alert = new Alert(Alert.AlertType.ERROR);

@@ -425,4 +425,34 @@ public class TabEditorController {
   public List<IconButtonType> getButtons() {
     return buttons;
   }
+
+  /**
+   * Returns the currently selected tab.
+   * @return The selected Tab, or null if none.
+   */
+  public Tab getSelectedTab() {
+      return view.getTabPane().getSelectionModel().getSelectedItem();
+  }
+
+  /**
+   * Adds a listener to the list of tabs.
+   * @param listener The listener to add.
+   */
+  public void addTabListener(ListChangeListener<Tab> listener) {
+      view.getTabPane().getTabs().addListener(listener);
+  }
+
+  /**
+   * Retrieves the text content of the editor for a specific tab.
+   * @param tab The tab to get content from.
+   * @return The text content, or null if the tab is not valid.
+   */
+  public String getEditorContent(Tab tab) {
+      CodeEditorController controller = model.getControllerForTab(tab);
+      if (controller != null) {
+          // Prefer getting text from the view to ensure we have the latest edits
+          return controller.getView().getText();
+      }
+      return null;
+  }
 }

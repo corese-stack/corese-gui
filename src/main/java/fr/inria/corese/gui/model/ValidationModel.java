@@ -52,7 +52,7 @@ public class ValidationModel {
       this.lastResult = new ValidationResult(conforms, reportGraph, null);
       return this.lastResult;
 
-    } catch (Exception e) {
+    } catch (Throwable e) {
       e.printStackTrace();
       this.lastResult = new ValidationResult(false, null, "Validation Error: " + e.getMessage());
       return this.lastResult;
