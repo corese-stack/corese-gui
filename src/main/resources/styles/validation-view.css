@@ -1,0 +1,59 @@
+/* ==============================================================================================
+ * Validation View Styles
+ * ============================================================================================== */
+
+/* --- Error Overlay --- */
+
+.error-dimmer {
+    -fx-background-color: rgba(0, 0, 0, 0.4);
+    -fx-alignment: center;
+}
+
+.error-overlay {
+    -fx-background-color: white;
+    -fx-padding: 30;
+    -fx-background-radius: 8;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 0);
+    -fx-max-width: 600;
+    -fx-max-height: 500;
+    -fx-alignment: center;
+    -fx-spacing: 15;
+}
+
+.error-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #d32f2f;
+}
+
+.error-header {
+    -fx-font-size: 14px;
+    -fx-text-alignment: center;
+}
+
+.error-details-area {
+    -fx-font-family: 'Monospaced';
+    -fx-control-inner-background: #f5f5f5;
+    -fx-text-fill: #333;
+}
+
+.error-details-area .content {
+    -fx-background-color: #f5f5f5;
+}
+
+.error-close-button {
+    -fx-background-color: #d32f2f;
+    -fx-text-fill: white;
+    -fx-cursor: hand;
+    -fx-padding: 8 16;
+    -fx-font-weight: bold;
+}
+
+.error-close-button:hover {
+    -fx-background-color: #b71c1c;
+}
+
+.error-icon {
+    -fx-icon-color: #d32f2f;
+    -fx-icon-size: 48;
+}
