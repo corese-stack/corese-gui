@@ -1,17 +1,11 @@
 package fr.inria.corese.gui.view;
 
+import atlantafx.base.controls.ModalPane;
 import fr.inria.corese.gui.view.base.AbstractView;
+import fr.inria.corese.gui.view.component.ErrorDialog;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
-import org.kordamp.ikonli.javafx.FontIcon;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignA;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
@@ -32,7 +26,7 @@ public class ValidationView extends AbstractView {
 
   private final StackPane rootStack;
   private final BorderPane mainContent;
-  private Node errorOverlay;
+  private final ModalPane modalPane;
 
   // ==============================================================================================
   // Constructor
@@ -43,7 +37,9 @@ public class ValidationView extends AbstractView {
     super(new StackPane(), STYLESHEET_PATH);
     this.rootStack = (StackPane) getRoot();
     this.mainContent = new BorderPane();
-    this.rootStack.getChildren().add(mainContent);
+    this.modalPane = new ModalPane();
+
+    this.rootStack.getChildren().addAll(mainContent, modalPane);
   }
 
   // ==============================================================================================
@@ -67,66 +63,7 @@ public class ValidationView extends AbstractView {
    * @param details The detailed error message or stack trace (optional).
    */
   public void showError(String title, String header, String details) {
-    hideError(); // Clear existing error if any
-
-    // Create the overlay container
-    VBox overlay = new VBox();
-    overlay.getStyleClass().add("error-overlay");
-
-    // Icon
-    FontIcon errorIcon = new FontIcon(MaterialDesignA.ALERT);
-    errorIcon.getStyleClass().add("error-icon");
-
-    // Title
-    Label titleLabel = new Label(title);
-    titleLabel.getStyleClass().add("error-title");
-
-    // Header (Actionable message)
-    Label headerLabel = new Label(header);
-    headerLabel.setWrapText(true);
-    headerLabel.getStyleClass().add("error-header");
-
-    overlay.getChildren().addAll(errorIcon, titleLabel, headerLabel);
-
-    // Details (Optional code block)
-    if (details != null && !details.isEmpty()) {
-      TextArea detailsArea = new TextArea(details);
-      detailsArea.setEditable(false);
-      detailsArea.setWrapText(false); // Code block style
-      detailsArea.getStyleClass().add("error-details-area");
-      detailsArea.setPrefRowCount(8);
-      VBox.setVgrow(detailsArea, Priority.ALWAYS);
-      overlay.getChildren().add(detailsArea);
-    }
-
-    // Close Button
-    Button closeButton = new Button("Close");
-    closeButton.setGraphic(new FontIcon(MaterialDesignC.CLOSE));
-    closeButton.setOnAction(e -> hideError());
-    closeButton.getStyleClass().add("error-close-button");
-
-    overlay.getChildren().add(closeButton);
-
-    // Create a background dimmer
-    StackPane dimmer = new StackPane(overlay);
-    dimmer.getStyleClass().add("error-dimmer");
-
-    // Close on background click
-    dimmer.setOnMouseClicked(
-        e -> {
-          if (e.getTarget() == dimmer) hideError();
-        });
-
-    this.errorOverlay = dimmer;
-    rootStack.getChildren().add(errorOverlay);
-  }
-
-  /** Hides the error overlay. */
-  public void hideError() {
-    if (errorOverlay != null) {
-      rootStack.getChildren().remove(errorOverlay);
-      errorOverlay = null;
-    }
+    modalPane.show(new ErrorDialog(modalPane, title, header, details));
   }
 
   /**

@@ -165,7 +165,6 @@ public class ValidationController {
 
     // UI: Indicate execution start
     tabEditorController.setExecutionState(true);
-    view.hideError(); // Clear any previous errors
 
     // Execute validation asynchronously
     new Thread(() -> runValidationTask(model, shapesContent, resultController)).start();
