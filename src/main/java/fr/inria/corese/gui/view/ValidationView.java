@@ -1,12 +1,10 @@
 package fr.inria.corese.gui.view;
 
 import fr.inria.corese.gui.view.base.AbstractView;
-import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
@@ -30,6 +28,8 @@ public class ValidationView extends AbstractView {
   // Fields
   // ==============================================================================================
 
+  private static final String STYLESHEET_PATH = "/styles/validation-view.css";
+
   private final StackPane rootStack;
   private final BorderPane mainContent;
   private Node errorOverlay;
@@ -40,15 +40,10 @@ public class ValidationView extends AbstractView {
 
   /** Creates the ValidationView. */
   public ValidationView() {
-    super(new StackPane(), "/styles/split-editor-view.css");
+    super(new StackPane(), STYLESHEET_PATH);
     this.rootStack = (StackPane) getRoot();
     this.mainContent = new BorderPane();
     this.rootStack.getChildren().add(mainContent);
-
-    // Load additional styles for validation view (e.g., error overlay)
-    this.rootStack
-        .getStylesheets()
-        .add(getClass().getResource("/styles/validation-view.css").toExternalForm());
   }
 
   // ==============================================================================================

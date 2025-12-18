@@ -2,6 +2,8 @@
  * Validation View Styles
  * ============================================================================================== */
 
+@import "split-editor-view.css";
+
 /* --- Error Overlay --- */
 
 .error-dimmer {
