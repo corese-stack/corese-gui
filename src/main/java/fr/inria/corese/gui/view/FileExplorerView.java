@@ -34,7 +34,7 @@ public class FileExplorerView extends HBox {
   }
 
   private void initializeComponents() {
-    emptyStateView = new EmptyStateView(MaterialDesignF.FOLDER_OPEN, "No files loaded\nOpen a folder or load a file in the file explorer");
+    emptyStateView = new EmptyStateView(MaterialDesignF.FOLDER_OPEN, "No files loaded", "Open a folder or load a file in the file explorer");
     emptyStateView.setMaxWidth(Double.MAX_VALUE);
     emptyStateView.setMaxHeight(Double.MAX_VALUE);
     VBox.setVgrow(emptyStateView, Priority.ALWAYS);

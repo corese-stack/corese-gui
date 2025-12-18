@@ -14,6 +14,8 @@ import javafx.scene.layout.VBox;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignA;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
 
 /**
@@ -142,8 +144,11 @@ public class ValidationView extends AbstractView {
   public Node createEmptyState(Runnable onNewAction, Runnable onLoadAction) {
     return new EmptyStateView(
         MaterialDesignS.SHIELD_CHECK_OUTLINE,
-        "No shapes files open.\nCreate a new shapes file or load an existing one.",
-        EmptyStateView.createAction("New Shapes File", "CTRL + N", onNewAction),
-        EmptyStateView.createAction("Load Shapes File", "CTRL + O", onLoadAction));
+        "No shapes files open",
+        "Create a new shapes file or load an existing one",
+        EmptyStateView.createAction(
+            "New Shapes File", MaterialDesignP.PLUS, "CTRL + N", onNewAction),
+        EmptyStateView.createAction(
+            "Load Shapes File", MaterialDesignF.FOLDER_OPEN, "CTRL + O", onLoadAction));
   }
 }

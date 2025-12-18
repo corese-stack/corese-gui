@@ -122,7 +122,7 @@ public class FileListView extends VBox {
   /** Retourne l'espace quand il n'y a pas de fichiers chargés. */
   private void setupEmptyState() {
     // Create empty state view
-    emptyStateView = new EmptyStateView(MaterialDesignF.FILE_DOCUMENT, "No files loaded\nOpen a folder or load a TTL file to visualize semantic graphs");
+    emptyStateView = new EmptyStateView(MaterialDesignF.FILE_DOCUMENT, "No files loaded", "Open a folder or load a TTL file to visualize semantic graphs");
 
     // Create a StackPane to hold both the ListView and empty state
     StackPane contentContainer = new StackPane();

@@ -26,7 +26,8 @@ public class EmptyStateView extends VBox {
   // ==============================================================================================
 
   private final FontIcon iconView;
-  private final Label messageLabel;
+  private final Label titleLabel;
+  private final Label descriptionLabel;
   private final HBox buttonBox;
 
   // ==============================================================================================
@@ -37,12 +38,14 @@ public class EmptyStateView extends VBox {
    * Constructs a new EmptyStateView.
    *
    * @param icon The icon to display (from Ikonli).
-   * @param message The message to display below the icon.
+   * @param title The main title text (large, bold).
+   * @param description The secondary description text (smaller).
    * @param buttons Optional action buttons to display below the message.
    */
-  public EmptyStateView(Ikon icon, String message, Node... buttons) {
+  public EmptyStateView(Ikon icon, String title, String description, Node... buttons) {
     this.iconView = new FontIcon(icon);
-    this.messageLabel = new Label(message);
+    this.titleLabel = new Label(title);
+    this.descriptionLabel = new Label(description);
     this.buttonBox = new HBox(buttons);
 
     initialize();
@@ -56,16 +59,22 @@ public class EmptyStateView extends VBox {
    * Helper to create a standard button for the empty state view.
    *
    * @param text The button text.
+   * @param icon The button icon (can be null).
    * @param tooltip The button tooltip (can be null).
    * @param action The action to run on click.
    * @return A configured Button.
    */
-  public static Button createAction(String text, String tooltip, Runnable action) {
+  public static Button createAction(String text, Ikon icon, String tooltip, Runnable action) {
     Button btn = new Button(text);
+    if (icon != null) {
+      btn.setGraphic(new FontIcon(icon));
+    }
     if (tooltip != null) {
       btn.setTooltip(new Tooltip(tooltip));
     }
     btn.setOnAction(e -> action.run());
+    // Use AtlantaFX accent style for primary actions
+    btn.getStyleClass().add("accent");
     return btn;
   }
 
@@ -85,13 +94,48 @@ public class EmptyStateView extends VBox {
     // Icon setup
     iconView.getStyleClass().add("empty-state-icon");
 
-    // Message setup
-    messageLabel.getStyleClass().add("empty-state-message");
+    // Title setup
+    titleLabel.getStyleClass().add("empty-state-title");
+
+    // Description setup
+    descriptionLabel.getStyleClass().add("empty-state-description");
+    descriptionLabel.setWrapText(true);
 
     // Buttons container setup
     buttonBox.getStyleClass().add("empty-state-buttons");
 
     // Add children
-    getChildren().addAll(iconView, messageLabel, buttonBox);
+    getChildren().addAll(iconView, titleLabel, descriptionLabel, buttonBox);
+  }
+
+  // ==============================================================================================
+  // Accessors
+  // ==============================================================================================
+
+  /**
+   * Updates the main icon of the empty state.
+   *
+   * @param icon The new icon to display.
+   */
+  public void setIcon(Ikon icon) {
+    this.iconView.setIconCode(icon);
+  }
+
+  /**
+   * Updates the title text.
+   *
+   * @param title The new title text.
+   */
+  public void setTitle(String title) {
+    this.titleLabel.setText(title);
+  }
+
+  /**
+   * Updates the description text.
+   *
+   * @param description The new description text.
+   */
+  public void setDescription(String description) {
+    this.descriptionLabel.setText(description);
   }
 }

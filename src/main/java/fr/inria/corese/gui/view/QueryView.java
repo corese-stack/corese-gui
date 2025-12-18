@@ -43,7 +43,8 @@ public class QueryView extends AbstractView {
 
         return new EmptyStateView(
             MaterialDesignM.MAGNIFY,
-            "No queries open.\nCreate a new query, load one, or use a template.",
+            "No queries open",
+            "Create a new query, load one, or use a template.",
             newButton,
             loadButton,
             templateButton);
