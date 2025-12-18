@@ -1,5 +1,6 @@
 package fr.inria.corese.gui.view;
 
+import atlantafx.base.theme.Styles;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -73,8 +74,10 @@ public class EmptyStateView extends VBox {
       btn.setTooltip(new Tooltip(tooltip));
     }
     btn.setOnAction(e -> action.run());
-    // Use AtlantaFX accent style for primary actions
-    btn.getStyleClass().add("accent");
+    
+    // Use AtlantaFX outlined style and a custom class for color overrides
+    btn.getStyleClass().addAll(Styles.ACCENT, "empty-state-action");
+    
     return btn;
   }
 
