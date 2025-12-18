@@ -140,18 +140,10 @@ public class ValidationView extends AbstractView {
    * @return The configured EmptyStateView node.
    */
   public Node createEmptyState(Runnable onNewAction, Runnable onLoadAction) {
-    Button newButton = new Button("New Shapes File");
-    newButton.setTooltip(new Tooltip("CTRL + N"));
-    newButton.setOnAction(e -> onNewAction.run());
-
-    Button loadButton = new Button("Load Shapes File");
-    loadButton.setTooltip(new Tooltip("CTRL + O"));
-    loadButton.setOnAction(e -> onLoadAction.run());
-
     return new EmptyStateView(
         MaterialDesignS.SHIELD_CHECK_OUTLINE,
         "No shapes files open.\nCreate a new shapes file or load an existing one.",
-        newButton,
-        loadButton);
+        EmptyStateView.createAction("New Shapes File", "CTRL + N", onNewAction),
+        EmptyStateView.createAction("Load Shapes File", "CTRL + O", onLoadAction));
   }
 }

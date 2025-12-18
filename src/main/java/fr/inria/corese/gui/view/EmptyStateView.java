@@ -47,6 +47,27 @@ public class EmptyStateView extends VBox {
   }
 
   // ==============================================================================================
+  // Helper Methods
+  // ==============================================================================================
+
+  /**
+   * Helper to create a standard button for the empty state view.
+   *
+   * @param text The button text.
+   * @param tooltip The button tooltip (can be null).
+   * @param action The action to run on click.
+   * @return A configured Button.
+   */
+  public static Button createAction(String text, String tooltip, Runnable action) {
+    Button btn = new Button(text);
+    if (tooltip != null) {
+      btn.setTooltip(new javafx.scene.control.Tooltip(tooltip));
+    }
+    btn.setOnAction(e -> action.run());
+    return btn;
+  }
+
+  // ==============================================================================================
   // Initialization
   // ==============================================================================================
 
