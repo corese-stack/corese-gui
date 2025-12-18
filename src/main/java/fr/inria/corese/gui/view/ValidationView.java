@@ -24,11 +24,17 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
  */
 public class ValidationView extends AbstractView {
 
+  // ==============================================================================================
+  // Fields
+  // ==============================================================================================
+
   private final StackPane rootStack;
   private final BorderPane mainContent;
   private Node errorOverlay;
 
-  // ===== Constructor =====
+  // ==============================================================================================
+  // Constructor
+  // ==============================================================================================
 
   /** Creates the ValidationView. */
   public ValidationView() {
@@ -36,7 +42,16 @@ public class ValidationView extends AbstractView {
     this.rootStack = (StackPane) getRoot();
     this.mainContent = new BorderPane();
     this.rootStack.getChildren().add(mainContent);
+
+    // Load additional styles for validation view (e.g., error overlay)
+    this.rootStack
+        .getStylesheets()
+        .add(getClass().getResource("/styles/validation-view.css").toExternalForm());
   }
+
+  // ==============================================================================================
+  // Public Methods
+  // ==============================================================================================
 
   /**
    * Sets the main content of the view (typically the TabEditorView).
@@ -57,50 +72,53 @@ public class ValidationView extends AbstractView {
   public void showError(String title, String header, String details) {
     hideError(); // Clear existing error if any
 
-    VBox overlay = new VBox(15);
+    // Create the overlay container
+    VBox overlay = new VBox();
     overlay.getStyleClass().add("error-overlay");
-    overlay.setStyle(
-        "-fx-background-color: white; -fx-padding: 30; -fx-background-radius: 8; " +
-        "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 0); " +
-        "-fx-max-width: 600; -fx-max-height: 500; -fx-alignment: center;");
 
     // Icon
-    Label titleLabel = new Label(title);
-    titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #d32f2f;");
+    FontIcon errorIcon = new FontIcon(MaterialDesignA.ALERT);
+    errorIcon.getStyleClass().add("error-icon");
 
+    // Title
+    Label titleLabel = new Label(title);
+    titleLabel.getStyleClass().add("error-title");
+
+    // Header (Actionable message)
     Label headerLabel = new Label(header);
     headerLabel.setWrapText(true);
-    headerLabel.setStyle("-fx-font-size: 14px; -fx-text-alignment: center;");
+    headerLabel.getStyleClass().add("error-header");
 
-    overlay.getChildren().addAll(titleLabel, headerLabel);
+    overlay.getChildren().addAll(errorIcon, titleLabel, headerLabel);
 
+    // Details (Optional code block)
     if (details != null && !details.isEmpty()) {
-        TextArea detailsArea = new TextArea(details);
-        detailsArea.setEditable(false);
-        detailsArea.setWrapText(false); // Code block style
-        detailsArea.setStyle("-fx-font-family: 'Monospaced'; -fx-control-inner-background: #f5f5f5; -fx-text-fill: #333;");
-        detailsArea.setPrefRowCount(8);
-        VBox.setVgrow(detailsArea, Priority.ALWAYS);
-        overlay.getChildren().add(detailsArea);
+      TextArea detailsArea = new TextArea(details);
+      detailsArea.setEditable(false);
+      detailsArea.setWrapText(false); // Code block style
+      detailsArea.getStyleClass().add("error-details-area");
+      detailsArea.setPrefRowCount(8);
+      VBox.setVgrow(detailsArea, Priority.ALWAYS);
+      overlay.getChildren().add(detailsArea);
     }
 
+    // Close Button
     Button closeButton = new Button("Close");
     closeButton.setGraphic(new FontIcon(MaterialDesignC.CLOSE));
     closeButton.setOnAction(e -> hideError());
-    closeButton.setStyle(
-        "-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-cursor: hand; -fx-padding: 8 16; -fx-font-weight: bold;");
+    closeButton.getStyleClass().add("error-close-button");
 
     overlay.getChildren().add(closeButton);
 
     // Create a background dimmer
     StackPane dimmer = new StackPane(overlay);
-    dimmer.setStyle("-fx-background-color: rgba(0, 0, 0, 0.4);");
-    dimmer.setAlignment(Pos.CENTER);
-    
+    dimmer.getStyleClass().add("error-dimmer");
+
     // Close on background click
-    dimmer.setOnMouseClicked(e -> {
-        if (e.getTarget() == dimmer) hideError();
-    });
+    dimmer.setOnMouseClicked(
+        e -> {
+          if (e.getTarget() == dimmer) hideError();
+        });
 
     this.errorOverlay = dimmer;
     rootStack.getChildren().add(errorOverlay);
@@ -125,12 +143,10 @@ public class ValidationView extends AbstractView {
     Button newButton = new Button("New Shapes File");
     newButton.setTooltip(new Tooltip("CTRL + N"));
     newButton.setOnAction(e -> onNewAction.run());
-    newButton.getStyleClass().add("custom-button");
 
     Button loadButton = new Button("Load Shapes File");
     loadButton.setTooltip(new Tooltip("CTRL + O"));
     loadButton.setOnAction(e -> onLoadAction.run());
-    loadButton.getStyleClass().add("custom-button");
 
     return new EmptyStateView(
         MaterialDesignS.SHIELD_CHECK_OUTLINE,

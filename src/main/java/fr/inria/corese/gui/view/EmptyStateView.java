@@ -9,39 +9,66 @@ import org.kordamp.ikonli.Ikon;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 /**
- * View representing an empty or initial state in the UI.
+ * A generic reusable component for displaying an empty or initial state in the UI.
  *
- * <p>Displays a centered icon, message, and optional action buttons.
+ * <p>This view typically displays a large centered icon, a descriptive message, and optional action
+ * buttons (e.g., "Create New", "Load File").
+ *
+ * <p>It is designed to be used across different modules (Validation, Query, Data) to provide a
+ * consistent user experience when no content is loaded.
  */
 public class EmptyStateView extends VBox {
 
-    private final FontIcon iconView;
-    private final Label messageLabel;
-    private final HBox buttonBox;
+  // ==============================================================================================
+  // Fields
+  // ==============================================================================================
 
-    public EmptyStateView(Ikon icon, String message, Node... buttons) {
-        this.iconView = new FontIcon(icon);
-        this.messageLabel = new Label(message);
-        this.buttonBox = new HBox(10, buttons);
+  private final FontIcon iconView;
+  private final Label messageLabel;
+  private final HBox buttonBox;
 
-        initialize();
-    }
+  // ==============================================================================================
+  // Constructor
+  // ==============================================================================================
 
-    private void initialize() {
-        setAlignment(Pos.CENTER);
-        setSpacing(20);
-        setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-        getStyleClass().add("empty-state-view");
+  /**
+   * Constructs a new EmptyStateView.
+   *
+   * @param icon The icon to display (from Ikonli).
+   * @param message The message to display below the icon.
+   * @param buttons Optional action buttons to display below the message.
+   */
+  public EmptyStateView(Ikon icon, String message, Node... buttons) {
+    this.iconView = new FontIcon(icon);
+    this.messageLabel = new Label(message);
+    this.buttonBox = new HBox(buttons);
 
-        iconView.setIconSize(80);
-        iconView.getStyleClass().add("empty-state-icon");
+    initialize();
+  }
 
-        messageLabel.setStyle("-fx-font-size: 16px; -fx-text-alignment: center;");
-        messageLabel.getStyleClass().add("empty-state-message");
+  // ==============================================================================================
+  // Initialization
+  // ==============================================================================================
 
-        buttonBox.setAlignment(Pos.CENTER);
-        buttonBox.getStyleClass().add("empty-state-buttons");
+  private void initialize() {
+    // Load the CSS for this component
+    this.getStylesheets()
+        .add(getClass().getResource("/styles/empty-state-view.css").toExternalForm());
 
-        getChildren().addAll(iconView, messageLabel, buttonBox);
-    }
+    // Main container setup
+    this.getStyleClass().add("empty-state-view");
+    this.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+
+    // Icon setup
+    iconView.getStyleClass().add("empty-state-icon");
+
+    // Message setup
+    messageLabel.getStyleClass().add("empty-state-message");
+
+    // Buttons container setup
+    buttonBox.getStyleClass().add("empty-state-buttons");
+
+    // Add children
+    getChildren().addAll(iconView, messageLabel, buttonBox);
+  }
 }

@@ -1,0 +1,41 @@
+/* ==============================================================================================
+ * Empty State View Styles
+ * ============================================================================================== */
+
+.empty-state-view {
+    -fx-alignment: center;
+    -fx-spacing: 20;
+    -fx-background-color: -color-bg-default;
+}
+
+.empty-state-icon {
+    -fx-icon-color: -color-fg-subtle;
+    -fx-icon-size: 80;
+}
+
+.empty-state-message {
+    -fx-font-size: 16px;
+    -fx-text-alignment: center;
+    -fx-text-fill: -color-fg-default;
+    -fx-wrap-text: true;
+    -fx-max-width: 400;
+}
+
+.empty-state-buttons {
+    -fx-alignment: center;
+    -fx-spacing: 10;
+}
+
+/* Custom button style often used in empty states */
+.empty-state-view .button {
+    -fx-background-color: -color-accent-emphasis;
+    -fx-text-fill: -color-fg-on-emphasis;
+    -fx-padding: 8 16;
+    -fx-cursor: hand;
+    -fx-font-weight: bold;
+    -fx-background-radius: 4;
+}
+
+.empty-state-view .button:hover {
+    -fx-background-color: -color-accent-emphasis-hover;
+}
