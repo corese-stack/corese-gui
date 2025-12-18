@@ -29,17 +29,17 @@ public class QueryView extends AbstractView {
         Button newButton = new Button("New Query");
         newButton.setTooltip(new Tooltip("CTRL + N"));
         newButton.setOnAction(e -> onNewAction.run());
-        newButton.getStyleClass().add("custom-button");
+        newButton.getStyleClass().add("accent");
 
         Button loadButton = new Button("Load Query");
         loadButton.setTooltip(new Tooltip("CTRL + O"));
         loadButton.setOnAction(e -> onLoadAction.run());
-        loadButton.getStyleClass().add("custom-button");
+        loadButton.getStyleClass().add("accent");
 
         Button templateButton = new Button("Templates");
         templateButton.setTooltip(new Tooltip("CTRL + T"));
         templateButton.setOnAction(e -> onTemplateAction.run());
-        templateButton.getStyleClass().add("custom-button");
+        templateButton.getStyleClass().add("accent");
 
         return new EmptyStateView(
             MaterialDesignM.MAGNIFY,
