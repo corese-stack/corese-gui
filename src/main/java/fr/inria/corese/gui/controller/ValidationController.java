@@ -11,7 +11,6 @@ import java.util.Map;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Tab;
 import javafx.stage.FileChooser;
 
@@ -143,30 +142,37 @@ public class ValidationController {
 
     // Pre-check: Ensure data is loaded
     if (!model.isDataLoaded()) {
-      String message = "Cannot validate: No data has been loaded in the 'Data' view.";
-      resultController.updateText(message);
-      showError("No Data Loaded", message);
+      tabEditorController.hideResultPane();
+      view.showError(
+          "No Data Loaded",
+          "Validation requires an RDF graph to be loaded.\n"
+              + "Please go to the 'Data' view and load an RDF file.",
+          null);
       return;
     }
 
     // Retrieve shapes content from the editor
     final String shapesContent = tabEditorController.getEditorContent(selectedTab);
     if (shapesContent == null || shapesContent.trim().isEmpty()) {
-      String message = "Cannot validate: The current tab is empty.";
-      resultController.updateText(message);
-      showError("Empty Shapes", message);
+      tabEditorController.hideResultPane();
+      view.showError(
+          "Empty Shapes",
+          "The shapes file is empty.\n"
+              + "Please write or load SHACL shapes in the editor before validating.",
+          null);
       return;
     }
 
     // UI: Indicate execution start
     tabEditorController.setExecutionState(true);
+    view.hideError(); // Clear any previous errors
 
     // Execute validation asynchronously
     new Thread(() -> runValidationTask(model, shapesContent, resultController)).start();
   }
 
   // ==============================================================================================
-  // Internal Logic & Helpers
+  // Background Task & Callbacks
   // ==============================================================================================
 
   /**
@@ -189,7 +195,12 @@ public class ValidationController {
       Platform.runLater(
           () -> {
             tabEditorController.setExecutionState(false);
-            showError("Validation Error", "An unexpected error occurred: " + e.getMessage());
+            tabEditorController.hideResultPane();
+            view.showError(
+                "Validation Error",
+                "An unexpected error occurred during validation.\n"
+                    + "Please check the logs for more details.",
+                e.getMessage());
           });
     }
   }
@@ -202,24 +213,31 @@ public class ValidationController {
    */
   private void handleValidationResult(ValidationResult result, ResultController resultController) {
     tabEditorController.setExecutionState(false);
-    tabEditorController.showResultPane();
-
-    // Ensure the text tab is visible to show the report
-    resultController.selectTextTab();
 
     if (result.getErrorMessage() != null) {
       // Handle validation errors (e.g., syntax errors in shapes)
-      String errorMsg = "Validation Failed: Invalid SHACL Syntax\n\n" + result.getErrorMessage();
-      resultController.updateText(errorMsg);
-      showError("Invalid SHACL Content", result.getErrorMessage());
+      tabEditorController.hideResultPane();
+      view.showError(
+          "Invalid SHACL Syntax",
+          "The SHACL shapes contain syntax errors.\nPlease correct the errors listed below:",
+          result.getErrorMessage());
     } else {
       // Success: Display the report
+      tabEditorController.showResultPane();
+
+      // Ensure the text tab is visible to show the report
+      resultController.selectTextTab();
+
       updateReportDisplay("TURTLE"); // Default format
 
       // Pass the report graph for potential visualization
       resultController.displayReport(result.getReportGraph());
     }
   }
+
+  // ==============================================================================================
+  // Helper Methods
+  // ==============================================================================================
 
   /**
    * Updates the text area with the validation report in the specified format.
@@ -288,19 +306,5 @@ public class ValidationController {
     if (file != null) {
       tabEditorController.addNewTab(file);
     }
-  }
-
-  /**
-   * Helper method to display error alerts.
-   *
-   * @param title The title of the alert window.
-   * @param content The error message to display.
-   */
-  private void showError(String title, String content) {
-    Alert alert = new Alert(Alert.AlertType.ERROR);
-    alert.setTitle(title);
-    alert.setHeaderText(null);
-    alert.setContentText(content);
-    alert.showAndWait();
   }
 }

@@ -117,6 +117,32 @@ public class TabEditorController {
   }
 
   /**
+   * Hides the result pane for the current tab with an animation.
+   */
+  public void hideResultPane() {
+    Tab selectedTab = view.getTabPane().getSelectionModel().getSelectedItem();
+    if (selectedTab != null) {
+        Node content = view.getTabContent(selectedTab);
+        if (content instanceof SplitPane) {
+            SplitPane splitPane = (SplitPane) content;
+            if (splitPane.getItems().size() > 1) {
+                // Animate the divider from current position to bottom (1.0)
+                Timeline timeline = new Timeline(
+                    new KeyFrame(Duration.millis(300), 
+                        new KeyValue(splitPane.getDividers().get(0).positionProperty(), 1.0))
+                );
+                timeline.setOnFinished(e -> {
+                    if (splitPane.getItems().size() > 1) {
+                        splitPane.getItems().remove(1);
+                    }
+                });
+                timeline.play();
+            }
+        }
+    }
+  }
+
+  /**
    * Sets the empty state view to display when no tabs are open. Automatically manages the
    * visibility of the tab pane and the empty state.
    *
