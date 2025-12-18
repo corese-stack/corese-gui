@@ -2,7 +2,9 @@ package fr.inria.corese.gui.view;
 
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import org.kordamp.ikonli.Ikon;
@@ -61,7 +63,7 @@ public class EmptyStateView extends VBox {
   public static Button createAction(String text, String tooltip, Runnable action) {
     Button btn = new Button(text);
     if (tooltip != null) {
-      btn.setTooltip(new javafx.scene.control.Tooltip(tooltip));
+      btn.setTooltip(new Tooltip(tooltip));
     }
     btn.setOnAction(e -> action.run());
     return btn;
