@@ -1,14 +1,21 @@
-/* Floating Action Button Styles */
+/* ==============================================================================================
+ * Floating Action Button Styles
+ * ============================================================================================== */
 
 .floating-button {
     -fx-background-color: -color-accent-emphasis;
     -fx-text-fill: -color-fg-emphasis;
     -fx-background-radius: 50%;
+    
+    /* Standard FAB size */
     -fx-min-width: 56px;
     -fx-min-height: 56px;
     -fx-max-width: 56px;
     -fx-max-height: 56px;
+    
+    /* Elevation shadow */
     -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 8, 0, 0, 4);
+    
     -fx-cursor: hand;
     -fx-alignment: center;
     -fx-padding: 0;
@@ -23,15 +30,29 @@
     -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 4, 0, 0, 2);
 }
 
+.floating-button:disabled {
+    -fx-opacity: 0.8;
+    -fx-background-color: -color-accent-emphasis; /* Keep color but reduce opacity */
+}
+
+/* --- Icon --- */
+
 .floating-button .ikonli-font-icon {
     -fx-icon-color: -color-fg-emphasis;
     -fx-icon-size: 24px;
 }
 
-.floating-button .progress-indicator {
-    -fx-progress-color: white;
-    -fx-accent: white;
+/* --- Ring Progress Indicator --- */
+
+.floating-button .ring-progress-indicator {
+    -fx-accent: -color-fg-emphasis;
 }
-.floating-button .progress-indicator .indicator {
-    -fx-background-color: white;
+
+.floating-button .ring-progress-indicator .track {
+    -fx-stroke: transparent;
 }
+
+.floating-button .ring-progress-indicator .track {
+    -fx-stroke: transparent;
+}
+
