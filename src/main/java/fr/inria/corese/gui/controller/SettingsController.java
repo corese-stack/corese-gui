@@ -2,7 +2,10 @@ package fr.inria.corese.gui.controller;
 
 import atlantafx.base.theme.Theme;
 import fr.inria.corese.gui.model.SettingsModel;
+import fr.inria.corese.gui.view.SettingsView;
 import fr.inria.corese.gui.view.utils.ThemeManager;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.ToggleButton;
 
 import java.util.List;
 
@@ -15,12 +18,24 @@ import java.util.List;
 public final class SettingsController {
 
     private final SettingsModel model;
+    private final SettingsView view;
     private final ThemeManager themeManager;
 
-    public SettingsController(SettingsModel model) {
+    public SettingsController(SettingsModel model, SettingsView view) {
         this.model = model;
+        this.view = view;
         this.themeManager = ThemeManager.getInstance();
+        
+        initializeView();
         setupBindings();
+        setupViewBindings();
+        setupViewListeners();
+    }
+
+    private void initializeView() {
+        view.getThemeComboBox().getItems().addAll(themeManager.getBaseThemes());
+        updateThemeSelection();
+        updateControlsDisabledState();
     }
 
     private void setupBindings() {
@@ -66,7 +81,85 @@ public final class SettingsController {
         });
     }
 
-    // ===== Data Access for View =====
+    private void setupViewBindings() {
+        view.getSystemThemeSwitch().selectedProperty().bindBidirectional(model.useSystemThemeProperty());
+        view.getAccentColorPicker().valueProperty().bindBidirectional(model.accentColorProperty());
+        
+        model.themeProperty().addListener((obs, oldTheme, newTheme) -> {
+              if (newTheme != null) updateThemeSelection();
+        });
+
+        model.useSystemThemeProperty().addListener((obs, oldValue, newValue) -> updateControlsDisabledState());
+    }
+
+    private void setupViewListeners() {
+        view.getThemeComboBox().setOnAction(e -> handleThemeChange());
+        
+        view.getLightModeButton().setOnAction(e -> {
+          if (view.getLightModeButton().isSelected()) switchThemeVariant(false);
+        });
+
+        view.getDarkModeButton().setOnAction(e -> {
+          if (view.getDarkModeButton().isSelected()) switchThemeVariant(true);
+        });
+    }
+
+    // ===== Logic moved from View =====
+
+    private void switchThemeVariant(boolean isDark) {
+        String baseName = view.getThemeComboBox().getValue();
+        if (baseName == null) return;
+
+        String newTheme = baseName + (isDark ? " Dark" : " Light");
+        applyThemeByName(newTheme);
+    }
+
+    private void updateThemeSelection() {
+        String currentTheme = themeManager.getCurrentThemeName();
+        if (currentTheme == null) return;
+
+        String baseName = themeManager.getBaseThemeName(currentTheme);
+        boolean isDark = themeManager.isDarkTheme(currentTheme);
+
+        ComboBox<String> combo = view.getThemeComboBox();
+        if (combo.getItems().contains(baseName)) {
+            combo.setValue(baseName);
+        }
+
+        ToggleButton lightBtn = view.getLightModeButton();
+        ToggleButton darkBtn = view.getDarkModeButton();
+
+        if (isDark) {
+            if (!darkBtn.isSelected()) darkBtn.setSelected(true);
+        } else {
+            if (!lightBtn.isSelected()) lightBtn.setSelected(true);
+        }
+
+        boolean shouldDisable = model.isUseSystemTheme();
+        lightBtn.setDisable(shouldDisable);
+        darkBtn.setDisable(shouldDisable);
+    }
+
+    private void updateControlsDisabledState() {
+        boolean disable = model.isUseSystemTheme();
+        view.getThemeComboBox().setDisable(disable);
+        view.getAccentColorPicker().setDisable(disable);
+        view.getLightModeButton().setDisable(disable);
+        view.getDarkModeButton().setDisable(disable);
+    }
+    
+    private void handleThemeChange() {
+        String baseName = view.getThemeComboBox().getValue();
+        if (baseName == null) return;
+
+        // Preserve current darkness state when changing base theme
+        String currentTheme = themeManager.getCurrentThemeName();
+        boolean isDark = currentTheme != null && themeManager.isDarkTheme(currentTheme);
+
+        applyTheme(baseName, isDark);
+    }
+
+    // ===== Data Access for View (Internal) =====
 
     public List<String> getBaseThemes() {
         return themeManager.getBaseThemes();

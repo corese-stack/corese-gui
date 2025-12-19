@@ -4,8 +4,6 @@ import atlantafx.base.controls.Tile;
 import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.AppConstants;
-import fr.inria.corese.gui.controller.SettingsController;
-import fr.inria.corese.gui.model.SettingsModel;
 import fr.inria.corese.gui.view.base.AbstractView;
 import fr.inria.corese.gui.view.utils.BrowserUtils;
 import fr.inria.corese.gui.view.utils.SvgImageLoader;
@@ -35,11 +33,8 @@ public final class SettingsView extends AbstractView {
   private static final Logger LOGGER = LoggerFactory.getLogger(SettingsView.class);
   private static final String STYLESHEET_PATH = "/styles/settings-view.css";
 
-  // ===== MVC Components =====
-  private final SettingsModel model;
-  private final SettingsController controller;
-
   // ===== UI Components =====
+  private ToggleSwitch systemThemeSwitch;
   private ComboBox<String> themeComboBox;
   private ToggleButton lightModeButton;
   private ToggleButton darkModeButton;
@@ -49,13 +44,7 @@ public final class SettingsView extends AbstractView {
 
   public SettingsView() {
     super(new ScrollPane(), STYLESHEET_PATH);
-
-    this.model = new SettingsModel();
-    this.controller = new SettingsController(model);
-
     initializeLayout();
-    setupBindings();
-    updateControlsDisabledState();
   }
 
   // ===== Initialization =====
@@ -72,19 +61,6 @@ public final class SettingsView extends AbstractView {
     scrollPane.setContent(content);
   }
 
-  private void setupBindings() {
-    model
-        .themeProperty()
-        .addListener(
-            (obs, oldTheme, newTheme) -> {
-              if (newTheme != null) updateThemeSelection();
-            });
-
-    model
-        .useSystemThemeProperty()
-        .addListener((obs, oldValue, newValue) -> updateControlsDisabledState());
-  }
-
   // ===== Appearance Section =====
 
   private VBox createAppearanceSection() {
@@ -96,16 +72,13 @@ public final class SettingsView extends AbstractView {
 
     // System Theme Tile
     Tile systemThemeTile = new Tile("System Theme", "Use system theme and accent color");
-    ToggleSwitch systemThemeSwitch = new ToggleSwitch();
-    systemThemeSwitch.selectedProperty().bindBidirectional(model.useSystemThemeProperty());
+    systemThemeSwitch = new ToggleSwitch();
     systemThemeTile.setAction(systemThemeSwitch);
 
     // Theme Tile
     Tile themeTile = new Tile("Theme", "Select application interface theme");
 
     themeComboBox = new ComboBox<>();
-    themeComboBox.getItems().addAll(controller.getBaseThemes());
-    themeComboBox.setOnAction(e -> handleThemeChange());
 
     // Mode Toggle Group
     ToggleGroup modeGroup = new ToggleGroup();
@@ -113,18 +86,10 @@ public final class SettingsView extends AbstractView {
     lightModeButton = new ToggleButton(null, new FontIcon(Feather.SUN));
     lightModeButton.getStyleClass().addAll(Styles.LEFT_PILL);
     lightModeButton.setToggleGroup(modeGroup);
-    lightModeButton.setOnAction(
-        e -> {
-          if (lightModeButton.isSelected()) switchThemeVariant(false);
-        });
 
     darkModeButton = new ToggleButton(null, new FontIcon(Feather.MOON));
     darkModeButton.getStyleClass().addAll(Styles.RIGHT_PILL);
     darkModeButton.setToggleGroup(modeGroup);
-    darkModeButton.setOnAction(
-        e -> {
-          if (darkModeButton.isSelected()) switchThemeVariant(true);
-        });
 
     // Enforce selection
     modeGroup
@@ -133,8 +98,6 @@ public final class SettingsView extends AbstractView {
             (obs, oldVal, newVal) -> {
               if (newVal == null) oldVal.setSelected(true);
             });
-
-    updateThemeSelection();
 
     HBox modeBox = new HBox(lightModeButton, darkModeButton);
     modeBox.setAlignment(Pos.CENTER_LEFT);
@@ -147,50 +110,34 @@ public final class SettingsView extends AbstractView {
     Tile accentColorTile = new Tile("Accent Color", "Choose your preferred accent color");
 
     accentColorPicker = new ColorPicker();
-    accentColorPicker.valueProperty().bindBidirectional(model.accentColorProperty());
     accentColorTile.setAction(accentColorPicker);
 
     section.getChildren().addAll(sectionTitle, systemThemeTile, themeTile, accentColorTile);
     return section;
   }
 
-  private void switchThemeVariant(boolean isDark) {
-    String baseName = themeComboBox.getValue();
-    if (baseName == null) return;
+  // ===== Getters for Controller =====
 
-    String newTheme = baseName + (isDark ? " Dark" : " Light");
-    controller.applyThemeByName(newTheme);
+  public ToggleSwitch getSystemThemeSwitch() {
+    return systemThemeSwitch;
   }
 
-  private void updateThemeSelection() {
-    String currentTheme = controller.getCurrentThemeName();
-    if (currentTheme == null) return;
-
-    String baseName = controller.getBaseThemeName(currentTheme);
-    boolean isDark = controller.isDarkTheme(currentTheme);
-
-    if (themeComboBox.getItems().contains(baseName)) {
-      themeComboBox.setValue(baseName);
-    }
-
-    if (isDark) {
-      if (!darkModeButton.isSelected()) darkModeButton.setSelected(true);
-    } else {
-      if (!lightModeButton.isSelected()) lightModeButton.setSelected(true);
-    }
-
-    boolean shouldDisable = model.isUseSystemTheme();
-    lightModeButton.setDisable(shouldDisable);
-    darkModeButton.setDisable(shouldDisable);
+  public ComboBox<String> getThemeComboBox() {
+    return themeComboBox;
   }
 
-  private void updateControlsDisabledState() {
-    boolean disable = model.isUseSystemTheme();
-    themeComboBox.setDisable(disable);
-    accentColorPicker.setDisable(disable);
-    lightModeButton.setDisable(disable);
-    darkModeButton.setDisable(disable);
+  public ToggleButton getLightModeButton() {
+    return lightModeButton;
   }
+
+  public ToggleButton getDarkModeButton() {
+    return darkModeButton;
+  }
+
+  public ColorPicker getAccentColorPicker() {
+    return accentColorPicker;
+  }
+
 
   // ===== About Section =====
 
@@ -250,16 +197,5 @@ public final class SettingsView extends AbstractView {
 
   private void openURL(String url) {
     BrowserUtils.openUrl(url);
-  }
-
-  private void handleThemeChange() {
-    String baseName = themeComboBox.getValue();
-    if (baseName == null) return;
-
-    // Preserve current darkness state when changing base theme
-    String currentTheme = controller.getCurrentThemeName();
-    boolean isDark = currentTheme != null && controller.isDarkTheme(currentTheme);
-
-    controller.applyTheme(baseName, isDark);
   }
 }

@@ -6,6 +6,8 @@ import fr.inria.corese.gui.controller.DataViewController;
 import fr.inria.corese.gui.controller.QueryViewController;
 import fr.inria.corese.gui.controller.ValidationController;
 import fr.inria.corese.gui.view.base.AbstractView;
+import fr.inria.corese.gui.controller.SettingsController;
+import fr.inria.corese.gui.model.SettingsModel;
 
 /**
  * Enumerates all available views in the Corese-GUI application.
@@ -62,7 +64,12 @@ public enum ViewId {
   }),
 
   /** Application configuration and preferences view. */
-  SETTINGS("settings-view", null, SettingsView::new);
+  SETTINGS("settings-view", null, () -> {
+    SettingsModel model = new SettingsModel();
+    SettingsView view = new SettingsView();
+    new SettingsController(model, view);
+    return view;
+  });
 
   // ===========================================================================
   // Fields
