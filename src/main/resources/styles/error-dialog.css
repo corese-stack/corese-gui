@@ -1,0 +1,27 @@
+/*
+ * CSS styles for the ErrorDialog component.
+ */
+
+.error-dialog-content {
+    -fx-spacing: 15;
+    -fx-padding: 20;
+    -fx-alignment: top-left;
+}
+
+.error-dialog-header {
+    -fx-spacing: 15;
+    -fx-alignment: center-left;
+}
+
+.error-dialog-icon {
+    -fx-icon-size: 32;
+}
+
+.error-dialog-title-box {
+    -fx-spacing: 5;
+}
+
+.error-dialog-details {
+    -fx-pref-row-count: 18;
+}
+
