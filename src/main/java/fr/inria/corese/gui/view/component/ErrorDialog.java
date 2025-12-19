@@ -19,10 +19,13 @@ import org.kordamp.ikonli.javafx.FontIcon;
  */
 public class ErrorDialog extends AbstractView {
 
-    private static final String STYLESHEET_PATH = "/styles/error-dialog.css";
+  // ====== Constants ======
+
     private static final int MAX_WIDTH = 400;
     private static final int MAX_HEIGHT_WITH_DETAIL = 500;
     private static final int MAX_HEIGHT_WITHOUT_DETAIL = 100;
+
+    // ===== Constructor ======
 
     /**
      * Creates a new ErrorDialog.
@@ -33,9 +36,11 @@ public class ErrorDialog extends AbstractView {
      * @param details   the detailed error message (optional)
      */
     public ErrorDialog(ModalPane modalPane, String title, String header, String details) {
-        super(new ModalBox(modalPane), STYLESHEET_PATH);
+        super(new ModalBox(modalPane), null);
         initialize(title, header, details);
     }
+
+    // ===== Initialization ======
 
     private void initialize(String title, String header, String details) {
         ModalBox modalBox = (ModalBox) getRoot();
@@ -54,7 +59,6 @@ public class ErrorDialog extends AbstractView {
         VBox content = new VBox(15);
         content.setPadding(new Insets(20));
         content.setAlignment(Pos.TOP_LEFT);
-        content.getStyleClass().add("error-dialog-content");
 
         content.getChildren().add(createHeaderSection(title, header));
 
@@ -70,16 +74,16 @@ public class ErrorDialog extends AbstractView {
         headerBox.setAlignment(Pos.CENTER_LEFT);
 
         FontIcon errorIcon = new FontIcon(Feather.ALERT_TRIANGLE);
-        errorIcon.getStyleClass().add("error-dialog-icon");
+        errorIcon.setIconSize(32);
+        errorIcon.getStyleClass().add(Styles.DANGER);
 
         VBox titleBox = new VBox(5);
 
         Label titleLabel = new Label(title);
-        titleLabel.getStyleClass().addAll(Styles.TITLE_4, "error-dialog-title");
+        titleLabel.getStyleClass().add(Styles.TITLE_4);
 
         Label headerLabel = new Label(header);
         headerLabel.setWrapText(true);
-        headerLabel.getStyleClass().add("error-dialog-header");
 
         titleBox.getChildren().addAll(titleLabel, headerLabel);
         headerBox.getChildren().addAll(errorIcon, titleBox);
@@ -92,7 +96,7 @@ public class ErrorDialog extends AbstractView {
         detailsArea.setEditable(false);
         detailsArea.setWrapText(false);
         detailsArea.setPrefRowCount(18);
-        detailsArea.getStyleClass().addAll("text-monospace", "error-dialog-details");
+        detailsArea.getStyleClass().add("text-monospace");
         VBox.setVgrow(detailsArea, Priority.ALWAYS);
         return detailsArea;
     }
