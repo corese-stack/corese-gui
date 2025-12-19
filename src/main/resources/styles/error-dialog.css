@@ -8,7 +8,6 @@
 }
 
 .error-dialog-title {
-    -fx-font-size: 1.2em;
     -fx-font-weight: bold;
 }
 
@@ -17,5 +16,5 @@
 }
 
 .error-dialog-details {
-    -fx-font-family: 'Monospaced';
+    /* Monospace font is handled by AtlantaFX Styles.TEXT_MONOSPACE class in Java code */
 }

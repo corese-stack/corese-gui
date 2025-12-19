@@ -63,7 +63,7 @@ public class ValidationView extends AbstractView {
    * @param details The detailed error message or stack trace (optional).
    */
   public void showError(String title, String header, String details) {
-    modalPane.show(new ErrorDialog(modalPane, title, header, details));
+    modalPane.show(new ErrorDialog(modalPane, title, header, details).getRoot());
   }
 
   /**
