@@ -34,28 +34,6 @@
 }
 
 /* 
- * Custom button style for empty state actions.
- * Overrides AtlantaFX color variables to ensure a neutral look 
- * without blue focus rings or backgrounds.
- * Using high specificity to override .button.outlined
+ * Button styles are now handled by AtlantaFX Styles.ACCENT class 
+ * applied in the Java code to ensure consistency with the rest of the application.
  */
-.empty-state-view .button.empty-state-action {
-    -color-button-bg: transparent;
-    -color-button-fg: -color-fg-default;
-    -color-button-border: -color-border-default;
-    
-    -color-button-bg-hover: -color-bg-subtle;
-    -color-button-fg-hover: -color-fg-default;
-    -color-button-border-hover: -color-border-default;
-    
-    -color-button-bg-focused: -color-bg-subtle;
-    -color-button-fg-focused: -color-fg-default;
-    -color-button-border-focused: -color-border-default;
-    
-    -color-button-bg-pressed: -color-bg-subtle;
-    -color-button-fg-pressed: -color-fg-default;
-    -color-button-border-pressed: -color-border-default;
-    
-    /* Force override of accent color variables just in case */
-    -color-accent-emphasis: -color-fg-default;
-}
