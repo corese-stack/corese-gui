@@ -84,7 +84,7 @@ public class ValidationController {
     tabEditorController.setOnExecutionRequest(this::executeValidation);
 
     // Add the specific "Run Validation" floating button
-    tabEditorController.addExecutionButton("Run Validation");
+    tabEditorController.addExecutionButton(view.getRunValidationLabel());
   }
 
   /** Configures the empty state view to be displayed when no tabs are open. */
@@ -135,11 +135,7 @@ public class ValidationController {
     // Pre-check: Ensure data is loaded
     if (!model.isDataLoaded()) {
       tabEditorController.hideResultPane();
-      view.showError(
-          "No Data Loaded",
-          "Validation requires an RDF graph to be loaded.\n"
-              + "Please go to the 'Data' view and load an RDF file.",
-          null);
+      view.showNoDataLoadedError();
       return;
     }
 
@@ -147,11 +143,7 @@ public class ValidationController {
     final String shapesContent = tabEditorController.getEditorContent(selectedTab);
     if (shapesContent == null || shapesContent.trim().isEmpty()) {
       tabEditorController.hideResultPane();
-      view.showError(
-          "Empty Shapes",
-          "The shapes file is empty.\n"
-              + "Please write or load SHACL shapes in the editor before validating.",
-          null);
+      view.showEmptyShapesError();
       return;
     }
 
@@ -187,11 +179,7 @@ public class ValidationController {
           () -> {
             tabEditorController.setExecutionState(false);
             tabEditorController.hideResultPane();
-            view.showError(
-                "Validation Error",
-                "An unexpected error occurred during validation.\n"
-                    + "Please check the logs for more details.",
-                e.getMessage());
+            view.showValidationExecutionError(e.getMessage());
           });
     }
   }
@@ -208,10 +196,7 @@ public class ValidationController {
     if (result.getErrorMessage() != null) {
       // Handle validation errors (e.g., syntax errors in shapes)
       tabEditorController.hideResultPane();
-      view.showError(
-          "Invalid SHACL Syntax",
-          "The SHACL shapes contain syntax errors.\nPlease correct the errors listed below:",
-          result.getErrorMessage());
+      view.showInvalidSyntaxError(result.getErrorMessage());
     } else {
       // Success: Display the report
       tabEditorController.showResultPane();
@@ -292,7 +277,10 @@ public class ValidationController {
         .getExtensionFilters()
         .addAll(new FileChooser.ExtensionFilter("RDF Files", "*.ttl", "*.rdf", "*.n3", "*.shacl"));
 
-    File file = fileChooser.showOpenDialog(null);
+    File file =
+        fileChooser.showOpenDialog(
+            view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null);
+
     if (file != null) {
       tabEditorController.addNewTab(file);
     }

@@ -93,6 +93,41 @@ public class ValidationView extends AbstractView {
     modalPane.show(new ErrorDialog(modalPane, title, header, details).getRoot());
   }
 
+  public void showNoDataLoadedError() {
+    showError(
+        "No Data Loaded",
+        "Validation requires an RDF graph to be loaded.\n"
+            + "Please go to the 'Data' view and load an RDF file.",
+        null);
+  }
+
+  public void showEmptyShapesError() {
+    showError(
+        "Empty Shapes",
+        "The shapes file is empty.\n"
+            + "Please write or load SHACL shapes in the editor before validating.",
+        null);
+  }
+
+  public void showValidationExecutionError(String details) {
+    showError(
+        "Validation Error",
+        "An unexpected error occurred during validation.\n"
+            + "Please check the logs for more details.",
+        details);
+  }
+
+  public void showInvalidSyntaxError(String details) {
+    showError(
+        "Invalid SHACL Syntax",
+        "The SHACL shapes contain syntax errors.\nPlease correct the errors listed below:",
+        details);
+  }
+
+  public String getRunValidationLabel() {
+    return "Run Validation";
+  }
+
   /**
    * Creates the empty state view for the validation screen.
    * This view is shown when no tabs are open.
