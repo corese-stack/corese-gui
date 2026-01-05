@@ -7,7 +7,9 @@ import fr.inria.corese.gui.view.TabEditorView;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import javafx.animation.KeyFrame;
@@ -33,15 +35,6 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import javafx.util.Duration;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Function;
 
 public class TabEditorController {
   private final TabEditorView view;
@@ -78,67 +71,66 @@ public class TabEditorController {
    * @param loading True if execution is in progress, false otherwise.
    */
   public void setExecutionState(boolean loading) {
-    Tab selectedTab = view.getTabPane().getSelectionModel().getSelectedItem();
+    Tab selectedTab = view.getSelectedTab();
     if (selectedTab != null) {
-        FloatingButton button = tabExecutionButtons.get(selectedTab);
-        if (button != null) {
-            button.setLoading(loading);
-        }
+      FloatingButton button = tabExecutionButtons.get(selectedTab);
+      if (button != null) {
+        button.setLoading(loading);
+      }
     }
   }
 
-  /**
-   * Shows the result pane for the current tab with an animation.
-   */
+  /** Shows the result pane for the current tab with an animation. */
   public void showResultPane() {
-    Tab selectedTab = view.getTabPane().getSelectionModel().getSelectedItem();
+    Tab selectedTab = view.getSelectedTab();
     if (selectedTab != null) {
-        Node content = view.getTabContent(selectedTab);
-        if (content instanceof SplitPane) {
-            SplitPane splitPane = (SplitPane) content;
-            if (splitPane.getItems().size() < 2) {
-                ResultController resultController = model.getResultControllerForTab(selectedTab);
-                if (resultController != null) {
-                    Node resultRoot = resultController.getView().getRoot();
-                    splitPane.getItems().add(resultRoot);
-                    
-                    // Animate the divider from bottom (1.0) to visible (0.6)
-                    splitPane.setDividerPositions(1.0);
-                    
-                    Timeline timeline = new Timeline(
-                        new KeyFrame(Duration.millis(300), 
-                            new KeyValue(splitPane.getDividers().get(0).positionProperty(), 0.6))
-                    );
-                    timeline.play();
-                }
-            }
+      Node content = view.getTabContent(selectedTab);
+      if (content instanceof SplitPane) {
+        SplitPane splitPane = (SplitPane) content;
+        if (splitPane.getItems().size() < 2) {
+          ResultController resultController = model.getResultControllerForTab(selectedTab);
+          if (resultController != null) {
+            Node resultRoot = resultController.getView().getRoot();
+            splitPane.getItems().add(resultRoot);
+
+            // Animate the divider from bottom (1.0) to visible (0.6)
+            splitPane.setDividerPositions(1.0);
+
+            Timeline timeline =
+                new Timeline(
+                    new KeyFrame(
+                        Duration.millis(300),
+                        new KeyValue(splitPane.getDividers().get(0).positionProperty(), 0.6)));
+            timeline.play();
+          }
         }
+      }
     }
   }
 
-  /**
-   * Hides the result pane for the current tab with an animation.
-   */
+  /** Hides the result pane for the current tab with an animation. */
   public void hideResultPane() {
-    Tab selectedTab = view.getTabPane().getSelectionModel().getSelectedItem();
+    Tab selectedTab = view.getSelectedTab();
     if (selectedTab != null) {
-        Node content = view.getTabContent(selectedTab);
-        if (content instanceof SplitPane) {
-            SplitPane splitPane = (SplitPane) content;
-            if (splitPane.getItems().size() > 1) {
-                // Animate the divider from current position to bottom (1.0)
-                Timeline timeline = new Timeline(
-                    new KeyFrame(Duration.millis(300), 
-                        new KeyValue(splitPane.getDividers().get(0).positionProperty(), 1.0))
-                );
-                timeline.setOnFinished(e -> {
-                    if (splitPane.getItems().size() > 1) {
-                        splitPane.getItems().remove(1);
-                    }
-                });
-                timeline.play();
-            }
+      Node content = view.getTabContent(selectedTab);
+      if (content instanceof SplitPane) {
+        SplitPane splitPane = (SplitPane) content;
+        if (splitPane.getItems().size() > 1) {
+          // Animate the divider from current position to bottom (1.0)
+          Timeline timeline =
+              new Timeline(
+                  new KeyFrame(
+                      Duration.millis(300),
+                      new KeyValue(splitPane.getDividers().get(0).positionProperty(), 1.0)));
+          timeline.setOnFinished(
+              e -> {
+                if (splitPane.getItems().size() > 1) {
+                  splitPane.getItems().remove(1);
+                }
+              });
+          timeline.play();
         }
+      }
     }
   }
 
@@ -155,8 +147,8 @@ public class TabEditorController {
   }
 
   /**
-   * Sets the factory to create a ResultController for each new tab.
-   * If set, each tab will contain a SplitPane with the editor and the result view.
+   * Sets the factory to create a ResultController for each new tab. If set, each tab will contain a
+   * SplitPane with the editor and the result view.
    *
    * @param factory The factory function.
    */
@@ -170,7 +162,7 @@ public class TabEditorController {
    * @return The ResultController, or null if none.
    */
   public ResultController getCurrentResultController() {
-    Tab selectedTab = view.getTabPane().getSelectionModel().getSelectedItem();
+    Tab selectedTab = view.getSelectedTab();
     return model.getResultControllerForTab(selectedTab);
   }
 
@@ -180,7 +172,16 @@ public class TabEditorController {
    * @param action The action to execute.
    */
   public void setOnOpenFileAction(javafx.event.EventHandler<javafx.event.ActionEvent> action) {
-    view.getOpenFileItem().setOnAction(action);
+    view.setOnOpenFileAction(action);
+  }
+
+  /**
+   * Sets the action to be executed when the "Templates" menu item is clicked.
+   *
+   * @param action The action to execute.
+   */
+  public void setOnTemplatesAction(javafx.event.EventHandler<javafx.event.ActionEvent> action) {
+    view.setOnTemplatesAction(action);
   }
 
   /**
@@ -214,7 +215,7 @@ public class TabEditorController {
             onExecutionRequest.run();
           }
         });
-    
+
     CodeEditorController controller = model.getControllerForTab(tab);
     if (controller != null) {
       BooleanBinding isEmpty =
@@ -240,22 +241,21 @@ public class TabEditorController {
   }
 
   private void initializeTabPane() {
-    view.getTabPane()
-        .getTabs()
-        .addListener(
-            (ListChangeListener<Tab>) c -> Platform.runLater(this::updateEmptyStateVisibility));
+    view.addTabListener(
+        (ListChangeListener<Tab>) c -> Platform.runLater(this::updateEmptyStateVisibility));
 
     // Handle SplitMenuButton actions
-    view.getAddTabButton().setOnAction(e -> addNewTab("Untitled", ""));
-    view.getNewFileItem().setOnAction(e -> addNewTab("Untitled", ""));
-    view.getOpenFileItem().setOnAction(e -> openFile());
-    view.getTemplatesItem().setOnAction(e -> openTemplates());
+    view.setOnAddTabAction(e -> addNewTab("Untitled", ""));
+    view.setOnNewFileAction(e -> addNewTab("Untitled", ""));
+    view.setOnOpenFileAction(e -> openFile());
+    view.setOnTemplatesAction(e -> openTemplates());
   }
 
   private void openFile() {
     FileChooser fileChooser = new FileChooser();
     fileChooser.setTitle("Open File");
-    File file = fileChooser.showOpenDialog(view.getScene().getWindow());
+    File file =
+        fileChooser.showOpenDialog(view.getScene() != null ? view.getScene().getWindow() : null);
     if (file != null) {
       addNewTab(file);
     }
@@ -274,7 +274,7 @@ public class TabEditorController {
 
     // Wrap editor in StackPane to add floating button
     StackPane editorWrapper = new StackPane(codeEditorController.getView());
-    
+
     Node tabContent = editorWrapper;
     ResultController resultController = null;
 
@@ -294,14 +294,14 @@ public class TabEditorController {
     if (resultController != null) {
       model.addTabResultController(tab, resultController);
     }
-    
+
     // Create and add execution button if configured
     if (executionButtonTooltip != null) {
-        FloatingButton runButton = createExecutionButton(tab);
-        tabExecutionButtons.put(tab, runButton);
-        StackPane.setAlignment(runButton, Pos.BOTTOM_RIGHT);
-        StackPane.setMargin(runButton, new Insets(0, 40, 40, 0));
-        editorWrapper.getChildren().add(runButton);
+      FloatingButton runButton = createExecutionButton(tab);
+      tabExecutionButtons.put(tab, runButton);
+      StackPane.setAlignment(runButton, Pos.BOTTOM_RIGHT);
+      StackPane.setMargin(runButton, new Insets(0, 40, 40, 0));
+      editorWrapper.getChildren().add(runButton);
     }
 
     tab.textProperty().bind(codeEditorController.getModel().displayNameProperty());
@@ -314,8 +314,7 @@ public class TabEditorController {
     // Initialize icon state
     view.updateTabIcon(tab, codeEditorController.getModel().isModified());
 
-    view.getTabPane().getTabs().add(tab);
-    view.getTabPane().getSelectionModel().select(tab);
+    view.addNewEditorTab(tab);
 
     if (filePath != null) {
       codeEditorController.getModel().setFilePath(filePath);
@@ -345,14 +344,13 @@ public class TabEditorController {
   private void updateEmptyStateVisibility() {
     if (emptyStateNode == null) return;
 
-    long realTabCount = view.getTabPane().getTabs().size();
+    long realTabCount = view.getTabs().size();
     boolean noTabsOpen = (realTabCount == 0);
 
     emptyStateNode.setVisible(noTabsOpen);
     emptyStateNode.setManaged(noTabsOpen);
 
-    view.getTabPane().setVisible(!noTabsOpen);
-    view.getTabPane().setManaged(!noTabsOpen);
+    view.setTabsVisible(!noTabsOpen);
   }
 
   public Tab addNewTab(String title, String content) {
@@ -361,11 +359,11 @@ public class TabEditorController {
 
   public Tab addNewTab(File file) {
     // Check if file is already open
-    for (Tab tab : view.getTabPane().getTabs()) {
+    for (Tab tab : view.getTabs()) {
       CodeEditorController controller = model.getControllerForTab(tab);
       if (controller != null
           && file.getAbsolutePath().equals(controller.getModel().getFilePath())) {
-        view.getTabPane().getSelectionModel().select(tab);
+        view.selectTab(tab);
         return tab;
       }
     }
@@ -391,7 +389,7 @@ public class TabEditorController {
   }
 
   private void handleSaveShortcut() {
-    Tab selectedTab = view.getTabPane().getSelectionModel().getSelectedItem();
+    Tab selectedTab = view.getSelectedTab();
     if (selectedTab != null) {
       CodeEditorController activeController = model.getControllerForTab(selectedTab);
       if (activeController != null) activeController.saveFile();
@@ -432,7 +430,7 @@ public class TabEditorController {
   }
 
   private void closeTab(Tab tab) {
-    view.getTabPane().getTabs().remove(tab);
+    view.getTabs().remove(tab);
     model.removeTabModel(tab);
   }
 
@@ -454,31 +452,34 @@ public class TabEditorController {
 
   /**
    * Returns the currently selected tab.
+   *
    * @return The selected Tab, or null if none.
    */
   public Tab getSelectedTab() {
-      return view.getTabPane().getSelectionModel().getSelectedItem();
+    return view.getSelectedTab();
   }
 
   /**
    * Adds a listener to the list of tabs.
+   *
    * @param listener The listener to add.
    */
   public void addTabListener(ListChangeListener<Tab> listener) {
-      view.getTabPane().getTabs().addListener(listener);
+    view.addTabListener(listener);
   }
 
   /**
    * Retrieves the text content of the editor for a specific tab.
+   *
    * @param tab The tab to get content from.
    * @return The text content, or null if the tab is not valid.
    */
   public String getEditorContent(Tab tab) {
-      CodeEditorController controller = model.getControllerForTab(tab);
-      if (controller != null) {
-          // Prefer getting text from the view to ensure we have the latest edits
-          return controller.getView().getText();
-      }
-      return null;
+    CodeEditorController controller = model.getControllerForTab(tab);
+    if (controller != null) {
+      // Prefer getting text from the view to ensure we have the latest edits
+      return controller.getView().getText();
+    }
+    return null;
   }
 }

@@ -1,10 +1,9 @@
 package fr.inria.corese.gui.model;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import fr.inria.corese.gui.controller.CodeEditorController;
 import fr.inria.corese.gui.controller.ResultController;
+import java.util.HashMap;
+import java.util.Map;
 import javafx.scene.control.Tab;
 
 public class TabEditorModel {

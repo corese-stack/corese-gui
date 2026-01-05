@@ -1,6 +1,5 @@
 package fr.inria.corese.gui.view;
 
-import fr.inria.corese.gui.view.codeEditor.CodeEditorView;
 import fr.inria.corese.gui.view.utils.TabPaneUtils;
 import fr.inria.corese.gui.view.utils.ThemeManager;
 import java.util.HashMap;
@@ -63,7 +62,7 @@ public class TabEditorView extends VBox {
     // Content container for tab content and floating elements
     contentContainer = new StackPane();
     VBox.setVgrow(contentContainer, Priority.ALWAYS);
-    
+
     // Allow the view to shrink if needed
     setMinHeight(0);
 
@@ -185,8 +184,8 @@ public class TabEditorView extends VBox {
   public Tab createEditorTab(String title, Node content) {
     Tab tab = new Tab(title);
     if (content instanceof javafx.scene.layout.Region) {
-        ((javafx.scene.layout.Region) content).setMaxWidth(Double.MAX_VALUE);
-        ((javafx.scene.layout.Region) content).setMaxHeight(Double.MAX_VALUE);
+      ((javafx.scene.layout.Region) content).setMaxWidth(Double.MAX_VALUE);
+      ((javafx.scene.layout.Region) content).setMaxHeight(Double.MAX_VALUE);
     }
     // Store content in map instead of tab.setContent()
     tabContentMap.put(tab, content);
@@ -194,13 +193,16 @@ public class TabEditorView extends VBox {
   }
 
   /** Creates and adds a new editor tab, selecting it. */
-  public Tab addNewEditorTab(String title, Node content) {
-    Tab tab = createEditorTab(title, content);
+  public void addNewEditorTab(Tab tab) {
     tabPane.getTabs().add(tab);
     tabPane.getSelectionModel().select(tab);
     // Force content display
     showContentForTab(tab);
-    return tab;
+  }
+
+  public void setTabsVisible(boolean visible) {
+    tabPane.setVisible(visible);
+    tabPane.setManaged(visible);
   }
 
   /** Updates the tab icon to show modification state. */
@@ -224,30 +226,108 @@ public class TabEditorView extends VBox {
         .forEach(tab -> ((Circle) tab.getGraphic()).setFill(accentColor));
   }
 
-  // --- Getters ---
+  // ==============================================================================================
+  // Public API for Controller
+  // ==============================================================================================
 
-  public SplitMenuButton getAddTabButton() {
-    return addTabButton;
+  /**
+   * Sets the action to be performed when the "New File" menu item is clicked.
+   *
+   * @param action The action to execute.
+   */
+  public void setOnNewFileAction(javafx.event.EventHandler<javafx.event.ActionEvent> action) {
+    newFileItem.setOnAction(action);
   }
 
-  public MenuItem getNewFileItem() {
-    return newFileItem;
+  /**
+   * Sets the action to be performed when the "Open File" menu item is clicked.
+   *
+   * @param action The action to execute.
+   */
+  public void setOnOpenFileAction(javafx.event.EventHandler<javafx.event.ActionEvent> action) {
+    openFileItem.setOnAction(action);
   }
 
-  public MenuItem getOpenFileItem() {
-    return openFileItem;
+  /**
+   * Sets the action to be performed when the "Templates" menu item is clicked.
+   *
+   * @param action The action to execute.
+   */
+  public void setOnTemplatesAction(javafx.event.EventHandler<javafx.event.ActionEvent> action) {
+    templatesItem.setOnAction(action);
   }
 
-  public MenuItem getTemplatesItem() {
-    return templatesItem;
+  /**
+   * Sets the action to be performed when the main "Add Tab" button is clicked.
+   *
+   * @param action The action to execute.
+   */
+  public void setOnAddTabAction(javafx.event.EventHandler<javafx.event.ActionEvent> action) {
+    addTabButton.setOnAction(action);
   }
 
-  public TabPane getTabPane() {
-    return tabPane;
+  /**
+   * Adds a listener to be notified when the list of tabs changes.
+   *
+   * @param listener The listener to add.
+   */
+  public void addTabListener(javafx.collections.ListChangeListener<Tab> listener) {
+    tabPane.getTabs().addListener(listener);
   }
 
-  /** Gets the content associated with a tab. */
+  /**
+   * Adds a listener to be notified when the selected tab changes.
+   *
+   * @param listener The listener to add.
+   */
+  public void addSelectionListener(javafx.beans.value.ChangeListener<Tab> listener) {
+    tabPane.getSelectionModel().selectedItemProperty().addListener(listener);
+  }
+
+  /**
+   * Gets the currently selected tab.
+   *
+   * @return The selected Tab, or null if none.
+   */
+  public Tab getSelectedTab() {
+    return tabPane.getSelectionModel().getSelectedItem();
+  }
+
+  /**
+   * Selects the specified tab.
+   *
+   * @param tab The tab to select.
+   */
+  public void selectTab(Tab tab) {
+    tabPane.getSelectionModel().select(tab);
+  }
+
+  /**
+   * Removes the specified tab.
+   *
+   * @param tab The tab to remove.
+   */
+  public void removeTab(Tab tab) {
+    tabPane.getTabs().remove(tab);
+  }
+
+  /**
+   * Gets the content node associated with the given tab.
+   *
+   * @param tab The tab.
+   * @return The content node.
+   */
   public Node getTabContent(Tab tab) {
     return tabContentMap.get(tab);
   }
+
+  /**
+   * Gets the list of all tabs.
+   *
+   * @return The list of tabs.
+   */
+  public javafx.collections.ObservableList<Tab> getTabs() {
+    return tabPane.getTabs();
+  }
 }
+

@@ -68,14 +68,11 @@ public class QueryViewController {
 
     // Configure TabEditor Menu Actions
     tabEditorController.setOnOpenFileAction(e -> onOpenFilesButtonClick());
-    tabEditorController
-        .getView()
-        .getTemplatesItem()
-        .setOnAction(
-            e -> {
-              Stage stage = (Stage) view.getRoot().getScene().getWindow();
-              TemplatePopup.show(stage, query -> tabEditorController.addNewTab("untitled", query));
-            });
+    tabEditorController.setOnTemplatesAction(
+        e -> {
+          Stage stage = (Stage) view.getRoot().getScene().getWindow();
+          TemplatePopup.show(stage, query -> tabEditorController.addNewTab("untitled", query));
+        });
   }
 
   private ResultController createResultController() {
@@ -92,7 +89,7 @@ public class QueryViewController {
     }
 
     controller.setOnFormatChanged(newVal -> {
-        Tab selectedQueryTab = tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
+        Tab selectedQueryTab = tabEditorController.getSelectedTab();
         if (selectedQueryTab != null) {
              // Re-display logic if needed
         }
@@ -104,16 +101,9 @@ public class QueryViewController {
   private void setupTabListeners() {
     tabEditorController
         .getView()
-        .getTabPane()
-        .getSelectionModel()
-        .selectedItemProperty()
-        .addListener((obs, oldTab, newTab) -> updateResultsForSelectedQueryTab(newTab));
+        .addSelectionListener((obs, oldTab, newTab) -> updateResultsForSelectedQueryTab(newTab));
 
-    tabEditorController
-        .getView()
-        .getTabPane()
-        .getTabs()
-        .addListener(
+    tabEditorController.addTabListener(
             (ListChangeListener<Tab>)
                 c -> {
                   while (c.next()) {
@@ -195,8 +185,7 @@ public class QueryViewController {
   }
 
   public void executeQuery() {
-    Tab selectedTab =
-        tabEditorController.getView().getTabPane().getSelectionModel().getSelectedItem();
+    Tab selectedTab = tabEditorController.getSelectedTab();
     if (selectedTab == null) {
       return;
     }
@@ -283,22 +272,12 @@ public class QueryViewController {
                         event.consume();
                       } else if (new KeyCodeCombination(KeyCode.W, KeyCombination.CONTROL_DOWN)
                           .match(event)) {
-                        Tab selectedTab =
-                            tabEditorController
-                                .getView()
-                                .getTabPane()
-                                .getSelectionModel()
-                                .getSelectedItem();
+                        Tab selectedTab = tabEditorController.getSelectedTab();
                         tabEditorController.handleCloseFile(selectedTab);
                         event.consume();
                       } else if (new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN)
                           .match(event)) {
-                        Tab selectedTab =
-                            tabEditorController
-                                .getView()
-                                .getTabPane()
-                                .getSelectionModel()
-                                .getSelectedItem();
+                        Tab selectedTab = tabEditorController.getSelectedTab();
                         if (selectedTab != null) {
                           CodeEditorController controller =
                               tabEditorController.getModel().getControllerForTab(selectedTab);
@@ -320,11 +299,11 @@ public class QueryViewController {
   }
 
   public void openQueryFile(File file) {
-    for (Tab tab : tabEditorController.getView().getTabPane().getTabs()) {
+    for (Tab tab : tabEditorController.getView().getTabs()) {
       CodeEditorController controller = tabEditorController.getModel().getControllerForTab(tab);
       if (controller != null
           && file.getAbsolutePath().equals(controller.getModel().getFilePath())) {
-        tabEditorController.getView().getTabPane().getSelectionModel().select(tab);
+        tabEditorController.getView().selectTab(tab);
         return;
       }
     }
