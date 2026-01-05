@@ -1,8 +1,10 @@
 package fr.inria.corese.gui.view;
 
 import atlantafx.base.controls.ModalPane;
+import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.view.base.AbstractView;
 import fr.inria.corese.gui.view.component.ErrorDialog;
+import java.util.List;
 import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
@@ -47,9 +49,33 @@ public class ValidationView extends AbstractView {
   // ==============================================================================================
 
   /**
-   * Sets the main content of the view (typically the TabEditorView).
+   * Returns the list of buttons to be displayed in the editor toolbar.
    *
-   * @param node The content node.
+   * @return A list of IconButtonType.
+   */
+  public List<IconButtonType> getEditorToolbarButtons() {
+    return List.of(
+        IconButtonType.SAVE,
+        IconButtonType.EXPORT,
+        IconButtonType.CLEAR,
+        IconButtonType.UNDO,
+        IconButtonType.REDO);
+  }
+
+  /**
+   * Returns the list of buttons to be displayed in the result view toolbar.
+   *
+   * @return A list of IconButtonType.
+   */
+  public List<IconButtonType> getResultToolbarButtons() {
+    return List.of(IconButtonType.COPY, IconButtonType.EXPORT);
+  }
+
+  /**
+   * Sets the main content of the view (typically the TabEditorView).
+   * This allows the controller to inject the editor component dynamically.
+   *
+   * @param node The content node to be displayed in the center of the layout.
    */
   public void setMainContent(Node node) {
     mainContent.setCenter(node);
@@ -57,8 +83,9 @@ public class ValidationView extends AbstractView {
 
   /**
    * Displays an error message in a modal overlay.
+   * Uses the ErrorDialog component to show a user-friendly error message.
    *
-   * @param title The title of the error.
+   * @param title The title of the error dialog.
    * @param header The actionable summary or instruction for the user.
    * @param details The detailed error message or stack trace (optional).
    */
@@ -68,10 +95,11 @@ public class ValidationView extends AbstractView {
 
   /**
    * Creates the empty state view for the validation screen.
+   * This view is shown when no tabs are open.
    *
    * @param onNewAction Action to perform when "New Shapes File" is clicked.
    * @param onLoadAction Action to perform when "Load Shapes File" is clicked.
-   * @return The configured EmptyStateView node.
+   * @return The configured EmptyStateView node ready to be displayed.
    */
   public Node createEmptyState(Runnable onNewAction, Runnable onLoadAction) {
     return new EmptyStateView(

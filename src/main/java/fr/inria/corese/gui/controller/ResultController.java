@@ -273,44 +273,24 @@ public class ResultController {
         Platform.runLater(() -> xmlResultTextArea.setText(content != null ? content : ""));
     }
 
-    public void displayReport(Graph reportGraph) {
+    public void displayReportItems(List<ValidationReportItem> items) {
         Platform.runLater(() -> {
             reportTable.getItems().clear();
-            if (reportGraph == null) return;
-
-            try {
-                QueryProcess exec = QueryProcess.create(reportGraph);
-                String query = "SELECT ?severity ?focusNode ?resultPath ?value ?message WHERE { " +
-                        "?r a <http://www.w3.org/ns/shacl#ValidationResult> ; " +
-                        "<http://www.w3.org/ns/shacl#resultSeverity> ?severity ; " +
-                        "<http://www.w3.org/ns/shacl#focusNode> ?focusNode . " +
-                        "OPTIONAL { ?r <http://www.w3.org/ns/shacl#resultPath> ?resultPath } " +
-                        "OPTIONAL { ?r <http://www.w3.org/ns/shacl#value> ?value } " +
-                        "OPTIONAL { ?r <http://www.w3.org/ns/shacl#resultMessage> ?message } " +
-                        "}";
-                
-                Mappings map = exec.query(query);
-                processMappings(map);
-            } catch (Exception e) {
-                e.printStackTrace();
+            if (items != null) {
+                reportTable.getItems().addAll(items);
             }
         });
     }
 
-    private void processMappings(Mappings map) {
-        for (var mapping : map) {
-            String severity = mapping.getValue("?severity") != null ? mapping.getValue("?severity").getLabel() : "";
-            String focusNode = mapping.getValue("?focusNode") != null ? mapping.getValue("?focusNode").getLabel() : "";
-            String resultPath = mapping.getValue("?resultPath") != null ? mapping.getValue("?resultPath").getLabel() : "";
-            String value = mapping.getValue("?value") != null ? mapping.getValue("?value").getLabel() : "";
-            String message = mapping.getValue("?message") != null ? mapping.getValue("?message").getLabel() : "";
-            
-            // Simplify severity URI
-            if (severity.contains("#")) severity = severity.substring(severity.lastIndexOf("#") + 1);
-            
-            reportTable.getItems().add(new ValidationReportItem(severity, focusNode, resultPath, value, message));
-        }
+    /**
+     * @deprecated Use displayReportItems instead.
+     */
+    @Deprecated
+    public void displayReport(Graph reportGraph) {
+        // Kept for backward compatibility if needed, but should be avoided.
+        // Ideally, this logic should be moved to ShaclManager (which is done via extractReportItems).
     }
+
 
     public void clearResults() {
         Platform.runLater(() -> {

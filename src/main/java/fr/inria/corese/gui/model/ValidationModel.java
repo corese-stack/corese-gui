@@ -1,13 +1,8 @@
 package fr.inria.corese.gui.model;
 
-import fr.inria.corese.core.Graph;
-import fr.inria.corese.core.load.Load;
-import fr.inria.corese.core.shacl.Shacl;
-import fr.inria.corese.core.sparql.api.ResultFormatDef;
 import fr.inria.corese.gui.manager.GraphManager;
-import fr.inria.corese.gui.manager.QueryManager;
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
+import fr.inria.corese.gui.manager.ShaclManager;
+import java.util.List;
 
 /**
  * Model for the Validation feature.
@@ -23,7 +18,7 @@ public class ValidationModel {
    * @return true if data is loaded, false otherwise.
    */
   public boolean isDataLoaded() {
-    return GraphManager.getInstance().getGraph().size() > 0;
+    return GraphManager.getInstance().isDataLoaded();
   }
 
   /**
@@ -33,30 +28,8 @@ public class ValidationModel {
    * @return The result of the validation.
    */
   public ValidationResult validate(String shapesContent) {
-    try {
-      // Get the data graph from the manager
-      Graph dataGraph = GraphManager.getInstance().getGraph();
-
-      Graph shapeGraph = Graph.create();
-      Load.create(shapeGraph)
-          .parse(
-              new ByteArrayInputStream(shapesContent.getBytes(StandardCharsets.UTF_8)),
-              Load.format.TURTLE_FORMAT);
-
-      Shacl validator = new Shacl(dataGraph, shapeGraph);
-
-      Graph reportGraph = validator.eval();
-
-      boolean conforms = validator.conform(reportGraph);
-
-      this.lastResult = new ValidationResult(conforms, reportGraph, null);
-      return this.lastResult;
-
-    } catch (Throwable e) {
-      e.printStackTrace();
-      this.lastResult = new ValidationResult(false, null, "Validation Error: " + e.getMessage());
-      return this.lastResult;
-    }
+    this.lastResult = ShaclManager.getInstance().validate(shapesContent);
+    return this.lastResult;
   }
 
   /**
@@ -66,32 +39,16 @@ public class ValidationModel {
    * @return The formatted string, or null if no report exists.
    */
   public String formatLastReport(String format) {
-    if (lastResult == null || lastResult.getReportGraph() == null || format == null) {
-      return null;
-    }
+    return ShaclManager.getInstance().formatReport(lastResult, format);
+  }
 
-    ResultFormatDef.format coreseFormat;
-    switch (format.toUpperCase()) {
-      case "RDF/XML":
-        coreseFormat = ResultFormatDef.format.RDF_XML_FORMAT;
-        break;
-      case "JSON-LD":
-        coreseFormat = ResultFormatDef.format.JSONLD_FORMAT;
-        break;
-      case "N-TRIPLES":
-        coreseFormat = ResultFormatDef.format.NTRIPLES_FORMAT;
-        break;
-      case "N-QUADS":
-        coreseFormat = ResultFormatDef.format.NQUADS_FORMAT;
-        break;
-      case "TRIG":
-        coreseFormat = ResultFormatDef.format.TRIG_FORMAT;
-        break;
-      default:
-        coreseFormat = ResultFormatDef.format.TURTLE_FORMAT;
-        break;
-    }
-    return QueryManager.getInstance().formatGraph(lastResult.getReportGraph(), coreseFormat);
+  /**
+   * Retrieves the validation report items from the last result.
+   *
+   * @return A list of ValidationReportItem objects.
+   */
+  public List<ValidationReportItem> getValidationReportItems() {
+    return ShaclManager.getInstance().extractReportItems(lastResult);
   }
 
   public ValidationResult getLastResult() {

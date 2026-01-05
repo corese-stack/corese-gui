@@ -1,12 +1,11 @@
 package fr.inria.corese.gui.controller;
 
-import fr.inria.corese.gui.enums.icon.IconButtonType;
+import fr.inria.corese.gui.manager.ShaclManager;
 import fr.inria.corese.gui.model.ValidationModel;
 import fr.inria.corese.gui.model.ValidationResult;
 import fr.inria.corese.gui.view.ValidationView;
 import java.io.File;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
@@ -76,14 +75,7 @@ public class ValidationController {
 
   /** Initializes the generic tab editor with specific toolbar buttons. */
   private void configureEditor() {
-    tabEditorController =
-        new TabEditorController(
-            List.of(
-                IconButtonType.SAVE,
-                IconButtonType.EXPORT,
-                IconButtonType.CLEAR,
-                IconButtonType.UNDO,
-                IconButtonType.REDO));
+    tabEditorController = new TabEditorController(view.getEditorToolbarButtons());
 
     // Factory for creating result views when a tab is created
     tabEditorController.setResultControllerFactory(tab -> createResultController());
@@ -229,8 +221,8 @@ public class ValidationController {
 
       updateReportDisplay("TURTLE"); // Default format
 
-      // Pass the report graph for potential visualization
-      resultController.displayReport(result.getReportGraph());
+      // Pass the report items for visualization
+      resultController.displayReportItems(ShaclManager.getInstance().extractReportItems(result));
     }
   }
 
@@ -265,8 +257,7 @@ public class ValidationController {
    * @return A configured ResultController instance.
    */
   private ResultController createResultController() {
-    ResultController controller =
-        new ResultController(List.of(IconButtonType.COPY, IconButtonType.EXPORT));
+    ResultController controller = new ResultController(view.getResultToolbarButtons());
     // Update the displayed report format when the user changes preferences (e.g., Turtle vs
     // JSON-LD)
     controller.setOnFormatChanged(this::updateReportDisplay);

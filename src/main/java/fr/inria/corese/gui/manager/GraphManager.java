@@ -43,6 +43,10 @@ public class GraphManager {
     return (this.graph != null) ? this.graph.size() : 0;
   }
 
+  public synchronized boolean isDataLoaded() {
+    return getTripletCount() > 0;
+  }
+
   public synchronized void loadGraph(String content) {
     initializeGraph();
     if (content != null && !content.trim().isEmpty()) {
