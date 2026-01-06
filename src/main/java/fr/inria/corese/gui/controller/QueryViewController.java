@@ -66,9 +66,15 @@ public class QueryViewController {
     );
     tabEditorController.setEmptyState(emptyState);
 
-    // Configure TabEditor Menu Actions
-    tabEditorController.setOnOpenFileAction(e -> onOpenFilesButtonClick());
-    tabEditorController.setOnTemplatesAction(
+    // Configure TabEditor Menu Actions - Query context needs Templates
+    tabEditorController.configureMenuItems(); // Adds "New File" and "Open File"
+    tabEditorController.addTemplatesMenuItem(); // Add Templates specific to Query
+    
+    // Configure custom Open File action for Query context
+    tabEditorController.getView().clearMenuItems();
+    tabEditorController.getView().addMenuItem("New File", e -> tabEditorController.addNewTab("untitled", ""));
+    tabEditorController.getView().addMenuItem("Open File", e -> onOpenFilesButtonClick());
+    tabEditorController.getView().addMenuItem("Templates",
         e -> {
           Stage stage = (Stage) view.getRoot().getScene().getWindow();
           TemplatePopup.show(stage, query -> tabEditorController.addNewTab("untitled", query));

@@ -5,6 +5,12 @@ import fr.inria.corese.gui.view.utils.TabPaneUtils;
 import fr.inria.corese.gui.view.utils.ThemeManager;
 import java.util.HashMap;
 import java.util.Map;
+import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -14,243 +20,240 @@ import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 
 /**
- * View component for the tabbed editor interface. Displays code editor tabs with an add button
- * fixed at the right of the tab bar.
+ * View component for the tabbed editor interface.
  *
- * <p>The content is managed separately from the TabPane to allow the tab header to have a fixed
- * height while the content fills the remaining space.
+ * <p>This view manages code editor tabs with an add button fixed at the right of the tab bar. The
+ * content is managed separately from the TabPane to allow the tab header to have a fixed height
+ * while the content fills the remaining space.
+ *
+ * <p>Key features:
+ *
+ * <ul>
+ *   <li>Dynamic tab management with content container
+ *   <li>Floating nodes support (e.g., execution buttons)
+ *   <li>Empty state view when no tabs are open
+ *   <li>Theme-aware modification indicators
+ *   <li>Split menu button for multiple tab creation options
+ * </ul>
+ *
+ * <pre>
+ * +------------------------------------------------+
+ * |  HBox (Tab Header)                             |
+ * |  +----------------+  +----------------------+  |
+ * |  |  TabPane       |  |  SplitMenuButton     |  |
+ * |  | (Tabs)        |  |  (Add Tab Button)     |  |
+ * |  +----------------+  +----------------------+  |
+ * +------------------------------------------------+
+ * |  StackPane (Content Container)                 |
+ * |  +------------------------------------------+  |
+ * |  |  Node (Tab Content)                      |  |
+ * |  +------------------------------------------+  |
+ * +------------------------------------------------+
+ * </pre>
  */
 public class TabEditorView extends AbstractView {
 
+  // ==============================================================================================
+  // Constants
+  // ==============================================================================================
+
   private static final String STYLESHEET = "/styles/tab-editor.css";
+  private static final String TAB_CONTENT_WRAPPER_ID = "tab-content-wrapper";
+  private static final String EMPTY_STATE_VIEW_ID = "empty-state-view";
+  private static final int TAB_HEADER_SPACING = 4;
+  private static final double MODIFIED_CIRCLE_RADIUS = 4.0;
 
   // ==============================================================================================
   // Fields
   // ==============================================================================================
 
-  // Tab
   private final TabPane tabPane;
-  private final Map<Tab, Node> tabContentMap = new HashMap<>();
-
-  // Menu button
+  private final Map<Tab, Node> tabContentMap;
   private final SplitMenuButton addTabButton;
-  private final MenuItem newFileItem;
-  private final MenuItem openFileItem;
-  private final MenuItem templatesItem;
-
-  // Main container
   private final StackPane contentContainer;
-
-  // Theme
   private final ThemeManager themeManager;
 
   // ==============================================================================================
   // Constructor
   // ==============================================================================================
 
+  /** Constructs a new TabEditorView with all necessary components initialized. */
   public TabEditorView() {
     super(new VBox(), STYLESHEET);
     this.themeManager = ThemeManager.getInstance();
+    this.tabContentMap = new HashMap<>();
 
-    // Initialize Components
-    this.tabPane = createConfiguredTabPane();
+    // Initialize UI components
+    this.tabPane = createTabPane();
+    this.addTabButton = createAddTabButton();
+    this.contentContainer = new StackPane();
 
-    this.newFileItem = new MenuItem("New File");
-    this.openFileItem = new MenuItem("Open File");
-    this.templatesItem = new MenuItem("Templates");
-    this.addTabButton = createConfiguredAddButton();
-
-    this.contentContainer = createConfiguredContentContainer();
-
-    // Layout
     initializeLayout();
-
-    // Listeners
     setupListeners();
   }
 
   // ==============================================================================================
-  // Initialization & Configuration
+  // Initialization Methods
   // ==============================================================================================
 
-  /** Creates and configures the TabPane. */
-  private TabPane createConfiguredTabPane() {
+  /**
+   * Creates and configures the TabPane.
+   *
+   * @return A configured TabPane instance
+   */
+  private TabPane createTabPane() {
     TabPane pane = new TabPane();
     pane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
     TabPaneUtils.enableFullWidth(pane);
     return pane;
   }
 
-  /** Creates the add tab button with icon. */
-  private SplitMenuButton createConfiguredAddButton() {
+  /**
+   * Creates the split menu button for adding tabs.
+   *
+   * @return A configured SplitMenuButton instance
+   */
+  private SplitMenuButton createAddTabButton() {
     SplitMenuButton button = new SplitMenuButton();
     button.setGraphic(new FontIcon(MaterialDesignP.PLUS));
     button.getStyleClass().add("add-tab-button");
-    button.getItems().addAll(newFileItem, openFileItem, templatesItem);
     return button;
   }
 
-  /** Creates the content container. */
-  private StackPane createConfiguredContentContainer() {
-    return new StackPane();
-  }
-
-  /** Sets up the layout of the view. */
+  /** Initializes the layout structure of the view. */
   private void initializeLayout() {
-    // 1. Create header bar with tabs and button
-    HBox tabHeader = createTabHeader();
+    VBox root = (VBox) getRoot();
+    root.setMinHeight(0);
 
-    // 2. Configure content container grow
+    HBox tabHeader = createTabHeader();
     VBox.setVgrow(contentContainer, Priority.ALWAYS);
 
-    // 3. Allow the view to shrink if needed
-    ((VBox) getRoot()).setMinHeight(0);
-
-    // 4. Add all children
-    ((VBox) getRoot()).getChildren().addAll(tabHeader, contentContainer);
+    root.getChildren().addAll(tabHeader, contentContainer);
   }
 
-  /** Creates the header bar containing tabs and add button. */
+  /**
+   * Creates the header bar containing tabs and add button.
+   *
+   * @return A configured HBox containing the tab header
+   */
   private HBox createTabHeader() {
-    HBox header = new HBox(4);
+    HBox header = new HBox(TAB_HEADER_SPACING);
     header.setAlignment(Pos.BOTTOM_LEFT);
 
-    // Bind button visibility to tabPane visibility
     addTabButton.visibleProperty().bind(tabPane.visibleProperty());
     addTabButton.managedProperty().bind(tabPane.managedProperty());
 
     header.getChildren().addAll(tabPane, addTabButton);
-
     return header;
   }
 
-  /** Configures internal event listeners. */
+  /** Configures all internal event listeners. */
   private void setupListeners() {
-    // 1. Tab properties listeners
-    setupTabListeners();
+    setupTabSelectionListener();
+    setupTabListChangeListener();
+    setupThemeListener();
+  }
 
-    // 2. Theme listener
+  /** Sets up the listener for tab selection changes. */
+  private void setupTabSelectionListener() {
+    tabPane
+        .getSelectionModel()
+        .selectedItemProperty()
+        .addListener((obs, oldTab, newTab) -> showContentForTab(newTab));
+  }
+
+  /** Sets up the listener for tab list changes (additions and removals). */
+  private void setupTabListChangeListener() {
+    tabPane
+        .getTabs()
+        .addListener(
+            (ListChangeListener<Tab>)
+                change -> {
+                  while (change.next()) {
+                    handleTabsRemoved(change);
+                    handleTabsAdded(change);
+                  }
+                  handleAllTabsRemoved();
+                });
+  }
+
+  /**
+   * Handles removed tabs by cleaning up the content map.
+   *
+   * @param change The list change event
+   */
+  private void handleTabsRemoved(ListChangeListener.Change<? extends Tab> change) {
+    if (change.wasRemoved()) {
+      change.getRemoved().forEach(tabContentMap::remove);
+    }
+  }
+
+  /**
+   * Handles added tabs by showing content for newly selected tabs.
+   *
+   * @param change The list change event
+   */
+  private void handleTabsAdded(ListChangeListener.Change<? extends Tab> change) {
+    if (change.wasAdded()) {
+      Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+      if (selectedTab != null && change.getAddedSubList().contains(selectedTab)) {
+        Platform.runLater(() -> showContentForTab(selectedTab));
+      }
+    }
+  }
+
+  /** Handles the case when all tabs are removed by clearing the content. */
+  private void handleAllTabsRemoved() {
+    if (tabPane.getTabs().isEmpty()) {
+      showContentForTab(null);
+    }
+  }
+
+  /** Sets up the listener for theme changes. */
+  private void setupThemeListener() {
     themeManager
         .accentColorProperty()
         .addListener((obs, oldColor, newColor) -> refreshModifiedTabIcons());
   }
 
-  /** Sets up listeners for tab selection and list changes. */
-  private void setupTabListeners() {
-    // Selection listener
-    tabPane
-        .getSelectionModel()
-        .selectedItemProperty()
-        .addListener((obs, oldTab, newTab) -> showContentForTab(newTab));
-
-    // Tab list listener
-    tabPane
-        .getTabs()
-        .addListener(
-            (javafx.collections.ListChangeListener<Tab>)
-                change -> {
-                  while (change.next()) {
-                    if (change.wasRemoved()) {
-                      for (Tab removedTab : change.getRemoved()) {
-                        tabContentMap.remove(removedTab);
-                      }
-                    }
-                    if (change.wasAdded()) {
-                      // When a tab is added and selected, show its content
-                      Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
-                      if (selectedTab != null && change.getAddedSubList().contains(selectedTab)) {
-                        javafx.application.Platform.runLater(() -> showContentForTab(selectedTab));
-                      }
-                    }
-                  }
-                  // If all tabs removed, clear content
-                  if (tabPane.getTabs().isEmpty()) {
-                    showContentForTab(null);
-                  }
-                });
-  }
-
   // ==============================================================================================
-  // View Logic
+  // Content Management
   // ==============================================================================================
 
-  /** Shows the content for the selected tab. */
+  /**
+   * Shows the content for the specified tab.
+   *
+   * @param selectedTab The tab whose content should be displayed, or null to clear content
+   */
   private void showContentForTab(Tab selectedTab) {
-    // Remove previous tab content wrapper
-    contentContainer.getChildren().removeIf(node -> "tab-content-wrapper".equals(node.getId()));
+    contentContainer.getChildren().removeIf(node -> TAB_CONTENT_WRAPPER_ID.equals(node.getId()));
 
     if (selectedTab != null) {
       Node content = tabContentMap.get(selectedTab);
       if (content != null) {
         StackPane wrapper = new StackPane(content);
-        wrapper.setId("tab-content-wrapper");
-        // Insert at index 0 so floating nodes stay on top
+        wrapper.setId(TAB_CONTENT_WRAPPER_ID);
         contentContainer.getChildren().add(0, wrapper);
       }
     }
   }
 
-  /** Adds a floating node to the editor view. */
-  public void addFloatingNode(Node node, Pos position, Insets margin) {
-    StackPane.setAlignment(node, position);
-    StackPane.setMargin(node, margin);
-    contentContainer.getChildren().add(node);
-  }
-
-  /** Sets the empty state view displayed when no tabs are open. */
-  public void setEmptyStateView(Node emptyStateView) {
-    emptyStateView.setId("empty-state-view");
-    // Remove existing empty state if present
-    contentContainer.getChildren().removeIf(node -> "empty-state-view".equals(node.getId()));
-    // Insert at index 0 to be behind other content
-    contentContainer.getChildren().add(0, emptyStateView);
-  }
-
-  /** Creates a Tab with the given title and content node. */
-  public Tab createEditorTab(String title, Node content) {
-    Tab tab = new Tab(title);
-    if (content instanceof javafx.scene.layout.Region) {
-      ((javafx.scene.layout.Region) content).setMaxWidth(Double.MAX_VALUE);
-      ((javafx.scene.layout.Region) content).setMaxHeight(Double.MAX_VALUE);
-    }
-    // Store content in map instead of tab.setContent()
-    tabContentMap.put(tab, content);
-    return tab;
-  }
-
-  /** Creates and adds a new editor tab, selecting it. */
-  public void addNewEditorTab(Tab tab) {
-    tabPane.getTabs().add(tab);
-    tabPane.getSelectionModel().select(tab);
-    // Force content display
-    showContentForTab(tab);
-  }
-
-  public void setTabsVisible(boolean visible) {
-    tabPane.setVisible(visible);
-    tabPane.setManaged(visible);
-  }
-
-  /** Updates the tab icon to show modification state. */
-  public void updateTabIcon(Tab tab, boolean isModified) {
-    if (isModified) {
-      Circle circle = new Circle(4, themeManager.getAccentColor());
-      tab.setGraphic(circle);
-    } else {
-      tab.setGraphic(null);
-    }
-  }
-
-  /** Refreshes all modified tab icons with the current accent color. */
+  /**
+   * Refreshes all modified tab icons with the current accent color.
+   *
+   * <p>This method is called when the theme changes to update the color of modification indicators.
+   */
   private void refreshModifiedTabIcons() {
-    javafx.scene.paint.Color accentColor = themeManager.getAccentColor();
+    Color accentColor = themeManager.getAccentColor();
     if (accentColor == null) {
       return;
     }
@@ -260,106 +263,204 @@ public class TabEditorView extends AbstractView {
   }
 
   // ==============================================================================================
-  // Public API for Controller
+  // Public API - Tab Management
   // ==============================================================================================
 
   /**
-   * Sets the action to be performed when the "New File" menu item is clicked.
+   * Creates a Tab with the given title and content node.
    *
-   * @param action The action to execute.
+   * @param title The title for the tab
+   * @param content The content node to display in the tab
+   * @return A new configured Tab instance
    */
-  public void setOnNewFileAction(javafx.event.EventHandler<javafx.event.ActionEvent> action) {
-    newFileItem.setOnAction(action);
+  public Tab createEditorTab(String title, Node content) {
+    Tab tab = new Tab(title);
+    if (content instanceof Region region) {
+      region.setMaxWidth(Double.MAX_VALUE);
+      region.setMaxHeight(Double.MAX_VALUE);
+    }
+    tabContentMap.put(tab, content);
+    return tab;
   }
 
   /**
-   * Sets the action to be performed when the "Open File" menu item is clicked.
+   * Adds a new editor tab and selects it.
    *
-   * @param action The action to execute.
+   * @param tab The tab to add
    */
-  public void setOnOpenFileAction(javafx.event.EventHandler<javafx.event.ActionEvent> action) {
-    openFileItem.setOnAction(action);
-  }
-
-  /**
-   * Sets the action to be performed when the "Templates" menu item is clicked.
-   *
-   * @param action The action to execute.
-   */
-  public void setOnTemplatesAction(javafx.event.EventHandler<javafx.event.ActionEvent> action) {
-    templatesItem.setOnAction(action);
-  }
-
-  /**
-   * Sets the action to be performed when the main "Add Tab" button is clicked.
-   *
-   * @param action The action to execute.
-   */
-  public void setOnAddTabAction(javafx.event.EventHandler<javafx.event.ActionEvent> action) {
-    addTabButton.setOnAction(action);
-  }
-
-  /**
-   * Adds a listener to be notified when the list of tabs changes.
-   *
-   * @param listener The listener to add.
-   */
-  public void addTabListener(javafx.collections.ListChangeListener<Tab> listener) {
-    tabPane.getTabs().addListener(listener);
-  }
-
-  /**
-   * Adds a listener to be notified when the selected tab changes.
-   *
-   * @param listener The listener to add.
-   */
-  public void addSelectionListener(javafx.beans.value.ChangeListener<Tab> listener) {
-    tabPane.getSelectionModel().selectedItemProperty().addListener(listener);
-  }
-
-  /**
-   * Gets the currently selected tab.
-   *
-   * @return The selected Tab, or null if none.
-   */
-  public Tab getSelectedTab() {
-    return tabPane.getSelectionModel().getSelectedItem();
-  }
-
-  /**
-   * Selects the specified tab.
-   *
-   * @param tab The tab to select.
-   */
-  public void selectTab(Tab tab) {
+  public void addNewEditorTab(Tab tab) {
+    tabPane.getTabs().add(tab);
     tabPane.getSelectionModel().select(tab);
+    showContentForTab(tab);
   }
 
   /**
    * Removes the specified tab.
    *
-   * @param tab The tab to remove.
+   * @param tab The tab to remove
    */
   public void removeTab(Tab tab) {
     tabPane.getTabs().remove(tab);
   }
 
   /**
-   * Gets the content node associated with the given tab.
+   * Selects the specified tab.
    *
-   * @param tab The tab.
-   * @return The content node.
+   * @param tab The tab to select
    */
-  public Node getTabContent(Tab tab) {
-    return tabContentMap.get(tab);
+  public void selectTab(Tab tab) {
+    tabPane.getSelectionModel().select(tab);
+  }
+
+  /**
+   * Gets the currently selected tab.
+   *
+   * @return The selected Tab, or null if none is selected
+   */
+  public Tab getSelectedTab() {
+    return tabPane.getSelectionModel().getSelectedItem();
   }
 
   /**
    * Gets the list of all tabs.
    *
-   * @return The list of tabs.
+   * @return The observable list of tabs
    */
-  public javafx.collections.ObservableList<Tab> getTabs() {
+  public ObservableList<Tab> getTabs() {
     return tabPane.getTabs();
+  }
+
+  /**
+   * Gets the content node associated with the given tab.
+   *
+   * @param tab The tab
+   * @return The content node, or null if not found
+   */
+  public Node getTabContent(Tab tab) {
+    return tabContentMap.get(tab);
+  }
+
+  // ==============================================================================================
+  // Public API - Visual State Management
+  // ==============================================================================================
+
+  /**
+   * Updates the tab icon to show modification state.
+   *
+   * @param tab The tab to update
+   * @param isModified True to show modified indicator, false to hide it
+   */
+  public void updateTabIcon(Tab tab, boolean isModified) {
+    if (isModified) {
+      Circle circle = new Circle(MODIFIED_CIRCLE_RADIUS, themeManager.getAccentColor());
+      tab.setGraphic(circle);
+    } else {
+      tab.setGraphic(null);
+    }
+  }
+
+  /**
+   * Sets the visibility of the tabs.
+   *
+   * @param visible True to show tabs, false to hide them
+   */
+  public void setTabsVisible(boolean visible) {
+    tabPane.setVisible(visible);
+    tabPane.setManaged(visible);
+  }
+
+  /**
+   * Sets the empty state view displayed when no tabs are open.
+   *
+   * @param emptyStateView The node to display as empty state
+   */
+  public void setEmptyStateView(Node emptyStateView) {
+    emptyStateView.setId(EMPTY_STATE_VIEW_ID);
+    contentContainer.getChildren().removeIf(node -> EMPTY_STATE_VIEW_ID.equals(node.getId()));
+    contentContainer.getChildren().add(0, emptyStateView);
+  }
+
+  /**
+   * Adds a floating node to the editor view (e.g., execution button).
+   *
+   * @param node The node to add
+   * @param position The position alignment within the container
+   * @param margin The margin around the node
+   */
+  public void addFloatingNode(Node node, Pos position, Insets margin) {
+    StackPane.setAlignment(node, position);
+    StackPane.setMargin(node, margin);
+    contentContainer.getChildren().add(node);
+  }
+
+  // ==============================================================================================
+  // Public API - Menu Configuration
+  // ==============================================================================================
+
+  /**
+   * Adds a menu item to the split button dropdown.
+   *
+   * <p>This allows different contexts (Query, Validate, etc.) to configure their own menu items.
+   *
+   * @param text The text to display for the menu item
+   * @param action The action to execute when the item is clicked
+   * @return The created MenuItem for further customization if needed
+   */
+  public MenuItem addMenuItem(String text, EventHandler<ActionEvent> action) {
+    MenuItem item = new MenuItem(text);
+    item.setOnAction(action);
+    addTabButton.getItems().add(item);
+    return item;
+  }
+
+  /**
+   * Clears all menu items from the split button dropdown.
+   *
+   * <p>This can be useful when reconfiguring the menu based on context changes.
+   */
+  public void clearMenuItems() {
+    addTabButton.getItems().clear();
+  }
+
+  /**
+   * Gets the list of menu items in the split button dropdown.
+   *
+   * @return The observable list of menu items
+   */
+  public ObservableList<MenuItem> getMenuItems() {
+    return addTabButton.getItems();
+  }
+
+  // ==============================================================================================
+  // Public API - Event Handler Registration
+  // ==============================================================================================
+
+  /**
+   * Sets the action to be performed when the main "Add Tab" button is clicked.
+   *
+   * <p>This is triggered when clicking the button itself (not the dropdown menu).
+   *
+   * @param action The action to execute
+   */
+  public void setOnAddTabAction(EventHandler<ActionEvent> action) {
+    addTabButton.setOnAction(action);
+  }
+
+  /**
+   * Adds a listener to be notified when the list of tabs changes.
+   *
+   * @param listener The listener to add
+   */
+  public void addTabListener(ListChangeListener<Tab> listener) {
+    tabPane.getTabs().addListener(listener);
+  }
+
+  /**
+   * Adds a listener to be notified when the selected tab changes.
+   *
+   * @param listener The listener to add
+   */
+  public void addSelectionListener(ChangeListener<Tab> listener) {
+    tabPane.getSelectionModel().selectedItemProperty().addListener(listener);
   }
 }

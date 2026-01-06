@@ -167,21 +167,24 @@ public class TabEditorController {
   }
 
   /**
-   * Sets the action to be executed when the "Open File" menu item is clicked.
+   * Configures the menu items for the add tab button.
    *
-   * @param action The action to execute.
+   * <p>This method should be called by subclasses or external configurators to set up
+   * context-specific menu items (e.g., Query editor has "Templates", Validate editor doesn't).
    */
-  public void setOnOpenFileAction(javafx.event.EventHandler<javafx.event.ActionEvent> action) {
-    view.setOnOpenFileAction(action);
+  public void configureMenuItems() {
+    // Default implementation adds standard items
+    view.addMenuItem("New File", e -> addNewTab("Untitled", ""));
+    view.addMenuItem("Open File", e -> openFile());
   }
 
   /**
-   * Sets the action to be executed when the "Templates" menu item is clicked.
+   * Adds a "Templates" menu item to the add tab button.
    *
-   * @param action The action to execute.
+   * <p>This can be called by contexts that support templates (e.g., Query editor).
    */
-  public void setOnTemplatesAction(javafx.event.EventHandler<javafx.event.ActionEvent> action) {
-    view.setOnTemplatesAction(action);
+  public void addTemplatesMenuItem() {
+    view.addMenuItem("Templates", e -> openTemplates());
   }
 
   /**
@@ -244,11 +247,9 @@ public class TabEditorController {
     view.addTabListener(
         (ListChangeListener<Tab>) c -> Platform.runLater(this::updateEmptyStateVisibility));
 
-    // Handle SplitMenuButton actions
+    // Configure default menu items
     view.setOnAddTabAction(e -> addNewTab("Untitled", ""));
-    view.setOnNewFileAction(e -> addNewTab("Untitled", ""));
-    view.setOnOpenFileAction(e -> openFile());
-    view.setOnTemplatesAction(e -> openTemplates());
+    configureMenuItems();
   }
 
   private void openFile() {
