@@ -170,6 +170,25 @@ public class TabEditorController {
   }
 
   /**
+   * Clears all menu items from the add tab button.
+   *
+   * <p>Useful for reconfiguring menus dynamically based on context.
+   */
+  public void clearMenuItems() {
+    view.clearMenuItems();
+  }
+
+  /**
+   * Adds a custom menu item to the add tab button.
+   *
+   * @param text The menu item text
+   * @param action The action to execute when clicked
+   */
+  public void addMenuItem(String text, Runnable action) {
+    view.addMenuItem(text, e -> action.run());
+  }
+
+  /**
    * Sets the action to be executed when the user triggers the execution command (e.g., pressing
    * Ctrl+Enter in the editor).
    *
@@ -248,7 +267,7 @@ public class TabEditorController {
     for (Tab tab : view.getTabs()) {
       CodeEditorController controller = model.getControllerForTab(tab);
       if (controller != null
-          && file.getAbsolutePath().equals(controller.getModel().getFilePath())) {
+          && file.getAbsolutePath().equals(getFilePathForTab(tab))) {
         view.selectTab(tab);
         return tab;
       }
@@ -533,21 +552,14 @@ public class TabEditorController {
   // ==============================================================================================
 
   /**
-   * Returns the view component.
+   * Returns the root node of the view for integration into parent layouts.
    *
-   * @return The TabEditorView instance
-   */
-  public TabEditorView getView() {
-    return view;
-  }
-
-  /**
-   * Returns the model component.
+   * <p>This is the only view access point, respecting MVC encapsulation.
    *
-   * @return The TabEditorModel instance
+   * @return The root Parent node
    */
-  public TabEditorModel getModel() {
-    return model;
+  public Parent getViewRoot() {
+    return view.getRoot();
   }
 
   /**
@@ -560,21 +572,33 @@ public class TabEditorController {
   }
 
   /**
-   * Returns the root node of the view.
-   *
-   * @return The root Parent node
-   */
-  public Parent getViewRoot() {
-    return view.getRoot();
-  }
-
-  /**
    * Returns the currently selected tab.
    *
    * @return The selected Tab, or null if none is selected
    */
   public Tab getSelectedTab() {
     return view.getSelectedTab();
+  }
+
+  /**
+   * Returns the list of all tabs.
+   *
+   * <p>Note: This returns the observable list for monitoring, but modifications should go through
+   * controller methods.
+   *
+   * @return The observable list of tabs
+   */
+  public javafx.collections.ObservableList<Tab> getTabs() {
+    return view.getTabs();
+  }
+
+  /**
+   * Selects the specified tab.
+   *
+   * @param tab The tab to select
+   */
+  public void selectTab(Tab tab) {
+    view.selectTab(tab);
   }
 
   /**
@@ -585,6 +609,16 @@ public class TabEditorController {
   public ResultController getCurrentResultController() {
     Tab selectedTab = view.getSelectedTab();
     return model.getResultControllerForTab(selectedTab);
+  }
+
+  /**
+   * Returns the CodeEditorController for the specified tab.
+   *
+   * @param tab The tab to get the controller for
+   * @return The CodeEditorController, or null if not found
+   */
+  public CodeEditorController getControllerForTab(Tab tab) {
+    return model.getControllerForTab(tab);
   }
 
   /**
@@ -602,11 +636,34 @@ public class TabEditorController {
   }
 
   /**
+   * Retrieves the file path associated with a specific tab.
+   *
+   * @param tab The tab to get the file path for
+   * @return The file path, or null if the tab has no associated file
+   */
+  public String getFilePathForTab(Tab tab) {
+    CodeEditorController controller = model.getControllerForTab(tab);
+    if (controller != null) {
+      return controller.getModel().getFilePath();
+    }
+    return null;
+  }
+
+  /**
    * Adds a listener to the list of tabs.
    *
    * @param listener The listener to add
    */
   public void addTabListener(ListChangeListener<Tab> listener) {
     view.addTabListener(listener);
+  }
+
+  /**
+   * Adds a listener to be notified when the selected tab changes.
+   *
+   * @param listener The listener to add
+   */
+  public void addSelectionListener(javafx.beans.value.ChangeListener<Tab> listener) {
+    view.addSelectionListener(listener);
   }
 }

@@ -43,8 +43,8 @@ public class QueryViewController {
                 IconButtonType.CLEAR,
                 IconButtonType.UNDO,
                 IconButtonType.REDO));
-    ((javafx.scene.layout.Region) tabEditorController.getView().getRoot()).setMaxWidth(Double.MAX_VALUE);
-    ((javafx.scene.layout.Region) tabEditorController.getView().getRoot()).setMaxHeight(Double.MAX_VALUE);
+    ((javafx.scene.layout.Region) tabEditorController.getViewRoot()).setMaxWidth(Double.MAX_VALUE);
+    ((javafx.scene.layout.Region) tabEditorController.getViewRoot()).setMaxHeight(Double.MAX_VALUE);
 
     tabEditorController.setResultControllerFactory(tab -> createResultController());
     tabEditorController.setOnExecutionRequest(this::executeQuery);
@@ -67,15 +67,11 @@ public class QueryViewController {
     tabEditorController.setEmptyState(emptyState);
 
     // Configure TabEditor Menu Actions - Query context needs Templates
-    tabEditorController.configureMenuItems(); // Adds "New File" and "Open File"
-    tabEditorController.addTemplatesMenuItem(); // Add Templates specific to Query
-    
-    // Configure custom Open File action for Query context
-    tabEditorController.getView().clearMenuItems();
-    tabEditorController.getView().addMenuItem("New File", e -> tabEditorController.addNewTab("untitled", ""));
-    tabEditorController.getView().addMenuItem("Open File", e -> onOpenFilesButtonClick());
-    tabEditorController.getView().addMenuItem("Templates",
-        e -> {
+    tabEditorController.clearMenuItems();
+    tabEditorController.addMenuItem("New File", () -> tabEditorController.addNewTab("untitled", ""));
+    tabEditorController.addMenuItem("Open File", this::onOpenFilesButtonClick);
+    tabEditorController.addMenuItem("Templates",
+        () -> {
           Stage stage = (Stage) view.getRoot().getScene().getWindow();
           TemplatePopup.show(stage, query -> tabEditorController.addNewTab("untitled", query));
         });
@@ -105,9 +101,8 @@ public class QueryViewController {
   }
 
   private void setupTabListeners() {
-    tabEditorController
-        .getView()
-        .addSelectionListener((obs, oldTab, newTab) -> updateResultsForSelectedQueryTab(newTab));
+    tabEditorController.addSelectionListener(
+        (obs, oldTab, newTab) -> updateResultsForSelectedQueryTab(newTab));
 
     tabEditorController.addTabListener(
             (ListChangeListener<Tab>)
@@ -128,7 +123,7 @@ public class QueryViewController {
   }
 
   private void configureTab(Tab tab) {
-    CodeEditorController controller = tabEditorController.getModel().getControllerForTab(tab);
+    CodeEditorController controller = tabEditorController.getControllerForTab(tab);
     if (controller != null) {
       controller
           .getView()
@@ -200,7 +195,7 @@ public class QueryViewController {
     if (resultController == null) return;
 
     CodeEditorController codeEditorController =
-        tabEditorController.getModel().getControllerForTab(selectedTab);
+        tabEditorController.getControllerForTab(selectedTab);
     if (codeEditorController == null) {
       return;
     }
@@ -286,7 +281,7 @@ public class QueryViewController {
                         Tab selectedTab = tabEditorController.getSelectedTab();
                         if (selectedTab != null) {
                           CodeEditorController controller =
-                              tabEditorController.getModel().getControllerForTab(selectedTab);
+                              tabEditorController.getControllerForTab(selectedTab);
                           if (controller != null) {
                             controller.saveFile();
                           }
@@ -305,11 +300,11 @@ public class QueryViewController {
   }
 
   public void openQueryFile(File file) {
-    for (Tab tab : tabEditorController.getView().getTabs()) {
-      CodeEditorController controller = tabEditorController.getModel().getControllerForTab(tab);
-      if (controller != null
-          && file.getAbsolutePath().equals(controller.getModel().getFilePath())) {
-        tabEditorController.getView().selectTab(tab);
+    for (Tab tab : tabEditorController.getTabs()) {
+      String filePath = tabEditorController.getFilePathForTab(tab);
+      if (filePath != null
+          && file.getAbsolutePath().equals(filePath)) {
+        tabEditorController.selectTab(tab);
         return;
       }
     }
