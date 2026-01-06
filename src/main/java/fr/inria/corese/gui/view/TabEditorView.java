@@ -5,6 +5,9 @@ import fr.inria.corese.gui.view.utils.TabPaneUtils;
 import fr.inria.corese.gui.view.utils.ThemeManager;
 import java.util.HashMap;
 import java.util.Map;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
@@ -16,6 +19,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SplitMenuButton;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.layout.HBox;
@@ -71,6 +75,9 @@ public class TabEditorView extends AbstractView {
   private static final String EMPTY_STATE_VIEW_ID = "empty-state-view";
   private static final int TAB_HEADER_SPACING = 4;
   private static final double MODIFIED_CIRCLE_RADIUS = 4.0;
+  private static final javafx.util.Duration SPLIT_ANIMATION_DURATION = javafx.util.Duration.millis(300);
+  private static final double RESULT_PANE_VISIBLE_POSITION = 0.6;
+  private static final double RESULT_PANE_HIDDEN_POSITION = 1.0;
 
   // ==============================================================================================
   // Fields
@@ -391,6 +398,73 @@ public class TabEditorView extends AbstractView {
     StackPane.setAlignment(node, position);
     StackPane.setMargin(node, margin);
     contentContainer.getChildren().add(node);
+  }
+
+  // ==============================================================================================
+  // Public API - Result Pane Animation
+  // ==============================================================================================
+
+  /**
+   * Shows the result pane for the currently selected tab with a smooth animation.
+   *
+   * <p>The result pane slides up from the bottom of the split pane.
+   *
+   * @param resultNode The result view node to display
+   */
+  public void showResultPane(Node resultNode) {
+    Tab selectedTab = getSelectedTab();
+    if (selectedTab == null || resultNode == null) {
+      return;
+    }
+
+    Node content = getTabContent(selectedTab);
+    if (content instanceof SplitPane splitPane) {
+      if (splitPane.getItems().size() < 2) {
+        splitPane.getItems().add(resultNode);
+        splitPane.setDividerPositions(RESULT_PANE_HIDDEN_POSITION);
+
+        Timeline timeline =
+            new Timeline(
+                new KeyFrame(
+                    SPLIT_ANIMATION_DURATION,
+                    new KeyValue(
+                        splitPane.getDividers().get(0).positionProperty(),
+                        RESULT_PANE_VISIBLE_POSITION)));
+        timeline.play();
+      }
+    }
+  }
+
+  /**
+   * Hides the result pane for the currently selected tab with a smooth animation.
+   *
+   * <p>The result pane slides down to the bottom before being removed.
+   */
+  public void hideResultPane() {
+    Tab selectedTab = getSelectedTab();
+    if (selectedTab == null) {
+      return;
+    }
+
+    Node content = getTabContent(selectedTab);
+    if (content instanceof SplitPane splitPane) {
+      if (splitPane.getItems().size() > 1) {
+        Timeline timeline =
+            new Timeline(
+                new KeyFrame(
+                    SPLIT_ANIMATION_DURATION,
+                    new KeyValue(
+                        splitPane.getDividers().get(0).positionProperty(),
+                        RESULT_PANE_HIDDEN_POSITION)));
+        timeline.setOnFinished(
+            e -> {
+              if (splitPane.getItems().size() > 1) {
+                splitPane.getItems().remove(1);
+              }
+            });
+        timeline.play();
+      }
+    }
   }
 
   // ==============================================================================================
