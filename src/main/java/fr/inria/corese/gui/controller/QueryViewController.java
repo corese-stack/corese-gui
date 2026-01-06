@@ -43,8 +43,8 @@ public class QueryViewController {
                 IconButtonType.CLEAR,
                 IconButtonType.UNDO,
                 IconButtonType.REDO));
-    tabEditorController.getView().setMaxWidth(Double.MAX_VALUE);
-    tabEditorController.getView().setMaxHeight(Double.MAX_VALUE);
+    ((javafx.scene.layout.Region) tabEditorController.getView().getRoot()).setMaxWidth(Double.MAX_VALUE);
+    ((javafx.scene.layout.Region) tabEditorController.getView().getRoot()).setMaxHeight(Double.MAX_VALUE);
 
     tabEditorController.setResultControllerFactory(tab -> createResultController());
     tabEditorController.setOnExecutionRequest(this::executeQuery);

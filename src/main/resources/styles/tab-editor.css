@@ -14,17 +14,5 @@
 
 .add-tab-button:pressed {
     -fx-background-color: -color-border-default;
-}
-
-/* Hide the content area of the TabPane since we manage content separately */
-.editor-tab-pane .tab-content-area {
-    -fx-padding: 0;
-    -fx-max-height: 0;
-    -fx-min-height: 0;
-    -fx-pref-height: 0;
-    visibility: hidden;
-}
-
-.editor-tab-pane {
-    -fx-background-color: transparent;
+    -fx-border-color: -color-accent-fg;
 }

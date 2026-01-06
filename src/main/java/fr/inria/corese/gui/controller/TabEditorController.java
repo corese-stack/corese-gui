@@ -237,7 +237,7 @@ public class TabEditorController {
    * @return The root Parent node.
    */
   public javafx.scene.Parent getViewRoot() {
-    return getView();
+    return getView().getRoot();
   }
 
   private void initializeTabPane() {
@@ -255,7 +255,8 @@ public class TabEditorController {
     FileChooser fileChooser = new FileChooser();
     fileChooser.setTitle("Open File");
     File file =
-        fileChooser.showOpenDialog(view.getScene() != null ? view.getScene().getWindow() : null);
+        fileChooser.showOpenDialog(
+            view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null);
     if (file != null) {
       addNewTab(file);
     }
@@ -378,7 +379,7 @@ public class TabEditorController {
   }
 
   private void initializeKeyboardShortcuts() {
-    view.addEventHandler(
+    view.getRoot().addEventHandler(
         KeyEvent.KEY_PRESSED,
         event -> {
           if (new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN).match(event)) {

@@ -1,5 +1,6 @@
 package fr.inria.corese.gui.view;
 
+import fr.inria.corese.gui.view.base.AbstractView;
 import fr.inria.corese.gui.view.utils.TabPaneUtils;
 import fr.inria.corese.gui.view.utils.ThemeManager;
 import java.util.HashMap;
@@ -26,58 +27,130 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
  * <p>The content is managed separately from the TabPane to allow the tab header to have a fixed
  * height while the content fills the remaining space.
  */
-public class TabEditorView extends VBox {
+public class TabEditorView extends AbstractView {
 
-  private static final String STYLESHEET = "/styles/split-editor-view.css";
+  private static final String STYLESHEET = "/styles/tab-editor.css";
 
+  // ==============================================================================================
+  // Fields
+  // ==============================================================================================
+
+  // Tab
   private final TabPane tabPane;
+  private final Map<Tab, Node> tabContentMap = new HashMap<>();
+
+  // Menu button
   private final SplitMenuButton addTabButton;
   private final MenuItem newFileItem;
   private final MenuItem openFileItem;
   private final MenuItem templatesItem;
+
+  // Main container
   private final StackPane contentContainer;
+
+  // Theme
   private final ThemeManager themeManager;
 
-  // Map to store tab content separately (TabPane content area is hidden)
-  private final Map<Tab, Node> tabContentMap = new HashMap<>();
+  // ==============================================================================================
+  // Constructor
+  // ==============================================================================================
 
   public TabEditorView() {
+    super(new VBox(), STYLESHEET);
     this.themeManager = ThemeManager.getInstance();
 
-    // Initialize TabPane (header only - content managed separately)
-    tabPane = createTabPane();
+    // Initialize Components
+    this.tabPane = createConfiguredTabPane();
 
-    // Initialize Add Button
-    addTabButton = createAddTabButton();
-    newFileItem = new MenuItem("New File");
-    openFileItem = new MenuItem("Open File");
-    templatesItem = new MenuItem("Templates");
-    addTabButton.getItems().addAll(newFileItem, openFileItem, templatesItem);
+    this.newFileItem = new MenuItem("New File");
+    this.openFileItem = new MenuItem("Open File");
+    this.templatesItem = new MenuItem("Templates");
+    this.addTabButton = createConfiguredAddButton();
 
-    // Create header bar with tabs and button
+    this.contentContainer = createConfiguredContentContainer();
+
+    // Layout
+    initializeLayout();
+
+    // Listeners
+    setupListeners();
+  }
+
+  // ==============================================================================================
+  // Initialization & Configuration
+  // ==============================================================================================
+
+  /** Creates and configures the TabPane. */
+  private TabPane createConfiguredTabPane() {
+    TabPane pane = new TabPane();
+    pane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
+    TabPaneUtils.enableFullWidth(pane);
+    return pane;
+  }
+
+  /** Creates the add tab button with icon. */
+  private SplitMenuButton createConfiguredAddButton() {
+    SplitMenuButton button = new SplitMenuButton();
+    button.setGraphic(new FontIcon(MaterialDesignP.PLUS));
+    button.getStyleClass().add("add-tab-button");
+    button.getItems().addAll(newFileItem, openFileItem, templatesItem);
+    return button;
+  }
+
+  /** Creates the content container. */
+  private StackPane createConfiguredContentContainer() {
+    return new StackPane();
+  }
+
+  /** Sets up the layout of the view. */
+  private void initializeLayout() {
+    // 1. Create header bar with tabs and button
     HBox tabHeader = createTabHeader();
-    // Ensure header doesn't grow vertically
-    VBox.setVgrow(tabHeader, Priority.NEVER);
 
-    // Content container for tab content and floating elements
-    contentContainer = new StackPane();
+    // 2. Configure content container grow
     VBox.setVgrow(contentContainer, Priority.ALWAYS);
 
-    // Allow the view to shrink if needed
-    setMinHeight(0);
+    // 3. Allow the view to shrink if needed
+    ((VBox) getRoot()).setMinHeight(0);
 
-    getChildren().addAll(tabHeader, contentContainer);
+    // 4. Add all children
+    ((VBox) getRoot()).getChildren().addAll(tabHeader, contentContainer);
+  }
 
-    // Load stylesheet
-    getStylesheets().add(getClass().getResource(STYLESHEET).toExternalForm());
+  /** Creates the header bar containing tabs and add button. */
+  private HBox createTabHeader() {
+    HBox header = new HBox(4);
+    header.setAlignment(Pos.BOTTOM_LEFT);
 
-    // Listen for tab selection changes
+    // Bind button visibility to tabPane visibility
+    addTabButton.visibleProperty().bind(tabPane.visibleProperty());
+    addTabButton.managedProperty().bind(tabPane.managedProperty());
+
+    header.getChildren().addAll(tabPane, addTabButton);
+
+    return header;
+  }
+
+  /** Configures internal event listeners. */
+  private void setupListeners() {
+    // 1. Tab properties listeners
+    setupTabListeners();
+
+    // 2. Theme listener
+    themeManager
+        .accentColorProperty()
+        .addListener((obs, oldColor, newColor) -> refreshModifiedTabIcons());
+  }
+
+  /** Sets up listeners for tab selection and list changes. */
+  private void setupTabListeners() {
+    // Selection listener
     tabPane
         .getSelectionModel()
         .selectedItemProperty()
         .addListener((obs, oldTab, newTab) -> showContentForTab(newTab));
 
-    // Also trigger content update when tabs are added
+    // Tab list listener
     tabPane
         .getTabs()
         .addListener(
@@ -102,51 +175,11 @@ public class TabEditorView extends VBox {
                     showContentForTab(null);
                   }
                 });
-
-    // Listen for accent color changes
-    themeManager
-        .accentColorProperty()
-        .addListener((obs, oldColor, newColor) -> refreshModifiedTabIcons());
   }
 
-  /** Creates and configures the TabPane. */
-  private TabPane createTabPane() {
-    TabPane pane = new TabPane();
-    pane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
-    TabPaneUtils.enableFullWidth(pane);
-    pane.getStyleClass().add("editor-tab-pane");
-    return pane;
-  }
-
-  /** Creates the add tab button with icon. */
-  private SplitMenuButton createAddTabButton() {
-    SplitMenuButton button = new SplitMenuButton();
-
-    FontIcon addIcon = new FontIcon(MaterialDesignP.PLUS);
-    addIcon.setIconSize(18);
-
-    button.setGraphic(addIcon);
-    button.getStyleClass().add("add-tab-button");
-
-    return button;
-  }
-
-  /** Creates the header bar containing tabs and add button. */
-  private HBox createTabHeader() {
-    HBox header = new HBox(4);
-    header.setAlignment(Pos.BOTTOM_LEFT);
-
-    // TabPane takes available horizontal space
-    HBox.setHgrow(tabPane, Priority.ALWAYS);
-
-    // Bind button visibility to tabPane visibility
-    addTabButton.visibleProperty().bind(tabPane.visibleProperty());
-    addTabButton.managedProperty().bind(tabPane.managedProperty());
-
-    header.getChildren().addAll(tabPane, addTabButton);
-
-    return header;
-  }
+  // ==============================================================================================
+  // View Logic
+  // ==============================================================================================
 
   /** Shows the content for the selected tab. */
   private void showContentForTab(Tab selectedTab) {
@@ -330,4 +363,3 @@ public class TabEditorView extends VBox {
     return tabPane.getTabs();
   }
 }
-
