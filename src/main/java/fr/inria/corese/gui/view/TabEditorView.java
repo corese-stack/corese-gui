@@ -75,7 +75,8 @@ public class TabEditorView extends AbstractView {
   private static final String EMPTY_STATE_VIEW_ID = "empty-state-view";
   private static final int TAB_HEADER_SPACING = 4;
   private static final double MODIFIED_CIRCLE_RADIUS = 4.0;
-  private static final javafx.util.Duration SPLIT_ANIMATION_DURATION = javafx.util.Duration.millis(300);
+  private static final javafx.util.Duration SPLIT_ANIMATION_DURATION =
+      javafx.util.Duration.millis(300);
   private static final double RESULT_PANE_VISIBLE_POSITION = 0.6;
   private static final double RESULT_PANE_HIDDEN_POSITION = 1.0;
 
@@ -302,15 +303,6 @@ public class TabEditorView extends AbstractView {
   }
 
   /**
-   * Removes the specified tab.
-   *
-   * @param tab The tab to remove
-   */
-  public void removeTab(Tab tab) {
-    tabPane.getTabs().remove(tab);
-  }
-
-  /**
    * Selects the specified tab.
    *
    * @param tab The tab to select
@@ -418,20 +410,18 @@ public class TabEditorView extends AbstractView {
     }
 
     Node content = getTabContent(selectedTab);
-    if (content instanceof SplitPane splitPane) {
-      if (splitPane.getItems().size() < 2) {
-        splitPane.getItems().add(resultNode);
-        splitPane.setDividerPositions(RESULT_PANE_HIDDEN_POSITION);
+    if (content instanceof SplitPane splitPane && splitPane.getItems().size() < 2) {
+      splitPane.getItems().add(resultNode);
+      splitPane.setDividerPositions(RESULT_PANE_HIDDEN_POSITION);
 
-        Timeline timeline =
-            new Timeline(
-                new KeyFrame(
-                    SPLIT_ANIMATION_DURATION,
-                    new KeyValue(
-                        splitPane.getDividers().get(0).positionProperty(),
-                        RESULT_PANE_VISIBLE_POSITION)));
-        timeline.play();
-      }
+      Timeline timeline =
+          new Timeline(
+              new KeyFrame(
+                  SPLIT_ANIMATION_DURATION,
+                  new KeyValue(
+                      splitPane.getDividers().get(0).positionProperty(),
+                      RESULT_PANE_VISIBLE_POSITION)));
+      timeline.play();
     }
   }
 
@@ -447,23 +437,21 @@ public class TabEditorView extends AbstractView {
     }
 
     Node content = getTabContent(selectedTab);
-    if (content instanceof SplitPane splitPane) {
-      if (splitPane.getItems().size() > 1) {
-        Timeline timeline =
-            new Timeline(
-                new KeyFrame(
-                    SPLIT_ANIMATION_DURATION,
-                    new KeyValue(
-                        splitPane.getDividers().get(0).positionProperty(),
-                        RESULT_PANE_HIDDEN_POSITION)));
-        timeline.setOnFinished(
-            e -> {
-              if (splitPane.getItems().size() > 1) {
-                splitPane.getItems().remove(1);
-              }
-            });
-        timeline.play();
-      }
+    if (content instanceof SplitPane splitPane && splitPane.getItems().size() > 1) {
+      Timeline timeline =
+          new Timeline(
+              new KeyFrame(
+                  SPLIT_ANIMATION_DURATION,
+                  new KeyValue(
+                      splitPane.getDividers().get(0).positionProperty(),
+                      RESULT_PANE_HIDDEN_POSITION)));
+      timeline.setOnFinished(
+          e -> {
+            if (splitPane.getItems().size() > 1) {
+              splitPane.getItems().remove(1);
+            }
+          });
+      timeline.play();
     }
   }
 
@@ -494,15 +482,6 @@ public class TabEditorView extends AbstractView {
    */
   public void clearMenuItems() {
     addTabButton.getItems().clear();
-  }
-
-  /**
-   * Gets the list of menu items in the split button dropdown.
-   *
-   * @return The observable list of menu items
-   */
-  public ObservableList<MenuItem> getMenuItems() {
-    return addTabButton.getItems();
   }
 
   // ==============================================================================================

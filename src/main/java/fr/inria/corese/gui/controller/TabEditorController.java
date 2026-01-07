@@ -63,7 +63,7 @@ public class TabEditorController {
   // Constants
   // ==============================================================================================
 
-  private static final Insets EXECUTION_BUTTON_MARGIN = new Insets(0, 40, 40, 0);
+  private static final Insets EXECUTION_BUTTON_MARGIN = new Insets(0, 60, 40, 0);
 
   // ==============================================================================================
   // Fields
@@ -138,7 +138,7 @@ public class TabEditorController {
   private void handleSaveShortcut() {
     Tab selectedTab = view.getSelectedTab();
     if (selectedTab != null) {
-      CodeEditorController activeController = model.getControllerForTab(selectedTab);
+      CodeEditorController activeController = model.getCodeEditorControllerForTab(selectedTab);
       if (activeController != null) {
         activeController.saveFile();
       }
@@ -265,7 +265,7 @@ public class TabEditorController {
   public Tab addNewTab(File file) {
     // Check if file is already open
     for (Tab tab : view.getTabs()) {
-      CodeEditorController controller = model.getControllerForTab(tab);
+      CodeEditorController controller = model.getCodeEditorControllerForTab(tab);
       if (controller != null
           && file.getAbsolutePath().equals(getFilePathForTab(tab))) {
         view.selectTab(tab);
@@ -293,7 +293,7 @@ public class TabEditorController {
       return false;
     }
 
-    CodeEditorController controller = model.getControllerForTab(tab);
+    CodeEditorController controller = model.getCodeEditorControllerForTab(tab);
     if (controller == null || !controller.getModel().isModified()) {
       closeTab(tab);
       return true;
@@ -425,7 +425,7 @@ public class TabEditorController {
       }
     });
 
-    CodeEditorController controller = model.getControllerForTab(tab);
+    CodeEditorController controller = model.getCodeEditorControllerForTab(tab);
     if (controller != null) {
       BooleanBinding isEmpty =
           Bindings.createBooleanBinding(
@@ -563,15 +563,6 @@ public class TabEditorController {
   }
 
   /**
-   * Returns the list of configured toolbar buttons.
-   *
-   * @return The list of IconButtonType
-   */
-  public List<IconButtonType> getButtons() {
-    return buttons;
-  }
-
-  /**
    * Returns the currently selected tab.
    *
    * @return The selected Tab, or null if none is selected
@@ -618,7 +609,7 @@ public class TabEditorController {
    * @return The CodeEditorController, or null if not found
    */
   public CodeEditorController getControllerForTab(Tab tab) {
-    return model.getControllerForTab(tab);
+    return model.getCodeEditorControllerForTab(tab);
   }
 
   /**
@@ -628,7 +619,7 @@ public class TabEditorController {
    * @return The text content, or null if the tab is not valid
    */
   public String getEditorContent(Tab tab) {
-    CodeEditorController controller = model.getControllerForTab(tab);
+    CodeEditorController controller = model.getCodeEditorControllerForTab(tab);
     if (controller != null) {
       return controller.getView().getText();
     }
@@ -642,7 +633,7 @@ public class TabEditorController {
    * @return The file path, or null if the tab has no associated file
    */
   public String getFilePathForTab(Tab tab) {
-    CodeEditorController controller = model.getControllerForTab(tab);
+    CodeEditorController controller = model.getCodeEditorControllerForTab(tab);
     if (controller != null) {
       return controller.getModel().getFilePath();
     }
