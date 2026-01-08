@@ -75,28 +75,33 @@ public class ValidationController {
 
   /** Initializes the generic tab editor with specific toolbar buttons. */
   private void configureEditor() {
-    tabEditorController = new TabEditorController(view.getEditorToolbarButtons());
+    tabEditorController = new TabEditorController();
 
-    // Factory for creating result views when a tab is created
-    tabEditorController.setResultControllerFactory(tab -> createResultController());
+    // Configure editor toolbar
+    tabEditorController.configureEditor(view.getEditorToolbarButtons());
 
-    // Bind the execution action (Run Validation)
-    tabEditorController.setOnExecutionRequest(this::executeValidation);
+    // Configure execution: floating button + Ctrl+Enter shortcut
+    tabEditorController.configureExecution(
+        view.getRunValidationLabel(), 
+        this::executeValidation
+    );
 
-    // Add the specific "Run Validation" floating button
-    tabEditorController.addExecutionButton(view.getRunValidationLabel());
+    // Configure result view with split pane
+    tabEditorController.configureResultView(tab -> createResultController());
+    
+    // Configure menu items for Validation context
+    tabEditorController.configureMenuItems(
+        new TabEditorController.MenuItem("New File", this::onNewFileButtonClick),
+        new TabEditorController.MenuItem("Open File", this::onOpenFilesButtonClick)
+    );
   }
 
   /** Configures the empty state view to be displayed when no tabs are open. */
   private void configureEmptyState() {
-    // Define the "Empty State" view (what is shown when no tabs are open)
-    // The View is responsible for the UI creation (Icon, Text, Buttons)
-    // The Controller provides the behavior (Actions)
     Node emptyState =
         view.createEmptyState(this::onNewFileButtonClick, this::onOpenFilesButtonClick);
 
-    // Pass the created node to the generic editor controller
-    tabEditorController.setEmptyState(emptyState);
+    tabEditorController.configureEmptyState(emptyState);
   }
 
   /** Integrates the editor into the main view and sets up listeners. */

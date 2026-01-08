@@ -282,6 +282,16 @@ public class TabEditorView extends AbstractView {
         .forEach(tab -> ((Circle) tab.getGraphic()).setFill(accentColor));
   }
 
+  /**
+   * Gets the content node associated with the given tab.
+   *
+   * @param tab The tab
+   * @return The content node, or null if not found
+   */
+  private Node getTabContent(Tab tab) {
+    return tabContentMap.get(tab);
+  }
+
   // ==============================================================================================
   // Public API - Tab Management
   // ==============================================================================================
@@ -339,16 +349,6 @@ public class TabEditorView extends AbstractView {
    */
   public ObservableList<Tab> getTabs() {
     return tabPane.getTabs();
-  }
-
-  /**
-   * Gets the content node associated with the given tab.
-   *
-   * @param tab The tab
-   * @return The content node, or null if not found
-   */
-  public Node getTabContent(Tab tab) {
-    return tabContentMap.get(tab);
   }
 
   // ==============================================================================================

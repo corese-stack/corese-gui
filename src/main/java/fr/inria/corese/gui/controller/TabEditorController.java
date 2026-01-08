@@ -30,7 +30,6 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
-import javafx.stage.FileChooser;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 
 /**
@@ -44,78 +43,120 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
  *   <li>Floating execution buttons per tab
  *   <li>Keyboard shortcuts (Ctrl+S, Ctrl+Enter)
  *   <li>Empty state management
- *   <li>File operations (open, save)
  * </ul>
  *
- * <p>Usage example:
+ * <p><b>Usage example:</b>
  *
  * <pre>{@code
- * TabEditorController controller = new TabEditorController(buttons);
- * controller.setResultControllerFactory(tab -> new ResultController());
- * controller.setOnExecutionRequest(() -> executeQuery());
- * controller.configureMenuItems();
- * controller.addTemplatesMenuItem(); // Optional, for Query context
+ * // 1. Create controller
+ * TabEditorController controller = new TabEditorController();
+ *
+ * // 2. Configure editor toolbar buttons
+ * controller.configureEditor(
+ *     List.of(IconButtonType.SAVE, IconButtonType.CLEAR, IconButtonType.UNDO, IconButtonType.REDO)
+ * );
+ *
+ * // 3. Configure execution (Run button + action) - Optional
+ * controller.configureExecution("Run Query (Ctrl+Enter)", this::executeQuery);
+ *
+ * // 4. Configure result view - Optional
+ * controller.configureResultView(() -> new ResultController());
+ *
+ * // 5. Configure empty state - Optional
+ * controller.configureEmptyState(emptyStateNode);
+ *
+ * // 6. Configure menu items - Optional
+ * controller.configureMenuItems(
+ *     new MenuItem("New File", () -> controller.addNewTab("Untitled", "")),
+ *     new MenuItem("Open File", this::openFile)
+ * );
+ *
+ * // 7. Get the view to integrate
+ * Parent view = controller.getViewRoot();
  * }</pre>
+ *
+ * <p><b>Configuration details:</b>
+ *
+ * <ul>
+ *   <li><b>Editor toolbar:</b> Buttons displayed in each tab's code editor (e.g., Save, Clear,
+ *       Undo, Redo)
+ *   <li><b>Execution:</b> Floating "Play" button at bottom-right + Ctrl+Enter shortcut
+ *   <li><b>Result view:</b> Splits each tab vertically with editor on top and result view on bottom
+ *   <li><b>Empty state:</b> Custom view shown when no tabs are open
+ *   <li><b>Menu items:</b> Dropdown menu on the "+" button to add new tabs
+ * </ul>
  */
 public class TabEditorController {
 
-  // ==============================================================================================
+  // ===============================================================================
   // Constants
-  // ==============================================================================================
+  // ===============================================================================
 
   private static final Insets EXECUTION_BUTTON_MARGIN = new Insets(0, 60, 40, 0);
+  private static final String DIALOG_TITLE_UNSAVED_CHANGES = "Unsaved Changes";
+  private static final String DIALOG_BUTTON_SAVE = "Save";
+  private static final String DIALOG_BUTTON_DONT_SAVE = "Don't Save";
+  private static final String DIALOG_BUTTON_CANCEL = "Cancel";
+  private static final String ERROR_FILE_READ = "Could not read file: ";
+  private static final String DEFAULT_TAB_TITLE = "Untitled";
 
-  // ==============================================================================================
+  // ===============================================================================
   // Fields
-  // ==============================================================================================
+  // ===============================================================================
 
   private final TabEditorView view;
   private final TabEditorModel model;
-  private final List<IconButtonType> buttons;
   private final Map<Tab, FloatingButton> tabExecutionButtons;
+
+  private List<IconButtonType> editorToolbarButtons;
 
   private Runnable onExecutionRequest;
   private Node emptyStateNode;
   private Function<Tab, ResultController> resultControllerFactory;
   private String executionButtonTooltip;
 
-  // ==============================================================================================
+  // ===============================================================================
   // Constructor
-  // ==============================================================================================
+  // ===============================================================================
 
   /**
    * Constructs a new TabEditorController.
    *
-   * @param buttons The list of icon buttons to display in the code editor toolbar
+   * <p>After construction, use the {@code configure*()} methods to set up the controller:
+   *
+   * <ul>
+   *   <li>{@link #configureEditor(List)} - Configure editor toolbar buttons
+   *   <li>{@link #configureExecution(String, Runnable)} - Configure execution button and action
+   *   <li>{@link #configureResultView(Function)} - Configure result view
+   *   <li>{@link #configureEmptyState(Node)} - Configure empty state
+   *   <li>{@link #configureMenuItems(MenuItem...)} - Configure menu items
+   * </ul>
    */
-  public TabEditorController(List<IconButtonType> buttons) {
+  public TabEditorController() {
     this.view = new TabEditorView();
     this.model = new TabEditorModel();
-    this.buttons = buttons;
     this.tabExecutionButtons = new HashMap<>();
 
     initializeTabPane();
     initializeKeyboardShortcuts();
   }
 
-  // ==============================================================================================
+  // ===============================================================================
   // Initialization Methods
-  // ==============================================================================================
+  // ===============================================================================
 
-  /**
-   * Initializes the tab pane with listeners and default menu configuration.
-   */
+  /** Initializes the tab pane with listeners. */
   private void initializeTabPane() {
     view.addTabListener(
         (ListChangeListener<Tab>) c -> Platform.runLater(this::updateEmptyStateVisibility));
 
-    view.setOnAddTabAction(e -> addNewTab("Untitled", ""));
-    configureMenuItems();
+    view.setOnAddTabAction(e -> addNewTab(DEFAULT_TAB_TITLE, ""));
+    
+    // Configure default menu items (can be overridden with configureMenuItems)
+    configureMenuItems(new MenuItem("New File", () -> addNewTab(DEFAULT_TAB_TITLE, "")));
   }
 
-  /**
-   * Initializes keyboard shortcuts for the editor.
-   */
+  /** Initializes keyboard shortcuts for the editor. */
   private void initializeKeyboardShortcuts() {
     view.getRoot().addEventHandler(KeyEvent.KEY_PRESSED, this::handleKeyboardShortcut);
   }
@@ -132,9 +173,7 @@ public class TabEditorController {
     }
   }
 
-  /**
-   * Handles the Ctrl+S save shortcut.
-   */
+  /** Handles the Ctrl+S save shortcut. */
   private void handleSaveShortcut() {
     Tab selectedTab = view.getSelectedTab();
     if (selectedTab != null) {
@@ -145,105 +184,129 @@ public class TabEditorController {
     }
   }
 
-  // ==============================================================================================
+  // ===============================================================================
   // Configuration Methods
-  // ==============================================================================================
+  // ===============================================================================
 
   /**
-   * Configures the menu items for the add tab button.
+   * Configures the code editor toolbar buttons for each tab.
    *
-   * <p>This method should be called by subclasses or external configurators to set up
-   * context-specific menu items (e.g., Query editor has "Templates", Validate editor doesn't).
+   * <p>These buttons are displayed in the toolbar of each tab's code editor (e.g., Save, Clear,
+   * Undo, Redo). They are distinct from the floating execution button and result view.
+   *
+   * <p><b>Usage:</b>
+   *
+   * <pre>{@code
+   * controller.configureEditor(
+   *     List.of(IconButtonType.SAVE, IconButtonType.CLEAR, IconButtonType.UNDO, IconButtonType.REDO)
+   * );
+   * }</pre>
+   *
+   * @param toolbarButtons The list of icon buttons to display in each tab's code editor toolbar
    */
-  public void configureMenuItems() {
-    view.addMenuItem("New File", e -> addNewTab("Untitled", ""));
-    view.addMenuItem("Open File", e -> openFile());
+  public void configureEditor(List<IconButtonType> toolbarButtons) {
+    this.editorToolbarButtons = toolbarButtons;
   }
 
   /**
-   * Adds a "Templates" menu item to the add tab button.
+   * Configures the execution system: adds a floating "Run" button and binds the Ctrl+Enter
+   * shortcut.
    *
-   * <p>This can be called by contexts that support templates (e.g., Query editor).
+   * <p>This is a convenience method that combines:
+   *
+   * <ul>
+   *   <li>Adding a floating "Play" button at the bottom-right of each tab
+   *   <li>Binding the execution action to Ctrl+Enter keyboard shortcut
+   *   <li>Auto-disabling the button when editor is empty or execution is in progress
+   * </ul>
+   *
+   * <p><b>Usage:</b>
+   *
+   * <pre>{@code
+   * controller.configureExecution("Run Query (Ctrl+Enter)", this::executeQuery);
+   * }</pre>
+   *
+   * @param buttonTooltip The tooltip text for the floating execution button
+   * @param executionAction The action to execute when button is clicked or Ctrl+Enter is pressed
    */
-  public void addTemplatesMenuItem() {
-    view.addMenuItem("Templates", e -> openTemplates());
+  public void configureExecution(String buttonTooltip, Runnable executionAction) {
+    this.executionButtonTooltip = buttonTooltip;
+    this.onExecutionRequest = executionAction;
   }
 
   /**
-   * Clears all menu items from the add tab button.
+   * Configures the result view for each tab.
    *
-   * <p>Useful for reconfiguring menus dynamically based on context.
+   * <p>When configured, each tab will be split vertically with:
+   *
+   * <ul>
+   *   <li>Code editor on top
+   *   <li>Result view on bottom (animated slide up/down)
+   * </ul>
+   *
+   * <p><b>Usage:</b>
+   *
+   * <pre>{@code
+   * controller.configureResultView(() -> new ResultController());
+   * }</pre>
+   *
+   * @param resultControllerFactory Factory function to create a ResultController for each tab
    */
-  public void clearMenuItems() {
-    view.clearMenuItems();
+  public void configureResultView(Function<Tab, ResultController> resultControllerFactory) {
+    this.resultControllerFactory = resultControllerFactory;
   }
 
   /**
-   * Adds a custom menu item to the add tab button.
+   * Configures the empty state view displayed when no tabs are open.
    *
-   * @param text The menu item text
-   * @param action The action to execute when clicked
-   */
-  public void addMenuItem(String text, Runnable action) {
-    view.addMenuItem(text, e -> action.run());
-  }
-
-  /**
-   * Sets the action to be executed when the user triggers the execution command (e.g., pressing
-   * Ctrl+Enter in the editor).
+   * <p>The empty state is automatically shown/hidden based on tab count.
    *
-   * @param action The action to execute
+   * @param emptyStateNode The node to display when no tabs are open
    */
-  public void setOnExecutionRequest(Runnable action) {
-    this.onExecutionRequest = action;
-  }
-
-  /**
-   * Sets the factory to create a ResultController for each new tab. If set, each tab will contain
-   * a SplitPane with the editor and the result view.
-   *
-   * @param factory The factory function that creates a ResultController for a given tab
-   */
-  public void setResultControllerFactory(Function<Tab, ResultController> factory) {
-    this.resultControllerFactory = factory;
-  }
-
-  /**
-   * Sets the empty state view to display when no tabs are open. Automatically manages the
-   * visibility of the tab pane and the empty state.
-   *
-   * @param emptyStateNode The node to display in empty state
-   */
-  public void setEmptyState(Node emptyStateNode) {
+  public void configureEmptyState(Node emptyStateNode) {
     this.emptyStateNode = emptyStateNode;
     view.setEmptyStateView(emptyStateNode);
     updateEmptyStateVisibility();
   }
 
   /**
-   * Adds a standard "Run/Execute" floating button to the editor. The button is automatically bound
-   * to the execution request action and enabled/disabled based on the tab selection.
+   * Configures the menu items for the "+" (add tab) button.
    *
-   * @param tooltipText The text to display in the tooltip
+   * <p>This replaces any existing menu items. Each menu item should specify its text and action.
+   *
+   * <p><b>Usage:</b>
+   *
+   * <pre>{@code
+   * controller.configureMenuItems(
+   *     new MenuItem("New File", () -> controller.addNewTab("Untitled", "")),
+   *     new MenuItem("Open File", this::openFile),
+   *     new MenuItem("Templates", this::showTemplates)
+   * );
+   * }</pre>
+   *
+   * @param items The menu items to display (text + action pairs)
    */
-  public void addExecutionButton(String tooltipText) {
-    this.executionButtonTooltip = tooltipText;
+  public void configureMenuItems(MenuItem... items) {
+    view.clearMenuItems();
+    for (MenuItem item : items) {
+      view.addMenuItem(item.text, e -> item.action.run());
+    }
   }
 
-  /**
-   * Adds a floating action node (e.g., a button) to the editor view.
-   *
-   * @param node The node to add
-   * @param position The position alignment within the container
-   * @param margin The margin around the node
-   */
-  public void addFloatingNode(Node node, Pos position, Insets margin) {
-    view.addFloatingNode(node, position, margin);
+  /** Simple data class for menu item configuration. */
+  public static class MenuItem {
+    private final String text;
+    private final Runnable action;
+
+    public MenuItem(String text, Runnable action) {
+      this.text = text;
+      this.action = action;
+    }
   }
 
-  // ==============================================================================================
+  // ===============================================================================
   // Tab Management
-  // ==============================================================================================
+  // ===============================================================================
 
   /**
    * Creates and adds a new tab with the specified title and content.
@@ -264,10 +327,10 @@ public class TabEditorController {
    */
   public Tab addNewTab(File file) {
     // Check if file is already open
+    String absolutePath = file.getAbsolutePath();
     for (Tab tab : view.getTabs()) {
       CodeEditorController controller = model.getEditorControllerForTab(tab);
-      if (controller != null
-          && file.getAbsolutePath().equals(getFilePathForTab(tab))) {
+      if (controller != null && absolutePath.equals(controller.getModel().getFilePath())) {
         view.selectTab(tab);
         return tab;
       }
@@ -277,7 +340,7 @@ public class TabEditorController {
       String content = Files.readString(file.toPath());
       return addNewTabHelper(file.getName(), content, file.getPath());
     } catch (IOException e) {
-      showError("Could not read file: " + e.getMessage());
+      showError(ERROR_FILE_READ + e.getMessage());
       return null;
     }
   }
@@ -300,12 +363,12 @@ public class TabEditorController {
     }
 
     Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-    alert.setTitle("Unsaved Changes");
+    alert.setTitle(DIALOG_TITLE_UNSAVED_CHANGES);
     alert.setHeaderText("Save changes to " + controller.getModel().getDisplayName() + "?");
 
-    ButtonType save = new ButtonType("Save");
-    ButtonType dontSave = new ButtonType("Don't Save");
-    ButtonType cancel = new ButtonType("Cancel");
+    ButtonType save = new ButtonType(DIALOG_BUTTON_SAVE);
+    ButtonType dontSave = new ButtonType(DIALOG_BUTTON_DONT_SAVE);
+    ButtonType cancel = new ButtonType(DIALOG_BUTTON_CANCEL);
     alert.getButtonTypes().setAll(save, dontSave, cancel);
 
     Optional<ButtonType> result = alert.showAndWait();
@@ -344,7 +407,8 @@ public class TabEditorController {
    * @return The created Tab instance
    */
   private Tab addNewTabHelper(String title, String content, String filePath) {
-    CodeEditorController codeEditorController = new CodeEditorController(buttons, content);
+    CodeEditorController codeEditorController =
+        new CodeEditorController(editorToolbarButtons, content);
 
     StackPane editorWrapper = new StackPane(codeEditorController.getView());
     Node tabContent = editorWrapper;
@@ -386,19 +450,23 @@ public class TabEditorController {
     view.updateTabIcon(tab, codeEditorController.getModel().isModified());
 
     // Set up close handler
-    tab.setOnCloseRequest(event -> {
-      event.consume();
-      handleCloseFile(tab);
-    });
+    tab.setOnCloseRequest(
+        event -> {
+          event.consume();
+          handleCloseFile(tab);
+        });
 
     // Bind execution shortcut (Ctrl+Enter)
-    codeEditorController.getView().setOnKeyPressed(event -> {
-      if (new KeyCodeCombination(KeyCode.ENTER, KeyCombination.CONTROL_DOWN).match(event)
-          && onExecutionRequest != null) {
-        onExecutionRequest.run();
-        event.consume();
-      }
-    });
+    codeEditorController
+        .getView()
+        .setOnKeyPressed(
+            event -> {
+              if (new KeyCodeCombination(KeyCode.ENTER, KeyCombination.CONTROL_DOWN).match(event)
+                  && onExecutionRequest != null) {
+                onExecutionRequest.run();
+                event.consume();
+              }
+            });
 
     view.addNewEditorTab(tab);
 
@@ -419,11 +487,12 @@ public class TabEditorController {
   private FloatingButton createExecutionButton(Tab tab) {
     FloatingButton runButton = new FloatingButton(MaterialDesignP.PLAY, executionButtonTooltip);
 
-    runButton.setOnAction(e -> {
-      if (onExecutionRequest != null) {
-        onExecutionRequest.run();
-      }
-    });
+    runButton.setOnAction(
+        e -> {
+          if (onExecutionRequest != null) {
+            onExecutionRequest.run();
+          }
+        });
 
     CodeEditorController controller = model.getEditorControllerForTab(tab);
     if (controller != null) {
@@ -440,38 +509,9 @@ public class TabEditorController {
     return runButton;
   }
 
-  // ==============================================================================================
-  // File Operations
-  // ==============================================================================================
-
-  /**
-   * Opens a file chooser dialog to select and open a file.
-   */
-  private void openFile() {
-    FileChooser fileChooser = new FileChooser();
-    fileChooser.setTitle("Open File");
-    File file =
-        fileChooser.showOpenDialog(
-            view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null);
-    if (file != null) {
-      addNewTab(file);
-    }
-  }
-
-  /**
-   * Shows a placeholder dialog for the templates feature.
-   */
-  private void openTemplates() {
-    Alert alert = new Alert(Alert.AlertType.INFORMATION);
-    alert.setTitle("Templates");
-    alert.setHeaderText("Templates not implemented yet");
-    alert.setContentText("This feature will be available soon.");
-    alert.showAndWait();
-  }
-
-  // ==============================================================================================
+  // ===============================================================================
   // Result Pane Management
-  // ==============================================================================================
+  // ===============================================================================
 
   /**
    * Shows the result pane for the current tab with an animation.
@@ -497,14 +537,16 @@ public class TabEditorController {
     view.hideResultPane();
   }
 
-  // ==============================================================================================
-  // Execution State Management
-  // ==============================================================================================
+  // ===============================================================================
+  // Execution Control
+  // ===============================================================================
 
   /**
    * Sets the execution state for the current tab.
    *
-   * @param loading true if execution is in progress, false otherwise
+   * <p>This controls the loading state of the floating execution button.
+   *
+   * @param loading true if execution is in progress (shows spinner), false otherwise
    */
   public void setExecutionState(boolean loading) {
     Tab selectedTab = view.getSelectedTab();
@@ -516,13 +558,11 @@ public class TabEditorController {
     }
   }
 
-  // ==============================================================================================
+  // ===============================================================================
   // Empty State Management
-  // ==============================================================================================
+  // ===============================================================================
 
-  /**
-   * Updates the visibility of the empty state view based on the number of open tabs.
-   */
+  /** Updates the visibility of the empty state view based on the number of open tabs. */
   private void updateEmptyStateVisibility() {
     if (emptyStateNode == null) {
       return;
@@ -534,9 +574,9 @@ public class TabEditorController {
     view.setTabsVisible(!noTabsOpen);
   }
 
-  // ==============================================================================================
+  // ===============================================================================
   // Utility Methods
-  // ==============================================================================================
+  // ===============================================================================
 
   /**
    * Shows an error dialog with the specified message.
@@ -547,9 +587,9 @@ public class TabEditorController {
     Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, content).showAndWait());
   }
 
-  // ==============================================================================================
-  // Public Getters
-  // ==============================================================================================
+  // ===============================================================================
+  // Public API - View Access
+  // ===============================================================================
 
   /**
    * Returns the root node of the view for integration into parent layouts.
@@ -562,6 +602,10 @@ public class TabEditorController {
     return view.getRoot();
   }
 
+  // ===============================================================================
+  // Public API - Tab Access
+  // ===============================================================================
+
   /**
    * Returns the currently selected tab.
    *
@@ -573,9 +617,6 @@ public class TabEditorController {
 
   /**
    * Returns the list of all tabs.
-   *
-   * <p>Note: This returns the observable list for monitoring, but modifications should go through
-   * controller methods.
    *
    * @return The observable list of tabs
    */
@@ -592,14 +633,17 @@ public class TabEditorController {
     view.selectTab(tab);
   }
 
+  // ===============================================================================
+  // Public API - Controller Access
+  // ===============================================================================
+
   /**
    * Returns the ResultController for the currently selected tab.
    *
    * @return The ResultController, or null if none exists
    */
   public ResultController getCurrentResultController() {
-    Tab selectedTab = view.getSelectedTab();
-    return model.getResultControllerForTab(selectedTab);
+    return model.getResultControllerForTab(view.getSelectedTab());
   }
 
   /**
@@ -620,10 +664,7 @@ public class TabEditorController {
    */
   public String getEditorContent(Tab tab) {
     CodeEditorController controller = model.getEditorControllerForTab(tab);
-    if (controller != null) {
-      return controller.getView().getText();
-    }
-    return null;
+    return controller != null ? controller.getView().getText() : null;
   }
 
   /**
@@ -634,11 +675,12 @@ public class TabEditorController {
    */
   public String getFilePathForTab(Tab tab) {
     CodeEditorController controller = model.getEditorControllerForTab(tab);
-    if (controller != null) {
-      return controller.getModel().getFilePath();
-    }
-    return null;
+    return controller != null ? controller.getModel().getFilePath() : null;
   }
+
+  // ===============================================================================
+  // Public API - Event Listeners
+  // ===============================================================================
 
   /**
    * Adds a listener to the list of tabs.

@@ -36,26 +36,31 @@ public class QueryViewController {
   }
 
   private void initializeEditor() {
-    tabEditorController =
-        new TabEditorController(
-            List.of(
-                IconButtonType.SAVE,
-                IconButtonType.CLEAR,
-                IconButtonType.UNDO,
-                IconButtonType.REDO));
+    tabEditorController = new TabEditorController();
+    
+    // Configure editor toolbar
+    tabEditorController.configureEditor(
+        List.of(
+            IconButtonType.SAVE,
+            IconButtonType.CLEAR,
+            IconButtonType.UNDO,
+            IconButtonType.REDO));
+    
     ((javafx.scene.layout.Region) tabEditorController.getViewRoot()).setMaxWidth(Double.MAX_VALUE);
     ((javafx.scene.layout.Region) tabEditorController.getViewRoot()).setMaxHeight(Double.MAX_VALUE);
 
-    tabEditorController.setResultControllerFactory(tab -> createResultController());
-    tabEditorController.setOnExecutionRequest(this::executeQuery);
+    // Configure execution: floating button + Ctrl+Enter shortcut
+    tabEditorController.configureExecution("Run Query (Ctrl+Enter)", this::executeQuery);
+
+    // Configure result view with split pane
+    tabEditorController.configureResultView(tab -> createResultController());
 
     view.setMainContent(tabEditorController.getViewRoot());
 
-    tabEditorController.addExecutionButton("Run Query (Ctrl+Enter)");
     setupTabListeners();
     setupKeyboardShortcuts();
     
-    // Create empty state via View
+    // Configure empty state
     Node emptyState = view.createEmptyState(
         () -> tabEditorController.addNewTab("untitled", ""),
         this::onOpenFilesButtonClick,
@@ -64,17 +69,20 @@ public class QueryViewController {
              TemplatePopup.show(stage, query -> tabEditorController.addNewTab("untitled", query));
         }
     );
-    tabEditorController.setEmptyState(emptyState);
+    tabEditorController.configureEmptyState(emptyState);
 
-    // Configure TabEditor Menu Actions - Query context needs Templates
-    tabEditorController.clearMenuItems();
-    tabEditorController.addMenuItem("New File", () -> tabEditorController.addNewTab("untitled", ""));
-    tabEditorController.addMenuItem("Open File", this::onOpenFilesButtonClick);
-    tabEditorController.addMenuItem("Templates",
-        () -> {
-          Stage stage = (Stage) view.getRoot().getScene().getWindow();
-          TemplatePopup.show(stage, query -> tabEditorController.addNewTab("untitled", query));
-        });
+    // Configure add tab menu with Query-specific items
+    tabEditorController.configureMenuItems(
+        new TabEditorController.MenuItem("New File", 
+            () -> tabEditorController.addNewTab("untitled", "")),
+        new TabEditorController.MenuItem("Open File", 
+            this::onOpenFilesButtonClick),
+        new TabEditorController.MenuItem("Templates",
+            () -> {
+              Stage stage = (Stage) view.getRoot().getScene().getWindow();
+              TemplatePopup.show(stage, query -> tabEditorController.addNewTab("untitled", query));
+            })
+    );
   }
 
   private ResultController createResultController() {
