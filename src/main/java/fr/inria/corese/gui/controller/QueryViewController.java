@@ -1,9 +1,9 @@
 package fr.inria.corese.gui.controller;
 
+import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.factory.popup.TemplatePopup;
 import fr.inria.corese.gui.manager.QueryManager;
-import fr.inria.corese.gui.view.EmptyStateViewFactory;
 import fr.inria.corese.gui.view.QueryView;
 import java.io.File;
 import java.util.List;
@@ -37,20 +37,21 @@ public class QueryViewController {
 
   private void initializeEditor() {
     tabEditorController = new TabEditorController();
-    
+
     // Configure editor toolbar
     tabEditorController.configureEditor(
         List.of(
-            IconButtonType.SAVE,
-            IconButtonType.CLEAR,
-            IconButtonType.UNDO,
-            IconButtonType.REDO));
-    
+            new ButtonConfig(IconButtonType.SAVE, "Save File", "Ctrl+S"),
+            new ButtonConfig(IconButtonType.CLEAR, "Clear Content"),
+            new ButtonConfig(IconButtonType.UNDO, "Undo", "Ctrl+Z"),
+            new ButtonConfig(IconButtonType.REDO, "Redo", "Ctrl+Y")));
+
     ((javafx.scene.layout.Region) tabEditorController.getViewRoot()).setMaxWidth(Double.MAX_VALUE);
     ((javafx.scene.layout.Region) tabEditorController.getViewRoot()).setMaxHeight(Double.MAX_VALUE);
 
     // Configure execution: floating button + Ctrl+Enter shortcut
-    tabEditorController.configureExecution("Run Query (Ctrl+Enter)", this::executeQuery);
+    tabEditorController.configureExecution(
+        new ButtonConfig(IconButtonType.PLAY, "Run Query", "Ctrl+Enter"), this::executeQuery);
 
     // Configure result view with split pane
     tabEditorController.configureResultView(tab -> createResultController());
@@ -59,35 +60,35 @@ public class QueryViewController {
 
     setupTabListeners();
     setupKeyboardShortcuts();
-    
+
     // Configure empty state
-    Node emptyState = view.createEmptyState(
-        () -> tabEditorController.addNewTab("untitled", ""),
-        this::onOpenFilesButtonClick,
-        () -> {
-             Stage stage = (Stage) view.getRoot().getScene().getWindow();
-             TemplatePopup.show(stage, query -> tabEditorController.addNewTab("untitled", query));
-        }
-    );
+    Node emptyState =
+        view.createEmptyState(
+            () -> tabEditorController.addNewTab("untitled", ""),
+            this::onOpenFilesButtonClick,
+            () -> {
+              Stage stage = (Stage) view.getRoot().getScene().getWindow();
+              TemplatePopup.show(stage, query -> tabEditorController.addNewTab("untitled", query));
+            });
     tabEditorController.configureEmptyState(emptyState);
 
     // Configure add tab menu with Query-specific items
     tabEditorController.configureMenuItems(
-        new TabEditorController.MenuItem("New File", 
-            () -> tabEditorController.addNewTab("untitled", "")),
-        new TabEditorController.MenuItem("Open File", 
-            this::onOpenFilesButtonClick),
-        new TabEditorController.MenuItem("Templates",
+        new TabEditorController.MenuItem(
+            "New File", () -> tabEditorController.addNewTab("untitled", "")),
+        new TabEditorController.MenuItem("Open File", this::onOpenFilesButtonClick),
+        new TabEditorController.MenuItem(
+            "Templates",
             () -> {
               Stage stage = (Stage) view.getRoot().getScene().getWindow();
               TemplatePopup.show(stage, query -> tabEditorController.addNewTab("untitled", query));
-            })
-    );
+            }));
   }
 
   private ResultController createResultController() {
-    ResultController controller = new ResultController(List.of(IconButtonType.COPY, IconButtonType.EXPORT));
-    
+    ResultController controller =
+        new ResultController(List.of(IconButtonType.COPY, IconButtonType.EXPORT));
+
     // Configure tabs for Query View: Remove Visual, Add Table and Graph
     TabPane resultTabs = controller.getView().getTabPane();
     resultTabs.getTabs().remove(controller.getView().getVisualTab());
@@ -98,13 +99,14 @@ public class QueryViewController {
       resultTabs.getTabs().add(controller.getView().getGraphTab());
     }
 
-    controller.setOnFormatChanged(newVal -> {
-        Tab selectedQueryTab = tabEditorController.getSelectedTab();
-        if (selectedQueryTab != null) {
-             // Re-display logic if needed
-        }
-    });
-    
+    controller.setOnFormatChanged(
+        newVal -> {
+          Tab selectedQueryTab = tabEditorController.getSelectedTab();
+          if (selectedQueryTab != null) {
+            // Re-display logic if needed
+          }
+        });
+
     return controller;
   }
 
@@ -113,21 +115,21 @@ public class QueryViewController {
         (obs, oldTab, newTab) -> updateResultsForSelectedQueryTab(newTab));
 
     tabEditorController.addTabListener(
-            (ListChangeListener<Tab>)
-                c -> {
-                  while (c.next()) {
-                    if (c.wasRemoved()) {
-                      for (Tab removedTab : c.getRemoved()) {
-                        stateManager.clearCacheForTab(removedTab.hashCode());
-                      }
-                    }
-                    if (c.wasAdded()) {
-                      for (Tab tab : c.getAddedSubList()) {
-                        Platform.runLater(() -> configureTab(tab));
-                      }
-                    }
+        (ListChangeListener<Tab>)
+            c -> {
+              while (c.next()) {
+                if (c.wasRemoved()) {
+                  for (Tab removedTab : c.getRemoved()) {
+                    stateManager.clearCacheForTab(removedTab.hashCode());
                   }
-                });
+                }
+                if (c.wasAdded()) {
+                  for (Tab tab : c.getAddedSubList()) {
+                    Platform.runLater(() -> configureTab(tab));
+                  }
+                }
+              }
+            });
   }
 
   private void configureTab(Tab tab) {
@@ -150,7 +152,7 @@ public class QueryViewController {
     if (selectedQueryTab == null) {
       return;
     }
-    
+
     ResultController resultController = tabEditorController.getCurrentResultController();
     if (resultController == null) return;
 
@@ -198,7 +200,7 @@ public class QueryViewController {
     if (selectedTab == null) {
       return;
     }
-    
+
     ResultController resultController = tabEditorController.getCurrentResultController();
     if (resultController == null) return;
 
@@ -232,10 +234,11 @@ public class QueryViewController {
                     });
 
               } catch (Exception e) {
-                Platform.runLater(() -> {
-                    tabEditorController.setExecutionState(false);
-                    showError("Query Execution Error", e.getMessage());
-                });
+                Platform.runLater(
+                    () -> {
+                      tabEditorController.setExecutionState(false);
+                      showError("Query Execution Error", e.getMessage());
+                    });
                 e.printStackTrace();
               }
             })
@@ -310,8 +313,7 @@ public class QueryViewController {
   public void openQueryFile(File file) {
     for (Tab tab : tabEditorController.getTabs()) {
       String filePath = tabEditorController.getFilePathForTab(tab);
-      if (filePath != null
-          && file.getAbsolutePath().equals(filePath)) {
+      if (filePath != null && file.getAbsolutePath().equals(filePath)) {
         tabEditorController.selectTab(tab);
         return;
       }

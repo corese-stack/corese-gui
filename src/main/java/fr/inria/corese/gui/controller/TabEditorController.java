@@ -1,5 +1,6 @@
 package fr.inria.corese.gui.controller;
 
+import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.model.TabEditorModel;
 import fr.inria.corese.gui.view.FloatingButton;
@@ -53,11 +54,19 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
  *
  * // 2. Configure editor toolbar buttons
  * controller.configureEditor(
- *     List.of(IconButtonType.SAVE, IconButtonType.CLEAR, IconButtonType.UNDO, IconButtonType.REDO)
+ *     List.of(
+ *         new ButtonConfig(IconButtonType.SAVE, "Save File", "Ctrl+S"),
+ *         new ButtonConfig(IconButtonType.CLEAR, "Clear Content"),
+ *         new ButtonConfig(IconButtonType.UNDO, "Undo", "Ctrl+Z"),
+ *         new ButtonConfig(IconButtonType.REDO, "Redo", "Ctrl+Y")
+ *     )
  * );
  *
  * // 3. Configure execution (Run button + action) - Optional
- * controller.configureExecution("Run Query (Ctrl+Enter)", this::executeQuery);
+ * controller.configureExecution(
+ *     new ButtonConfig(IconButtonType.PLAY, "Run Query", "Ctrl+Enter"),
+ *     this::executeQuery
+ * );
  *
  * // 4. Configure result view - Optional
  * controller.configureResultView(() -> new ResultController());
@@ -108,12 +117,12 @@ public class TabEditorController {
   private final TabEditorModel model;
   private final Map<Tab, FloatingButton> tabExecutionButtons;
 
-  private List<IconButtonType> editorToolbarButtons;
+  private List<ButtonConfig> editorToolbarButtons;
 
   private Runnable onExecutionRequest;
+  private ButtonConfig executionButtonConfig;
   private Node emptyStateNode;
   private Function<Tab, ResultController> resultControllerFactory;
-  private String executionButtonTooltip;
 
   // ===============================================================================
   // Constructor
@@ -197,14 +206,28 @@ public class TabEditorController {
    * <p><b>Usage:</b>
    *
    * <pre>{@code
+   * // Simple: just icons
    * controller.configureEditor(
-   *     List.of(IconButtonType.SAVE, IconButtonType.CLEAR, IconButtonType.UNDO, IconButtonType.REDO)
+   *     List.of(
+   *         new ButtonConfig(IconButtonType.SAVE),
+   *         new ButtonConfig(IconButtonType.CLEAR),
+   *         new ButtonConfig(IconButtonType.UNDO),
+   *         new ButtonConfig(IconButtonType.REDO)
+   *     )
+   * );
+   *
+   * // Advanced: with tooltips and shortcuts
+   * controller.configureEditor(
+   *     List.of(
+   *         new ButtonConfig(IconButtonType.SAVE, "Save File", "Ctrl+S"),
+   *         new ButtonConfig(IconButtonType.CLEAR, "Clear Content")
+   *     )
    * );
    * }</pre>
    *
-   * @param toolbarButtons The list of icon buttons to display in each tab's code editor toolbar
+   * @param toolbarButtons The list of button configurations for the code editor toolbar
    */
-  public void configureEditor(List<IconButtonType> toolbarButtons) {
+  public void configureEditor(List<ButtonConfig> toolbarButtons) {
     this.editorToolbarButtons = toolbarButtons;
   }
 
@@ -223,14 +246,24 @@ public class TabEditorController {
    * <p><b>Usage:</b>
    *
    * <pre>{@code
-   * controller.configureExecution("Run Query (Ctrl+Enter)", this::executeQuery);
+   * // With custom icon
+   * controller.configureExecution(
+   *     new ButtonConfig(IconButtonType.PLAY, "Run Query", "Ctrl+Enter"),
+   *     this::executeQuery
+   * );
+   *
+   * // Without icon (uses default Play icon)
+   * controller.configureExecution(
+   *     new ButtonConfig(null, "Run Query", "Ctrl+Enter"),
+   *     this::executeQuery
+   * );
    * }</pre>
    *
-   * @param buttonTooltip The tooltip text for the floating execution button
+   * @param buttonConfig The button configuration (icon, tooltip, shortcut)
    * @param executionAction The action to execute when button is clicked or Ctrl+Enter is pressed
    */
-  public void configureExecution(String buttonTooltip, Runnable executionAction) {
-    this.executionButtonTooltip = buttonTooltip;
+  public void configureExecution(ButtonConfig buttonConfig, Runnable executionAction) {
+    this.executionButtonConfig = buttonConfig;
     this.onExecutionRequest = executionAction;
   }
 
@@ -278,9 +311,9 @@ public class TabEditorController {
    *
    * <pre>{@code
    * controller.configureMenuItems(
-   *     new MenuItem("New File", () -> controller.addNewTab("Untitled", "")),
-   *     new MenuItem("Open File", this::openFile),
-   *     new MenuItem("Templates", this::showTemplates)
+   *     new TabEditorController.MenuItem("New File", () -> controller.addNewTab("Untitled", "")),
+   *     new TabEditorController.MenuItem("Open File", this::openFile),
+   *     new TabEditorController.MenuItem("Templates", this::showTemplates)
    * );
    * }</pre>
    *
@@ -407,8 +440,13 @@ public class TabEditorController {
    * @return The created Tab instance
    */
   private Tab addNewTabHelper(String title, String content, String filePath) {
+    // Extract IconButtonType list from ButtonConfig list
+    List<IconButtonType> iconButtons = editorToolbarButtons != null 
+        ? editorToolbarButtons.stream().map(ButtonConfig::getIcon).toList()
+        : null;
+    
     CodeEditorController codeEditorController =
-        new CodeEditorController(editorToolbarButtons, content);
+        new CodeEditorController(iconButtons, content);
 
     StackPane editorWrapper = new StackPane(codeEditorController.getView());
     Node tabContent = editorWrapper;
@@ -433,7 +471,7 @@ public class TabEditorController {
     }
 
     // Add execution button if configured
-    if (executionButtonTooltip != null) {
+    if (executionButtonConfig != null) {
       FloatingButton runButton = createExecutionButton(tab);
       tabExecutionButtons.put(tab, runButton);
       StackPane.setAlignment(runButton, Pos.BOTTOM_RIGHT);
@@ -485,7 +523,7 @@ public class TabEditorController {
    * @return The created FloatingButton instance
    */
   private FloatingButton createExecutionButton(Tab tab) {
-    FloatingButton runButton = new FloatingButton(MaterialDesignP.PLAY, executionButtonTooltip);
+    FloatingButton runButton = new FloatingButton(executionButtonConfig);
 
     runButton.setOnAction(
         e -> {

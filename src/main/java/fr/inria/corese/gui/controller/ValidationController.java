@@ -1,5 +1,7 @@
 package fr.inria.corese.gui.controller;
 
+import fr.inria.corese.gui.core.ButtonConfig;
+import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.manager.ShaclManager;
 import fr.inria.corese.gui.model.ValidationModel;
 import fr.inria.corese.gui.model.ValidationResult;
@@ -77,12 +79,16 @@ public class ValidationController {
   private void configureEditor() {
     tabEditorController = new TabEditorController();
 
-    // Configure editor toolbar
-    tabEditorController.configureEditor(view.getEditorToolbarButtons());
+    // Configure editor toolbar - convert IconButtonType list to ButtonConfig list
+    tabEditorController.configureEditor(
+        view.getEditorToolbarButtons().stream()
+            .map(ButtonConfig::new)
+            .toList()
+    );
 
     // Configure execution: floating button + Ctrl+Enter shortcut
     tabEditorController.configureExecution(
-        view.getRunValidationLabel(), 
+        new ButtonConfig(IconButtonType.PLAY, view.getRunValidationLabel(), "Ctrl+Enter"),
         this::executeValidation
     );
 
