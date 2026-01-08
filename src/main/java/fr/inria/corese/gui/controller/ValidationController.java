@@ -88,7 +88,7 @@ public class ValidationController {
         this::executeValidation);
 
     // Configure result view with split pane
-    tabEditorController.configureResultView(tab -> createResultController());
+    tabEditorController.configureResultView(view.getResultToolbarButtons());
 
     // Configure menu items for Validation context
     tabEditorController.configureMenuItems(
@@ -204,12 +204,27 @@ public class ValidationController {
       view.showInvalidSyntaxError(result.getErrorMessage());
     } else {
       // Success: Display the report
+      Tab selectedTab = tabEditorController.getSelectedTab();
+      ValidationModel model = tabModels.get(selectedTab);
+      
       tabEditorController.showResultPane();
 
       // Ensure the text tab is visible to show the report
       resultController.selectTextTab();
 
-      updateReportDisplay("TURTLE"); // Default format
+      // Display initial report in TURTLE format
+      String initialReport = model.formatLastReport("TURTLE");
+      if (initialReport != null) {
+        resultController.updateText(initialReport);
+      }
+
+      // Configure callback for format changes
+      resultController.setOnFormatChanged(format -> {
+        String formattedReport = model.formatLastReport(format);
+        if (formattedReport != null) {
+          resultController.updateText(formattedReport);
+        }
+      });
 
       // Pass the report items for visualization
       resultController.displayReportItems(ShaclManager.getInstance().extractReportItems(result));
@@ -219,40 +234,6 @@ public class ValidationController {
   // ==============================================================================================
   // Helper Methods
   // ==============================================================================================
-
-  /**
-   * Updates the text area with the validation report in the specified format.
-   *
-   * @param format The desired format (e.g., "TURTLE", "JSON-LD").
-   */
-  private void updateReportDisplay(String format) {
-    Tab selectedTab = tabEditorController.getSelectedTab();
-    if (selectedTab == null) return;
-
-    ValidationModel model = tabModels.get(selectedTab);
-    if (model == null) return;
-
-    ResultController resultController = tabEditorController.getCurrentResultController();
-    if (resultController == null) return;
-
-    String formattedReport = model.formatLastReport(format);
-    if (formattedReport != null) {
-      resultController.updateText(formattedReport);
-    }
-  }
-
-  /**
-   * Creates a new {@link ResultController} configured for validation results.
-   *
-   * @return A configured ResultController instance.
-   */
-  private ResultController createResultController() {
-    ResultController controller = new ResultController(view.getResultToolbarButtons());
-    // Update the displayed report format when the user changes preferences (e.g., Turtle vs
-    // JSON-LD)
-    controller.setOnFormatChanged(this::updateReportDisplay);
-    return controller;
-  }
 
   /**
    * Listener to clean up models when tabs are closed.

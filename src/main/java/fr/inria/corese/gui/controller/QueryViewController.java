@@ -54,7 +54,11 @@ public class QueryViewController {
         new ButtonConfig(IconButtonType.PLAY, "Run Query", "Ctrl+Enter"), this::executeQuery);
 
     // Configure result view with split pane
-    tabEditorController.configureResultView(tab -> createResultController());
+    tabEditorController.configureResultView(
+        List.of(
+            new ButtonConfig(IconButtonType.COPY, "Copy to Clipboard"),
+            new ButtonConfig(IconButtonType.EXPORT, "Export Results")),
+        this::configureQueryResultController);
 
     view.setMainContent(tabEditorController.getViewRoot());
 
@@ -85,12 +89,11 @@ public class QueryViewController {
             }));
   }
 
-  private ResultController createResultController() {
-    ResultController controller =
-        new ResultController(List.of(
-            new ButtonConfig(IconButtonType.COPY),
-            new ButtonConfig(IconButtonType.EXPORT)));
-
+  /**
+   * Configures a ResultController for Query-specific needs.
+   * Removes Visual tab and adds Table and Graph tabs.
+   */
+  private void configureQueryResultController(ResultController controller) {
     // Configure tabs for Query View: Remove Visual, Add Table and Graph
     TabPane resultTabs = controller.getView().getTabPane();
     resultTabs.getTabs().remove(controller.getView().getVisualTab());
@@ -108,8 +111,6 @@ public class QueryViewController {
             // Re-display logic if needed
           }
         });
-
-    return controller;
   }
 
   private void setupTabListeners() {

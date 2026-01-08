@@ -1,7 +1,6 @@
 package fr.inria.corese.gui.controller;
 
 import fr.inria.corese.gui.core.ButtonConfig;
-import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.model.TabEditorModel;
 import fr.inria.corese.gui.view.FloatingButton;
 import fr.inria.corese.gui.view.TabEditorView;
@@ -31,7 +30,6 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 
 /**
  * Controller for the tabbed editor interface.
@@ -69,7 +67,12 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
  * );
  *
  * // 4. Configure result view - Optional
- * controller.configureResultView(() -> new ResultController());
+ * controller.configureResultView(
+ *     List.of(
+ *         new ButtonConfig(IconButtonType.COPY, "Copy to Clipboard"),
+ *         new ButtonConfig(IconButtonType.EXPORT, "Export Results")
+ *     )
+ * );
  *
  * // 5. Configure empty state - Optional
  * controller.configureEmptyState(emptyStateNode);
@@ -118,6 +121,8 @@ public class TabEditorController {
   private final Map<Tab, FloatingButton> tabExecutionButtons;
 
   private List<ButtonConfig> editorToolbarButtons;
+  private List<ButtonConfig> resultToolbarButtons;
+  private java.util.function.Consumer<ResultController> resultConfigurer;
 
   private Runnable onExecutionRequest;
   private ButtonConfig executionButtonConfig;
@@ -136,7 +141,7 @@ public class TabEditorController {
    * <ul>
    *   <li>{@link #configureEditor(List)} - Configure editor toolbar buttons
    *   <li>{@link #configureExecution(String, Runnable)} - Configure execution button and action
-   *   <li>{@link #configureResultView(Function)} - Configure result view
+   *   <li>{@link #configureResultView(List)} - Configure result view toolbar buttons
    *   <li>{@link #configureEmptyState(Node)} - Configure empty state
    *   <li>{@link #configureMenuItems(MenuItem...)} - Configure menu items
    * </ul>
@@ -160,7 +165,7 @@ public class TabEditorController {
         (ListChangeListener<Tab>) c -> Platform.runLater(this::updateEmptyStateVisibility));
 
     view.setOnAddTabAction(e -> addNewTab(DEFAULT_TAB_TITLE, ""));
-    
+
     // Configure default menu items (can be overridden with configureMenuItems)
     configureMenuItems(new MenuItem("New File", () -> addNewTab(DEFAULT_TAB_TITLE, "")));
   }
@@ -280,13 +285,56 @@ public class TabEditorController {
    * <p><b>Usage:</b>
    *
    * <pre>{@code
-   * controller.configureResultView(() -> new ResultController());
+   * controller.configureResultView(
+   *     List.of(
+   *         new ButtonConfig(IconButtonType.COPY, "Copy to Clipboard"),
+   *         new ButtonConfig(IconButtonType.EXPORT, "Export Results")
+   *     )
+   * );
    * }</pre>
    *
-   * @param resultControllerFactory Factory function to create a ResultController for each tab
+   * @param toolbarButtons The list of button configurations for the result view toolbar
    */
-  public void configureResultView(Function<Tab, ResultController> resultControllerFactory) {
-    this.resultControllerFactory = resultControllerFactory;
+  public void configureResultView(List<ButtonConfig> toolbarButtons) {
+    configureResultView(toolbarButtons, null);
+  }
+
+  /**
+   * Configures the result view for each tab with additional configuration.
+   *
+   * <p>This overload allows post-configuration of each ResultController after creation.
+   *
+   * <p><b>Usage:</b>
+   *
+   * <pre>{@code
+   * controller.configureResultView(
+   *     List.of(
+   *         new ButtonConfig(IconButtonType.COPY),
+   *         new ButtonConfig(IconButtonType.EXPORT)
+   *     ),
+   *     resultController -> {
+   *         // Custom configuration per ResultController
+   *         resultController.getView().getTabPane().getTabs().remove(...);
+   *     }
+   * );
+   * }</pre>
+   *
+   * @param toolbarButtons The list of button configurations for the result view toolbar
+   * @param configurer Optional function to configure each ResultController after creation
+   */
+  public void configureResultView(
+      List<ButtonConfig> toolbarButtons, 
+      java.util.function.Consumer<ResultController> configurer) {
+    this.resultToolbarButtons = toolbarButtons;
+    this.resultConfigurer = configurer;
+    // Create a factory that uses the configured buttons and configurer
+    this.resultControllerFactory = tab -> {
+      ResultController controller = new ResultController(resultToolbarButtons);
+      if (resultConfigurer != null) {
+        resultConfigurer.accept(controller);
+      }
+      return controller;
+    };
   }
 
   /**
