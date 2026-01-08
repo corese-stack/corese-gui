@@ -3,6 +3,7 @@ package fr.inria.corese.gui.controller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.model.codeEditor.CodeEditorModel;
 import fr.inria.corese.gui.view.codeEditor.CodeEditorView;
@@ -21,13 +22,18 @@ public class CodeEditorController {
   private final CodeEditorModel model;
   private final IconButtonBarController iconButtonBarController;
 
-  public CodeEditorController(List<IconButtonType> buttons, String initialContent) {
+  public CodeEditorController(List<ButtonConfig> buttons, String initialContent) {
+    // Extract IconButtonType from ButtonConfig for IconButtonBarController
+    List<IconButtonType> iconButtons = buttons != null 
+        ? buttons.stream().map(ButtonConfig::getIcon).toList()
+        : List.of();
+    
     this.view = new CodeEditorView();
     this.model = new CodeEditorModel();
     
     // Use the existing IconButtonBarView from the view instead of creating a new one via Factory
     this.iconButtonBarController = new IconButtonBarController(
-        new fr.inria.corese.gui.model.IconButtonBarModel(buttons), 
+        new fr.inria.corese.gui.model.IconButtonBarModel(iconButtons), 
         view.getIconButtonBarView(), 
         this
     );

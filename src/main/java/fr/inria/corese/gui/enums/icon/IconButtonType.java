@@ -4,8 +4,8 @@ import org.kordamp.ikonli.Ikon;
 import org.kordamp.ikonli.materialdesign2.*;
 
 /**
- * Enum for icon button types with their corresponding Ikon.
- * This provides a unified way to reference icons throughout the application.
+ * Enum for icon button types with their corresponding Ikon. This provides a unified way to
+ * reference icons throughout the application.
  */
 public enum IconButtonType {
   SAVE(MaterialDesignC.CONTENT_SAVE_OUTLINE),

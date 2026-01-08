@@ -79,27 +79,21 @@ public class ValidationController {
   private void configureEditor() {
     tabEditorController = new TabEditorController();
 
-    // Configure editor toolbar - convert IconButtonType list to ButtonConfig list
-    tabEditorController.configureEditor(
-        view.getEditorToolbarButtons().stream()
-            .map(ButtonConfig::new)
-            .toList()
-    );
+    // Configure editor toolbar
+    tabEditorController.configureEditor(view.getEditorToolbarButtons());
 
     // Configure execution: floating button + Ctrl+Enter shortcut
     tabEditorController.configureExecution(
         new ButtonConfig(IconButtonType.PLAY, view.getRunValidationLabel(), "Ctrl+Enter"),
-        this::executeValidation
-    );
+        this::executeValidation);
 
     // Configure result view with split pane
     tabEditorController.configureResultView(tab -> createResultController());
-    
+
     // Configure menu items for Validation context
     tabEditorController.configureMenuItems(
         new TabEditorController.MenuItem("New File", this::onNewFileButtonClick),
-        new TabEditorController.MenuItem("Open File", this::onOpenFilesButtonClick)
-    );
+        new TabEditorController.MenuItem("Open File", this::onOpenFilesButtonClick));
   }
 
   /** Configures the empty state view to be displayed when no tabs are open. */

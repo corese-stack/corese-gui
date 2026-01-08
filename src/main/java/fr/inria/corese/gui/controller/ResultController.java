@@ -1,8 +1,7 @@
 package fr.inria.corese.gui.controller;
 
 import fr.inria.corese.core.Graph;
-import fr.inria.corese.core.kgram.core.Mappings;
-import fr.inria.corese.core.query.QueryProcess;
+import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.model.ValidationReportItem;
 import fr.inria.corese.gui.view.ResultView;
@@ -63,11 +62,17 @@ public class ResultController {
     private final List<String[]> allRows;
     private int rowsPerPage = 50;
     private final WebView graphView;
-    private final List<IconButtonType> buttons;
+    private final List<ButtonConfig> buttons;
+    private final List<IconButtonType> iconButtons; // Extracted for IconButtonBarView
 
-    public ResultController(List<IconButtonType> buttons) {
+    public ResultController(List<ButtonConfig> buttons) {
         this.buttons = buttons;
         this.view = new ResultView();
+
+        // Extract IconButtonType for IconButtonBarController
+        this.iconButtons = buttons != null 
+            ? buttons.stream().map(ButtonConfig::getIcon).toList()
+            : List.of();
 
         this.xmlResultTextArea = new TextArea();
         this.reportTable = new TableView<>();
@@ -85,7 +90,9 @@ public class ResultController {
     }
 
     public ResultController() {
-        this(List.of(IconButtonType.COPY, IconButtonType.EXPORT));
+        this(List.of(
+            new ButtonConfig(IconButtonType.COPY),
+            new ButtonConfig(IconButtonType.EXPORT)));
     }
 
     private void initialize() {
@@ -93,7 +100,7 @@ public class ResultController {
         xmlResultTextArea.setEditable(false);
         
         // Use IconButtonBarView for consistency
-        view.getIconButtonBarView().initializeButtons(buttons);
+        view.getIconButtonBarView().initializeButtons(iconButtons);
         this.copyButton = view.getIconButtonBarView().getButton(IconButtonType.COPY);
         this.exportButton = view.getIconButtonBarView().getButton(IconButtonType.EXPORT);
 

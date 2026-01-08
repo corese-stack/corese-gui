@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.view;
 
 import atlantafx.base.controls.ModalPane;
+import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.view.base.AbstractView;
 import fr.inria.corese.gui.view.component.ErrorDialog;
@@ -51,24 +52,26 @@ public class ValidationView extends AbstractView {
   /**
    * Returns the list of buttons to be displayed in the editor toolbar.
    *
-   * @return A list of IconButtonType.
+   * @return A list of ButtonConfig.
    */
-  public List<IconButtonType> getEditorToolbarButtons() {
+  public List<ButtonConfig> getEditorToolbarButtons() {
     return List.of(
-        IconButtonType.SAVE,
-        IconButtonType.EXPORT,
-        IconButtonType.CLEAR,
-        IconButtonType.UNDO,
-        IconButtonType.REDO);
+        new ButtonConfig(IconButtonType.SAVE),
+        new ButtonConfig(IconButtonType.EXPORT),
+        new ButtonConfig(IconButtonType.CLEAR),
+        new ButtonConfig(IconButtonType.UNDO),
+        new ButtonConfig(IconButtonType.REDO));
   }
 
   /**
    * Returns the list of buttons to be displayed in the result view toolbar.
    *
-   * @return A list of IconButtonType.
+   * @return A list of ButtonConfig.
    */
-  public List<IconButtonType> getResultToolbarButtons() {
-    return List.of(IconButtonType.COPY, IconButtonType.EXPORT);
+  public List<ButtonConfig> getResultToolbarButtons() {
+    return List.of(
+        new ButtonConfig(IconButtonType.COPY),
+        new ButtonConfig(IconButtonType.EXPORT));
   }
 
   /**

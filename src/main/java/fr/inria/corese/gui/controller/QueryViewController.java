@@ -87,7 +87,9 @@ public class QueryViewController {
 
   private ResultController createResultController() {
     ResultController controller =
-        new ResultController(List.of(IconButtonType.COPY, IconButtonType.EXPORT));
+        new ResultController(List.of(
+            new ButtonConfig(IconButtonType.COPY),
+            new ButtonConfig(IconButtonType.EXPORT)));
 
     // Configure tabs for Query View: Remove Visual, Add Table and Graph
     TabPane resultTabs = controller.getView().getTabPane();

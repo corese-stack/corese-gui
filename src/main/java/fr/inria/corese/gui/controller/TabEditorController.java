@@ -440,13 +440,8 @@ public class TabEditorController {
    * @return The created Tab instance
    */
   private Tab addNewTabHelper(String title, String content, String filePath) {
-    // Extract IconButtonType list from ButtonConfig list
-    List<IconButtonType> iconButtons = editorToolbarButtons != null 
-        ? editorToolbarButtons.stream().map(ButtonConfig::getIcon).toList()
-        : null;
-    
     CodeEditorController codeEditorController =
-        new CodeEditorController(iconButtons, content);
+        new CodeEditorController(editorToolbarButtons, content);
 
     StackPane editorWrapper = new StackPane(codeEditorController.getView());
     Node tabContent = editorWrapper;
