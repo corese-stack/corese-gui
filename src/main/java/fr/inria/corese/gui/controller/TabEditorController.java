@@ -138,7 +138,7 @@ public class TabEditorController {
   private void handleSaveShortcut() {
     Tab selectedTab = view.getSelectedTab();
     if (selectedTab != null) {
-      CodeEditorController activeController = model.getCodeEditorControllerForTab(selectedTab);
+      CodeEditorController activeController = model.getEditorControllerForTab(selectedTab);
       if (activeController != null) {
         activeController.saveFile();
       }
@@ -265,7 +265,7 @@ public class TabEditorController {
   public Tab addNewTab(File file) {
     // Check if file is already open
     for (Tab tab : view.getTabs()) {
-      CodeEditorController controller = model.getCodeEditorControllerForTab(tab);
+      CodeEditorController controller = model.getEditorControllerForTab(tab);
       if (controller != null
           && file.getAbsolutePath().equals(getFilePathForTab(tab))) {
         view.selectTab(tab);
@@ -293,7 +293,7 @@ public class TabEditorController {
       return false;
     }
 
-    CodeEditorController controller = model.getCodeEditorControllerForTab(tab);
+    CodeEditorController controller = model.getEditorControllerForTab(tab);
     if (controller == null || !controller.getModel().isModified()) {
       closeTab(tab);
       return true;
@@ -331,7 +331,7 @@ public class TabEditorController {
    */
   private void closeTab(Tab tab) {
     view.getTabs().remove(tab);
-    model.removeTabModel(tab);
+    model.removeTab(tab);
     tabExecutionButtons.remove(tab);
   }
 
@@ -362,7 +362,7 @@ public class TabEditorController {
     }
 
     Tab tab = view.createEditorTab(title, tabContent);
-    model.addTabModel(tab, codeEditorController);
+    model.addTabEditorController(tab, codeEditorController);
 
     if (resultController != null) {
       model.addTabResultController(tab, resultController);
@@ -425,7 +425,7 @@ public class TabEditorController {
       }
     });
 
-    CodeEditorController controller = model.getCodeEditorControllerForTab(tab);
+    CodeEditorController controller = model.getEditorControllerForTab(tab);
     if (controller != null) {
       BooleanBinding isEmpty =
           Bindings.createBooleanBinding(
@@ -609,7 +609,7 @@ public class TabEditorController {
    * @return The CodeEditorController, or null if not found
    */
   public CodeEditorController getControllerForTab(Tab tab) {
-    return model.getCodeEditorControllerForTab(tab);
+    return model.getEditorControllerForTab(tab);
   }
 
   /**
@@ -619,7 +619,7 @@ public class TabEditorController {
    * @return The text content, or null if the tab is not valid
    */
   public String getEditorContent(Tab tab) {
-    CodeEditorController controller = model.getCodeEditorControllerForTab(tab);
+    CodeEditorController controller = model.getEditorControllerForTab(tab);
     if (controller != null) {
       return controller.getView().getText();
     }
@@ -633,7 +633,7 @@ public class TabEditorController {
    * @return The file path, or null if the tab has no associated file
    */
   public String getFilePathForTab(Tab tab) {
-    CodeEditorController controller = model.getCodeEditorControllerForTab(tab);
+    CodeEditorController controller = model.getEditorControllerForTab(tab);
     if (controller != null) {
       return controller.getModel().getFilePath();
     }

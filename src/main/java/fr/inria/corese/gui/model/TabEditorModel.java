@@ -13,10 +13,8 @@ import javafx.scene.control.Tab;
  * code editor and result controllers). It serves as the data layer in the MVC pattern, handling the
  * storage and retrieval of tab-controller mappings.
  *
- * <p>The model is responsible for: 
- * - Managing tab-to-controller associations
- * - Providing access to controllers based on tabs
- * - Handling tab removal and cleanup operations
+ * <p>The model is responsible for: - Managing tab-to-controller associations - Providing access to
+ * controllers based on tabs - Handling tab removal and cleanup operations
  */
 public class TabEditorModel {
 
@@ -25,7 +23,7 @@ public class TabEditorModel {
   // ===============================================================================
 
   /** Map associating tabs with their code editor controllers. */
-  private final Map<Tab, CodeEditorController> tabControllerMap;
+  private final Map<Tab, CodeEditorController> tabEditorController;
 
   /** Map associating tabs with their result controllers. */
   private final Map<Tab, ResultController> tabResultControllerMap;
@@ -36,7 +34,7 @@ public class TabEditorModel {
 
   /** Creates a new TabEditorModel with empty controller maps. */
   public TabEditorModel() {
-    this.tabControllerMap = new HashMap<>();
+    this.tabEditorController = new HashMap<>();
     this.tabResultControllerMap = new HashMap<>();
   }
 
@@ -54,14 +52,14 @@ public class TabEditorModel {
    * @param controller The code editor controller for the tab's content
    * @throws NullPointerException if tab or controller is null
    */
-  public void addTabModel(Tab tab, CodeEditorController controller) {
+  public void addTabEditorController(Tab tab, CodeEditorController controller) {
     if (tab == null) {
       throw new NullPointerException("Tab cannot be null");
     }
     if (controller == null) {
       throw new NullPointerException("Controller cannot be null");
     }
-    tabControllerMap.put(tab, controller);
+    tabEditorController.put(tab, controller);
   }
 
   /**
@@ -92,9 +90,9 @@ public class TabEditorModel {
    *
    * @param tab The tab to remove from the model (null tabs are ignored)
    */
-  public void removeTabModel(Tab tab) {
+  public void removeTab(Tab tab) {
     if (tab != null) {
-      tabControllerMap.remove(tab);
+      tabEditorController.remove(tab);
       tabResultControllerMap.remove(tab);
     }
   }
@@ -112,11 +110,11 @@ public class TabEditorModel {
    * @param tab The UI tab to look up
    * @return The associated CodeEditorController, or null if the tab is null or not found
    */
-  public CodeEditorController getCodeEditorControllerForTab(Tab tab) {
+  public CodeEditorController getEditorControllerForTab(Tab tab) {
     if (tab == null) {
       return null;
     }
-    return tabControllerMap.get(tab);
+    return tabEditorController.get(tab);
   }
 
   /**
@@ -134,5 +132,4 @@ public class TabEditorModel {
     }
     return tabResultControllerMap.get(tab);
   }
-
 }
