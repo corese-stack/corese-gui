@@ -6,7 +6,6 @@ import fr.inria.corese.gui.view.utils.TabPaneUtils;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.VBox;
 
 public class ResultView extends AbstractView {
     private final TabPane tabPane;
@@ -30,7 +29,7 @@ public class ResultView extends AbstractView {
         // Default tabs
         tabPane.getTabs().addAll(textTab, visualTab);
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-        TabPaneUtils.enableFullWidth(tabPane);
+    TabPaneUtils.enableFullWidthTabs(tabPane);
 
         BorderPane root = (BorderPane) getRoot();
         root.setCenter(tabPane);

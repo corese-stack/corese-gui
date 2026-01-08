@@ -70,25 +70,36 @@ public class TabEditorView extends AbstractView {
   // Constants
   // ==============================================================================================
 
+  // Style
   private static final String STYLESHEET = "/styles/tab-editor.css";
+
+  // Ids
   private static final String TAB_CONTENT_WRAPPER_ID = "tab-content-wrapper";
   private static final String EMPTY_STATE_VIEW_ID = "empty-state-view";
-  private static final int TAB_HEADER_SPACING = 4;
-  private static final double MODIFIED_CIRCLE_RADIUS = 4.0;
+
+  // Result Pane Animation
   private static final javafx.util.Duration SPLIT_ANIMATION_DURATION =
       javafx.util.Duration.millis(300);
   private static final double RESULT_PANE_VISIBLE_POSITION = 0.6;
   private static final double RESULT_PANE_HIDDEN_POSITION = 1.0;
 
+  // Modified Tab Icon
+  private static final double MODIFIED_CIRCLE_RADIUS = 4.0;
+
   // ==============================================================================================
   // Fields
   // ==============================================================================================
 
-  private final TabPane tabPane;
+  // Theme Manager
+  private final ThemeManager themeManager;
+
+  // Tab Content Map
   private final Map<Tab, Node> tabContentMap;
+
+  // UI Components
+  private final TabPane tabPane;
   private final SplitMenuButton addTabButton;
   private final StackPane contentContainer;
-  private final ThemeManager themeManager;
 
   // ==============================================================================================
   // Constructor
@@ -121,7 +132,7 @@ public class TabEditorView extends AbstractView {
   private TabPane createTabPane() {
     TabPane pane = new TabPane();
     pane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
-    TabPaneUtils.enableFullWidth(pane);
+    TabPaneUtils.enableFullWidthTabs(pane);
     return pane;
   }
 
@@ -154,7 +165,8 @@ public class TabEditorView extends AbstractView {
    * @return A configured HBox containing the tab header
    */
   private HBox createTabHeader() {
-    HBox header = new HBox(TAB_HEADER_SPACING);
+    HBox header = new HBox();
+    header.getStyleClass().add("tab-header");
     header.setAlignment(Pos.BOTTOM_LEFT);
 
     addTabButton.visibleProperty().bind(tabPane.visibleProperty());

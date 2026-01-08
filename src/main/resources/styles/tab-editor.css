@@ -1,5 +1,10 @@
 /* Split Editor View Styles */
 
+/* Tab header spacing */
+.tab-header {
+    -fx-spacing: 4;
+}
+
 /* Add tab button styling */
 .add-tab-button {
     -fx-background-color: transparent;
