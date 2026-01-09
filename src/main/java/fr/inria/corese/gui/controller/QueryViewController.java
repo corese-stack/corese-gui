@@ -77,15 +77,17 @@ public class QueryViewController {
 
     // Configure add tab menu with Query-specific items
     tabEditorController.configureMenuItems(
-        new TabEditorController.MenuItem(
-            "New File", () -> tabEditorController.addNewTab("untitled", "")),
-        new TabEditorController.MenuItem("Open File", this::onOpenFilesButtonClick),
-        new TabEditorController.MenuItem(
-            "Templates",
-            () -> {
-              Stage stage = (Stage) view.getRoot().getScene().getWindow();
-              TemplatePopup.show(stage, query -> tabEditorController.addNewTab("untitled", query));
-            }));
+        List.of(
+            new TabEditorController.MenuItem(
+                "New File", () -> tabEditorController.addNewTab("untitled", "")),
+            new TabEditorController.MenuItem("Open File", this::onOpenFilesButtonClick),
+            new TabEditorController.MenuItem(
+                "Templates",
+                () -> {
+                  Stage stage = (Stage) view.getRoot().getScene().getWindow();
+                  TemplatePopup.show(
+                      stage, query -> tabEditorController.addNewTab("untitled", query));
+                })));
   }
 
   /**

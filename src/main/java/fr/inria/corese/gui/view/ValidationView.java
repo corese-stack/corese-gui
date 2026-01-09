@@ -41,20 +41,6 @@ public class ValidationView extends AbstractView {
   // ==============================================================================================
 
   /**
-   * Returns the list of buttons to be displayed in the editor toolbar.
-   *
-   * @return A list of ButtonConfig.
-   */
-  public List<ButtonConfig> getEditorToolbarButtons() {
-    return List.of(
-        new ButtonConfig(IconButtonType.SAVE),
-        new ButtonConfig(IconButtonType.EXPORT),
-        new ButtonConfig(IconButtonType.CLEAR),
-        new ButtonConfig(IconButtonType.UNDO),
-        new ButtonConfig(IconButtonType.REDO));
-  }
-
-  /**
    * Returns the list of buttons to be displayed in the result view toolbar.
    *
    * @return A list of ButtonConfig.

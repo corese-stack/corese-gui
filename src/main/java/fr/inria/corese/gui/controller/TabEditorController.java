@@ -76,8 +76,10 @@ import javafx.scene.layout.StackPane;
  *
  * // 6. Configure menu items - Optional
  * controller.configureMenuItems(
- *     new MenuItem("New File", () -> controller.addNewTab("Untitled", "")),
- *     new MenuItem("Open File", this::openFile)
+ *     List.of(
+ *         new TabEditorController.MenuItem("New File", () -> controller.addNewTab("Untitled", "")),
+ *         new TabEditorController.MenuItem("Open File", this::openFile)
+ *     )
  * );
  *
  * // 7. Get the view to integrate
@@ -150,10 +152,10 @@ public class TabEditorController {
    *
    * <ul>
    *   <li>{@link #configureEditor(List)} - Configure editor toolbar buttons
-   *   <li>{@link #configureExecution(String, Runnable)} - Configure execution button and action
-   *   <li>{@link #configureResultView(List)} - Configure result view toolbar buttons
+   *   <li>{@link #configureExecution(ButtonConfig, Runnable)} - Configure execution button and action
+   *   <li>{@link #configureResultView(List, ResultViewConfig)} - Configure result view tabs
    *   <li>{@link #configureEmptyState(Node)} - Configure empty state
-   *   <li>{@link #configureMenuItems(MenuItem...)} - Configure menu items
+   *   <li>{@link #configureMenuItems(List)} - Configure menu items
    * </ul>
    */
   public TabEditorController() {
@@ -178,7 +180,7 @@ public class TabEditorController {
     view.setOnAddTabAction(e -> addNewTab());
 
     // Configure default menu items (can be overridden with configureMenuItems)
-    configureMenuItems(new MenuItem("New File", this::addNewTab));
+    configureMenuItems(List.of(new MenuItem("New File", this::addNewTab)));
   }
 
   // ===============================================================================
@@ -194,21 +196,12 @@ public class TabEditorController {
    * <p><b>Usage:</b>
    *
    * <pre>{@code
-   * // Simple: just icons
-   * controller.configureEditor(
-   *     List.of(
-   *         new ButtonConfig(IconButtonType.SAVE),
-   *         new ButtonConfig(IconButtonType.CLEAR),
-   *         new ButtonConfig(IconButtonType.UNDO),
-   *         new ButtonConfig(IconButtonType.REDO)
-   *     )
-   * );
-   *
-   * // Advanced: with tooltips
    * controller.configureEditor(
    *     List.of(
    *         new ButtonConfig(IconButtonType.SAVE, "Save File"),
-   *         new ButtonConfig(IconButtonType.CLEAR, "Clear Content")
+   *         new ButtonConfig(IconButtonType.CLEAR, "Clear Content"),
+   *         new ButtonConfig(IconButtonType.UNDO, "Undo"),
+   *         new ButtonConfig(IconButtonType.REDO, "Redo")
    *     )
    * );
    * }</pre>
@@ -323,15 +316,17 @@ public class TabEditorController {
    *
    * <pre>{@code
    * controller.configureMenuItems(
-   *     new TabEditorController.MenuItem("New File", () -> controller.addNewTab("Untitled", "")),
-   *     new TabEditorController.MenuItem("Open File", this::openFile),
-   *     new TabEditorController.MenuItem("Templates", this::showTemplates)
+   *     List.of(
+   *         new TabEditorController.MenuItem("New File", () -> controller.addNewTab("Untitled", "")),
+   *         new TabEditorController.MenuItem("Open File", this::openFile),
+   *         new TabEditorController.MenuItem("Templates", this::showTemplates)
+   *     )
    * );
    * }</pre>
    *
-   * @param items The menu items to display (text + action pairs)
+   * @param items The list of menu items to display
    */
-  public void configureMenuItems(MenuItem... items) {
+  public void configureMenuItems(List<MenuItem> items) {
     view.clearMenuItems();
     for (MenuItem item : items) {
       view.addMenuItem(item.text, e -> item.action.run());

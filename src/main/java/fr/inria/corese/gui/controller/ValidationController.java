@@ -9,6 +9,7 @@ import fr.inria.corese.gui.model.ValidationResult;
 import fr.inria.corese.gui.view.ValidationView;
 import java.io.File;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
@@ -81,7 +82,13 @@ public class ValidationController {
     tabEditorController = new TabEditorController();
 
     // Configure editor toolbar
-    tabEditorController.configureEditor(view.getEditorToolbarButtons());
+    tabEditorController.configureEditor(
+        List.of(
+            new ButtonConfig(IconButtonType.SAVE),
+            new ButtonConfig(IconButtonType.EXPORT),
+            new ButtonConfig(IconButtonType.CLEAR),
+            new ButtonConfig(IconButtonType.UNDO),
+            new ButtonConfig(IconButtonType.REDO)));
 
     // Configure execution: floating button
     tabEditorController.configureExecution(
@@ -98,8 +105,9 @@ public class ValidationController {
 
     // Configure menu items for Validation context
     tabEditorController.configureMenuItems(
-        new TabEditorController.MenuItem("New File", this::onNewFileButtonClick),
-        new TabEditorController.MenuItem("Open File", this::onOpenFilesButtonClick));
+        List.of(
+            new TabEditorController.MenuItem("New File", this::onNewFileButtonClick),
+            new TabEditorController.MenuItem("Open File", this::onOpenFilesButtonClick)));
   }
 
   /** Configures the empty state view to be displayed when no tabs are open. */
