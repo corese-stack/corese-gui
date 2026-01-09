@@ -140,7 +140,10 @@ public class ValidationController {
     // Pre-check: Ensure data is loaded
     if (!model.isDataLoaded()) {
       tabEditorController.hideResultPane();
-      view.showNoDataLoadedError();
+      tabEditorController.showError(
+          "No Data Loaded",
+          "Validation requires an RDF graph to be loaded.\n"
+              + "Please go to the 'Data' view and load an RDF file.");
       return;
     }
 
@@ -148,7 +151,10 @@ public class ValidationController {
     final String shapesContent = tabEditorController.getEditorContent(selectedTab);
     if (shapesContent == null || shapesContent.trim().isEmpty()) {
       tabEditorController.hideResultPane();
-      view.showEmptyShapesError();
+      tabEditorController.showError(
+          "Empty Shapes",
+          "The shapes file is empty.\n"
+              + "Please write or load SHACL shapes in the editor before validating.");
       return;
     }
 
@@ -184,7 +190,11 @@ public class ValidationController {
           () -> {
             tabEditorController.setExecutionState(false);
             tabEditorController.hideResultPane();
-            view.showValidationExecutionError(e.getMessage());
+            tabEditorController.showError(
+                "Validation Error",
+                "An unexpected error occurred during validation.\n"
+                    + "Please check the logs for more details.",
+                e.getMessage());
           });
     }
   }
@@ -201,7 +211,10 @@ public class ValidationController {
     if (result.getErrorMessage() != null) {
       // Handle validation errors (e.g., syntax errors in shapes)
       tabEditorController.hideResultPane();
-      view.showInvalidSyntaxError(result.getErrorMessage());
+      tabEditorController.showError(
+          "Invalid SHACL Syntax",
+          "The SHACL shapes contain syntax errors.\nPlease correct the errors listed below:",
+          result.getErrorMessage());
     } else {
       // Success: Display the report
       Tab selectedTab = tabEditorController.getSelectedTab();

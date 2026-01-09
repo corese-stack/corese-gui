@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.controller;
 
 import fr.inria.corese.gui.core.ButtonConfig;
+import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.model.TabEditorModel;
 import fr.inria.corese.gui.view.FloatingButton;
 import fr.inria.corese.gui.view.TabEditorView;
@@ -10,19 +11,15 @@ import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.collections.ListChangeListener;
-import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.input.KeyCode;
@@ -104,12 +101,6 @@ public class TabEditorController {
   // Constants
   // ===============================================================================
 
-  private static final Insets EXECUTION_BUTTON_MARGIN = new Insets(0, 60, 40, 0);
-  private static final String DIALOG_TITLE_UNSAVED_CHANGES = "Unsaved Changes";
-  private static final String DIALOG_BUTTON_SAVE = "Save";
-  private static final String DIALOG_BUTTON_DONT_SAVE = "Don't Save";
-  private static final String DIALOG_BUTTON_CANCEL = "Cancel";
-  private static final String ERROR_FILE_READ = "Could not read file: ";
   private static final String DEFAULT_TAB_TITLE = "Untitled";
 
   // ===============================================================================
@@ -421,7 +412,7 @@ public class TabEditorController {
       String content = Files.readString(file.toPath());
       return addNewTabHelper(file.getName(), content, file.getPath());
     } catch (IOException e) {
-      showError(ERROR_FILE_READ + e.getMessage());
+      view.showError("File Error", "Could not read file: " + e.getMessage());
       return null;
     }
   }
@@ -429,43 +420,40 @@ public class TabEditorController {
   /**
    * Handles closing a tab with unsaved changes confirmation.
    *
+   * <p>If the file has unsaved changes, shows a confirmation dialog using ModalPane.
+   * Otherwise, closes the tab immediately.
+   *
    * @param tab The tab to close
-   * @return true if the tab was closed, false if the user cancelled
    */
-  public boolean handleCloseFile(Tab tab) {
+  public void handleCloseFile(Tab tab) {
     if (tab == null) {
-      return false;
+      return;
     }
 
     CodeEditorController controller = model.getEditorControllerForTab(tab);
     if (controller == null || !controller.getModel().isModified()) {
       closeTab(tab);
-      return true;
+      return;
     }
 
-    Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-    alert.setTitle(DIALOG_TITLE_UNSAVED_CHANGES);
-    alert.setHeaderText("Save changes to " + controller.getModel().getDisplayName() + "?");
-
-    ButtonType save = new ButtonType(DIALOG_BUTTON_SAVE);
-    ButtonType dontSave = new ButtonType(DIALOG_BUTTON_DONT_SAVE);
-    ButtonType cancel = new ButtonType(DIALOG_BUTTON_CANCEL);
-    alert.getButtonTypes().setAll(save, dontSave, cancel);
-
-    Optional<ButtonType> result = alert.showAndWait();
-    if (result.isPresent()) {
-      if (result.get() == save) {
-        controller.saveFile();
-        if (!controller.getModel().isModified()) {
-          closeTab(tab);
-          return true;
-        }
-      } else if (result.get() == dontSave) {
-        closeTab(tab);
-        return true;
-      }
-    }
-    return false;
+    view.showUnsavedChangesDialog(
+        controller.getModel().getDisplayName(),
+        result -> {
+          switch (result) {
+            case DialogHelper.UnsavedChangesResult.SAVE:
+              controller.saveFile();
+              if (!controller.getModel().isModified()) {
+                closeTab(tab);
+              }
+              break;
+            case DialogHelper.UnsavedChangesResult.DONT_SAVE:
+              closeTab(tab);
+              break;
+            case DialogHelper.UnsavedChangesResult.CANCEL:
+              // Do nothing
+              break;
+          }
+        });
   }
 
   /**
@@ -518,7 +506,7 @@ public class TabEditorController {
       FloatingButton runButton = createExecutionButton(tab);
       tabExecutionButtons.put(tab, runButton);
       StackPane.setAlignment(runButton, Pos.BOTTOM_RIGHT);
-      StackPane.setMargin(runButton, EXECUTION_BUTTON_MARGIN);
+      StackPane.setMargin(runButton, TabEditorView.getExecutionButtonMargin());
       editorWrapper.getChildren().add(runButton);
     }
 
@@ -656,19 +644,6 @@ public class TabEditorController {
   }
 
   // ===============================================================================
-  // Utility Methods
-  // ===============================================================================
-
-  /**
-   * Shows an error dialog with the specified message.
-   *
-   * @param content The error message to display
-   */
-  private void showError(String content) {
-    Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, content).showAndWait());
-  }
-
-  // ===============================================================================
   // Public API - View Access
   // ===============================================================================
 
@@ -779,5 +754,30 @@ public class TabEditorController {
    */
   public void addSelectionListener(javafx.beans.value.ChangeListener<Tab> listener) {
     view.addSelectionListener(listener);
+  }
+
+  // ==============================================================================================
+  // Public API - Error Dialogs
+  // ==============================================================================================
+
+  /**
+   * Shows an error dialog.
+   *
+   * @param title The dialog title
+   * @param message The error message
+   */
+  public void showError(String title, String message) {
+    view.showError(title, message);
+  }
+
+  /**
+   * Shows an error dialog with detailed information.
+   *
+   * @param title The dialog title
+   * @param message The error message
+   * @param details The detailed error message (e.g., stack trace)
+   */
+  public void showError(String title, String message, String details) {
+    view.showError(title, message, details);
   }
 }

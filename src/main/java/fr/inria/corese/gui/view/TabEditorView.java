@@ -1,10 +1,13 @@
 package fr.inria.corese.gui.view;
 
+import atlantafx.base.controls.ModalPane;
+import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.view.base.AbstractView;
 import fr.inria.corese.gui.view.utils.TabPaneUtils;
 import fr.inria.corese.gui.view.utils.ThemeManager;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
@@ -86,6 +89,9 @@ public class TabEditorView extends AbstractView {
   // Modified Tab Icon
   private static final double MODIFIED_CIRCLE_RADIUS = 4.0;
 
+  // Execution Button Layout
+  private static final Insets EXECUTION_BUTTON_MARGIN = new Insets(0, 60, 40, 0);
+
   // ==============================================================================================
   // Fields
   // ==============================================================================================
@@ -100,6 +106,8 @@ public class TabEditorView extends AbstractView {
   private final TabPane tabPane;
   private final SplitMenuButton addTabButton;
   private final StackPane contentContainer;
+  private final VBox mainContent;
+  private final ModalPane modalPane;
 
   // ==============================================================================================
   // Constructor
@@ -107,7 +115,7 @@ public class TabEditorView extends AbstractView {
 
   /** Constructs a new TabEditorView with all necessary components initialized. */
   public TabEditorView() {
-    super(new VBox(), STYLESHEET);
+    super(new StackPane(), STYLESHEET);
     this.themeManager = ThemeManager.getInstance();
     this.tabContentMap = new HashMap<>();
 
@@ -115,6 +123,8 @@ public class TabEditorView extends AbstractView {
     this.tabPane = createTabPane();
     this.addTabButton = createAddTabButton();
     this.contentContainer = new StackPane();
+    this.mainContent = new VBox();
+    this.modalPane = new ModalPane();
 
     initializeLayout();
     setupListeners();
@@ -150,13 +160,16 @@ public class TabEditorView extends AbstractView {
 
   /** Initializes the layout structure of the view. */
   private void initializeLayout() {
-    VBox root = (VBox) getRoot();
-    root.setMinHeight(0);
+    mainContent.setMinHeight(0);
 
     HBox tabHeader = createTabHeader();
+    mainContent.getChildren().addAll(tabHeader, contentContainer);
     VBox.setVgrow(contentContainer, Priority.ALWAYS);
 
-    root.getChildren().addAll(tabHeader, contentContainer);
+    StackPane rootStack = (StackPane) getRoot();
+    rootStack.getChildren().addAll(mainContent, modalPane);
+
+    contentContainer.setId(TAB_CONTENT_WRAPPER_ID);
   }
 
   /**
@@ -405,6 +418,42 @@ public class TabEditorView extends AbstractView {
   }
 
   // ==============================================================================================
+  // Public API - Dialogs
+  // ==============================================================================================
+
+  /**
+   * Shows an error dialog.
+   *
+   * @param title The dialog title
+   * @param message The error message
+   */
+  public void showError(String title, String message) {
+    DialogHelper.showError(modalPane, title, message);
+  }
+
+  /**
+   * Shows an error dialog with detailed information.
+   *
+   * @param title The dialog title
+   * @param message The error message
+   * @param details The detailed error message (e.g., stack trace)
+   */
+  public void showError(String title, String message, String details) {
+    DialogHelper.showError(modalPane, title, message, details);
+  }
+
+  /**
+   * Shows a confirmation dialog for unsaved changes.
+   *
+   * @param fileName The name of the file with unsaved changes
+   * @param callback The callback to receive the user's choice
+   */
+  public void showUnsavedChangesDialog(
+      String fileName, Consumer<DialogHelper.UnsavedChangesResult> callback) {
+    DialogHelper.showUnsavedChangesDialog(modalPane, fileName, callback);
+  }
+
+  // ==============================================================================================
   // Public API - Result Pane Animation
   // ==============================================================================================
 
@@ -527,5 +576,20 @@ public class TabEditorView extends AbstractView {
    */
   public void addSelectionListener(ChangeListener<Tab> listener) {
     tabPane.getSelectionModel().selectedItemProperty().addListener(listener);
+  }
+
+  // ==============================================================================================
+  // Public API - Layout Constants
+  // ==============================================================================================
+
+  /**
+   * Returns the margin to use for positioning execution buttons.
+   *
+   * <p>This margin positions the button at the bottom-right corner with appropriate spacing.
+   *
+   * @return The execution button margin insets
+   */
+  public static Insets getExecutionButtonMargin() {
+    return EXECUTION_BUTTON_MARGIN;
   }
 }

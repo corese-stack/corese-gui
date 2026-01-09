@@ -1,14 +1,11 @@
 package fr.inria.corese.gui.view;
 
-import atlantafx.base.controls.ModalPane;
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.view.base.AbstractView;
-import fr.inria.corese.gui.view.component.ErrorDialog;
 import java.util.List;
 import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.StackPane;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
@@ -27,9 +24,7 @@ public class ValidationView extends AbstractView {
 
   private static final String STYLESHEET_PATH = "/styles/validation-view.css";
 
-  private final StackPane rootStack;
   private final BorderPane mainContent;
-  private final ModalPane modalPane;
 
   // ==============================================================================================
   // Constructor
@@ -37,12 +32,8 @@ public class ValidationView extends AbstractView {
 
   /** Creates the ValidationView. */
   public ValidationView() {
-    super(new StackPane(), STYLESHEET_PATH);
-    this.rootStack = (StackPane) getRoot();
-    this.mainContent = new BorderPane();
-    this.modalPane = new ModalPane();
-
-    this.rootStack.getChildren().addAll(mainContent, modalPane);
+    super(new BorderPane(), STYLESHEET_PATH);
+    this.mainContent = (BorderPane) getRoot();
   }
 
   // ==============================================================================================
@@ -82,49 +73,6 @@ public class ValidationView extends AbstractView {
    */
   public void setMainContent(Node node) {
     mainContent.setCenter(node);
-  }
-
-  /**
-   * Displays an error message in a modal overlay.
-   * Uses the ErrorDialog component to show a user-friendly error message.
-   *
-   * @param title The title of the error dialog.
-   * @param header The actionable summary or instruction for the user.
-   * @param details The detailed error message or stack trace (optional).
-   */
-  public void showError(String title, String header, String details) {
-    modalPane.show(new ErrorDialog(modalPane, title, header, details).getRoot());
-  }
-
-  public void showNoDataLoadedError() {
-    showError(
-        "No Data Loaded",
-        "Validation requires an RDF graph to be loaded.\n"
-            + "Please go to the 'Data' view and load an RDF file.",
-        null);
-  }
-
-  public void showEmptyShapesError() {
-    showError(
-        "Empty Shapes",
-        "The shapes file is empty.\n"
-            + "Please write or load SHACL shapes in the editor before validating.",
-        null);
-  }
-
-  public void showValidationExecutionError(String details) {
-    showError(
-        "Validation Error",
-        "An unexpected error occurred during validation.\n"
-            + "Please check the logs for more details.",
-        details);
-  }
-
-  public void showInvalidSyntaxError(String details) {
-    showError(
-        "Invalid SHACL Syntax",
-        "The SHACL shapes contain syntax errors.\nPlease correct the errors listed below:",
-        details);
   }
 
   public String getRunValidationLabel() {
