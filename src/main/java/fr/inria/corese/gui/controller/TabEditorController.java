@@ -104,21 +104,40 @@ public class TabEditorController {
   private static final String DEFAULT_TAB_TITLE = "Untitled";
 
   // ===============================================================================
-  // Fields
+  // Fields - MVC Components
   // ===============================================================================
 
+  /** The view component (MVC) - handles UI presentation and user interaction. */
   private final TabEditorView view;
+
+  /** The model component (MVC) - stores tab-to-controller mappings. */
   private final TabEditorModel model;
-  private final Map<Tab, FloatingButton> tabExecutionButtons;
 
+  // ===============================================================================
+  // Fields - Configuration (set via configure* methods)
+  // ===============================================================================
+
+  /** Configuration for editor toolbar buttons (Save, Clear, Undo, Redo, etc.). */
   private List<ButtonConfig> editorToolbarButtons;
-  private List<ButtonConfig> resultToolbarButtons;
-  private java.util.function.Consumer<ResultController> resultConfigurer;
 
-  private Runnable onExecutionRequest;
+  /** Configuration for the floating execution button (Run/Play button). */
   private ButtonConfig executionButtonConfig;
-  private Node emptyStateNode;
+
+  /** Action to execute when the Run button is clicked or Ctrl+Enter is pressed. */
+  private Runnable onExecutionRequest;
+
+  /** Factory for creating ResultController instances with custom configuration. */
   private Function<Tab, ResultController> resultControllerFactory;
+
+  /** Custom empty state view to display when no tabs are open. */
+  private Node emptyStateNode;
+
+  // ===============================================================================
+  // Fields - Runtime State
+  // ===============================================================================
+
+  /** Maps each tab to its floating execution button for state management. */
+  private final Map<Tab, FloatingButton> tabExecutionButtons;
 
   // ===============================================================================
   // Constructor
@@ -152,13 +171,15 @@ public class TabEditorController {
 
   /** Initializes the tab pane with listeners. */
   private void initializeTabPane() {
-    view.addTabListener(
-        (ListChangeListener<Tab>) c -> Platform.runLater(this::updateEmptyStateVisibility));
 
-    view.setOnAddTabAction(e -> addNewTab(DEFAULT_TAB_TITLE, ""));
+    // Update empty state visibility on tab changes (add/remove)
+    view.subscribeToTabChanges((ListChangeListener<Tab>) c -> Platform.runLater(this::updateEmptyStateVisibility));
+
+    // Link add + button to addNewTab action
+    view.setOnAddTabAction(e -> addNewTab());
 
     // Configure default menu items (can be overridden with configureMenuItems)
-    configureMenuItems(new MenuItem("New File", () -> addNewTab(DEFAULT_TAB_TITLE, "")));
+    configureMenuItems(new MenuItem("New File", this::addNewTab));
   }
 
   /** Initializes keyboard shortcuts for the editor. */
@@ -284,10 +305,10 @@ public class TabEditorController {
    * );
    * }</pre>
    *
-   * @param toolbarButtons The list of button configurations for the result view toolbar
+   * @param resultToolbarButtons The list of button configurations for the result view toolbar
    */
-  public void configureResultView(List<ButtonConfig> toolbarButtons) {
-    configureResultView(toolbarButtons, null);
+  public void configureResultView(List<ButtonConfig> resultToolbarButtons) {
+    configureResultView(resultToolbarButtons, null);
   }
 
   /**
@@ -316,16 +337,16 @@ public class TabEditorController {
   public void configureResultView(
       List<ButtonConfig> toolbarButtons, 
       java.util.function.Consumer<ResultController> configurer) {
-    this.resultToolbarButtons = toolbarButtons;
-    this.resultConfigurer = configurer;
-    // Create a factory that uses the configured buttons and configurer
-    this.resultControllerFactory = tab -> {
-      ResultController controller = new ResultController(resultToolbarButtons);
-      if (resultConfigurer != null) {
-        resultConfigurer.accept(controller);
-      }
-      return controller;
-    };
+    // Create a factory that captures the toolbar buttons and configurer in its closure
+    // This avoids storing toolbarButtons as a field since it's only used here
+    this.resultControllerFactory =
+        tab -> {
+          ResultController controller = new ResultController(toolbarButtons);
+          if (configurer != null) {
+            configurer.accept(controller);
+          }
+          return controller;
+        };
   }
 
   /**
@@ -381,7 +402,21 @@ public class TabEditorController {
   // ===============================================================================
 
   /**
+   * Creates and adds a new empty tab with default title "Untitled".
+   *
+   * <p>This is a convenience method equivalent to {@code addNewTab("Untitled", "")}.
+   *
+   * @return The created Tab instance
+   */
+  public Tab addNewTab() {
+    return addNewTab(DEFAULT_TAB_TITLE, "");
+  }
+
+  /**
    * Creates and adds a new tab with the specified title and content.
+   *
+   * <p>Use this method when you need to create a tab with specific title or initial content
+   * (e.g., from templates or snippets).
    *
    * @param title The title for the new tab
    * @param content The initial content for the editor
@@ -744,7 +779,7 @@ public class TabEditorController {
    * @param listener The listener to add
    */
   public void addTabListener(ListChangeListener<Tab> listener) {
-    view.addTabListener(listener);
+    view.subscribeToTabChanges(listener);
   }
 
   /**

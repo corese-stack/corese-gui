@@ -565,7 +565,7 @@ public class TabEditorView extends AbstractView {
    *
    * @param listener The listener to add
    */
-  public void addTabListener(ListChangeListener<Tab> listener) {
+  public void subscribeToTabChanges(ListChangeListener<Tab> listener) {
     tabPane.getTabs().addListener(listener);
   }
 
