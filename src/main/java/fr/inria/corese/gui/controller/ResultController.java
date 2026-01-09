@@ -2,6 +2,7 @@ package fr.inria.corese.gui.controller;
 
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.gui.core.ButtonConfig;
+import fr.inria.corese.gui.core.ResultViewConfig;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.model.ValidationReportItem;
 import fr.inria.corese.gui.view.ResultView;
@@ -64,9 +65,11 @@ public class ResultController {
     private final WebView graphView;
     private final List<ButtonConfig> buttons;
     private final List<IconButtonType> iconButtons; // Extracted for IconButtonBarView
+    private final ResultViewConfig config;
 
-    public ResultController(List<ButtonConfig> buttons) {
+    public ResultController(List<ButtonConfig> buttons, ResultViewConfig config) {
         this.buttons = buttons;
+        this.config = config != null ? config : ResultViewConfig.defaultConfig();
         this.view = new ResultView();
 
         // Extract IconButtonType for IconButtonBarController
@@ -89,22 +92,52 @@ public class ResultController {
         initialize();
     }
 
+    public ResultController(List<ButtonConfig> buttons) {
+        this(buttons, ResultViewConfig.defaultConfig());
+    }
+
     public ResultController() {
         this(List.of(
             new ButtonConfig(IconButtonType.COPY),
-            new ButtonConfig(IconButtonType.EXPORT)));
+            new ButtonConfig(IconButtonType.EXPORT)),
+            ResultViewConfig.defaultConfig());
     }
 
     private void initialize() {
-        // Text Tab Content
-        xmlResultTextArea.setEditable(false);
-        
         // Use IconButtonBarView for consistency
         view.getIconButtonBarView().initializeButtons(iconButtons);
         this.copyButton = view.getIconButtonBarView().getButton(IconButtonType.COPY);
         this.exportButton = view.getIconButtonBarView().getButton(IconButtonType.EXPORT);
 
         initializeToolbar();
+        
+        // Remove all tabs first
+        view.getTabPane().getTabs().clear();
+        
+        // Add only configured tabs
+        if (config.hasTab(ResultViewConfig.TabType.TEXT)) {
+            initializeTextTab();
+            view.getTabPane().getTabs().add(view.getTextTab());
+        }
+        
+        if (config.hasTab(ResultViewConfig.TabType.VISUAL)) {
+            initializeVisualTab();
+            view.getTabPane().getTabs().add(view.getVisualTab());
+        }
+        
+        if (config.hasTab(ResultViewConfig.TabType.TABLE)) {
+            initializeTableTab();
+            view.getTabPane().getTabs().add(view.getTableTab());
+        }
+        
+        if (config.hasTab(ResultViewConfig.TabType.GRAPH)) {
+            initializeGraphTab();
+            view.getTabPane().getTabs().add(view.getGraphTab());
+        }
+    }
+    
+    private void initializeTextTab() {
+        xmlResultTextArea.setEditable(false);
         
         // Wrap TextArea in StackPane to overlay the format choice box
         StackPane textContent = new StackPane();
@@ -117,19 +150,17 @@ public class ResultController {
         
         BorderPane textPane = new BorderPane();
         textPane.setCenter(textContent);
-        
         textPane.setRight(view.getIconButtonBarView());
         
         view.getTextTab().setContent(textPane);
-
-        // Visual Tab Content (Validation Report)
+    }
+    
+    private void initializeVisualTab() {
         initializeReportTable();
         view.getVisualTab().setContent(reportTable);
-
-        // Table Tab Content (SPARQL Result)
-        initializeTableTab();
-
-        // Graph Tab Content
+    }
+    
+    private void initializeGraphTab() {
         view.getGraphTab().setContent(graphView);
     }
 

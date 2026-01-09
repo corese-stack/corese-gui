@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.controller;
 
 import fr.inria.corese.gui.core.ButtonConfig;
+import fr.inria.corese.gui.core.ResultViewConfig;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.manager.ShaclManager;
 import fr.inria.corese.gui.model.ValidationModel;
@@ -88,7 +89,12 @@ public class ValidationController {
         this::executeValidation);
 
     // Configure result view with split pane
-    tabEditorController.configureResultView(view.getResultToolbarButtons());
+    tabEditorController.configureResultView(
+        view.getResultToolbarButtons(),
+        ResultViewConfig.builder()
+            .withTextTab()
+            .withVisualTab()
+            .build());
 
     // Configure menu items for Validation context
     tabEditorController.configureMenuItems(

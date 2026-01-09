@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.controller;
 
 import fr.inria.corese.gui.core.ButtonConfig;
+import fr.inria.corese.gui.core.ResultViewConfig;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.factory.popup.TemplatePopup;
 import fr.inria.corese.gui.manager.QueryManager;
@@ -12,7 +13,6 @@ import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -54,7 +54,11 @@ public class QueryViewController {
         List.of(
             new ButtonConfig(IconButtonType.COPY, "Copy to Clipboard"),
             new ButtonConfig(IconButtonType.EXPORT, "Export Results")),
-        this::configureQueryResultController);
+        ResultViewConfig.builder()
+            .withTextTab()
+            .withTableTab()
+            .withGraphTab()
+            .build());
 
     view.setMainContent(tabEditorController.getViewRoot());
 
@@ -88,26 +92,6 @@ public class QueryViewController {
    * Configures a ResultController for Query-specific needs.
    * Removes Visual tab and adds Table and Graph tabs.
    */
-  private void configureQueryResultController(ResultController controller) {
-    // Configure tabs for Query View: Remove Visual, Add Table and Graph
-    TabPane resultTabs = controller.getView().getTabPane();
-    resultTabs.getTabs().remove(controller.getView().getVisualTab());
-    if (!resultTabs.getTabs().contains(controller.getView().getTableTab())) {
-      resultTabs.getTabs().add(controller.getView().getTableTab());
-    }
-    if (!resultTabs.getTabs().contains(controller.getView().getGraphTab())) {
-      resultTabs.getTabs().add(controller.getView().getGraphTab());
-    }
-
-    controller.setOnFormatChanged(
-        newVal -> {
-          Tab selectedQueryTab = tabEditorController.getSelectedTab();
-          if (selectedQueryTab != null) {
-            // Re-display logic if needed
-          }
-        });
-  }
-
   private void setupTabListeners() {
     tabEditorController.addSelectionListener(
         (obs, oldTab, newTab) -> updateResultsForSelectedQueryTab(newTab));

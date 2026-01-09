@@ -2,6 +2,7 @@ package fr.inria.corese.gui.controller;
 
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.core.DialogHelper;
+import fr.inria.corese.gui.core.ResultViewConfig;
 import fr.inria.corese.gui.model.TabEditorModel;
 import fr.inria.corese.gui.view.FloatingButton;
 import fr.inria.corese.gui.view.TabEditorView;
@@ -63,7 +64,11 @@ import javafx.scene.layout.StackPane;
  *     List.of(
  *         new ButtonConfig(IconButtonType.COPY, "Copy to Clipboard"),
  *         new ButtonConfig(IconButtonType.EXPORT, "Export Results")
- *     )
+ *     ),
+ *     ResultViewConfig.builder()
+ *         .withTextTab()
+ *         .withTableTab()
+ *         .build()
  * );
  *
  * // 5. Configure empty state - Optional
@@ -249,7 +254,7 @@ public class TabEditorController {
   }
 
   /**
-   * Configures the result view for each tab.
+   * Configures the result view for each tab with specific tabs enabled.
    *
    * <p>When configured, each tab will be split vertically with:
    *
@@ -258,59 +263,42 @@ public class TabEditorController {
    *   <li>Result view on bottom (animated slide up/down)
    * </ul>
    *
+   * <p>Use {@link ResultViewConfig} to declaratively specify which result tabs should be displayed:
+   *
    * <p><b>Usage:</b>
    *
    * <pre>{@code
+   * // Query context: Text + Table + Graph
    * controller.configureResultView(
    *     List.of(
    *         new ButtonConfig(IconButtonType.COPY, "Copy to Clipboard"),
    *         new ButtonConfig(IconButtonType.EXPORT, "Export Results")
-   *     )
-   * );
-   * }</pre>
-   *
-   * @param resultToolbarButtons The list of button configurations for the result view toolbar
-   */
-  public void configureResultView(List<ButtonConfig> resultToolbarButtons) {
-    configureResultView(resultToolbarButtons, null);
-  }
-
-  /**
-   * Configures the result view for each tab with additional configuration.
-   *
-   * <p>This overload allows post-configuration of each ResultController after creation.
-   *
-   * <p><b>Usage:</b>
-   *
-   * <pre>{@code
-   * controller.configureResultView(
-   *     List.of(
-   *         new ButtonConfig(IconButtonType.COPY),
-   *         new ButtonConfig(IconButtonType.EXPORT)
    *     ),
-   *     resultController -> {
-   *         // Custom configuration per ResultController
-   *         resultController.getView().getTabPane().getTabs().remove(...);
-   *     }
+   *     ResultViewConfig.builder()
+   *         .withTextTab()
+   *         .withTableTab()
+   *         .withGraphTab()
+   *         .build()
+   * );
+   *
+   * // Validation context: Text + Visual
+   * controller.configureResultView(
+   *     List.of(...),
+   *     ResultViewConfig.builder()
+   *         .withTextTab()
+   *         .withVisualTab()
+   *         .build()
    * );
    * }</pre>
    *
    * @param toolbarButtons The list of button configurations for the result view toolbar
-   * @param configurer Optional function to configure each ResultController after creation
+   * @param config Configuration specifying which tabs to display (Text, Visual, Table, Graph)
    */
   public void configureResultView(
       List<ButtonConfig> toolbarButtons, 
-      java.util.function.Consumer<ResultController> configurer) {
-    // Create a factory that captures the toolbar buttons and configurer in its closure
-    // This avoids storing toolbarButtons as a field since it's only used here
+      ResultViewConfig config) {
     this.resultControllerFactory =
-        tab -> {
-          ResultController controller = new ResultController(toolbarButtons);
-          if (configurer != null) {
-            configurer.accept(controller);
-          }
-          return controller;
-        };
+        tab -> new ResultController(toolbarButtons, config);
   }
 
   /**
