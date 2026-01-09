@@ -85,26 +85,6 @@ public class SaveConfirmationPopup extends Stage implements IPopup {
     Scene scene = new Scene(layout);
     scene.setFill(null);
 
-    // Keyboard shortcuts
-    scene.setOnKeyPressed(
-        event -> {
-          switch (event.getCode()) {
-            case ENTER:
-              result = "save";
-              if (onSaveCallback != null) {
-                onSaveCallback.run();
-              }
-              closePopup();
-              break;
-            case ESCAPE:
-              result = "cancel";
-              closePopup();
-              break;
-            default:
-              break;
-          }
-        });
-
     setScene(scene);
 
     // Set Save as default button

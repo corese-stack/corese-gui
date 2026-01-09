@@ -20,7 +20,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
  *
  * <pre>{@code
  * FloatingButton button = new FloatingButton(
- *     new ButtonConfig(IconButtonType.PLAY, "Run Query", "Ctrl+Enter")
+ *     new ButtonConfig(IconButtonType.PLAY, "Run Query")
  * );
  * }</pre>
  */
@@ -50,7 +50,7 @@ public class FloatingButton extends Button {
   /**
    * Creates a new FloatingButton with unified button configuration.
    *
-   * @param config The button configuration (icon, tooltip, shortcut)
+   * @param config The button configuration (icon, tooltip)
    */
   public FloatingButton(ButtonConfig config) {
     this.fontIcon = new FontIcon(config.getIcon().getIkon());

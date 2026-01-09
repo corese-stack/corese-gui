@@ -4,7 +4,6 @@ import atlantafx.base.theme.Styles;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import org.kordamp.ikonli.Ikon;
@@ -77,17 +76,13 @@ public class EmptyStateView extends VBox {
      *
      * @param text    The button text.
      * @param icon    The button icon (can be null).
-     * @param tooltip The button tooltip (can be null).
      * @param action  The action to run on click.
      * @return A configured Button.
      */
-    public static Button createAction(String text, Ikon icon, String tooltip, Runnable action) {
+    public static Button createAction(String text, Ikon icon, Runnable action) {
         Button btn = new Button(text);
         if (icon != null) {
             btn.setGraphic(new FontIcon(icon));
-        }
-        if (tooltip != null) {
-            btn.setTooltip(new Tooltip(tooltip));
         }
         btn.setOnAction(e -> action.run());
         

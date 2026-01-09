@@ -13,10 +13,6 @@ import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyCodeCombination;
-import javafx.scene.input.KeyCombination;
-import javafx.scene.input.KeyEvent;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -41,17 +37,17 @@ public class QueryViewController {
     // Configure editor toolbar
     tabEditorController.configureEditor(
         List.of(
-            new ButtonConfig(IconButtonType.SAVE, "Save File", "Ctrl+S"),
+            new ButtonConfig(IconButtonType.SAVE, "Save File"),
             new ButtonConfig(IconButtonType.CLEAR, "Clear Content"),
-            new ButtonConfig(IconButtonType.UNDO, "Undo", "Ctrl+Z"),
-            new ButtonConfig(IconButtonType.REDO, "Redo", "Ctrl+Y")));
+            new ButtonConfig(IconButtonType.UNDO, "Undo"),
+            new ButtonConfig(IconButtonType.REDO, "Redo")));
 
     ((javafx.scene.layout.Region) tabEditorController.getViewRoot()).setMaxWidth(Double.MAX_VALUE);
     ((javafx.scene.layout.Region) tabEditorController.getViewRoot()).setMaxHeight(Double.MAX_VALUE);
 
-    // Configure execution: floating button + Ctrl+Enter shortcut
+    // Configure execution: floating button
     tabEditorController.configureExecution(
-        new ButtonConfig(IconButtonType.PLAY, "Run Query", "Ctrl+Enter"), this::executeQuery);
+        new ButtonConfig(IconButtonType.PLAY, "Run Query"), this::executeQuery);
 
     // Configure result view with split pane
     tabEditorController.configureResultView(
@@ -63,7 +59,6 @@ public class QueryViewController {
     view.setMainContent(tabEditorController.getViewRoot());
 
     setupTabListeners();
-    setupKeyboardShortcuts();
 
     // Configure empty state
     Node emptyState =
@@ -136,19 +131,7 @@ public class QueryViewController {
   }
 
   private void configureTab(Tab tab) {
-    CodeEditorController controller = tabEditorController.getControllerForTab(tab);
-    if (controller != null) {
-      controller
-          .getView()
-          .setOnKeyPressed(
-              event -> {
-                if (new KeyCodeCombination(KeyCode.ENTER, KeyCombination.CONTROL_DOWN)
-                    .match(event)) {
-                  executeQuery();
-                  event.consume();
-                }
-              });
-    }
+    // Tab configuration if needed
   }
 
   private void updateResultsForSelectedQueryTab(Tab selectedQueryTab) {
@@ -266,51 +249,6 @@ public class QueryViewController {
     alert.setHeaderText(null);
     alert.setContentText(message);
     alert.showAndWait();
-  }
-
-  private void setupKeyboardShortcuts() {
-    view.getRoot()
-        .sceneProperty()
-        .addListener(
-            (obs, oldScene, newScene) -> {
-              if (newScene != null) {
-                newScene.addEventFilter(
-                    KeyEvent.KEY_PRESSED,
-                    event -> {
-                      if (new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN)
-                          .match(event)) {
-                        onOpenFilesButtonClick();
-                        event.consume();
-                      } else if (new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN)
-                          .match(event)) {
-                        tabEditorController.addNewTab("untitled", "");
-                        event.consume();
-                      } else if (new KeyCodeCombination(KeyCode.W, KeyCombination.CONTROL_DOWN)
-                          .match(event)) {
-                        Tab selectedTab = tabEditorController.getSelectedTab();
-                        tabEditorController.handleCloseFile(selectedTab);
-                        event.consume();
-                      } else if (new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN)
-                          .match(event)) {
-                        Tab selectedTab = tabEditorController.getSelectedTab();
-                        if (selectedTab != null) {
-                          CodeEditorController controller =
-                              tabEditorController.getControllerForTab(selectedTab);
-                          if (controller != null) {
-                            controller.saveFile();
-                          }
-                        }
-                        event.consume();
-                      } else if (new KeyCodeCombination(KeyCode.T, KeyCombination.CONTROL_DOWN)
-                          .match(event)) {
-                        Stage stage = (Stage) view.getRoot().getScene().getWindow();
-                        TemplatePopup.show(
-                            stage, query -> tabEditorController.addNewTab("untitled", query));
-                        event.consume();
-                      }
-                    });
-              }
-            });
   }
 
   public void openQueryFile(File file) {

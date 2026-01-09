@@ -22,10 +22,6 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyCodeCombination;
-import javafx.scene.input.KeyCombination;
-import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
 
 /**
@@ -37,7 +33,6 @@ import javafx.scene.layout.StackPane;
  *   <li>Tab lifecycle management (create, open, close)
  *   <li>Split pane with result view integration
  *   <li>Floating execution buttons per tab
- *   <li>Keyboard shortcuts (Ctrl+S, Ctrl+Enter)
  *   <li>Empty state management
  * </ul>
  *
@@ -50,16 +45,16 @@ import javafx.scene.layout.StackPane;
  * // 2. Configure editor toolbar buttons
  * controller.configureEditor(
  *     List.of(
- *         new ButtonConfig(IconButtonType.SAVE, "Save File", "Ctrl+S"),
+ *         new ButtonConfig(IconButtonType.SAVE, "Save File"),
  *         new ButtonConfig(IconButtonType.CLEAR, "Clear Content"),
- *         new ButtonConfig(IconButtonType.UNDO, "Undo", "Ctrl+Z"),
- *         new ButtonConfig(IconButtonType.REDO, "Redo", "Ctrl+Y")
+ *         new ButtonConfig(IconButtonType.UNDO, "Undo"),
+ *         new ButtonConfig(IconButtonType.REDO, "Redo")
  *     )
  * );
  *
  * // 3. Configure execution (Run button + action) - Optional
  * controller.configureExecution(
- *     new ButtonConfig(IconButtonType.PLAY, "Run Query", "Ctrl+Enter"),
+ *     new ButtonConfig(IconButtonType.PLAY, "Run Query"),
  *     this::executeQuery
  * );
  *
@@ -89,7 +84,7 @@ import javafx.scene.layout.StackPane;
  * <ul>
  *   <li><b>Editor toolbar:</b> Buttons displayed in each tab's code editor (e.g., Save, Clear,
  *       Undo, Redo)
- *   <li><b>Execution:</b> Floating "Play" button at bottom-right + Ctrl+Enter shortcut
+ *   <li><b>Execution:</b> Floating "Play" button at bottom-right
  *   <li><b>Result view:</b> Splits each tab vertically with editor on top and result view on bottom
  *   <li><b>Empty state:</b> Custom view shown when no tabs are open
  *   <li><b>Menu items:</b> Dropdown menu on the "+" button to add new tabs
@@ -123,7 +118,7 @@ public class TabEditorController {
   /** Configuration for the floating execution button (Run/Play button). */
   private ButtonConfig executionButtonConfig;
 
-  /** Action to execute when the Run button is clicked or Ctrl+Enter is pressed. */
+  /** Action to execute when the Run button is clicked. */
   private Runnable onExecutionRequest;
 
   /** Factory for creating ResultController instances with custom configuration. */
@@ -162,7 +157,6 @@ public class TabEditorController {
     this.tabExecutionButtons = new HashMap<>();
 
     initializeTabPane();
-    initializeKeyboardShortcuts();
   }
 
   // ===============================================================================
@@ -180,34 +174,6 @@ public class TabEditorController {
 
     // Configure default menu items (can be overridden with configureMenuItems)
     configureMenuItems(new MenuItem("New File", this::addNewTab));
-  }
-
-  /** Initializes keyboard shortcuts for the editor. */
-  private void initializeKeyboardShortcuts() {
-    view.getRoot().addEventHandler(KeyEvent.KEY_PRESSED, this::handleKeyboardShortcut);
-  }
-
-  /**
-   * Handles keyboard shortcut events.
-   *
-   * @param event The keyboard event
-   */
-  private void handleKeyboardShortcut(KeyEvent event) {
-    if (new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN).match(event)) {
-      handleSaveShortcut();
-      event.consume();
-    }
-  }
-
-  /** Handles the Ctrl+S save shortcut. */
-  private void handleSaveShortcut() {
-    Tab selectedTab = view.getSelectedTab();
-    if (selectedTab != null) {
-      CodeEditorController activeController = model.getEditorControllerForTab(selectedTab);
-      if (activeController != null) {
-        activeController.saveFile();
-      }
-    }
   }
 
   // ===============================================================================
@@ -233,10 +199,10 @@ public class TabEditorController {
    *     )
    * );
    *
-   * // Advanced: with tooltips and shortcuts
+   * // Advanced: with tooltips
    * controller.configureEditor(
    *     List.of(
-   *         new ButtonConfig(IconButtonType.SAVE, "Save File", "Ctrl+S"),
+   *         new ButtonConfig(IconButtonType.SAVE, "Save File"),
    *         new ButtonConfig(IconButtonType.CLEAR, "Clear Content")
    *     )
    * );
@@ -249,14 +215,12 @@ public class TabEditorController {
   }
 
   /**
-   * Configures the execution system: adds a floating "Run" button and binds the Ctrl+Enter
-   * shortcut.
+   * Configures the execution system: adds a floating "Run" button.
    *
    * <p>This is a convenience method that combines:
    *
    * <ul>
    *   <li>Adding a floating "Play" button at the bottom-right of each tab
-   *   <li>Binding the execution action to Ctrl+Enter keyboard shortcut
    *   <li>Auto-disabling the button when editor is empty or execution is in progress
    * </ul>
    *
@@ -265,19 +229,19 @@ public class TabEditorController {
    * <pre>{@code
    * // With custom icon
    * controller.configureExecution(
-   *     new ButtonConfig(IconButtonType.PLAY, "Run Query", "Ctrl+Enter"),
+   *     new ButtonConfig(IconButtonType.PLAY, "Run Query"),
    *     this::executeQuery
    * );
    *
    * // Without icon (uses default Play icon)
    * controller.configureExecution(
-   *     new ButtonConfig(null, "Run Query", "Ctrl+Enter"),
+   *     new ButtonConfig(null, "Run Query"),
    *     this::executeQuery
    * );
    * }</pre>
    *
-   * @param buttonConfig The button configuration (icon, tooltip, shortcut)
-   * @param executionAction The action to execute when button is clicked or Ctrl+Enter is pressed
+   * @param buttonConfig The button configuration (icon, tooltip)
+   * @param executionAction The action to execute when button is clicked
    */
   public void configureExecution(ButtonConfig buttonConfig, Runnable executionAction) {
     this.executionButtonConfig = buttonConfig;
@@ -559,18 +523,6 @@ public class TabEditorController {
           event.consume();
           handleCloseFile(tab);
         });
-
-    // Bind execution shortcut (Ctrl+Enter)
-    codeEditorController
-        .getView()
-        .setOnKeyPressed(
-            event -> {
-              if (new KeyCodeCombination(KeyCode.ENTER, KeyCombination.CONTROL_DOWN).match(event)
-                  && onExecutionRequest != null) {
-                onExecutionRequest.run();
-                event.consume();
-              }
-            });
 
     view.addNewEditorTab(tab);
 

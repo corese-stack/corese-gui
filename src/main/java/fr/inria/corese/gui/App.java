@@ -1,15 +1,14 @@
 package fr.inria.corese.gui;
 
-import java.util.Objects;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import fr.inria.corese.gui.controller.MainController;
 import fr.inria.corese.gui.controller.NavigationBarController;
 import fr.inria.corese.gui.manager.ViewManager;
 import fr.inria.corese.gui.view.MainView;
 import fr.inria.corese.gui.view.utils.SvgImageLoader;
 import fr.inria.corese.gui.view.utils.ThemeManager;
+import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
@@ -41,6 +40,7 @@ public final class App extends Application {
     // === Create scene ===
     Scene scene =
         new Scene(mainView.getRoot(), AppConstants.DEFAULT_WIDTH, AppConstants.DEFAULT_HEIGHT);
+
     // === Configure stage ===
     primaryStage.setTitle(AppConstants.APP_TITLE + " — " + AppConstants.APP_VERSION);
     primaryStage.setMinWidth(AppConstants.MIN_WIDTH);

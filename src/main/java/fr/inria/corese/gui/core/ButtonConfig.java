@@ -7,8 +7,7 @@ import fr.inria.corese.gui.enums.icon.IconButtonType;
  *
  * <p>This class provides a consistent way to configure buttons throughout the application, whether
  * they are toolbar buttons, floating action buttons, or any other UI action. It encapsulates all
- * the information needed to display and describe a button: icon, text, tooltip, and keyboard
- * shortcut.
+ * the information needed to display and describe a button: icon, text, and tooltip.
  *
  * <p><b>Usage examples:</b>
  *
@@ -19,11 +18,8 @@ import fr.inria.corese.gui.enums.icon.IconButtonType;
  * // With tooltip
  * new ButtonConfig(IconButtonType.SAVE, "Save File")
  *
- * // With tooltip and shortcut
- * new ButtonConfig(IconButtonType.SAVE, "Save File", "Ctrl+S")
- *
  * // For floating action buttons
- * new ButtonConfig(IconButtonType.PLAY, "Run Query", "Ctrl+Enter")
+ * new ButtonConfig(IconButtonType.PLAY, "Run Query")
  * }</pre>
  *
  * <p>This class is immutable and thread-safe.
@@ -37,7 +33,6 @@ public class ButtonConfig {
   private final IconButtonType icon;
   private final String text;
   private final String tooltip;
-  private final String shortcut;
 
   // ===============================================================================
   // Constructors
@@ -49,7 +44,9 @@ public class ButtonConfig {
    * @param icon The icon to display
    */
   public ButtonConfig(IconButtonType icon) {
-    this(icon, null, null, null);
+    this.icon = icon;
+    this.tooltip = null;
+    this.text = null;
   }
 
   /**
@@ -59,33 +56,9 @@ public class ButtonConfig {
    * @param tooltip The tooltip text shown on hover
    */
   public ButtonConfig(IconButtonType icon, String tooltip) {
-    this(icon, tooltip, null, null);
-  }
-
-  /**
-   * Creates a ButtonConfig with icon, tooltip and shortcut.
-   *
-   * @param icon The icon to display
-   * @param tooltip The tooltip text shown on hover
-   * @param shortcut The keyboard shortcut description (e.g., "Ctrl+S")
-   */
-  public ButtonConfig(IconButtonType icon, String tooltip, String shortcut) {
-    this(icon, tooltip, shortcut, null);
-  }
-
-  /**
-   * Creates a ButtonConfig with all parameters.
-   *
-   * @param icon The IconButtonType to display (can be null)
-   * @param tooltip The tooltip text shown on hover (can be null)
-   * @param shortcut The keyboard shortcut description (can be null)
-   * @param text The button text/label (can be null for icon-only buttons)
-   */
-  private ButtonConfig(IconButtonType icon, String tooltip, String shortcut, String text) {
     this.icon = icon;
-    this.text = text;
     this.tooltip = tooltip;
-    this.shortcut = shortcut;
+    this.text = null;
   }
 
   // ===============================================================================
@@ -117,14 +90,5 @@ public class ButtonConfig {
    */
   public String getTooltip() {
     return tooltip;
-  }
-
-  /**
-   * Returns the keyboard shortcut description for this button configuration.
-   *
-   * @return The shortcut description (e.g., "Ctrl+S"), or null if no shortcut is configured
-   */
-  public String getShortcut() {
-    return shortcut;
   }
 }

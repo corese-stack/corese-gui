@@ -82,9 +82,9 @@ public class ValidationController {
     // Configure editor toolbar
     tabEditorController.configureEditor(view.getEditorToolbarButtons());
 
-    // Configure execution: floating button + Ctrl+Enter shortcut
+    // Configure execution: floating button
     tabEditorController.configureExecution(
-        new ButtonConfig(IconButtonType.PLAY, view.getRunValidationLabel(), "Ctrl+Enter"),
+        new ButtonConfig(IconButtonType.PLAY, view.getRunValidationLabel()),
         this::executeValidation);
 
     // Configure result view with split pane

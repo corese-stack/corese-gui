@@ -5,7 +5,6 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -23,15 +22,12 @@ public class EmptyStateViewFactory {
     Label message = new Label("No queries open.\nCreate a new query or load an existing one.");
 
     Button newTabButton = new Button("New Query");
-    newTabButton.setTooltip(new Tooltip("CTRL + N"));
     newTabButton.setOnAction(e -> onNewQuery.run());
 
     Button loadQueryButton = new Button("Load Query");
-    loadQueryButton.setTooltip(new Tooltip("CTRL + O"));
     loadQueryButton.setOnAction(e -> onLoadQuery.run());
 
     Button templateSelectionButton = new Button("Templates");
-    templateSelectionButton.setTooltip(new Tooltip("CTRL + T"));
     templateSelectionButton.setOnAction(e -> onTemplateSelection.accept(stage));
 
     HBox buttonBox = new HBox(10, newTabButton, loadQueryButton, templateSelectionButton);
@@ -55,12 +51,10 @@ public class EmptyStateViewFactory {
         new Label("No shapes files open.\nCreate a new shapes file or load an existing one.");
 
     Button newButton = new Button("New Shapes File");
-    newButton.setTooltip(new Tooltip("CTRL + N"));
     newButton.setOnAction(e -> onNewShapesFile.run());
     newButton.getStyleClass().add("custom-button");
 
     Button loadButton = new Button("Load Shapes File");
-    loadButton.setTooltip(new Tooltip("CTRL + O"));
     loadButton.setOnAction(e -> onLoadShapesFile.run());
     loadButton.getStyleClass().add("custom-button");
 

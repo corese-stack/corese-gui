@@ -3,7 +3,6 @@ package fr.inria.corese.gui.view;
 import fr.inria.corese.gui.view.base.AbstractView;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignM;
 
@@ -27,15 +26,12 @@ public class QueryView extends AbstractView {
      */
     public Node createEmptyState(Runnable onNewAction, Runnable onLoadAction, Runnable onTemplateAction) {
         Button newButton = new Button("New Query");
-        newButton.setTooltip(new Tooltip("CTRL + N"));
         newButton.setOnAction(e -> onNewAction.run());
 
         Button loadButton = new Button("Load Query");
-        loadButton.setTooltip(new Tooltip("CTRL + O"));
         loadButton.setOnAction(e -> onLoadAction.run());
 
         Button templateButton = new Button("Templates");
-        templateButton.setTooltip(new Tooltip("CTRL + T"));
         templateButton.setOnAction(e -> onTemplateAction.run());
 
         return new EmptyStateView(

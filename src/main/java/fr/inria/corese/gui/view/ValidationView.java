@@ -93,8 +93,8 @@ public class ValidationView extends AbstractView {
         "No shapes files open",
         "Create a new shapes file or load an existing one",
         EmptyStateView.createAction(
-            "New Shapes File", MaterialDesignP.PLUS, "CTRL + N", onNewAction),
+            "New Shapes File", MaterialDesignP.PLUS, onNewAction),
         EmptyStateView.createAction(
-            "Load Shapes File", MaterialDesignF.FOLDER_OPEN, "CTRL + O", onLoadAction));
+            "Load Shapes File", MaterialDesignF.FOLDER_OPEN, onLoadAction));
   }
 }
