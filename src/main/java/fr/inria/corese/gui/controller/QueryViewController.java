@@ -79,7 +79,7 @@ public class QueryViewController {
     tabEditorController.configureMenuItems(
         List.of(
             new TabEditorController.MenuItem(
-                "New File", () -> tabEditorController.addNewTab("untitled", "")),
+                "New File", this::onNewFileButtonClick),
             new TabEditorController.MenuItem("Open File", this::onOpenFilesButtonClick),
             new TabEditorController.MenuItem(
                 "Templates",
@@ -246,6 +246,10 @@ public class QueryViewController {
       }
     }
     tabEditorController.addNewTab(file);
+  }
+
+  private void onNewFileButtonClick() {
+    tabEditorController.addNewTab("untitled", "");
   }
 
   public TabEditorController getTabEditorController() {

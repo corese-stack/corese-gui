@@ -77,7 +77,7 @@ import javafx.scene.layout.StackPane;
  * // 6. Configure menu items - Optional
  * controller.configureMenuItems(
  *     List.of(
- *         new TabEditorController.MenuItem("New File", () -> controller.addNewTab("Untitled", "")),
+ *         new TabEditorController.MenuItem("New File", this::createNewFile),
  *         new TabEditorController.MenuItem("Open File", this::openFile)
  *     )
  * );
@@ -317,7 +317,7 @@ public class TabEditorController {
    * <pre>{@code
    * controller.configureMenuItems(
    *     List.of(
-   *         new TabEditorController.MenuItem("New File", () -> controller.addNewTab("Untitled", "")),
+   *         new TabEditorController.MenuItem("New File", this::createNewFile),
    *         new TabEditorController.MenuItem("Open File", this::openFile),
    *         new TabEditorController.MenuItem("Templates", this::showTemplates)
    *     )
