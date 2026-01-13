@@ -1,0 +1,27 @@
+/*
+ * CSS styles for the Unsaved Changes Dialog component.
+ * Matches the style of error-dialog.css for consistency.
+ */
+
+.unsaved-changes-dialog-content {
+    -fx-spacing: 15;
+    -fx-padding: 20;
+    -fx-alignment: top-left;
+}
+
+.unsaved-changes-dialog-header {
+    -fx-spacing: 15;
+    -fx-alignment: center-left;
+}
+
+.unsaved-changes-dialog-icon {
+    -fx-icon-size: 32;
+}
+
+.unsaved-changes-dialog-title-box {
+    -fx-spacing: 5;
+}
+
+.unsaved-changes-dialog-message-box {
+    -fx-spacing: 8;
+}
