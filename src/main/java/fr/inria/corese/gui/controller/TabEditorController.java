@@ -9,6 +9,7 @@ import fr.inria.corese.gui.view.TabEditorView;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -374,13 +375,10 @@ public class TabEditorController {
    */
   public Tab addNewTab(File file) {
     // Check if file is already open
-    String absolutePath = file.getAbsolutePath();
-    for (Tab tab : view.getTabs()) {
-      CodeEditorController controller = model.getEditorControllerForTab(tab);
-      if (controller != null && absolutePath.equals(controller.getModel().getFilePath())) {
-        view.selectTab(tab);
-        return tab;
-      }
+    Tab existingTab = findTabByFile(file);
+    if (existingTab != null) {
+      view.selectTab(existingTab);
+      return existingTab;
     }
 
     try {
@@ -440,6 +438,52 @@ public class TabEditorController {
     view.getTabs().remove(tab);
     model.removeTab(tab);
     tabExecutionButtons.remove(tab);
+  }
+
+  /**
+   * Finds a tab that has the given file open.
+   *
+   * <p>Uses normalized paths to properly detect duplicates even with symbolic links,
+   * relative paths, or different path separators.
+   *
+   * @param file The file to search for
+   * @return The tab with the file open, or null if not found
+   */
+  private Tab findTabByFile(File file) {
+    try {
+      // Normalize the path to resolve symbolic links and relative paths
+      Path normalizedPath = file.toPath().toRealPath();
+      
+      for (Tab tab : view.getTabs()) {
+        CodeEditorController controller = model.getEditorControllerForTab(tab);
+        if (controller != null) {
+          String filePath = controller.getModel().getFilePath();
+          if (filePath != null) {
+            try {
+              Path tabPath = Path.of(filePath).toRealPath();
+              if (normalizedPath.equals(tabPath)) {
+                return tab;
+              }
+            } catch (IOException e) {
+              // If toRealPath fails (file deleted), fallback to string comparison
+              if (file.getAbsolutePath().equals(filePath)) {
+                return tab;
+              }
+            }
+          }
+        }
+      }
+    } catch (IOException e) {
+      // If file doesn't exist, fallback to simple string comparison
+      String absolutePath = file.getAbsolutePath();
+      for (Tab tab : view.getTabs()) {
+        CodeEditorController controller = model.getEditorControllerForTab(tab);
+        if (controller != null && absolutePath.equals(controller.getModel().getFilePath())) {
+          return tab;
+        }
+      }
+    }
+    return null;
   }
 
   /**
