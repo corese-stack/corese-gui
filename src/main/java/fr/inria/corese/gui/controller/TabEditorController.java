@@ -528,8 +528,7 @@ public class TabEditorController {
    * @return The created Tab instance
    */
   private Tab addNewTabHelper(String title, String content, String filePath) {
-    CodeEditorController codeEditorController =
-        new CodeEditorController(editorToolbarButtons, content);
+    CodeEditorController codeEditorController = new CodeEditorController(editorToolbarButtons, content);
 
     StackPane editorWrapper = new StackPane(codeEditorController.getView());
     Node tabContent = editorWrapper;
