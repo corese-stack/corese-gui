@@ -74,7 +74,7 @@ public class CodeEditorController {
 
     fileChooser.setSelectedExtensionFilter(ttlFilter);
 
-    File file = fileChooser.showSaveDialog(view.getScene().getWindow());
+    File file = fileChooser.showSaveDialog(view.getRoot().getScene().getWindow());
 
     if (file != null) {
       FileChooser.ExtensionFilter selectedFilter = fileChooser.getSelectedExtensionFilter();
@@ -100,6 +100,15 @@ public class CodeEditorController {
 
   public CodeEditorModel getModel() {
     return model;
+  }
+
+  /**
+   * Returns the root node of the view for integration into parent layouts.
+   * 
+   * @return The root node
+   */
+  public javafx.scene.Node getViewRoot() {
+    return view.getRoot();
   }
 
   public CodeEditorView getView() {

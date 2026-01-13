@@ -528,62 +528,120 @@ public class TabEditorController {
    * @return The created Tab instance
    */
   private Tab addNewTabHelper(String title, String content, String filePath) {
-    CodeEditorController codeEditorController = new CodeEditorController(editorToolbarButtons, content);
-
-    StackPane editorWrapper = new StackPane(codeEditorController.getView());
-    Node tabContent = editorWrapper;
-    ResultController resultController = null;
-
-    // Create split pane if result factory is configured
-    if (resultControllerFactory != null) {
-      resultController = resultControllerFactory.get();
-      if (resultController != null) {
-        SplitPane splitPane = new SplitPane();
-        splitPane.setOrientation(Orientation.VERTICAL);
-        splitPane.getItems().add(editorWrapper);
-        tabContent = splitPane;
-      }
-    }
-
+    CodeEditorController editorController = new CodeEditorController(editorToolbarButtons, content);
+    ResultController resultController = createResultControllerIfConfigured();
+    
+    StackPane editorWrapper = new StackPane(editorController.getViewRoot());
+    Node tabContent = createTabContent(editorWrapper, resultController);
+    
     Tab tab = view.createEditorTab(title, tabContent);
-    model.addTabEditorController(tab, codeEditorController);
+    registerControllers(tab, editorController, resultController);
+    
+    addExecutionButtonIfConfigured(tab, editorWrapper);
+    setupTabProperties(tab, editorController);
+    initializeTabFile(editorController, filePath);
+    
+    view.addNewEditorTab(tab);
+    return tab;
+  }
 
+  /**
+   * Creates a ResultController if the factory is configured.
+   *
+   * @return The ResultController instance, or null if not configured
+   */
+  private ResultController createResultControllerIfConfigured() {
+    return resultControllerFactory != null ? resultControllerFactory.get() : null;
+  }
+
+  /**
+   * Creates the content node for a tab, potentially wrapping it in a SplitPane.
+   *
+   * @param editorWrapper The editor wrapper StackPane
+   * @param resultController The result controller (may be null)
+   * @return The complete tab content node
+   */
+  private Node createTabContent(StackPane editorWrapper, ResultController resultController) {
+    if (resultController == null) {
+      return editorWrapper;
+    }
+    
+    SplitPane splitPane = new SplitPane();
+    splitPane.setOrientation(Orientation.VERTICAL);
+    splitPane.getItems().add(editorWrapper);
+    return splitPane;
+  }
+
+  /**
+   * Registers controllers in the model for a given tab.
+   *
+   * @param tab The tab to register controllers for
+   * @param editorController The code editor controller
+   * @param resultController The result controller (may be null)
+   */
+  private void registerControllers(
+      Tab tab, CodeEditorController editorController, ResultController resultController) {
+    model.addTabEditorController(tab, editorController);
     if (resultController != null) {
       model.addTabResultController(tab, resultController);
     }
+  }
 
-    // Add execution button if configured
-    if (executionButtonConfig != null) {
-      FloatingButton runButton = createExecutionButton(tab);
-      tabExecutionButtons.put(tab, runButton);
-      StackPane.setAlignment(runButton, Pos.BOTTOM_RIGHT);
-      StackPane.setMargin(runButton, TabEditorView.getExecutionButtonMargin());
-      editorWrapper.getChildren().add(runButton);
+  /**
+   * Adds the execution button to the editor if configured.
+   *
+   * @param tab The tab to add the button for
+   * @param editorWrapper The editor wrapper to add the button to
+   */
+  private void addExecutionButtonIfConfigured(Tab tab, StackPane editorWrapper) {
+    if (executionButtonConfig == null) {
+      return;
     }
+    
+    FloatingButton runButton = createExecutionButton(tab);
+    tabExecutionButtons.put(tab, runButton);
+    
+    StackPane.setAlignment(runButton, Pos.BOTTOM_RIGHT);
+    StackPane.setMargin(runButton, TabEditorView.getExecutionButtonMargin());
+    editorWrapper.getChildren().add(runButton);
+  }
 
-    // Bind tab properties
-    tab.textProperty().bind(codeEditorController.getModel().displayNameProperty());
-    codeEditorController
+  /**
+   * Sets up tab properties including title binding, icon updates, and close handler.
+   *
+   * @param tab The tab to configure
+   * @param editorController The code editor controller
+   */
+  private void setupTabProperties(Tab tab, CodeEditorController editorController) {
+    // Bind tab title to editor display name
+    tab.textProperty().bind(editorController.getModel().displayNameProperty());
+    
+    // Update tab icon when modified state changes
+    editorController
         .getModel()
         .modifiedProperty()
         .addListener((obs, oldVal, newVal) -> view.updateTabIcon(tab, newVal));
-    view.updateTabIcon(tab, codeEditorController.getModel().isModified());
-
-    // Set up close handler
+    view.updateTabIcon(tab, editorController.getModel().isModified());
+    
+    // Handle close requests with confirmation
     tab.setOnCloseRequest(
         event -> {
           event.consume();
           handleCloseFile(tab);
         });
+  }
 
-    view.addNewEditorTab(tab);
-
+  /**
+   * Initializes the file association for a tab.
+   *
+   * @param editorController The code editor controller
+   * @param filePath The file path (null if not associated with a file)
+   */
+  private void initializeTabFile(CodeEditorController editorController, String filePath) {
     if (filePath != null) {
-      codeEditorController.getModel().setFilePath(filePath);
-      codeEditorController.getModel().markAsSaved();
+      editorController.getModel().setFilePath(filePath);
+      editorController.getModel().markAsSaved();
     }
-
-    return tab;
   }
 
   /**
@@ -631,7 +689,7 @@ public class TabEditorController {
     if (selectedTab != null) {
       ResultController resultController = model.getResultControllerForTab(selectedTab);
       if (resultController != null) {
-        view.showResultPane(resultController.getView().getRoot());
+        view.showResultPane(resultController.getViewRoot());
       }
     }
   }
