@@ -450,40 +450,72 @@ public class TabEditorController {
    * @return The tab with the file open, or null if not found
    */
   private Tab findTabByFile(File file) {
-    try {
-      // Normalize the path to resolve symbolic links and relative paths
-      Path normalizedPath = file.toPath().toRealPath();
-      
-      for (Tab tab : view.getTabs()) {
-        CodeEditorController controller = model.getEditorControllerForTab(tab);
-        if (controller != null) {
-          String filePath = controller.getModel().getFilePath();
-          if (filePath != null) {
-            try {
-              Path tabPath = Path.of(filePath).toRealPath();
-              if (normalizedPath.equals(tabPath)) {
-                return tab;
-              }
-            } catch (IOException e) {
-              // If toRealPath fails (file deleted), fallback to string comparison
-              if (file.getAbsolutePath().equals(filePath)) {
-                return tab;
-              }
-            }
-          }
-        }
-      }
-    } catch (IOException e) {
-      // If file doesn't exist, fallback to simple string comparison
-      String absolutePath = file.getAbsolutePath();
-      for (Tab tab : view.getTabs()) {
-        CodeEditorController controller = model.getEditorControllerForTab(tab);
-        if (controller != null && absolutePath.equals(controller.getModel().getFilePath())) {
-          return tab;
-        }
+    Path normalizedPath = normalizePathSafely(file);
+    String absolutePath = file.getAbsolutePath();
+    
+    for (Tab tab : view.getTabs()) {
+      String tabFilePath = getTabFilePath(tab);
+      if (tabFilePath != null && isMatchingFile(normalizedPath, absolutePath, tabFilePath)) {
+        return tab;
       }
     }
     return null;
+  }
+
+  /**
+   * Normalizes a file path, returning null if the file doesn't exist.
+   *
+   * @param file The file to normalize
+   * @return The normalized path, or null if normalization fails
+   */
+  private Path normalizePathSafely(File file) {
+    try {
+      return file.toPath().toRealPath();
+    } catch (IOException _) {
+      return null;
+    }
+  }
+
+  /**
+   * Gets the file path associated with a tab.
+   *
+   * @param tab The tab to get the file path from
+   * @return The file path, or null if not found
+   */
+  private String getTabFilePath(Tab tab) {
+    CodeEditorController controller = model.getEditorControllerForTab(tab);
+    return controller != null ? controller.getModel().getFilePath() : null;
+  }
+
+  /**
+   * Checks if a tab's file path matches the search file.
+   *
+   * @param normalizedSearchPath The normalized path of the search file (may be null)
+   * @param absoluteSearchPath The absolute path of the search file
+   * @param tabFilePath The file path from the tab
+   * @return true if the paths match, false otherwise
+   */
+  private boolean isMatchingFile(Path normalizedSearchPath, String absoluteSearchPath, String tabFilePath) {
+    if (normalizedSearchPath != null) {
+      return matchesNormalizedPath(normalizedSearchPath, tabFilePath);
+    }
+    return absoluteSearchPath.equals(tabFilePath);
+  }
+
+  /**
+   * Checks if a tab's file path matches a normalized path.
+   *
+   * @param normalizedPath The normalized path to compare
+   * @param tabFilePath The file path from the tab
+   * @return true if the paths match, false otherwise
+   */
+  private boolean matchesNormalizedPath(Path normalizedPath, String tabFilePath) {
+    try {
+      Path tabPath = Path.of(tabFilePath).toRealPath();
+      return normalizedPath.equals(tabPath);
+    } catch (IOException _) {
+      return false;
+    }
   }
 
   /**
