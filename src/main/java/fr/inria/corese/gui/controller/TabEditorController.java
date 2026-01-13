@@ -131,9 +131,6 @@ public class TabEditorController {
   /** Factory for creating ResultController instances with custom configuration. */
   private Supplier<ResultController> resultControllerFactory;
 
-  /** Custom empty state view to display when no tabs are open. */
-  private Node emptyStateNode;
-
   // ===============================================================================
   // Fields - Runtime State
   // ===============================================================================
@@ -301,7 +298,6 @@ public class TabEditorController {
    * @param emptyStateNode The node to display when no tabs are open
    */
   public void configureEmptyState(Node emptyStateNode) {
-    this.emptyStateNode = emptyStateNode;
     view.setEmptyStateView(emptyStateNode);
     updateEmptyStateVisibility();
   }
@@ -332,16 +328,13 @@ public class TabEditorController {
     }
   }
 
-  /** Simple data class for menu item configuration. */
-  public static class MenuItem {
-    private final String text;
-    private final Runnable action;
-
-    public MenuItem(String text, Runnable action) {
-      this.text = text;
-      this.action = action;
-    }
-  }
+  /**
+   * Configuration for a menu item in the "+" button dropdown.
+   *
+   * @param text The display text for the menu item
+   * @param action The action to execute when the menu item is clicked
+   */
+  public record MenuItem(String text, Runnable action) {}
 
   // ===============================================================================
   // Tab Management
@@ -602,13 +595,8 @@ public class TabEditorController {
 
   /** Updates the visibility of the empty state view based on the number of open tabs. */
   private void updateEmptyStateVisibility() {
-    if (emptyStateNode == null) {
-      return;
-    }
-
     boolean noTabsOpen = view.getTabs().isEmpty();
-    emptyStateNode.setVisible(noTabsOpen);
-    emptyStateNode.setManaged(noTabsOpen);
+    view.updateEmptyStateVisibility(noTabsOpen);
     view.setTabsVisible(!noTabsOpen);
   }
 

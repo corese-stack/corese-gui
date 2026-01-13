@@ -405,6 +405,21 @@ public class TabEditorView extends AbstractView {
   }
 
   /**
+   * Updates the visibility of the empty state view based on whether tabs are open.
+   *
+   * @param visible true to show the empty state, false to hide it
+   */
+  public void updateEmptyStateVisibility(boolean visible) {
+    contentContainer.getChildren().stream()
+        .filter(node -> EMPTY_STATE_VIEW_ID.equals(node.getId()))
+        .findFirst()
+        .ifPresent(node -> {
+          node.setVisible(visible);
+          node.setManaged(visible);
+        });
+  }
+
+  /**
    * Adds a floating node to the editor view (e.g., execution button).
    *
    * @param node The node to add
