@@ -152,7 +152,8 @@ public class TabEditorController {
    *
    * <ul>
    *   <li>{@link #configureEditor(List)} - Configure editor toolbar buttons
-   *   <li>{@link #configureExecution(ButtonConfig, Runnable)} - Configure execution button and action
+   *   <li>{@link #configureExecution(ButtonConfig, Runnable)} - Configure execution button and
+   *       action
    *   <li>{@link #configureResultView(List, ResultViewConfig)} - Configure result view tabs
    *   <li>{@link #configureEmptyState(Node)} - Configure empty state
    *   <li>{@link #configureMenuItems(List)} - Configure menu items
@@ -174,7 +175,8 @@ public class TabEditorController {
   private void initializeTabPane() {
 
     // Update empty state visibility on tab changes (add/remove)
-    view.subscribeToTabChanges((ListChangeListener<Tab>) c -> Platform.runLater(this::updateEmptyStateVisibility));
+    view.subscribeToTabChanges(
+        (ListChangeListener<Tab>) c -> Platform.runLater(this::updateEmptyStateVisibility));
 
     // Link add + button to addNewTab action
     view.setOnAddTabAction(e -> addNewTab());
@@ -287,11 +289,8 @@ public class TabEditorController {
    * @param toolbarButtons The list of button configurations for the result view toolbar
    * @param config Configuration specifying which tabs to display (Text, Visual, Table, Graph)
    */
-  public void configureResultView(
-      List<ButtonConfig> toolbarButtons, 
-      ResultViewConfig config) {
-    this.resultControllerFactory =
-        tab -> new ResultController(toolbarButtons, config);
+  public void configureResultView(List<ButtonConfig> toolbarButtons, ResultViewConfig config) {
+    this.resultControllerFactory = tab -> new ResultController(toolbarButtons, config);
   }
 
   /**
@@ -362,8 +361,8 @@ public class TabEditorController {
   /**
    * Creates and adds a new tab with the specified title and content.
    *
-   * <p>Use this method when you need to create a tab with specific title or initial content
-   * (e.g., from templates or snippets).
+   * <p>Use this method when you need to create a tab with specific title or initial content (e.g.,
+   * from templates or snippets).
    *
    * @param title The title for the new tab
    * @param content The initial content for the editor
@@ -402,8 +401,8 @@ public class TabEditorController {
   /**
    * Handles closing a tab with unsaved changes confirmation.
    *
-   * <p>If the file has unsaved changes, shows a confirmation dialog using ModalPane.
-   * Otherwise, closes the tab immediately.
+   * <p>If the file has unsaved changes, shows a confirmation dialog using ModalPane. Otherwise,
+   * closes the tab immediately.
    *
    * @param tab The tab to close
    */
