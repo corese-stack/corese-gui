@@ -344,8 +344,8 @@ public class TabEditorController {
   /**
    * Creates and adds a new empty tab with default title.
    *
-   * <p>This is a convenience method for creating an empty tab. For tabs with initial content
-   * (e.g., from templates), use {@link #addNewTab(String, String)}.
+   * <p>This is a convenience method for creating an empty tab. For tabs with initial content (e.g.,
+   * from templates), use {@link #addNewTab(String, String)}.
    *
    * @return The created Tab instance
    */
@@ -443,8 +443,8 @@ public class TabEditorController {
   /**
    * Finds a tab that has the given file open.
    *
-   * <p>Uses normalized paths to properly detect duplicates even with symbolic links,
-   * relative paths, or different path separators.
+   * <p>Uses normalized paths to properly detect duplicates even with symbolic links, relative
+   * paths, or different path separators.
    *
    * @param file The file to search for
    * @return The tab with the file open, or null if not found
@@ -452,7 +452,7 @@ public class TabEditorController {
   private Tab findTabByFile(File file) {
     Path normalizedPath = normalizePathSafely(file);
     String absolutePath = file.getAbsolutePath();
-    
+
     for (Tab tab : view.getTabs()) {
       String tabFilePath = getTabFilePath(tab);
       if (tabFilePath != null && isMatchingFile(normalizedPath, absolutePath, tabFilePath)) {
@@ -495,7 +495,8 @@ public class TabEditorController {
    * @param tabFilePath The file path from the tab
    * @return true if the paths match, false otherwise
    */
-  private boolean isMatchingFile(Path normalizedSearchPath, String absoluteSearchPath, String tabFilePath) {
+  private boolean isMatchingFile(
+      Path normalizedSearchPath, String absoluteSearchPath, String tabFilePath) {
     if (normalizedSearchPath != null) {
       return matchesNormalizedPath(normalizedSearchPath, tabFilePath);
     }
