@@ -103,7 +103,7 @@ public class TabEditorController {
   // Constants
   // ===============================================================================
 
-  private static final String DEFAULT_TAB_TITLE = "Untitled";
+  private static final String DEFAULT_TAB_TITLE = "untitled";
 
   // ===============================================================================
   // Fields - MVC Components
@@ -341,9 +341,10 @@ public class TabEditorController {
   // ===============================================================================
 
   /**
-   * Creates and adds a new empty tab with default title "Untitled".
+   * Creates and adds a new empty tab with default title.
    *
-   * <p>This is a convenience method equivalent to {@code addNewTab("Untitled", "")}.
+   * <p>This is a convenience method for creating an empty tab. For tabs with initial content
+   * (e.g., from templates), use {@link #addNewTab(String, String)}.
    *
    * @return The created Tab instance
    */
