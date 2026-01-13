@@ -236,6 +236,14 @@ public class ValidationController {
       
       tabEditorController.showResultPane();
 
+      // Configure tabs: Validation results have text and visual, but not table or graph
+      resultController.configureTabsForResult(
+          true,   // text: enabled (TURTLE/RDF/XML report)
+          true,   // visual: enabled (validation report table)
+          false,  // table: disabled (not used for validation)
+          false   // graph: disabled (not used for validation)
+      );
+
       // Ensure the text tab is visible to show the report
       resultController.selectTextTab();
 

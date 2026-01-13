@@ -358,6 +358,59 @@ public class ResultController {
         view.getTabPane().getSelectionModel().select(view.getTextTab());
     }
 
+    /**
+     * Enables or disables a specific tab based on the configuration type.
+     * When disabled, the tab is shown but grayed out and not selectable.
+     *
+     * @param tabType The type of tab to enable/disable
+     * @param enabled True to enable the tab, false to disable and gray it out
+     */
+    public void setTabEnabled(ResultViewConfig.TabType tabType, boolean enabled) {
+        Platform.runLater(() -> {
+            javafx.scene.control.Tab tab = getTabForType(tabType);
+            if (tab != null) {
+                tab.setDisable(!enabled);
+            }
+        });
+    }
+
+    /**
+     * Helper method to get the Tab instance for a given TabType.
+     */
+    private javafx.scene.control.Tab getTabForType(ResultViewConfig.TabType tabType) {
+        return switch (tabType) {
+            case TEXT -> view.getTextTab();
+            case VISUAL -> view.getVisualTab();
+            case TABLE -> view.getTableTab();
+            case GRAPH -> view.getGraphTab();
+        };
+    }
+
+    /**
+     * Convenience method to configure tab states based on query result type.
+     * This should be called when displaying results to ensure only relevant tabs are enabled.
+     *
+     * @param enableText Enable text tab
+     * @param enableVisual Enable visual tab
+     * @param enableTable Enable table tab
+     * @param enableGraph Enable graph tab
+     */
+    public void configureTabsForResult(boolean enableText, boolean enableVisual, 
+                                      boolean enableTable, boolean enableGraph) {
+        if (config.hasTab(ResultViewConfig.TabType.TEXT)) {
+            setTabEnabled(ResultViewConfig.TabType.TEXT, enableText);
+        }
+        if (config.hasTab(ResultViewConfig.TabType.VISUAL)) {
+            setTabEnabled(ResultViewConfig.TabType.VISUAL, enableVisual);
+        }
+        if (config.hasTab(ResultViewConfig.TabType.TABLE)) {
+            setTabEnabled(ResultViewConfig.TabType.TABLE, enableTable);
+        }
+        if (config.hasTab(ResultViewConfig.TabType.GRAPH)) {
+            setTabEnabled(ResultViewConfig.TabType.GRAPH, enableGraph);
+        }
+    }
+
     public void updateTableView(String csvResult) {
         Platform.runLater(() -> {
             resultTable.getItems().clear();

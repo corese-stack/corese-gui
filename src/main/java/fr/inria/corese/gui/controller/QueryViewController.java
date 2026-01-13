@@ -141,6 +141,14 @@ public class QueryViewController {
 
     switch (queryType) {
       case "SELECT", "ASK":
+        // Configure tabs: SELECT results have text and table, but not graph
+        resultController.configureTabsForResult(
+            true,   // text: enabled
+            false,  // visual: disabled (not used for queries)
+            true,   // table: enabled
+            false   // graph: disabled for SELECT
+        );
+        
         resultController
             .getView()
             .getTabPane()
@@ -153,6 +161,14 @@ public class QueryViewController {
         resultController.updateText(xmlResult);
         break;
       case "CONSTRUCT", "DESCRIBE":
+        // Configure tabs: CONSTRUCT/DESCRIBE results have text and graph, but not table
+        resultController.configureTabsForResult(
+            true,   // text: enabled
+            false,  // visual: disabled (not used for queries)
+            false,  // table: disabled for CONSTRUCT
+            true    // graph: enabled
+        );
+        
         resultController
             .getView()
             .getTabPane()

@@ -12,7 +12,7 @@ import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.function.Supplier;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -129,7 +129,7 @@ public class TabEditorController {
   private Runnable onExecutionRequest;
 
   /** Factory for creating ResultController instances with custom configuration. */
-  private Function<Tab, ResultController> resultControllerFactory;
+  private Supplier<ResultController> resultControllerFactory;
 
   /** Custom empty state view to display when no tabs are open. */
   private Node emptyStateNode;
@@ -290,7 +290,7 @@ public class TabEditorController {
    * @param config Configuration specifying which tabs to display (Text, Visual, Table, Graph)
    */
   public void configureResultView(List<ButtonConfig> toolbarButtons, ResultViewConfig config) {
-    this.resultControllerFactory = tab -> new ResultController(toolbarButtons, config);
+    this.resultControllerFactory = () -> new ResultController(toolbarButtons, config);
   }
 
   /**
@@ -466,7 +466,7 @@ public class TabEditorController {
 
     // Create split pane if result factory is configured
     if (resultControllerFactory != null) {
-      resultController = resultControllerFactory.apply(null);
+      resultController = resultControllerFactory.get();
       if (resultController != null) {
         SplitPane splitPane = new SplitPane();
         splitPane.setOrientation(Orientation.VERTICAL);
