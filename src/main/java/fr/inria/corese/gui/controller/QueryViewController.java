@@ -193,7 +193,7 @@ public class QueryViewController {
     if (resultController == null) return;
 
     CodeEditorController codeEditorController =
-        tabEditorController.getControllerForTab(selectedTab);
+        tabEditorController.getEditorControllerForTab(selectedTab);
     if (codeEditorController == null) {
       return;
     }

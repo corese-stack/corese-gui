@@ -869,7 +869,7 @@ public class TabEditorController {
    * @param tab The tab to get the controller for
    * @return The CodeEditorController, or null if not found
    */
-  public CodeEditorController getControllerForTab(Tab tab) {
+  public CodeEditorController getEditorControllerForTab(Tab tab) {
     TabContext context = TabContext.get(tab);
     return context != null ? context.getEditorController() : null;
   }
