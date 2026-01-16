@@ -653,6 +653,7 @@ public class TabEditorController {
   private FloatingButton createExecutionButton(Tab tab) {
     FloatingButton runButton = new FloatingButton(executionButtonConfig);
 
+    // Set button action
     runButton.setOnAction(
         e -> {
           if (onExecutionRequest != null) {
@@ -660,11 +661,13 @@ public class TabEditorController {
           }
         });
 
+    // Bind button disabled state based on editor content and loading state
     CodeEditorController controller = model.getEditorControllerForTab(tab);
     if (controller != null) {
       BooleanBinding isEmpty =
           Bindings.createBooleanBinding(
               () -> {
+                // Check if editor content is empty
                 String c = controller.getModel().getContent();
                 return c == null || c.trim().isEmpty();
               },
