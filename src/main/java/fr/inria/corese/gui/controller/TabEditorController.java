@@ -3,18 +3,19 @@ package fr.inria.corese.gui.controller;
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.core.ResultViewConfig;
+import fr.inria.corese.gui.manager.FileLoaderService;
 import fr.inria.corese.gui.model.TabEditorModel;
 import fr.inria.corese.gui.view.FloatingButton;
 import fr.inria.corese.gui.view.TabEditorView;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.collections.ListChangeListener;
@@ -370,8 +371,11 @@ public class TabEditorController {
   /**
    * Opens a file in a new tab. If the file is already open, selects that tab instead.
    *
+   * <p>The file is read asynchronously in a background thread to avoid blocking the UI.
+   * A placeholder tab is created immediately with a loading message.
+   *
    * @param file The file to open
-   * @return The created or selected Tab instance, or null if the file could not be read
+   * @return The created or selected Tab instance, or null if the file is already being loaded
    */
   public Tab addNewTab(File file) {
     // Check if file is already open
@@ -381,13 +385,43 @@ public class TabEditorController {
       return existingTab;
     }
 
-    try {
-      String content = Files.readString(file.toPath());
-      return addNewTabHelper(file.getName(), content, file.getPath());
-    } catch (IOException e) {
-      view.showError("File Error", "Could not read file: " + e.getMessage());
-      return null;
+    // Create a placeholder tab immediately with loading message
+    Tab placeholderTab = addNewTabHelper(file.getName(), "Loading...", file.getPath());
+    
+    // Disable the tab's editor during loading
+    CodeEditorController editorController = model.getEditorControllerForTab(placeholderTab);
+    if (editorController != null) {
+      editorController.getView().getRoot().setDisable(true);
     }
+
+    // Read file content in background thread using FileLoaderService
+    Task<String> fileReadTask = FileLoaderService.loadFileAsync(file);
+
+    // Handle successful file read
+    fileReadTask.setOnSucceeded(event -> {
+      String content = fileReadTask.getValue();
+      if (editorController != null) {
+        editorController.getView().getRoot().setDisable(false);
+        editorController.getModel().setContent(content);
+        editorController.getModel().setModified(false);
+      }
+    });
+
+    // Handle file read failure
+    fileReadTask.setOnFailed(event -> {
+      Throwable exception = fileReadTask.getException();
+      String errorMsg = exception != null ? exception.getMessage() : "Unknown error";
+      view.showError("File Error", "Could not read file: " + errorMsg);
+      // Close the placeholder tab on error
+      Platform.runLater(() -> closeTab(placeholderTab));
+    });
+
+    // Start the background task
+    Thread thread = new Thread(fileReadTask);
+    thread.setDaemon(true);
+    thread.start();
+
+    return placeholderTab;
   }
 
   /**
