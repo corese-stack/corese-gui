@@ -198,8 +198,8 @@ public class TabEditorController {
   /**
    * Requests to close a tab, showing confirmation if needed.
    *
-   * <p>Follows JavaFX naming convention for user-requested actions. If the tab has unsaved
-   * changes, shows a confirmation dialog.
+   * <p>Follows JavaFX naming convention for user-requested actions. If the tab has unsaved changes,
+   * shows a confirmation dialog.
    *
    * @param tab The tab to close
    */
@@ -380,7 +380,7 @@ public class TabEditorController {
     Tab tab = view.createEditorTab(title, tabContent);
 
     // 4. Attach context (single source of truth)
-    FloatingButton executionButton = setupExecutionButton(tab, editorWrapper, editorController);
+    FloatingButton executionButton = setupExecutionButton(editorWrapper, editorController);
     attachContext(tab, editorController, resultController, executionButton);
 
     // 5. Final setup
@@ -432,12 +432,12 @@ public class TabEditorController {
   }
 
   private FloatingButton setupExecutionButton(
-      Tab tab, StackPane editorWrapper, CodeEditorController editorController) {
+      StackPane editorWrapper, CodeEditorController editorController) {
     if (!config.hasExecution()) {
       return null;
     }
 
-    FloatingButton runButton = createExecutionButton(tab, editorController);
+    FloatingButton runButton = createExecutionButton(editorController);
     StackPane.setAlignment(runButton, Pos.BOTTOM_RIGHT);
     StackPane.setMargin(runButton, TabEditorView.getExecutionButtonMargin());
     editorWrapper.getChildren().add(runButton);
@@ -445,16 +445,16 @@ public class TabEditorController {
     return runButton;
   }
 
-  private FloatingButton createExecutionButton(
-      Tab tab, CodeEditorController editorController) {
+  private FloatingButton createExecutionButton(CodeEditorController editorController) {
     FloatingButton runButton = new FloatingButton(config.getExecutionButton());
 
     // Set action
-    runButton.setOnAction(e -> {
-      if (config.getExecutionAction() != null) {
-        config.getExecutionAction().run();
-      }
-    });
+    runButton.setOnAction(
+        e -> {
+          if (config.getExecutionAction() != null) {
+            config.getExecutionAction().run();
+          }
+        });
 
     // Bind disabled state
     BooleanBinding isEmpty =
@@ -500,17 +500,19 @@ public class TabEditorController {
   private void startFileLoadingTask(Tab tab, File file) {
     Task<String> task = FileLoaderService.loadFileAsync(file);
 
-    task.setOnSucceeded(event -> {
-      unlockTabUI(tab);
-      updateTabContent(tab, task.getValue());
-    });
+    task.setOnSucceeded(
+        event -> {
+          unlockTabUI(tab);
+          updateTabContent(tab, task.getValue());
+        });
 
-    task.setOnFailed(event -> {
-      Throwable ex = task.getException();
-      String errorMsg = ex != null ? ex.getMessage() : "Unknown error";
-      view.showError("File Error", "Could not read file: " + errorMsg);
-      Platform.runLater(() -> closeTabImmediately(tab));
-    });
+    task.setOnFailed(
+        event -> {
+          Throwable ex = task.getException();
+          String errorMsg = ex != null ? ex.getMessage() : "Unknown error";
+          view.showError("File Error", "Could not read file: " + errorMsg);
+          Platform.runLater(() -> closeTabImmediately(tab));
+        });
 
     Thread thread = new Thread(task);
     thread.setDaemon(true);
