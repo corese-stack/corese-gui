@@ -3,6 +3,7 @@ package fr.inria.corese.gui.controller;
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.core.ResultViewConfig;
+import fr.inria.corese.gui.core.TabContext;
 import fr.inria.corese.gui.manager.FileLoaderService;
 import fr.inria.corese.gui.model.TabEditorModel;
 import fr.inria.corese.gui.view.FloatingButton;
@@ -10,9 +11,7 @@ import fr.inria.corese.gui.view.TabEditorView;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Supplier;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -134,13 +133,6 @@ public class TabEditorController {
   private Supplier<ResultController> resultControllerFactory;
 
   // ===============================================================================
-  // Fields - Runtime State
-  // ===============================================================================
-
-  /** Maps each tab to its floating execution button for state management. */
-  private final Map<Tab, FloatingButton> tabExecutionButtons;
-
-  // ===============================================================================
   // Constructor
   // ===============================================================================
 
@@ -161,8 +153,6 @@ public class TabEditorController {
   public TabEditorController() {
     this.view = new TabEditorView();
     this.model = new TabEditorModel();
-    this.tabExecutionButtons = new HashMap<>();
-
     initializeTabPane();
   }
 
@@ -389,9 +379,9 @@ public class TabEditorController {
     Tab placeholderTab = addNewTabHelper(file.getName(), "Loading...", file.getPath());
     
     // Disable the tab's editor during loading
-    CodeEditorController editorController = model.getEditorControllerForTab(placeholderTab);
-    if (editorController != null) {
-      editorController.getView().getRoot().setDisable(true);
+    TabContext context = TabContext.get(placeholderTab);
+    if (context != null) {
+      context.getEditorController().getView().getRoot().setDisable(true);
     }
 
     // Read file content in background thread using FileLoaderService
@@ -400,10 +390,12 @@ public class TabEditorController {
     // Handle successful file read
     fileReadTask.setOnSucceeded(event -> {
       String content = fileReadTask.getValue();
-      if (editorController != null) {
-        editorController.getView().getRoot().setDisable(false);
-        editorController.getModel().setContent(content);
-        editorController.getModel().setModified(false);
+      TabContext ctx = TabContext.get(placeholderTab);
+      if (ctx != null) {
+        CodeEditorController editor = ctx.getEditorController();
+        editor.getView().getRoot().setDisable(false);
+        editor.getModel().setContent(content);
+        editor.getModel().setModified(false);
       }
     });
 
@@ -437,12 +429,13 @@ public class TabEditorController {
       return;
     }
 
-    CodeEditorController controller = model.getEditorControllerForTab(tab);
-    if (controller == null || !controller.getModel().isModified()) {
+    TabContext context = TabContext.get(tab);
+    if (context == null || !context.getEditorController().getModel().isModified()) {
       closeTab(tab);
       return;
     }
 
+    CodeEditorController controller = context.getEditorController();
     view.showUnsavedChangesDialog(
         controller.getModel().getDisplayName(),
         result -> {
@@ -469,9 +462,10 @@ public class TabEditorController {
    * @param tab The tab to close
    */
   private void closeTab(Tab tab) {
-    view.getTabs().remove(tab);
+    // TabContext will be garbage collected with the tab automatically
+    tab.setUserData(null);
     model.removeTab(tab);
-    tabExecutionButtons.remove(tab);
+    view.getTabs().remove(tab);
   }
 
   /**
@@ -517,8 +511,8 @@ public class TabEditorController {
    * @return The file path, or null if not found
    */
   private String getTabFilePath(Tab tab) {
-    CodeEditorController controller = model.getEditorControllerForTab(tab);
-    return controller != null ? controller.getModel().getFilePath() : null;
+    TabContext context = TabContext.get(tab);
+    return context != null ? context.getEditorController().getModel().getFilePath() : null;
   }
 
   /**
@@ -607,7 +601,8 @@ public class TabEditorController {
   }
 
   /**
-   * Registers controllers in the model for a given tab.
+   * Registers controllers by creating a TabContext and storing it in the tab's userData.
+   * This eliminates the need for parallel Maps and prevents memory leaks.
    *
    * @param tab The tab to register controllers for
    * @param editorController The code editor controller
@@ -615,6 +610,11 @@ public class TabEditorController {
    */
   private void registerControllers(
       Tab tab, CodeEditorController editorController, ResultController resultController) {
+    // Store context in tab's userData - no more parallel Maps!
+    TabContext context = new TabContext(editorController, resultController, null);
+    tab.setUserData(context);
+    
+    // Keep model associations for backward compatibility (can be removed later)
     model.addTabEditorController(tab, editorController);
     if (resultController != null) {
       model.addTabResultController(tab, resultController);
@@ -633,7 +633,16 @@ public class TabEditorController {
     }
     
     FloatingButton runButton = createExecutionButton(tab);
-    tabExecutionButtons.put(tab, runButton);
+    
+    // Update TabContext with the execution button
+    TabContext oldContext = TabContext.get(tab);
+    if (oldContext != null) {
+      TabContext newContext = new TabContext(
+          oldContext.getEditorController(),
+          oldContext.getResultController(),
+          runButton);
+      tab.setUserData(newContext);
+    }
     
     StackPane.setAlignment(runButton, Pos.BOTTOM_RIGHT);
     StackPane.setMargin(runButton, TabEditorView.getExecutionButtonMargin());
@@ -696,8 +705,9 @@ public class TabEditorController {
         });
 
     // Bind button disabled state based on editor content and loading state
-    CodeEditorController controller = model.getEditorControllerForTab(tab);
-    if (controller != null) {
+    TabContext context = TabContext.get(tab);
+    if (context != null) {
+      CodeEditorController controller = context.getEditorController();
       BooleanBinding isEmpty =
           Bindings.createBooleanBinding(
               () -> {
@@ -724,9 +734,9 @@ public class TabEditorController {
   public void showResultPane() {
     Tab selectedTab = view.getSelectedTab();
     if (selectedTab != null) {
-      ResultController resultController = model.getResultControllerForTab(selectedTab);
-      if (resultController != null) {
-        view.showResultPane(resultController.getViewRoot());
+      TabContext context = TabContext.get(selectedTab);
+      if (context != null && context.hasResultController()) {
+        view.showResultPane(context.getResultController().getViewRoot());
       }
     }
   }
@@ -754,9 +764,9 @@ public class TabEditorController {
   public void setExecutionState(boolean loading) {
     Tab selectedTab = view.getSelectedTab();
     if (selectedTab != null) {
-      FloatingButton button = tabExecutionButtons.get(selectedTab);
-      if (button != null) {
-        button.setLoading(loading);
+      TabContext context = TabContext.get(selectedTab);
+      if (context != null && context.hasExecutionButton()) {
+        context.getExecutionButton().setLoading(loading);
       }
     }
   }
@@ -828,7 +838,9 @@ public class TabEditorController {
    * @return The ResultController, or null if none exists
    */
   public ResultController getCurrentResultController() {
-    return model.getResultControllerForTab(view.getSelectedTab());
+    Tab selectedTab = view.getSelectedTab();
+    TabContext context = TabContext.get(selectedTab);
+    return context != null ? context.getResultController() : null;
   }
 
   /**
@@ -838,7 +850,8 @@ public class TabEditorController {
    * @return The CodeEditorController, or null if not found
    */
   public CodeEditorController getControllerForTab(Tab tab) {
-    return model.getEditorControllerForTab(tab);
+    TabContext context = TabContext.get(tab);
+    return context != null ? context.getEditorController() : null;
   }
 
   /**
@@ -848,8 +861,11 @@ public class TabEditorController {
    * @return The text content, or null if the tab is not valid
    */
   public String getEditorContent(Tab tab) {
-    CodeEditorController controller = model.getEditorControllerForTab(tab);
-    return controller != null ? controller.getView().getText() : null;
+    TabContext context = TabContext.get(tab);
+    if (context != null) {
+      return context.getEditorController().getView().getText();
+    }
+    return null;
   }
 
   /**
@@ -859,8 +875,11 @@ public class TabEditorController {
    * @return The file path, or null if the tab has no associated file
    */
   public String getFilePathForTab(Tab tab) {
-    CodeEditorController controller = model.getEditorControllerForTab(tab);
-    return controller != null ? controller.getModel().getFilePath() : null;
+    TabContext context = TabContext.get(tab);
+    if (context != null) {
+      return context.getEditorController().getModel().getFilePath();
+    }
+    return null;
   }
 
   // ===============================================================================
