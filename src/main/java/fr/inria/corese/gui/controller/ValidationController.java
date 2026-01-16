@@ -2,6 +2,7 @@ package fr.inria.corese.gui.controller;
 
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.core.ResultViewConfig;
+import fr.inria.corese.gui.core.TabEditorConfig;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.manager.ShaclManager;
 import fr.inria.corese.gui.model.ValidationModel;
@@ -73,49 +74,42 @@ public class ValidationController {
    */
   private void initialize() {
     configureEditor();
-    configureEmptyState();
     setupViewIntegration();
   }
 
   /** Initializes the generic tab editor with specific toolbar buttons. */
   private void configureEditor() {
-    tabEditorController = new TabEditorController();
-
-    // Configure editor toolbar
-    tabEditorController.configureEditor(
-        List.of(
-            new ButtonConfig(IconButtonType.SAVE),
-            new ButtonConfig(IconButtonType.EXPORT),
-            new ButtonConfig(IconButtonType.CLEAR),
-            new ButtonConfig(IconButtonType.UNDO),
-            new ButtonConfig(IconButtonType.REDO)));
-
-    // Configure execution: floating button
-    tabEditorController.configureExecution(
-        new ButtonConfig(IconButtonType.PLAY, view.getRunValidationLabel()),
-        this::executeValidation);
-
-    // Configure result view with split pane
-    tabEditorController.configureResultView(
-        view.getResultToolbarButtons(),
-        ResultViewConfig.builder()
-            .withTextTab()
-            .withVisualTab()
-            .build());
-
-    // Configure menu items for Validation context
-    tabEditorController.configureMenuItems(
-        List.of(
-            new TabEditorController.MenuItem("New File", this::onNewFileButtonClick),
-            new TabEditorController.MenuItem("Open File", this::onOpenFilesButtonClick)));
-  }
-
-  /** Configures the empty state view to be displayed when no tabs are open. */
-  private void configureEmptyState() {
+    // Configure empty state
     Node emptyState =
         view.createEmptyState(this::onNewFileButtonClick, this::onOpenFilesButtonClick);
 
-    tabEditorController.configureEmptyState(emptyState);
+    // Build configuration with Builder pattern
+    TabEditorConfig config = TabEditorConfig.builder()
+        .withEditorButtons(
+            List.of(
+                new ButtonConfig(IconButtonType.SAVE),
+                new ButtonConfig(IconButtonType.EXPORT),
+                new ButtonConfig(IconButtonType.CLEAR),
+                new ButtonConfig(IconButtonType.UNDO),
+                new ButtonConfig(IconButtonType.REDO)))
+        .withExecution(
+            new ButtonConfig(IconButtonType.PLAY, view.getRunValidationLabel()),
+            this::executeValidation)
+        .withResultView(
+            view.getResultToolbarButtons(),
+            ResultViewConfig.builder()
+                .withTextTab()
+                .withVisualTab()
+                .build())
+        .withEmptyState(emptyState)
+        .withMenuItems(
+            List.of(
+                new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
+                new TabEditorConfig.MenuItem("Open File", this::onOpenFilesButtonClick)))
+        .build();
+
+    // Create controller with complete configuration
+    tabEditorController = new TabEditorController(config);
   }
 
   /** Integrates the editor into the main view and sets up listeners. */
@@ -287,7 +281,7 @@ public class ValidationController {
 
   /** Creates a new untitled tab for SHACL shapes. */
   private void onNewFileButtonClick() {
-    tabEditorController.addNewTab("untitled-shapes.ttl", "");
+    tabEditorController.createNewTab("untitled-shapes.ttl", "");
   }
 
   /** Opens a file chooser dialog to load SHACL shapes files. */
@@ -303,7 +297,7 @@ public class ValidationController {
             view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null);
 
     if (file != null) {
-      tabEditorController.addNewTab(file);
+      tabEditorController.openFile(file);
     }
   }
 }

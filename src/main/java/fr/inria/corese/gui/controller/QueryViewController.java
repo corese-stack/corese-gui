@@ -2,6 +2,7 @@ package fr.inria.corese.gui.controller;
 
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.core.ResultViewConfig;
+import fr.inria.corese.gui.core.TabEditorConfig;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.factory.popup.TemplatePopup;
 import fr.inria.corese.gui.manager.QueryManager;
@@ -32,62 +33,59 @@ public class QueryViewController {
   }
 
   private void initializeEditor() {
-    tabEditorController = new TabEditorController();
+    // Configure empty state
+    Node emptyState =
+        view.createEmptyState(
+            () -> tabEditorController.createNewTab("untitled", ""),
+            this::onOpenFilesButtonClick,
+            () -> {
+              Stage stage = (Stage) view.getRoot().getScene().getWindow();
+              TemplatePopup.show(stage, query -> tabEditorController.createNewTab("untitled", query));
+            });
 
-    // Configure editor toolbar
-    tabEditorController.configureEditor(
-        List.of(
-            new ButtonConfig(IconButtonType.SAVE, "Save File"),
-            new ButtonConfig(IconButtonType.CLEAR, "Clear Content"),
-            new ButtonConfig(IconButtonType.UNDO, "Undo"),
-            new ButtonConfig(IconButtonType.REDO, "Redo")));
+    // Build configuration with Builder pattern
+    TabEditorConfig config = TabEditorConfig.builder()
+        .withEditorButtons(
+            List.of(
+                new ButtonConfig(IconButtonType.SAVE, "Save File"),
+                new ButtonConfig(IconButtonType.CLEAR, "Clear Content"),
+                new ButtonConfig(IconButtonType.UNDO, "Undo"),
+                new ButtonConfig(IconButtonType.REDO, "Redo")))
+        .withExecution(
+            new ButtonConfig(IconButtonType.PLAY, "Run Query"),
+            this::executeQuery)
+        .withResultView(
+            List.of(
+                new ButtonConfig(IconButtonType.COPY, "Copy to Clipboard"),
+                new ButtonConfig(IconButtonType.EXPORT, "Export Results")),
+            ResultViewConfig.builder()
+                .withTextTab()
+                .withTableTab()
+                .withGraphTab()
+                .build())
+        .withEmptyState(emptyState)
+        .withMenuItems(
+            List.of(
+                new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
+                new TabEditorConfig.MenuItem("Open File", this::onOpenFilesButtonClick),
+                new TabEditorConfig.MenuItem(
+                    "Templates",
+                    () -> {
+                      Stage stage = (Stage) view.getRoot().getScene().getWindow();
+                      TemplatePopup.show(
+                          stage, query -> tabEditorController.createNewTab("untitled", query));
+                    })))
+        .build();
+
+    // Create controller with complete configuration
+    tabEditorController = new TabEditorController(config);
 
     ((javafx.scene.layout.Region) tabEditorController.getViewRoot()).setMaxWidth(Double.MAX_VALUE);
     ((javafx.scene.layout.Region) tabEditorController.getViewRoot()).setMaxHeight(Double.MAX_VALUE);
 
-    // Configure execution: floating button
-    tabEditorController.configureExecution(
-        new ButtonConfig(IconButtonType.PLAY, "Run Query"), this::executeQuery);
-
-    // Configure result view with split pane
-    tabEditorController.configureResultView(
-        List.of(
-            new ButtonConfig(IconButtonType.COPY, "Copy to Clipboard"),
-            new ButtonConfig(IconButtonType.EXPORT, "Export Results")),
-        ResultViewConfig.builder()
-            .withTextTab()
-            .withTableTab()
-            .withGraphTab()
-            .build());
-
     view.setMainContent(tabEditorController.getViewRoot());
 
     setupTabListeners();
-
-    // Configure empty state
-    Node emptyState =
-        view.createEmptyState(
-            () -> tabEditorController.addNewTab("untitled", ""),
-            this::onOpenFilesButtonClick,
-            () -> {
-              Stage stage = (Stage) view.getRoot().getScene().getWindow();
-              TemplatePopup.show(stage, query -> tabEditorController.addNewTab("untitled", query));
-            });
-    tabEditorController.configureEmptyState(emptyState);
-
-    // Configure add tab menu with Query-specific items
-    tabEditorController.configureMenuItems(
-        List.of(
-            new TabEditorController.MenuItem(
-                "New File", this::onNewFileButtonClick),
-            new TabEditorController.MenuItem("Open File", this::onOpenFilesButtonClick),
-            new TabEditorController.MenuItem(
-                "Templates",
-                () -> {
-                  Stage stage = (Stage) view.getRoot().getScene().getWindow();
-                  TemplatePopup.show(
-                      stage, query -> tabEditorController.addNewTab("untitled", query));
-                })));
   }
 
   /**
@@ -261,11 +259,11 @@ public class QueryViewController {
         return;
       }
     }
-    tabEditorController.addNewTab(file);
+    tabEditorController.openFile(file);
   }
 
   private void onNewFileButtonClick() {
-    tabEditorController.addNewTab("untitled", "");
+    tabEditorController.createNewTab("untitled", "");
   }
 
   public TabEditorController getTabEditorController() {
