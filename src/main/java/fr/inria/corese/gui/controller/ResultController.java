@@ -1,520 +1,349 @@
 package fr.inria.corese.gui.controller;
 
-import fr.inria.corese.core.Graph;
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.core.ResultViewConfig;
-import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.model.ValidationReportItem;
 import fr.inria.corese.gui.view.ResultView;
-import javafx.animation.PauseTransition;
 import javafx.application.Platform;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ChoiceBox;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.Tooltip;
-import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.StackPane;
-import javafx.stage.FileChooser;
-import javafx.util.Duration;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-
-import fr.inria.corese.gui.view.rule.CustomPagination;
-import javafx.beans.value.ChangeListener;
-import javafx.concurrent.Worker;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
-import javafx.scene.web.WebView;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+/**
+ * Orchestrator controller for result display with multiple view types.
+ *
+ * <p>This controller acts as a facade that composes four specialized sub-controllers:
+ *
+ * <ul>
+ *   <li>{@link TextResultController} - Text results with format selection
+ *   <li>{@link TableResultController} - Tabular SPARQL results with pagination
+ *   <li>{@link VisualResultController} - SHACL validation reports
+ *   <li>{@link GraphResultController} - RDF graph visualization
+ * </ul>
+ *
+ * <p>The controller provides a unified API for updating results while delegating the actual work
+ * to specialized sub-controllers. This design follows the Composition pattern, avoiding the "God
+ * Class" anti-pattern.
+ *
+ * <p><b>Usage example:</b>
+ *
+ * <pre>{@code
+ * // Configure which tabs to show
+ * ResultViewConfig config = ResultViewConfig.builder()
+ *     .withTextTab()
+ *     .withTableTab()
+ *     .build();
+ *
+ * // Create controller
+ * ResultController controller = new ResultController(buttons, config);
+ *
+ * // Use unified API
+ * controller.updateText(sparqlResults);
+ * controller.updateTableView(csvResults);
+ * Parent view = controller.getViewRoot();
+ * }</pre>
+ */
 public class ResultController {
-    private static final Logger logger = LoggerFactory.getLogger(ResultController.class);
 
-    private final ResultView view;
-    private final TextArea xmlResultTextArea;
-    private final TableView<ValidationReportItem> reportTable;
-    private final ChoiceBox<String> textFormatChoiceBox;
-    private Button copyButton;
-    private Button exportButton;
+  // ==============================================================================================
+  // Fields - Sub-Controllers (Composition)
+  // ==============================================================================================
 
-    // SPARQL Result Components
-    private final TableView<String[]> resultTable;
-    private final CustomPagination customPagination;
-    private final TextField rowsPerPageField;
-    private final Label totalRowsLabel;
-    private final List<String[]> allRows;
-    private int rowsPerPage = 50;
-    private final WebView graphView;
-    private final List<ButtonConfig> buttons;
-    private final List<IconButtonType> iconButtons; // Extracted for IconButtonBarView
-    private final ResultViewConfig config;
+  /** Sub-controller for text-based results (optional, created only if TEXT tab is configured). */
+  private final TextResultController textController;
 
-    public ResultController(List<ButtonConfig> buttons, ResultViewConfig config) {
-        this.buttons = buttons;
-        this.config = config != null ? config : ResultViewConfig.defaultConfig();
-        this.view = new ResultView();
+  /** Sub-controller for tabular results (optional, created only if TABLE tab is configured). */
+  private final TableResultController tableController;
 
-        // Extract IconButtonType for IconButtonBarController
-        this.iconButtons = buttons != null 
-            ? buttons.stream().map(ButtonConfig::getIcon).toList()
-            : List.of();
+  /**
+   * Sub-controller for visual SHACL reports (optional, created only if VISUAL tab is configured).
+   */
+  private final VisualResultController visualController;
 
-        this.xmlResultTextArea = new TextArea();
-        this.reportTable = new TableView<>();
-        this.textFormatChoiceBox = new ChoiceBox<>();
-        
-        // Initialize SPARQL components
-        this.resultTable = new TableView<>();
-        this.allRows = new ArrayList<>();
-        this.rowsPerPageField = new TextField("50");
-        this.totalRowsLabel = new Label("total rows: 0");
-        this.customPagination = new CustomPagination(1, this::updateTableForPage);
-        this.graphView = new WebView();
+  /** Sub-controller for graph visualization (optional, created only if GRAPH tab is configured). */
+  private final GraphResultController graphController;
 
-        initialize();
+  // ==============================================================================================
+  // Fields - View & Configuration
+  // ==============================================================================================
+
+  /** The main view component containing the tab pane. */
+  private final ResultView view;
+
+  /** Immutable configuration specifying which tabs are enabled. */
+  private final ResultViewConfig config;
+
+  // ==============================================================================================
+  // Constructors
+  // ==============================================================================================
+
+  /**
+   * Constructs a ResultController with specified buttons and configuration.
+   *
+   * @param buttons List of button configurations for toolbars
+   * @param config Configuration specifying which tabs to enable (defaults if null)
+   */
+  public ResultController(List<ButtonConfig> buttons, ResultViewConfig config) {
+    this.config = config != null ? config : ResultViewConfig.defaultConfig();
+    this.view = new ResultView();
+
+    // Instantiate only the sub-controllers for configured tabs
+    this.textController =
+        this.config.hasTab(ResultViewConfig.TabType.TEXT)
+            ? new TextResultController(buttons)
+            : null;
+
+    this.tableController =
+        this.config.hasTab(ResultViewConfig.TabType.TABLE) ? new TableResultController() : null;
+
+    this.visualController =
+        this.config.hasTab(ResultViewConfig.TabType.VISUAL) ? new VisualResultController() : null;
+
+    this.graphController =
+        this.config.hasTab(ResultViewConfig.TabType.GRAPH) ? new GraphResultController() : null;
+
+    initialize();
+  }
+
+  /**
+   * Constructs a ResultController with specified buttons and default configuration.
+   *
+   * @param buttons List of button configurations for toolbars
+   */
+  public ResultController(List<ButtonConfig> buttons) {
+    this(buttons, ResultViewConfig.defaultConfig());
+  }
+
+  /**
+   * Constructs a ResultController with default buttons and configuration.
+   */
+  public ResultController() {
+    this(List.of(), ResultViewConfig.defaultConfig());
+  }
+
+  // ==============================================================================================
+  // Initialization
+  // ==============================================================================================
+
+  /** Initializes the view by assembling configured tabs. */
+  private void initialize() {
+    view.getTabPane().getTabs().clear();
+
+    // Add TEXT tab if configured
+    if (config.hasTab(ResultViewConfig.TabType.TEXT) && textController != null) {
+      view.getTextTab().setContent(textController.getView());
+      view.getTabPane().getTabs().add(view.getTextTab());
     }
 
-    public ResultController(List<ButtonConfig> buttons) {
-        this(buttons, ResultViewConfig.defaultConfig());
+    // Add VISUAL tab if configured
+    if (config.hasTab(ResultViewConfig.TabType.VISUAL) && visualController != null) {
+      view.getVisualTab().setContent(visualController.getView());
+      view.getTabPane().getTabs().add(view.getVisualTab());
     }
 
-    public ResultController() {
-        this(List.of(
-            new ButtonConfig(IconButtonType.COPY),
-            new ButtonConfig(IconButtonType.EXPORT)),
-            ResultViewConfig.defaultConfig());
+    // Add TABLE tab if configured
+    if (config.hasTab(ResultViewConfig.TabType.TABLE) && tableController != null) {
+      view.getTableTab().setContent(tableController.getView());
+      view.getTabPane().getTabs().add(view.getTableTab());
     }
 
-    private void initialize() {
-        // Use IconButtonBarView for consistency
-        view.getIconButtonBarView().initializeButtons(iconButtons);
-        this.copyButton = view.getIconButtonBarView().getButton(IconButtonType.COPY);
-        this.exportButton = view.getIconButtonBarView().getButton(IconButtonType.EXPORT);
+    // Add GRAPH tab if configured
+    if (config.hasTab(ResultViewConfig.TabType.GRAPH) && graphController != null) {
+      view.getGraphTab().setContent(graphController.getView());
+      view.getTabPane().getTabs().add(view.getGraphTab());
+    }
+  }
 
-        initializeToolbar();
-        
-        // Remove all tabs first
-        view.getTabPane().getTabs().clear();
-        
-        // Add only configured tabs
-        if (config.hasTab(ResultViewConfig.TabType.TEXT)) {
-            initializeTextTab();
-            view.getTabPane().getTabs().add(view.getTextTab());
-        }
-        
-        if (config.hasTab(ResultViewConfig.TabType.VISUAL)) {
-            initializeVisualTab();
-            view.getTabPane().getTabs().add(view.getVisualTab());
-        }
-        
-        if (config.hasTab(ResultViewConfig.TabType.TABLE)) {
-            initializeTableTab();
-            view.getTabPane().getTabs().add(view.getTableTab());
-        }
-        
-        if (config.hasTab(ResultViewConfig.TabType.GRAPH)) {
-            initializeGraphTab();
-            view.getTabPane().getTabs().add(view.getGraphTab());
-        }
-    }
-    
-    private void initializeTextTab() {
-        xmlResultTextArea.setEditable(false);
-        
-        // Wrap TextArea in StackPane to overlay the format choice box
-        StackPane textContent = new StackPane();
-        textContent.getChildren().add(xmlResultTextArea);
-        
-        // Configure floating choice box
-        StackPane.setAlignment(textFormatChoiceBox, Pos.TOP_RIGHT);
-        StackPane.setMargin(textFormatChoiceBox, new Insets(10));
-        textContent.getChildren().add(textFormatChoiceBox);
-        
-        BorderPane textPane = new BorderPane();
-        textPane.setCenter(textContent);
-        textPane.setRight(view.getIconButtonBarView());
-        
-        view.getTextTab().setContent(textPane);
-    }
-    
-    private void initializeVisualTab() {
-        initializeReportTable();
-        view.getVisualTab().setContent(reportTable);
-    }
-    
-    private void initializeGraphTab() {
-        view.getGraphTab().setContent(graphView);
-    }
+  // ==============================================================================================
+  // Public API - Text Results
+  // ==============================================================================================
 
-    private void initializeTableTab() {
-        customPagination.setVisible(false);
-        customPagination.setManaged(false);
+  /**
+   * Updates the text display with new content.
+   *
+   * <p>This method delegates to the TextResultController if the TEXT tab is configured.
+   *
+   * @param content The text content to display (RDF, SPARQL results, etc.)
+   */
+  public void updateText(String content) {
+    if (textController != null) {
+      textController.updateText(content);
+    }
+  }
 
-        rowsPerPageField.setPrefWidth(60);
-        Label perPageLabel = new Label("Rows per page:");
-        rowsPerPageField.textProperty().addListener((obs, oldVal, newVal) -> {
-            try {
-                rowsPerPage = Math.max(1, Integer.parseInt(newVal));
-            } catch (NumberFormatException ex) {
-                // ignore
-            }
-            updatePagination();
+  /**
+   * Sets the callback for format change events in the text view.
+   *
+   * @param listener Consumer that receives the newly selected format
+   */
+  public void setOnFormatChanged(Consumer<String> listener) {
+    if (textController != null) {
+      textController.setOnFormatChanged(listener);
+    }
+  }
+
+  // ==============================================================================================
+  // Public API - Table Results
+  // ==============================================================================================
+
+  /**
+   * Updates the table view with CSV formatted SPARQL results.
+   *
+   * <p>This method delegates to the TableResultController if the TABLE tab is configured.
+   *
+   * @param csvResult The CSV formatted result string
+   */
+  public void updateTableView(String csvResult) {
+    if (tableController != null) {
+      tableController.updateTable(csvResult);
+    }
+  }
+
+  // ==============================================================================================
+  // Public API - Visual/SHACL Results
+  // ==============================================================================================
+
+  /**
+   * Displays SHACL validation report items.
+   *
+   * <p>This method delegates to the VisualResultController if the VISUAL tab is configured.
+   *
+   * @param items List of validation report items to display
+   */
+  public void displayReportItems(List<ValidationReportItem> items) {
+    if (visualController != null) {
+      visualController.displayReport(items);
+    }
+  }
+
+
+  // ==============================================================================================
+  // Public API - Graph Visualization
+  // ==============================================================================================
+
+  /**
+   * Displays an RDF graph visualization from TTL data.
+   *
+   * <p>This method delegates to the GraphResultController if the GRAPH tab is configured.
+   *
+   * @param ttlData The RDF data in Turtle format
+   */
+  public void displayGraph(String ttlData) {
+    if (graphController != null) {
+      graphController.displayGraph(ttlData);
+    }
+  }
+
+  // ==============================================================================================
+  // Public API - General Operations
+  // ==============================================================================================
+
+  /**
+   * Clears all results from all configured tabs.
+   */
+  public void clearResults() {
+    if (textController != null) {
+      textController.clear();
+    }
+    if (tableController != null) {
+      tableController.clear();
+    }
+    if (visualController != null) {
+      visualController.clear();
+    }
+    if (graphController != null) {
+      graphController.clear();
+    }
+  }
+
+  /**
+   * Returns the main ResultView component.
+   *
+   * @return The ResultView instance
+   */
+  public ResultView getView() {
+    return view;
+  }
+
+  /**
+   * Returns the root node of the view for embedding in parent containers.
+   *
+   * @return The root Parent node
+   */
+  public javafx.scene.Parent getViewRoot() {
+    return view.getRoot();
+  }
+
+  /**
+   * Selects the Text tab programmatically.
+   */
+  public void selectTextTab() {
+    if (config.hasTab(ResultViewConfig.TabType.TEXT)) {
+      view.getTabPane().getSelectionModel().select(view.getTextTab());
+    }
+  }
+
+  /**
+   * Enables or disables a specific tab.
+   *
+   * <p>When disabled, the tab is shown but grayed out and not selectable.
+   *
+   * @param tabType The type of tab to enable/disable
+   * @param enabled True to enable the tab, false to disable it
+   */
+  public void setTabEnabled(ResultViewConfig.TabType tabType, boolean enabled) {
+    Platform.runLater(
+        () -> {
+          javafx.scene.control.Tab tab = getTabForType(tabType);
+          if (tab != null) {
+            tab.setDisable(!enabled);
+          }
         });
+  }
 
-        HBox controlsPane = new HBox(10);
-        controlsPane.setAlignment(Pos.CENTER_LEFT);
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        controlsPane.getChildren().addAll(perPageLabel, rowsPerPageField, spacer, totalRowsLabel);
-
-        VBox tableBox = new VBox(5, controlsPane, resultTable, customPagination);
-        VBox.setVgrow(resultTable, Priority.ALWAYS);
-        
-        view.getTableTab().setContent(tableBox);
+  /**
+   * Configures tab states based on query result type.
+   *
+   * <p>This is a convenience method for enabling/disabling multiple tabs at once based on the
+   * query result characteristics.
+   *
+   * @param enableText Enable text tab
+   * @param enableVisual Enable visual tab
+   * @param enableTable Enable table tab
+   * @param enableGraph Enable graph tab
+   */
+  public void configureTabsForResult(
+      boolean enableText, boolean enableVisual, boolean enableTable, boolean enableGraph) {
+    if (config.hasTab(ResultViewConfig.TabType.TEXT)) {
+      setTabEnabled(ResultViewConfig.TabType.TEXT, enableText);
     }
-
-    private void initializeReportTable() {
-        TableColumn<ValidationReportItem, String> severityCol = new TableColumn<>("Severity");
-        severityCol.setCellValueFactory(new PropertyValueFactory<>("severity"));
-        
-        TableColumn<ValidationReportItem, String> focusNodeCol = new TableColumn<>("Focus Node");
-        focusNodeCol.setCellValueFactory(new PropertyValueFactory<>("focusNode"));
-        
-        TableColumn<ValidationReportItem, String> resultPathCol = new TableColumn<>("Result Path");
-        resultPathCol.setCellValueFactory(new PropertyValueFactory<>("resultPath"));
-        
-        TableColumn<ValidationReportItem, String> valueCol = new TableColumn<>("Value");
-        valueCol.setCellValueFactory(new PropertyValueFactory<>("value"));
-        
-        TableColumn<ValidationReportItem, String> messageCol = new TableColumn<>("Message");
-        messageCol.setCellValueFactory(new PropertyValueFactory<>("message"));
-
-        reportTable.getColumns().addAll(severityCol, focusNodeCol, resultPathCol, valueCol, messageCol);
-        reportTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+    if (config.hasTab(ResultViewConfig.TabType.VISUAL)) {
+      setTabEnabled(ResultViewConfig.TabType.VISUAL, enableVisual);
     }
-
-    private Consumer<String> onFormatChanged;
-
-    public void setOnFormatChanged(Consumer<String> listener) {
-        this.onFormatChanged = listener;
+    if (config.hasTab(ResultViewConfig.TabType.TABLE)) {
+      setTabEnabled(ResultViewConfig.TabType.TABLE, enableTable);
     }
-
-    private void initializeToolbar() {
-        textFormatChoiceBox.getItems().setAll("TURTLE", "RDF/XML", "JSON-LD", "N-TRIPLES", "N-QUADS", "TRIG");
-        textFormatChoiceBox.getSelectionModel().select("TURTLE");
-
-        textFormatChoiceBox.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null && onFormatChanged != null) {
-                onFormatChanged.accept(newVal);
-            }
-        });
-
-        copyButton.setOnAction(event -> handleCopy());
-        exportButton.setOnAction(event -> handleExport());
+    if (config.hasTab(ResultViewConfig.TabType.GRAPH)) {
+      setTabEnabled(ResultViewConfig.TabType.GRAPH, enableGraph);
     }
+  }
 
-    private void handleCopy() {
-        ClipboardContent content = new ClipboardContent();
-        content.putString(xmlResultTextArea.getText());
-        Clipboard.getSystemClipboard().setContent(content);
-        
-        Tooltip tooltip = copyButton.getTooltip();
-        if (tooltip != null) {
-            String originalText = tooltip.getText();
-            tooltip.setText("Copied!");
-            PauseTransition pause = new PauseTransition(Duration.seconds(1.5));
-            pause.setOnFinished(e -> tooltip.setText(originalText));
-            pause.play();
-        }
-    }
+  // ==============================================================================================
+  // Helper Methods
+  // ==============================================================================================
 
-    private void handleExport() {
-        String contentToExport = xmlResultTextArea.getText();
-        if (contentToExport == null || contentToExport.isBlank()) {
-            showError("Export Error", "There is no text content to export.");
-            return;
-        }
-
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Export Result As");
-
-        String selectedFormat = textFormatChoiceBox.getValue();
-        if (selectedFormat == null) {
-            selectedFormat = "Text";
-        }
-        String extension = getExtensionForFormat(selectedFormat);
-
-        fileChooser.setInitialFileName("output" + extension);
-        FileChooser.ExtensionFilter extFilter =
-                new FileChooser.ExtensionFilter(selectedFormat + " file (*" + extension + ")", "*" + extension);
-        fileChooser.getExtensionFilters().add(extFilter);
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
-
-        File file = fileChooser.showSaveDialog(view.getRoot().getScene().getWindow());
-
-        if (file != null) {
-            File fileToSave = file;
-            if (!file.getName().toLowerCase().endsWith(extension)) {
-                fileToSave = new File(file.getAbsolutePath() + extension);
-            }
-
-            try {
-                Files.writeString(fileToSave.toPath(), contentToExport);
-                Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                alert.setTitle("Export Successful");
-                alert.setHeaderText(null);
-                alert.setContentText("The result has been successfully exported to:\n" + fileToSave.getAbsolutePath());
-                alert.showAndWait();
-            } catch (IOException e) {
-                e.printStackTrace();
-                showError("Export Failed", "An error occurred while saving the file:\n" + e.getMessage());
-            }
-        }
-    }
-
-    private String getExtensionForFormat(String format) {
-        return switch (format.toUpperCase()) {
-            case "RDF/XML" -> ".rdf";
-            case "JSON-LD" -> ".jsonld";
-            case "N-TRIPLES" -> ".nt";
-            case "N-QUADS" -> ".nq";
-            case "TRIG" -> ".trig";
-            case "TURTLE" -> ".ttl";
-            case "JSON" -> ".json";
-            case "CSV" -> ".csv";
-            case "TSV" -> ".tsv";
-            case "XML" -> ".xml";
-            case "MARKDOWN" -> ".md";
-            default -> ".ttl";
-        };
-    }
-
-    public void updateText(String content) {
-        Platform.runLater(() -> xmlResultTextArea.setText(content != null ? content : ""));
-    }
-
-    public void displayReportItems(List<ValidationReportItem> items) {
-        Platform.runLater(() -> {
-            reportTable.getItems().clear();
-            if (items != null) {
-                reportTable.getItems().addAll(items);
-            }
-        });
-    }
-
-    /**
-     * @deprecated Use displayReportItems instead.
-     */
-    @Deprecated
-    public void displayReport(Graph reportGraph) {
-        // Kept for backward compatibility if needed, but should be avoided.
-        // Ideally, this logic should be moved to ShaclManager (which is done via extractReportItems).
-    }
-
-
-    public void clearResults() {
-        Platform.runLater(() -> {
-            xmlResultTextArea.clear();
-            reportTable.getItems().clear();
-        });
-    }
-
-    public ResultView getView() {
-        return view;
-    }
-
-    /**
-     * Returns the root node of the view.
-     * This allows the controller to expose the UI component without exposing the View class.
-     *
-     * @return The root Parent node of the view.
-     */
-    public javafx.scene.Parent getViewRoot() {
-        return view.getRoot();
-    }
-
-    /**
-     * Selects the Text tab in the view.
-     */
-    public void selectTextTab() {
-        view.getTabPane().getSelectionModel().select(view.getTextTab());
-    }
-
-    /**
-     * Enables or disables a specific tab based on the configuration type.
-     * When disabled, the tab is shown but grayed out and not selectable.
-     *
-     * @param tabType The type of tab to enable/disable
-     * @param enabled True to enable the tab, false to disable and gray it out
-     */
-    public void setTabEnabled(ResultViewConfig.TabType tabType, boolean enabled) {
-        Platform.runLater(() -> {
-            javafx.scene.control.Tab tab = getTabForType(tabType);
-            if (tab != null) {
-                tab.setDisable(!enabled);
-            }
-        });
-    }
-
-    /**
-     * Helper method to get the Tab instance for a given TabType.
-     */
-    private javafx.scene.control.Tab getTabForType(ResultViewConfig.TabType tabType) {
-        return switch (tabType) {
-            case TEXT -> view.getTextTab();
-            case VISUAL -> view.getVisualTab();
-            case TABLE -> view.getTableTab();
-            case GRAPH -> view.getGraphTab();
-        };
-    }
-
-    /**
-     * Convenience method to configure tab states based on query result type.
-     * This should be called when displaying results to ensure only relevant tabs are enabled.
-     *
-     * @param enableText Enable text tab
-     * @param enableVisual Enable visual tab
-     * @param enableTable Enable table tab
-     * @param enableGraph Enable graph tab
-     */
-    public void configureTabsForResult(boolean enableText, boolean enableVisual, 
-                                      boolean enableTable, boolean enableGraph) {
-        if (config.hasTab(ResultViewConfig.TabType.TEXT)) {
-            setTabEnabled(ResultViewConfig.TabType.TEXT, enableText);
-        }
-        if (config.hasTab(ResultViewConfig.TabType.VISUAL)) {
-            setTabEnabled(ResultViewConfig.TabType.VISUAL, enableVisual);
-        }
-        if (config.hasTab(ResultViewConfig.TabType.TABLE)) {
-            setTabEnabled(ResultViewConfig.TabType.TABLE, enableTable);
-        }
-        if (config.hasTab(ResultViewConfig.TabType.GRAPH)) {
-            setTabEnabled(ResultViewConfig.TabType.GRAPH, enableGraph);
-        }
-    }
-
-    public void updateTableView(String csvResult) {
-        Platform.runLater(() -> {
-            resultTable.getItems().clear();
-            resultTable.getColumns().clear();
-            allRows.clear();
-            if (csvResult == null || csvResult.isEmpty()) {
-                updatePagination();
-                return;
-            }
-            String[] lines = csvResult.split("\\r?\\n");
-            if (lines.length > 0) {
-                String[] headers = lines[0].split(",", -1);
-                for (int col = 0; col < headers.length; col++) {
-                    final int colIndex = col;
-                    TableColumn<String[], String> tc = new TableColumn<>(headers[col].trim());
-                    tc.setCellValueFactory(cdf -> new javafx.beans.property.SimpleStringProperty(
-                            (colIndex < cdf.getValue().length) ? cdf.getValue()[colIndex] : ""));
-                    tc.prefWidthProperty().bind(resultTable.widthProperty().divide(Math.max(1, headers.length)));
-                    resultTable.getColumns().add(tc);
-                }
-                for (int i = 1; i < lines.length; i++) {
-                    allRows.add(lines[i].split(",", -1));
-                }
-            }
-            updatePagination();
-        });
-    }
-
-    private void updatePagination() {
-        totalRowsLabel.setText("total rows: " + allRows.size());
-        if (allRows.isEmpty()) {
-            customPagination.setVisible(false);
-            customPagination.setManaged(false);
-            return;
-        }
-        int pageCount = (int) Math.ceil((double) allRows.size() / rowsPerPage);
-        customPagination.setPageCount(pageCount);
-        customPagination.setVisible(pageCount > 1);
-        customPagination.setManaged(pageCount > 1);
-        customPagination.setCurrentPageIndex(0);
-    }
-
-    private void updateTableForPage(int pageIndex) {
-        int fromIndex = pageIndex * rowsPerPage;
-        int toIndex = Math.min(fromIndex + rowsPerPage, allRows.size());
-        if (fromIndex >= allRows.size()) {
-            resultTable.getItems().clear();
-            return;
-        }
-        resultTable.getItems().setAll(allRows.subList(fromIndex, toIndex));
-    }
-
-    public void displayGraph(String ttlData) {
-        Platform.runLater(() -> {
-            if (ttlData == null || ttlData.isBlank()) {
-                graphView.getEngine().load("about:blank");
-                return;
-            }
-            try {
-                String htmlPath = getClass().getResource("/web/index.html").toExternalForm();
-                final ChangeListener<Worker.State> loadListener = new ChangeListener<>() {
-                    @Override
-                    public void changed(javafx.beans.value.ObservableValue<? extends Worker.State> observable,
-                                        Worker.State oldValue, Worker.State newValue) {
-                        if (newValue == Worker.State.SUCCEEDED) {
-                            graphView.getEngine().getLoadWorker().stateProperty().removeListener(this);
-
-                            String escapedTtl = ttlData.replace("\\", "\\\\")
-                                    .replace("'", "\\'")
-                                    .replace("\n", "\\n")
-                                    .replace("\r", "");
-
-                            String script = "(function() {    var container = document.getElementById('container');  "
-                                    + "  if (!container) { setTimeout(arguments.callee, 50); return; }   "
-                                    + " var old = document.getElementById('myGraph');    if (old &&"
-                                    + " old.parentNode) { old.parentNode.removeChild(old); }    var"
-                                    + " newGraph = document.createElement('kg-graph');    newGraph.id ="
-                                    + " 'myGraph';    newGraph.setAttribute('width', '100%');   "
-                                    + " newGraph.setAttribute('height', '100%');   "
-                                    + " container.appendChild(newGraph);    function setTTL() {      var"
-                                    + " el = document.getElementById('myGraph');      if (el) { el.ttl ="
-                                    + " '" + escapedTtl + "'; }"
-                                    + "      else { setTimeout(setTTL, 50); }"
-                                    + "    }"
-                                    + "    setTTL();"
-                                    + "  })();";
-
-                            graphView.getEngine().executeScript(script);
-                        }
-                    }
-                };
-                graphView.getEngine().getLoadWorker().stateProperty().addListener(loadListener);
-                graphView.getEngine().load(htmlPath);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
-    private void showError(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
-    }
+  /**
+   * Maps a TabType to its corresponding Tab instance.
+   *
+   * @param tabType The tab type
+   * @return The Tab instance, or null if not configured
+   */
+  private javafx.scene.control.Tab getTabForType(ResultViewConfig.TabType tabType) {
+    return switch (tabType) {
+      case TEXT -> view.getTextTab();
+      case VISUAL -> view.getVisualTab();
+      case TABLE -> view.getTableTab();
+      case GRAPH -> view.getGraphTab();
+    };
+  }
 }
