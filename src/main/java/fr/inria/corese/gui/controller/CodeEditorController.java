@@ -55,7 +55,19 @@ public class CodeEditorController {
     if (path == null) {
       saveFileAs();
     } else {
-      writeToFile(new File(path));
+      File file = new File(path);
+      // Check if file or parent directory still exists
+      if (!file.exists()) {
+        File parentDir = file.getParentFile();
+        if (parentDir == null || !parentDir.exists()) {
+          logger.warn("Cannot save file: parent directory no longer exists: {}", path);
+          // Show dialog to user suggesting to save as a new file
+          // For now, fall back to Save As
+          saveFileAs();
+          return;
+        }
+      }
+      writeToFile(file);
     }
   }
 
@@ -89,12 +101,37 @@ public class CodeEditorController {
   }
 
   private void writeToFile(File file) {
+    // Check if parent directory exists, if not it might have been deleted
+    File parentDir = file.getParentFile();
+    if (parentDir != null && !parentDir.exists()) {
+      logger.error("Cannot save file: parent directory does not exist: {}", parentDir.getAbsolutePath());
+      // The caller should handle the error - we could throw an exception here
+      return;
+    }
+    
     try (FileWriter writer = new FileWriter(file)) {
       writer.write(model.getContent());
       model.setFilePath(file.getAbsolutePath());
       model.markAsSaved();
     } catch (IOException e) {
       logger.error("Error saving file: {}", file.getAbsolutePath(), e);
+    }
+  }
+
+  /**
+   * Disposes of resources to prevent memory leaks.
+   * 
+   * <p>This method should be called when the editor is no longer needed,
+   * typically when the associated tab is closed. It unbinds all properties
+   * to allow proper garbage collection.
+   */
+  public void dispose() {
+    // Unbind bidirectional binding to prevent memory leaks
+    view.getCodeMirrorView().contentProperty().unbindBidirectional(model.contentProperty());
+    
+    // Dispose icon button bar controller if it has resources
+    if (iconButtonBarController != null) {
+      // IconButtonBarController cleanup if needed
     }
   }
 

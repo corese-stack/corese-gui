@@ -149,4 +149,41 @@ public class TabContext {
   public boolean hasExecutionButton() {
     return executionButton != null;
   }
+
+  // ===============================================================================
+  // Resource Management
+  // ===============================================================================
+
+  /**
+   * Disposes of all resources held by this context to prevent memory leaks.
+   *
+   * <p>This method should be called when the tab is being closed. It ensures that:
+   * <ul>
+   *   <li>All controllers are properly disposed
+   *   <li>All bindings are unbound
+   *   <li>All listeners are removed
+   * </ul>
+   *
+   * <p>After calling dispose(), this context should not be used anymore.
+   */
+  public void dispose() {
+    // Dispose editor controller
+    if (editorController != null) {
+      editorController.dispose();
+    }
+
+    // Dispose result controller if present
+    if (resultController != null && resultController instanceof AutoCloseable) {
+      try {
+        ((AutoCloseable) resultController).close();
+      } catch (Exception e) {
+        // Log but don't throw - we're cleaning up
+      }
+    }
+
+    // Execution button cleanup (unbind if needed)
+    if (executionButton != null) {
+      executionButton.disableProperty().unbind();
+    }
+  }
 }

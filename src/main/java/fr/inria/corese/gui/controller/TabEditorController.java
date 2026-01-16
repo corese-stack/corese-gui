@@ -5,7 +5,6 @@ import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.core.ResultViewConfig;
 import fr.inria.corese.gui.core.TabContext;
 import fr.inria.corese.gui.manager.FileLoaderService;
-import fr.inria.corese.gui.model.TabEditorModel;
 import fr.inria.corese.gui.view.FloatingButton;
 import fr.inria.corese.gui.view.TabEditorView;
 import java.io.File;
@@ -113,9 +112,6 @@ public class TabEditorController {
   /** The view component (MVC) - handles UI presentation and user interaction. */
   private final TabEditorView view;
 
-  /** The model component (MVC) - stores tab-to-controller mappings. */
-  private final TabEditorModel model;
-
   // ===============================================================================
   // Fields - Configuration (set via configure* methods)
   // ===============================================================================
@@ -152,7 +148,6 @@ public class TabEditorController {
    */
   public TabEditorController() {
     this.view = new TabEditorView();
-    this.model = new TabEditorModel();
     initializeTabPane();
   }
 
@@ -459,12 +454,36 @@ public class TabEditorController {
   /**
    * Closes a tab without confirmation.
    *
+   * <p>This method performs a complete cleanup to prevent memory leaks:
+   * <ul>
+   *   <li>Unbinds all property bindings
+   *   <li>Disposes controllers via TabContext
+   *   <li>Clears userData reference
+   *   <li>Removes tab from view
+   * </ul>
+   *
    * @param tab The tab to close
    */
   private void closeTab(Tab tab) {
-    // TabContext will be garbage collected with the tab automatically
+    if (tab == null) {
+      return;
+    }
+
+    // Get context before clearing
+    TabContext context = TabContext.get(tab);
+    
+    // Unbind title property to prevent memory leak
+    tab.textProperty().unbind();
+    
+    // Dispose all resources held by the context
+    if (context != null) {
+      context.dispose();
+    }
+    
+    // Clear userData to break the reference
     tab.setUserData(null);
-    model.removeTab(tab);
+    
+    // Remove from view
     view.getTabs().remove(tab);
   }
 
@@ -602,7 +621,9 @@ public class TabEditorController {
 
   /**
    * Registers controllers by creating a TabContext and storing it in the tab's userData.
-   * This eliminates the need for parallel Maps and prevents memory leaks.
+   * 
+   * <p>This is the single source of truth for tab-controller associations.
+   * All tab components are accessible via {@link TabContext#get(Tab)}.
    *
    * @param tab The tab to register controllers for
    * @param editorController The code editor controller
@@ -610,15 +631,9 @@ public class TabEditorController {
    */
   private void registerControllers(
       Tab tab, CodeEditorController editorController, ResultController resultController) {
-    // Store context in tab's userData - no more parallel Maps!
+    // Store context in tab's userData
     TabContext context = new TabContext(editorController, resultController, null);
     tab.setUserData(context);
-    
-    // Keep model associations for backward compatibility (can be removed later)
-    model.addTabEditorController(tab, editorController);
-    if (resultController != null) {
-      model.addTabResultController(tab, resultController);
-    }
   }
 
   /**
@@ -652,6 +667,9 @@ public class TabEditorController {
   /**
    * Sets up tab properties including title binding, icon updates, and close handler.
    *
+   * <p>This method creates bindings and listeners that need to be cleaned up when the tab is closed
+   * to prevent memory leaks.
+   *
    * @param tab The tab to configure
    * @param editorController The code editor controller
    */
@@ -660,6 +678,8 @@ public class TabEditorController {
     tab.textProperty().bind(editorController.getModel().displayNameProperty());
     
     // Update tab icon when modified state changes
+    // Note: This listener will be garbage collected with the tab since it only references
+    // the tab (which is being closed) and the view (which is a singleton)
     editorController
         .getModel()
         .modifiedProperty()
