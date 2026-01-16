@@ -1,58 +1,103 @@
 /* ==============================================================================================
- * Floating Action Button Styles
+ * Floating Action Button (FAB) Styles
+ * ==============================================================================================
+ * Material Design inspired floating button with elevation shadows and smooth transitions.
+ * Integrates with AtlantaFX theme system for consistent colors across light/dark modes.
+ * 
+ * Features:
+ * - 56x56px circular button (Material Design standard)
+ * - Elevation shadows for depth perception
+ * - Loading state with animated progress indicator
+ * - Smooth hover and press interactions
+ * - Full keyboard and screen reader accessibility
+ * ============================================================================================== */
+
+/* ==============================================================================================
+ * Base Button Style
  * ============================================================================================== */
 
 .floating-button {
+    /* Colors: Uses theme accent color for consistency across themes */
     -fx-background-color: -color-accent-emphasis;
     -fx-text-fill: -color-fg-emphasis;
+    
+    /* Shape: Perfect circle with 50% radius */
     -fx-background-radius: 50%;
     
-    /* Standard FAB size */
+    /* Size: Material Design standard FAB dimensions (56x56px) */
     -fx-min-width: 56px;
     -fx-min-height: 56px;
     -fx-max-width: 56px;
     -fx-max-height: 56px;
     
-    /* Elevation shadow */
+    /* Elevation: 8dp shadow with 4px vertical offset (Material Design elevation level 6) */
     -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 8, 0, 0, 4);
     
-    -fx-cursor: hand;
+    /* Layout: Center content and remove default padding */
     -fx-alignment: center;
     -fx-padding: 0;
+    -fx-content-display: graphic-only;
+    
+    /* Interaction: Hand cursor for better UX */
+    -fx-cursor: hand;
 }
 
+/* ==============================================================================================
+ * Interactive States
+ * ============================================================================================== */
+
+/* Hover: Slight color darkening for visual feedback */
 .floating-button:hover {
     -fx-background-color: derive(-color-accent-emphasis, -10%);
 }
 
+/* Pressed: Deeper color and reduced shadow (simulates button press) */
 .floating-button:pressed {
     -fx-background-color: derive(-color-accent-emphasis, -20%);
     -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 4, 0, 0, 2);
 }
 
+/* Disabled: Reduced opacity and no shadow */
 .floating-button:disabled {
-    -fx-opacity: 0.8;
-    -fx-background-color: -color-accent-emphasis; /* Keep color but reduce opacity */
+    -fx-opacity: 0.6;
+    -fx-background-color: -color-accent-emphasis;
+    -fx-effect: none;
 }
 
-/* --- Icon --- */
+/* Loading: Wait cursor to indicate processing state */
+.floating-button.loading {
+    -fx-cursor: wait;
+}
+
+/* ==============================================================================================
+ * Icon Configuration
+ * ============================================================================================== */
 
 .floating-button .ikonli-font-icon {
+    /* Color: Matches button text color (typically white) */
     -fx-icon-color: -color-fg-emphasis;
+    
+    /* Size: 24px is optimal for 56px button (Material Design ratio) */
     -fx-icon-size: 24px;
 }
 
-/* --- Ring Progress Indicator --- */
+/* ==============================================================================================
+ * Progress Indicator (Loading State)
+ * ============================================================================================== */
 
 .floating-button .ring-progress-indicator {
+    /* Color: Matches icon color for visual consistency */
     -fx-accent: -color-fg-emphasis;
+    
+    /* Size: Same as icon for smooth transition */
+    -fx-min-width: 24px;
+    -fx-min-height: 24px;
+    -fx-max-width: 24px;
+    -fx-max-height: 24px;
 }
 
+/* Track: Subtle or transparent for cleaner appearance */
 .floating-button .ring-progress-indicator .track {
     -fx-stroke: transparent;
+    -fx-opacity: 0.3;
 }
-
-.floating-button .ring-progress-indicator .track {
-    -fx-stroke: transparent;
-}
-
