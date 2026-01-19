@@ -43,6 +43,9 @@ public final class SettingsController {
         if (themeManager.getTheme() != null) model.setTheme(themeManager.getTheme());
         if (themeManager.getAccentColor() != null) model.setAccentColor(themeManager.getAccentColor());
         model.setUseSystemTheme(themeManager.isSystemThemeEnabled());
+        
+        // Update controls state after initial sync
+        updateControlsDisabledState();
 
         // 2. Model -> Manager (User inputs)
         model.themeProperty().addListener((obs, oldVal, newVal) -> {
