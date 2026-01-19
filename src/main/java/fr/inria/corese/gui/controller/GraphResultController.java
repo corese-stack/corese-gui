@@ -130,8 +130,7 @@ public class GraphResultController {
                       webView.getEngine().getLoadWorker().stateProperty().removeListener(this);
                       pageLoaded = true;
                       injectGraphData(ttlData);
-                      // Apply theme after graph is injected
-                      Platform.runLater(() -> applyThemeToGraph());
+                      applyThemeToGraph();
                     }
                   }
                 };

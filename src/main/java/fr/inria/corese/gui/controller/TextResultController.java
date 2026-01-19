@@ -82,7 +82,7 @@ public class TextResultController {
    * @throws NullPointerException if buttons is null
    */
   public TextResultController(List<ButtonConfig> buttons) {
-    this.codeMirrorView = new CodeMirrorView();
+    this.codeMirrorView = new CodeMirrorView(true); // Read-only mode for results
     this.formatChoiceBox = new ChoiceBox<>();
     this.copyButton = createButton(buttons, IconButtonType.COPY);
     this.exportButton = createButton(buttons, IconButtonType.EXPORT);

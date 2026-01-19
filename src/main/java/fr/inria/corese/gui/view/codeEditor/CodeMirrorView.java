@@ -23,9 +23,15 @@ public class CodeMirrorView extends VBox {
   private boolean initialized = false;
   private boolean isInternalUpdate = false;
   private boolean isDarkTheme = false;
+  private boolean readOnly = false;
   private final JavaBridge bridge = new JavaBridge();
 
   public CodeMirrorView() {
+    this(false);
+  }
+
+  public CodeMirrorView(boolean readOnly) {
+    this.readOnly = readOnly;
     webView = new WebView();
     webEngine = webView.getEngine();
 
@@ -110,6 +116,11 @@ public class CodeMirrorView extends VBox {
                     
                     // Apply saved theme
                     setTheme(isDarkTheme);
+                    
+                    // Apply readOnly mode if set
+                    if (readOnly) {
+                      webEngine.executeScript("editor.setOption('readOnly', true);");
+                    }
                     
                   } catch (Exception e) {
                     logger.error("Error during CodeMirror initialization", e);

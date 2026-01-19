@@ -1074,12 +1074,10 @@
 
         // Theme management function callable from Java
         window.applyTheme = function(isDark) {
-            const root = document.documentElement;
             const controlsPanel = document.getElementById('graph-controls');
             
             if (isDark) {
                 // Dark theme colors
-                document.body.style.backgroundColor = '#2e3440';
                 if (controlsPanel) {
                     controlsPanel.style.background = 'rgba(46, 52, 64, 0.95)';
                     controlsPanel.style.color = '#d8dee9';
@@ -1122,7 +1120,6 @@
                 }
             } else {
                 // Light theme colors
-                document.body.style.backgroundColor = '#ffffff';
                 if (controlsPanel) {
                     controlsPanel.style.background = 'rgba(255, 255, 255, 0.95)';
                     controlsPanel.style.color = '#333333';

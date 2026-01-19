@@ -124,7 +124,7 @@ public class QueryManager {
   }
 
   private ResultFormat.format getCoreseFormat(String formatName) {
-    return switch (formatName.toUpperCase().replace("-", "_")) {
+    return switch (formatName.toUpperCase().replace("-", "_").replace("/", "_")) {
       case "XML" -> ResultFormat.format.XML_FORMAT;
       case "JSON" -> ResultFormat.format.JSON_FORMAT;
       case "CSV" -> ResultFormat.format.CSV_FORMAT;
