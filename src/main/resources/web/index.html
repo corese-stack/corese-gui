@@ -1072,6 +1072,100 @@
         }
         customElements.define('kg-graph', KGGraphVis);
 
+        // Theme management function callable from Java
+        window.applyTheme = function(isDark) {
+            const root = document.documentElement;
+            const controlsPanel = document.getElementById('graph-controls');
+            
+            if (isDark) {
+                // Dark theme colors
+                document.body.style.backgroundColor = '#2e3440';
+                if (controlsPanel) {
+                    controlsPanel.style.background = 'rgba(46, 52, 64, 0.95)';
+                    controlsPanel.style.color = '#d8dee9';
+                    controlsPanel.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+                }
+                
+                // Update graph colors if it exists
+                const currentGraphElement = document.getElementById('myGraph');
+                if (currentGraphElement && currentGraphElement.shadowRoot) {
+                    const svg = currentGraphElement.shadowRoot.querySelector('svg');
+                    if (svg) {
+                        svg.style.borderColor = '#4c566a';
+                        // Update link colors
+                        d3.select(currentGraphElement.shadowRoot)
+                            .selectAll('.links path')
+                            .attr('stroke', '#88c0d0');
+                        // Update link label colors
+                        d3.select(currentGraphElement.shadowRoot)
+                            .selectAll('.link-labels text')
+                            .attr('fill', '#d8dee9');
+                        // Update control elements
+                        d3.select(currentGraphElement.shadowRoot)
+                            .selectAll('.sliders text')
+                            .attr('fill', '#d8dee9');
+                        d3.select(currentGraphElement.shadowRoot)
+                            .selectAll('.sliders line')
+                            .attr('stroke', '#4c566a');
+                        d3.select(currentGraphElement.shadowRoot)
+                            .selectAll('.sliders circle')
+                            .attr('fill', '#88c0d0');
+                        // Update reset button
+                        d3.select(currentGraphElement.shadowRoot)
+                            .select('.sliders g[style*="cursor: pointer"] rect')
+                            .attr('fill', '#3b4252')
+                            .attr('stroke', '#4c566a');
+                        d3.select(currentGraphElement.shadowRoot)
+                            .select('.sliders g[style*="cursor: pointer"] text')
+                            .attr('fill', '#d8dee9');
+                    }
+                }
+            } else {
+                // Light theme colors
+                document.body.style.backgroundColor = '#ffffff';
+                if (controlsPanel) {
+                    controlsPanel.style.background = 'rgba(255, 255, 255, 0.95)';
+                    controlsPanel.style.color = '#333333';
+                    controlsPanel.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
+                }
+                
+                // Update graph colors if it exists
+                const currentGraphElement = document.getElementById('myGraph');
+                if (currentGraphElement && currentGraphElement.shadowRoot) {
+                    const svg = currentGraphElement.shadowRoot.querySelector('svg');
+                    if (svg) {
+                        svg.style.borderColor = '#ccc';
+                        // Update link colors
+                        d3.select(currentGraphElement.shadowRoot)
+                            .selectAll('.links path')
+                            .attr('stroke', '#999');
+                        // Update link label colors
+                        d3.select(currentGraphElement.shadowRoot)
+                            .selectAll('.link-labels text')
+                            .attr('fill', '#555');
+                        // Update control elements
+                        d3.select(currentGraphElement.shadowRoot)
+                            .selectAll('.sliders text')
+                            .attr('fill', '#333');
+                        d3.select(currentGraphElement.shadowRoot)
+                            .selectAll('.sliders line')
+                            .attr('stroke', '#ccc');
+                        d3.select(currentGraphElement.shadowRoot)
+                            .selectAll('.sliders circle')
+                            .attr('fill', '#888');
+                        // Update reset button
+                        d3.select(currentGraphElement.shadowRoot)
+                            .select('.sliders g[style*="cursor: pointer"] rect')
+                            .attr('fill', '#eee')
+                            .attr('stroke', '#aaa');
+                        d3.select(currentGraphElement.shadowRoot)
+                            .select('.sliders g[style*="cursor: pointer"] text')
+                            .attr('fill', '#333');
+                    }
+                }
+            }
+        };
+
         document.getElementById('toggle-edge-labels').addEventListener('change', function () {
             const currentGraphElement = document.getElementById('myGraph');
             if (currentGraphElement) {

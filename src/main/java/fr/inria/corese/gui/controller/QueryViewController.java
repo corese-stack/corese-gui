@@ -147,6 +147,12 @@ public class QueryViewController {
             false   // graph: disabled for SELECT
         );
         
+        // Set up format change listener for SELECT/ASK results
+        resultController.setOnFormatChanged(format -> {
+          String formattedResult = stateManager.getFormattedCachedQuery(queryTabId, format);
+          resultController.updateText(formattedResult);
+        });
+        
         resultController
             .getView()
             .getTabPane()
@@ -166,6 +172,12 @@ public class QueryViewController {
             false,  // table: disabled for CONSTRUCT
             true    // graph: enabled
         );
+        
+        // Set up format change listener for CONSTRUCT/DESCRIBE results
+        resultController.setOnFormatChanged(format -> {
+          String formattedResult = stateManager.getFormattedCachedQuery(queryTabId, format);
+          resultController.updateText(formattedResult);
+        });
         
         resultController
             .getView()

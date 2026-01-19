@@ -1,5 +1,6 @@
 package fr.inria.corese.gui.controller;
 
+import fr.inria.corese.gui.view.utils.ThemeManager;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.concurrent.Worker;
@@ -18,6 +19,7 @@ import org.slf4j.LoggerFactory;
  *   <li>Integration with kg-graph web component
  *   <li>TTL to visual graph conversion
  *   <li>Dynamic graph updates
+ *   <li>Theme-aware graph rendering
  * </ul>
  *
  * <p><b>Usage example:</b>
@@ -46,6 +48,9 @@ public class GraphResultController {
 
   /** WebView component for rendering the graph. */
   private final WebView webView;
+  
+  /** Flag indicating if the page is currently loaded and ready. */
+  private boolean pageLoaded = false;
 
   // ==============================================================================================
   // Constructor
@@ -54,6 +59,32 @@ public class GraphResultController {
   /** Constructs a new GraphResultController with an initialized WebView. */
   public GraphResultController() {
     this.webView = new WebView();
+    setupThemeListener();
+  }
+  
+  /**
+   * Sets up a listener for theme changes to update the graph appearance.
+   */
+  private void setupThemeListener() {
+    ThemeManager.getInstance().themeProperty().addListener((obs, oldTheme, newTheme) -> {
+      if (newTheme != null && pageLoaded) {
+        applyThemeToGraph();
+      }
+    });
+  }
+  
+  /**
+   * Applies the current theme to the loaded graph.
+   */
+  private void applyThemeToGraph() {
+    Platform.runLater(() -> {
+      if (pageLoaded) {
+        boolean isDark = ThemeManager.getInstance().isDarkTheme(
+            ThemeManager.getInstance().getCurrentThemeName());
+        String script = "if (typeof applyTheme === 'function') { applyTheme(" + isDark + "); }";
+        webView.getEngine().executeScript(script);
+      }
+    });
   }
 
   // ==============================================================================================
@@ -70,6 +101,7 @@ public class GraphResultController {
    *   <li>Waits for the page to finish loading
    *   <li>Injects the TTL data into the kg-graph web component
    *   <li>Renders the graph visually
+   *   <li>Applies the current theme
    * </ol>
    *
    * @param ttlData The RDF data in Turtle format (null or empty clears the view)
@@ -79,6 +111,7 @@ public class GraphResultController {
         () -> {
           if (ttlData == null || ttlData.isBlank()) {
             webView.getEngine().load("about:blank");
+            pageLoaded = false;
             return;
           }
 
@@ -95,7 +128,10 @@ public class GraphResultController {
                       Worker.State newValue) {
                     if (newValue == Worker.State.SUCCEEDED) {
                       webView.getEngine().getLoadWorker().stateProperty().removeListener(this);
+                      pageLoaded = true;
                       injectGraphData(ttlData);
+                      // Apply theme after graph is injected
+                      Platform.runLater(() -> applyThemeToGraph());
                     }
                   }
                 };
@@ -164,7 +200,10 @@ public class GraphResultController {
    * Clears the graph view.
    */
   public void clear() {
-    Platform.runLater(() -> webView.getEngine().load("about:blank"));
+    Platform.runLater(() -> {
+      webView.getEngine().load("about:blank");
+      pageLoaded = false;
+    });
   }
 
   /**

@@ -2,6 +2,7 @@ package fr.inria.corese.gui.controller;
 
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
+import fr.inria.corese.gui.view.codeEditor.CodeMirrorView;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -10,7 +11,6 @@ import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
-import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -32,7 +32,7 @@ import java.util.function.Consumer;
  * <p>This controller manages:
  *
  * <ul>
- *   <li>Text area for displaying results (SPARQL, RDF, etc.)
+ *   <li>CodeMirror view for displaying results with syntax highlighting
  *   <li>Format selector (Turtle, RDF/XML, JSON-LD, etc.)
  *   <li>Copy to clipboard functionality
  *   <li>Export to file functionality
@@ -53,8 +53,8 @@ public class TextResultController {
   // Fields
   // ==============================================================================================
 
-  /** Text area for displaying result content. */
-  private final TextArea textArea;
+  /** CodeMirror view for displaying result content with syntax highlighting. */
+  private final CodeMirrorView codeMirrorView;
 
   /** Choice box for selecting output format. */
   private final ChoiceBox<String> formatChoiceBox;
@@ -82,7 +82,7 @@ public class TextResultController {
    * @throws NullPointerException if buttons is null
    */
   public TextResultController(List<ButtonConfig> buttons) {
-    this.textArea = new TextArea();
+    this.codeMirrorView = new CodeMirrorView();
     this.formatChoiceBox = new ChoiceBox<>();
     this.copyButton = createButton(buttons, IconButtonType.COPY);
     this.exportButton = createButton(buttons, IconButtonType.EXPORT);
@@ -97,9 +97,6 @@ public class TextResultController {
 
   /** Initializes UI components and event handlers. */
   private void initialize() {
-    // Configure text area
-    textArea.setEditable(false);
-
     // Configure format selector
     formatChoiceBox.getItems().setAll("TURTLE", "RDF/XML", "JSON-LD", "N-TRIPLES", "N-QUADS", "TRIG");
     formatChoiceBox.getSelectionModel().select("TURTLE");
@@ -119,7 +116,7 @@ public class TextResultController {
 
     // Build layout
     StackPane textContent = new StackPane();
-    textContent.getChildren().add(textArea);
+    textContent.getChildren().add(codeMirrorView);
 
     StackPane.setAlignment(formatChoiceBox, Pos.TOP_RIGHT);
     StackPane.setMargin(formatChoiceBox, new Insets(10));
@@ -157,7 +154,7 @@ public class TextResultController {
   /** Handles copy to clipboard action. */
   private void handleCopy() {
     ClipboardContent content = new ClipboardContent();
-    content.putString(textArea.getText());
+    content.putString(codeMirrorView.getContent());
     Clipboard.getSystemClipboard().setContent(content);
 
     Tooltip tooltip = copyButton.getTooltip();
@@ -172,7 +169,7 @@ public class TextResultController {
 
   /** Handles export to file action. */
   private void handleExport() {
-    String contentToExport = textArea.getText();
+    String contentToExport = codeMirrorView.getContent();
     if (contentToExport == null || contentToExport.isBlank()) {
       showError("Export Error", "There is no text content to export.");
       return;
@@ -264,14 +261,14 @@ public class TextResultController {
    * @param content The text content to display
    */
   public void updateText(String content) {
-    Platform.runLater(() -> textArea.setText(content != null ? content : ""));
+    Platform.runLater(() -> codeMirrorView.setContent(content != null ? content : ""));
   }
 
   /**
    * Clears all text content.
    */
   public void clear() {
-    Platform.runLater(textArea::clear);
+    Platform.runLater(() -> codeMirrorView.setContent(""));
   }
 
   /**
