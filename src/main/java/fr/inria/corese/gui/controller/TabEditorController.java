@@ -83,6 +83,18 @@ public class TabEditorController {
   /** Factory for creating result controllers (lazy from config) */
   private final Supplier<ResultController> resultControllerFactory;
 
+  /**
+   * Preloaded tab that is ready for instant use.
+   *
+   * <p>This tab is created during initialization if {@link TabEditorConfig#shouldPreloadFirstTab()}
+   * is enabled. It remains in memory but invisible until the user creates a new empty tab,
+   * at which point this preloaded instance is reused for instant display.
+   *
+   * <p>After being used once, this field is set to null and all subsequent tabs are created
+   * on-demand.
+   */
+  private Tab preloadedTab;
+
   // ===============================================================================
   // Constructor
   // ===============================================================================
@@ -127,6 +139,12 @@ public class TabEditorController {
         (ListChangeListener<Tab>) c -> Platform.runLater(this::updateEmptyStateVisibility));
     view.setOnAddTabAction(e -> createNewTab());
 
+    // Preload first tab in background if configured
+    // Tab is created but not added to the view, eliminating first-open delay
+    if (config.shouldPreloadFirstTab()) {
+      preloadedTab = createTabWithoutAdding(DEFAULT_TAB_TITLE, "", null);
+    }
+
     // Initial state
     updateEmptyStateVisibility();
   }
@@ -160,11 +178,21 @@ public class TabEditorController {
   /**
    * Creates a new tab with specific title and content.
    *
+   * <p>If a preloaded tab is available and the parameters match (default title and empty content),
+   * the preloaded tab is reused for instant display. Otherwise, a new tab is created.
+   *
    * @param title The tab title
    * @param content The initial content
    * @return The created Tab
    */
   public Tab createNewTab(String title, String content) {
+    // Use preloaded tab if available and parameters match default empty tab
+    if (preloadedTab != null && title.equals(DEFAULT_TAB_TITLE) && content.isEmpty()) {
+      Tab tab = preloadedTab;
+      preloadedTab = null; // Clear after use - only first tab is preloaded
+      view.addNewEditorTab(tab);
+      return tab;
+    }
     return createTabWithContext(title, content, null);
   }
 
@@ -357,16 +385,42 @@ public class TabEditorController {
   // ===============================================================================
 
   /**
-   * Creates a tab with full context attached.
+   * Creates a tab with full context attached and adds it to the view.
    *
-   * <p>This is the core assembly method that creates all components and wires them together.
+   * <p>This method delegates to {@link #createTabWithoutAdding} and then adds the tab to the view.
    *
    * @param title Tab title
    * @param content Initial content
    * @param filePath File path (null if not associated with a file)
-   * @return The created Tab with attached TabContext
+   * @return The created and displayed Tab
    */
   private Tab createTabWithContext(String title, String content, String filePath) {
+    Tab tab = createTabWithoutAdding(title, content, filePath);
+    view.addNewEditorTab(tab);
+    return tab;
+  }
+
+  /**
+   * Creates a tab with full context attached but does not add it to the view.
+   *
+   * <p>This is the core tab assembly method that creates all components and wires them together:
+   * <ul>
+   *   <li>Creates editor and result controllers</li>
+   *   <li>Assembles the UI layout</li>
+   *   <li>Creates the tab with its content</li>
+   *   <li>Attaches the TabContext</li>
+   *   <li>Binds properties and file associations</li>
+   * </ul>
+   *
+   * <p>This method is used for preloading tabs without displaying them, allowing instant
+   * display when needed later.
+   *
+   * @param title Tab title
+   * @param content Initial content
+   * @param filePath File path (null if not associated with a file)
+   * @return The fully configured Tab (not yet added to view)
+   */
+  private Tab createTabWithoutAdding(String title, String content, String filePath) {
     // 1. Create controllers
     CodeEditorController editorController =
         new CodeEditorController(config.getEditorButtons(), content);
@@ -389,7 +443,6 @@ public class TabEditorController {
       bindFileToEditor(editorController, filePath);
     }
 
-    view.addNewEditorTab(tab);
     return tab;
   }
 

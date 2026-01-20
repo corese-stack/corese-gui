@@ -75,6 +75,7 @@ public class QueryViewController {
                       TemplatePopup.show(
                           stage, query -> tabEditorController.createNewTab("untitled", query));
                     })))
+        .withPreloadFirstTab()
         .build();
 
     // Create controller with complete configuration

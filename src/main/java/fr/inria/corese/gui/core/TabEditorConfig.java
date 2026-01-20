@@ -54,6 +54,7 @@ public class TabEditorConfig {
   private final ResultViewConfig resultViewConfig;
   private final Node emptyStateView;
   private final List<MenuItem> menuItems;
+  private final boolean preloadFirstTab;
 
   // ===============================================================================
   // Constructor (Private - use Builder)
@@ -67,6 +68,7 @@ public class TabEditorConfig {
     this.resultViewConfig = builder.resultViewConfig;
     this.emptyStateView = builder.emptyStateView;
     this.menuItems = builder.menuItems != null ? List.copyOf(builder.menuItems) : new ArrayList<>();
+    this.preloadFirstTab = builder.preloadFirstTab;
   }
 
   // ===============================================================================
@@ -110,6 +112,19 @@ public class TabEditorConfig {
   }
 
   /**
+   * Indicates whether the first tab should be preloaded during initialization.
+   *
+   * <p>When enabled, an empty tab is created in the background during controller initialization,
+   * eliminating the delay when the user creates their first tab. The preloaded tab remains
+   * invisible until explicitly requested.
+   *
+   * @return true if the first tab should be preloaded, false otherwise
+   */
+  public boolean shouldPreloadFirstTab() {
+    return preloadFirstTab;
+  }
+
+  /**
    * Creates a ResultController factory if result view is configured.
    *
    * @return A supplier that creates new ResultController instances, or null if not configured
@@ -145,6 +160,7 @@ public class TabEditorConfig {
     private ResultViewConfig resultViewConfig;
     private Node emptyStateView;
     private List<MenuItem> menuItems;
+    private boolean preloadFirstTab = false;
 
     private Builder() {}
 
@@ -204,6 +220,30 @@ public class TabEditorConfig {
      */
     public Builder withMenuItems(List<MenuItem> items) {
       this.menuItems = items;
+      return this;
+    }
+
+    /**
+     * Enables preloading of the first tab to eliminate initial creation delay.
+     *
+     * <p>When enabled, the controller creates an empty tab in the background during
+     * initialization. This tab remains invisible until the user explicitly creates a new tab,
+     * at which point the preloaded tab is instantly displayed, providing a seamless experience.
+     *
+     * <p><b>Benefits:</b>
+     * <ul>
+     *   <li>Eliminates the delay when opening the first editor tab</li>
+     *   <li>Improves perceived performance and user experience</li>
+     *   <li>Invisible until needed - doesn't force a tab to display on startup</li>
+     * </ul>
+     *
+     * <p><b>Note:</b> Only the first empty tab is preloaded. Subsequent tabs or tabs with
+     * specific content are created on-demand as usual.
+     *
+     * @return This builder for chaining
+     */
+    public Builder withPreloadFirstTab() {
+      this.preloadFirstTab = true;
       return this;
     }
 
