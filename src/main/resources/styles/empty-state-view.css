@@ -33,6 +33,18 @@
     -fx-spacing: 10;
 }
 
+.empty-state-action {
+    /* Prevent visual selection/focus on mouse drag */
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.empty-state-action:focused {
+    /* Remove focus highlight when button receives focus */
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+}
+
 /* 
  * Button styles are now handled by AtlantaFX Styles.ACCENT class 
  * applied in the Java code to ensure consistency with the rest of the application.

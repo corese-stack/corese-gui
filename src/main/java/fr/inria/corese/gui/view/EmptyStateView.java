@@ -105,6 +105,8 @@ public class EmptyStateView extends VBox {
         if (!button.getStyleClass().contains(STYLE_CLASS_ACTION)) {
             button.getStyleClass().add(STYLE_CLASS_ACTION);
         }
+        // Prevent button from being focused when dragging the mouse over it
+        button.setFocusTraversable(false);
     }
 
     // ==============================================================================================
