@@ -2,9 +2,10 @@ package fr.inria.corese.gui.view;
 
 import fr.inria.corese.gui.view.base.AbstractView;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
 import javafx.scene.layout.BorderPane;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignM;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 
 public class QueryView extends AbstractView {
 
@@ -25,21 +26,15 @@ public class QueryView extends AbstractView {
      * @return The configured EmptyStateView node.
      */
     public Node createEmptyState(Runnable onNewAction, Runnable onLoadAction, Runnable onTemplateAction) {
-        Button newButton = new Button("New Query");
-        newButton.setOnAction(e -> onNewAction.run());
-
-        Button loadButton = new Button("Load Query");
-        loadButton.setOnAction(e -> onLoadAction.run());
-
-        Button templateButton = new Button("Templates");
-        templateButton.setOnAction(e -> onTemplateAction.run());
-
         return new EmptyStateView(
             MaterialDesignM.MAGNIFY,
             "No queries open",
             "Create a new query, load one, or use a template.",
-            newButton,
-            loadButton,
-            templateButton);
+            EmptyStateView.createAction(
+                "New Query", MaterialDesignP.PLUS, onNewAction),
+            EmptyStateView.createAction(
+                "Load Query", MaterialDesignF.FOLDER_OPEN, onLoadAction),
+            EmptyStateView.createAction(
+                "Templates", MaterialDesignF.FILE_DOCUMENT_MULTIPLE, onTemplateAction));
     }
 }
