@@ -158,14 +158,15 @@ public class CodeMirrorView extends VBox {
 
     // Format accent color
     Color accent = tm.getAccentColor();
-    String hexColor = toHex(accent);
+    String hexAccent = toHex(accent);
 
-    // Call JS
-    String script = String.format("if(window.setTheme) window.setTheme(%b, '%s', '%s');", isDark, hexColor, themeName);
+    // Call JS: setTheme(isDark, accentColor, themeName)
+    String script = String.format("if(window.setTheme) window.setTheme(%b, '%s', '%s');", isDark, hexAccent, themeName);
     executeScriptSafe(script);
   }
 
   private String toHex(Color color) {
+    if (color == null) return "#000000";
     return String.format(
         "#%02X%02X%02X",
         (int) (color.getRed() * 255),

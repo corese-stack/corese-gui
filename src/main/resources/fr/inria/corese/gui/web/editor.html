@@ -150,7 +150,7 @@
             box-sizing: border-box;
             background-color: var(--bg-color);
             color: var(--text-color);
-            caret-color: var(--caret-color);
+            caret-color: var(--text-color); /* Matches text */
             white-space: pre;
             overflow: auto;
         }
@@ -241,22 +241,27 @@
         };
         
         globalThis.setTheme = function (isDark, accentColor, themeName) {
-            // Toggle Dark Mode
+            var root = document.documentElement;
+
+            // 1. Toggle Dark Mode
             if (isDark) {
                 document.body.classList.add('dark-theme');
             } else {
                 document.body.classList.remove('dark-theme');
             }
             
-            // Apply Theme Family Class
+            // 2. Toggle Theme Family
             document.body.classList.remove('theme-nord', 'theme-primer', 'theme-cupertino');
             if (themeName && themeName !== 'default') {
                 document.body.classList.add('theme-' + themeName);
             }
             
-            // Apply Accent Color
+            // 3. Apply Accent Color
             if (accentColor) {
-                document.documentElement.style.setProperty('--accent-color', accentColor);
+                root.style.setProperty('--accent-color', accentColor);
+                // Simple opacity hack for selection color based on accent
+                // Note: hex + '40' (approx 25% opacity)
+                root.style.setProperty('--selection-bg', accentColor + '40');
             }
         };
 
