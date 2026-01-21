@@ -101,9 +101,13 @@
             outline: none;
             padding: 10px;
             /* Monospace stack: tries to find the best coding font available on the OS */
-            font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Segoe UI Mono', 'Roboto Mono', 'Source Code Pro', 'Consolas', 'Monaco', 'Courier New', monospace;
             font-size: 14px;
-            line-height: 1.5;
+            font-weight: 500; /* Slightly bolder for better readability */
+            line-height: 1.6;
+            font-variant-ligatures: contextual;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
             resize: none;
             box-sizing: border-box;
             background-color: var(--bg-color);
