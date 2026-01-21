@@ -10,6 +10,8 @@
             /* Default / Cupertino Light */
             --bg-color: #ffffff;
             --text-color: #24292e;
+            --gutter-bg: #f8f9fa;
+            --gutter-text: #adb5bd;
             --status-bar-bg: #f3f3f3;
             --status-bar-border: #e1e4e8;
             --status-bar-text: #586069;
@@ -22,6 +24,8 @@
         body.dark-theme {
             --bg-color: #1e1e1e;
             --text-color: #d4d4d4;
+            --gutter-bg: #252526;
+            --gutter-text: #858585;
             --status-bar-bg: #2d2d2d;
             --status-bar-border: #3e3e42;
             --status-bar-text: #cccccc;
@@ -34,6 +38,8 @@
         body.theme-nord {
             --bg-color: #ECEFF4;
             --text-color: #2E3440;
+            --gutter-bg: #E5E9F0;
+            --gutter-text: #4C566A;
             --status-bar-bg: #D8DEE9;
             --status-bar-border: #E5E9F0;
             --status-bar-text: #4C566A;
@@ -44,6 +50,8 @@
         body.theme-nord.dark-theme {
             --bg-color: #2E3440;
             --text-color: #D8DEE9;
+            --gutter-bg: #3B4252;
+            --gutter-text: #616E88;
             --status-bar-bg: #3B4252;
             --status-bar-border: #434C5E;
             --status-bar-text: #D8DEE9;
@@ -56,6 +64,8 @@
         body.theme-primer {
             --bg-color: #ffffff;
             --text-color: #24292f;
+            --gutter-bg: #f6f8fa;
+            --gutter-text: #8c959f;
             --status-bar-bg: #f6f8fa;
             --status-bar-border: #d0d7de;
             --status-bar-text: #57606a;
@@ -66,6 +76,8 @@
         body.theme-primer.dark-theme {
             --bg-color: #0d1117;
             --text-color: #c9d1d9;
+            --gutter-bg: #0d1117;
+            --gutter-text: #484f58;
             --status-bar-bg: #161b22;
             --status-bar-border: #30363d;
             --status-bar-text: #8b949e;
@@ -93,6 +105,32 @@
             height: 100vh;
         }
 
+        .editor-wrapper {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* --- GUTTER AREA --- */
+        .gutter {
+            width: 45px;
+            padding: 10px 5px;
+            background-color: var(--gutter-bg);
+            border-right: 1px solid var(--status-bar-border);
+            color: var(--gutter-text);
+            text-align: right;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 1.6;
+            user-select: none;
+            overflow: hidden;
+            flex-shrink: 0;
+            box-sizing: border-box;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+
         /* --- EDITOR AREA --- */
         #editor {
             flex: 1;
@@ -113,6 +151,8 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             caret-color: var(--caret-color);
+            white-space: pre;
+            overflow: auto;
         }
         
         #editor::selection {
@@ -131,6 +171,7 @@
             color: var(--status-bar-text);
             user-select: none;
             transition: background-color 0.2s, border-color 0.2s;
+            z-index: 10;
         }
 
         .status-bar-right {
@@ -144,7 +185,10 @@
 <body>
 
     <div class="editor-container">
-        <textarea id="editor" autocomplete="off" spellcheck="false"></textarea>
+        <div class="editor-wrapper">
+            <div id="gutter" class="gutter">1</div>
+            <textarea id="editor" autocomplete="off" spellcheck="false"></textarea>
+        </div>
 
         <div class="status-bar">
             <div class="status-bar-right">
@@ -179,10 +223,12 @@
         // =========================================================================
 
         var editorElement = document.getElementById('editor');
+        var gutterElement = document.getElementById('gutter');
 
         // Using globalThis instead of window
         globalThis.setContent = function (content) {
             editorElement.value = content || '';
+            updateLineNumbers();
             updateStatusBar();
         };
 
@@ -226,8 +272,14 @@
             editorElement.addEventListener('keyup', updateStatusBar);
             editorElement.addEventListener('select', updateStatusBar);
 
+            // Sync scrolling
+            editorElement.addEventListener('scroll', function() {
+                gutterElement.scrollTop = editorElement.scrollTop;
+            });
+
             // Content change event (Sync to Java)
             editorElement.addEventListener('input', function () {
+                updateLineNumbers();
                 if (globalThis.bridge) {
                     globalThis.bridge.onContentChanged(editorElement.value);
                 }
@@ -235,8 +287,18 @@
 
             // Initial focus
             editorElement.focus();
+            updateLineNumbers();
             updateStatusBar();
         };
+
+        function updateLineNumbers() {
+            var lines = editorElement.value.split('\n').length;
+            var lineNumbers = [];
+            for (var i = 1; i <= lines; i++) {
+                lineNumbers.push(i);
+            }
+            gutterElement.innerHTML = lineNumbers.join('<br>');
+        }
 
         function updateStatusBar() {
             var text = editorElement.value;
