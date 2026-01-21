@@ -1,27 +1,23 @@
 package fr.inria.corese.gui.controller;
 
 import fr.inria.corese.gui.core.ButtonConfig;
+import fr.inria.corese.gui.enums.SerializationFormat;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
-import fr.inria.corese.gui.view.codeEditor.CodeMirrorView;
+import fr.inria.corese.gui.view.TextResultView;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
+import javafx.concurrent.Task;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
 import javafx.util.Duration;
+import javafx.util.StringConverter;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.function.Consumer;
@@ -35,8 +31,10 @@ import java.util.function.Consumer;
  *   <li>CodeMirror view for displaying results with syntax highlighting
  *   <li>Format selector (Turtle, RDF/XML, JSON-LD, etc.)
  *   <li>Copy to clipboard functionality
- *   <li>Export to file functionality
+ *   <li>Export to file functionality (asynchronous to avoid UI freezing)
  * </ul>
+ *
+ * <p><b>Architecture:</b> Follows clean MVC separation with {@link TextResultView}.
  *
  * <p><b>Usage example:</b>
  *
@@ -53,23 +51,11 @@ public class TextResultController {
   // Fields
   // ==============================================================================================
 
-  /** CodeMirror view for displaying result content with syntax highlighting. */
-  private final CodeMirrorView codeMirrorView;
-
-  /** Choice box for selecting output format. */
-  private final ChoiceBox<String> formatChoiceBox;
-
-  /** Button for copying content to clipboard. */
-  private final Button copyButton;
-
-  /** Button for exporting content to file. */
-  private final Button exportButton;
-
-  /** Root view node containing all UI components. */
-  private final BorderPane rootView;
+  /** The view component managed by this controller. */
+  private final TextResultView view;
 
   /** Callback invoked when format selection changes. */
-  private Consumer<String> onFormatChanged;
+  private Consumer<SerializationFormat> onFormatChanged;
 
   // ==============================================================================================
   // Constructor
@@ -78,16 +64,11 @@ public class TextResultController {
   /**
    * Constructs a new TextResultController with the specified toolbar buttons.
    *
-   * @param buttons List of button configurations for the toolbar
-   * @throws NullPointerException if buttons is null
+   * @param buttons List of button configurations for customizing button appearance and tooltips
    */
   public TextResultController(List<ButtonConfig> buttons) {
-    this.codeMirrorView = new CodeMirrorView(true); // Read-only mode for results
-    this.formatChoiceBox = new ChoiceBox<>();
-    this.copyButton = createButton(buttons, IconButtonType.COPY);
-    this.exportButton = createButton(buttons, IconButtonType.EXPORT);
-    this.rootView = new BorderPane();
-
+    this.view = new TextResultView();
+    applyButtonConfigs(buttons);
     initialize();
   }
 
@@ -95,56 +76,78 @@ public class TextResultController {
   // Initialization
   // ==============================================================================================
 
-  /** Initializes UI components and event handlers. */
-  private void initialize() {
-    // Configure format selector
-    formatChoiceBox.getItems().setAll("TURTLE", "RDF/XML", "JSON-LD", "N-TRIPLES", "N-QUADS", "TRIG");
-    formatChoiceBox.getSelectionModel().select("TURTLE");
-    formatChoiceBox
-        .getSelectionModel()
-        .selectedItemProperty()
-        .addListener(
-            (obs, oldVal, newVal) -> {
-              if (newVal != null && onFormatChanged != null) {
-                onFormatChanged.accept(newVal);
+  /**
+   * Applies button configurations from the provided list.
+   *
+   * @param buttons List of button configurations
+   */
+  private void applyButtonConfigs(List<ButtonConfig> buttons) {
+    // Apply custom configuration to Copy button if provided
+    buttons.stream()
+        .filter(b -> b.getIcon() == IconButtonType.COPY)
+        .findFirst()
+        .ifPresent(
+            config -> {
+              if (config.getText() != null) {
+                view.getCopyButton().setText(config.getText());
+              }
+              if (config.getTooltip() != null) {
+                view.getCopyButton().setTooltip(new Tooltip(config.getTooltip()));
               }
             });
 
-    // Configure buttons
-    copyButton.setOnAction(event -> handleCopy());
-    exportButton.setOnAction(event -> handleExport());
-
-    // Build layout
-    StackPane textContent = new StackPane();
-    textContent.getChildren().add(codeMirrorView);
-
-    StackPane.setAlignment(formatChoiceBox, Pos.TOP_RIGHT);
-    StackPane.setMargin(formatChoiceBox, new Insets(10));
-    textContent.getChildren().add(formatChoiceBox);
-
-    rootView.setCenter(textContent);
+    // Apply custom configuration to Export button if provided
+    buttons.stream()
+        .filter(b -> b.getIcon() == IconButtonType.EXPORT)
+        .findFirst()
+        .ifPresent(
+            config -> {
+              if (config.getText() != null) {
+                view.getExportButton().setText(config.getText());
+              }
+              if (config.getTooltip() != null) {
+                view.getExportButton().setTooltip(new Tooltip(config.getTooltip()));
+              }
+            });
   }
 
-  /**
-   * Creates a button from button configurations.
-   *
-   * @param buttons List of button configurations
-   * @param type The icon type to search for
-   * @return A configured button, or a default button if not found
-   */
-  private Button createButton(List<ButtonConfig> buttons, IconButtonType type) {
-    return buttons.stream()
-        .filter(b -> b.getIcon() == type)
-        .findFirst()
-        .map(
-            config -> {
-              Button btn = new Button();
-              if (config.getTooltip() != null) {
-                btn.setTooltip(new Tooltip(config.getTooltip()));
-              }
-              return btn;
-            })
-        .orElseGet(Button::new);
+  /** Initializes UI components and event handlers. */
+  private void initialize() {
+    // Configure format selector using high-level method
+    view.configureFormatSelector(
+        SerializationFormat.rdfFormats(),
+        SerializationFormat.TURTLE,
+        new StringConverter<SerializationFormat>() {
+          @Override
+          public String toString(SerializationFormat format) {
+            return format != null ? format.getLabel() : "";
+          }
+
+          @Override
+          public SerializationFormat fromString(String string) {
+            return SerializationFormat.fromString(string);
+          }
+        });
+
+    // Listen to format changes using high-level method
+    view.setOnFormatChanged(
+        (obs, oldVal, newVal) -> {
+          if (newVal != null && onFormatChanged != null) {
+            onFormatChanged.accept(newVal);
+          }
+        });
+
+    // Set default tooltips if not already configured
+    if (view.getCopyButton().getTooltip() == null) {
+      view.getCopyButton().setTooltip(new Tooltip("Copy to clipboard"));
+    }
+    if (view.getExportButton().getTooltip() == null) {
+      view.getExportButton().setTooltip(new Tooltip("Export to file"));
+    }
+
+    // Configure button actions
+    view.getCopyButton().setOnAction(event -> handleCopy());
+    view.getExportButton().setOnAction(event -> handleExport());
   }
 
   // ==============================================================================================
@@ -154,10 +157,11 @@ public class TextResultController {
   /** Handles copy to clipboard action. */
   private void handleCopy() {
     ClipboardContent content = new ClipboardContent();
-    content.putString(codeMirrorView.getContent());
+    content.putString(view.getCodeMirrorView().getContent());
     Clipboard.getSystemClipboard().setContent(content);
 
-    Tooltip tooltip = copyButton.getTooltip();
+    // Temporary tooltip feedback
+    Tooltip tooltip = view.getCopyButton().getTooltip();
     if (tooltip != null) {
       String originalText = tooltip.getText();
       tooltip.setText("Copied!");
@@ -167,9 +171,9 @@ public class TextResultController {
     }
   }
 
-  /** Handles export to file action. */
+  /** Handles export to file action (asynchronous to avoid blocking UI). */
   private void handleExport() {
-    String contentToExport = codeMirrorView.getContent();
+    String contentToExport = view.getCodeMirrorView().getContent();
     if (contentToExport == null || contentToExport.isBlank()) {
       showError("Export Error", "There is no text content to export.");
       return;
@@ -178,20 +182,21 @@ public class TextResultController {
     FileChooser fileChooser = new FileChooser();
     fileChooser.setTitle("Export Result As");
 
-    String selectedFormat = formatChoiceBox.getValue();
+    SerializationFormat selectedFormat = view.getFormatChoiceBox().getValue();
     if (selectedFormat == null) {
-      selectedFormat = "Text";
+      selectedFormat = SerializationFormat.TURTLE;
     }
-    String extension = getExtensionForFormat(selectedFormat);
 
+    String extension = selectedFormat.getExtension();
     fileChooser.setInitialFileName("output" + extension);
+
     FileChooser.ExtensionFilter extFilter =
         new FileChooser.ExtensionFilter(
-            selectedFormat + " file (*" + extension + ")", "*" + extension);
+            selectedFormat.getLabel() + " file (*" + extension + ")", "*" + extension);
     fileChooser.getExtensionFilters().add(extFilter);
     fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
 
-    Window window = rootView.getScene() != null ? rootView.getScene().getWindow() : null;
+    Window window = view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null;
     File file = fileChooser.showSaveDialog(window);
 
     if (file != null) {
@@ -200,41 +205,54 @@ public class TextResultController {
         fileToSave = new File(file.getAbsolutePath() + extension);
       }
 
-      try {
-        Files.writeString(fileToSave.toPath(), contentToExport);
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Export Successful");
-        alert.setHeaderText(null);
-        alert.setContentText(
-            "The result has been successfully exported to:\n" + fileToSave.getAbsolutePath());
-        alert.showAndWait();
-      } catch (IOException e) {
-        showError("Export Failed", "An error occurred while saving the file:\n" + e.getMessage());
-      }
+      // Export asynchronously to avoid blocking UI for large files
+      exportFileAsync(fileToSave, contentToExport);
     }
   }
 
   /**
-   * Maps format names to file extensions.
+   * Exports content to file asynchronously.
    *
-   * @param format The format name
-   * @return The corresponding file extension
+   * @param file The target file
+   * @param content The content to write
    */
-  private String getExtensionForFormat(String format) {
-    return switch (format.toUpperCase()) {
-      case "RDF/XML" -> ".rdf";
-      case "JSON-LD" -> ".jsonld";
-      case "N-TRIPLES" -> ".nt";
-      case "N-QUADS" -> ".nq";
-      case "TRIG" -> ".trig";
-      case "TURTLE" -> ".ttl";
-      case "JSON" -> ".json";
-      case "CSV" -> ".csv";
-      case "TSV" -> ".tsv";
-      case "XML" -> ".xml";
-      case "MARKDOWN" -> ".md";
-      default -> ".ttl";
-    };
+  private void exportFileAsync(File file, String content) {
+    Task<Void> exportTask =
+        new Task<>() {
+          @Override
+          protected Void call() throws Exception {
+            Files.writeString(file.toPath(), content);
+            return null;
+          }
+
+          @Override
+          protected void succeeded() {
+            Platform.runLater(
+                () -> {
+                  Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                  alert.setTitle("Export Successful");
+                  alert.setHeaderText(null);
+                  alert.setContentText(
+                      "The result has been successfully exported to:\n" + file.getAbsolutePath());
+                  alert.showAndWait();
+                });
+          }
+
+          @Override
+          protected void failed() {
+            Platform.runLater(
+                () ->
+                    showError(
+                        "Export Failed",
+                        "An error occurred while saving the file:\n"
+                            + getException().getMessage()));
+          }
+        };
+
+    // Run in background thread (daemon to avoid keeping JVM alive on app close)
+    Thread exportThread = new Thread(exportTask);
+    exportThread.setDaemon(true);
+    exportThread.start();
   }
 
   /**
@@ -261,14 +279,14 @@ public class TextResultController {
    * @param content The text content to display
    */
   public void updateText(String content) {
-    Platform.runLater(() -> codeMirrorView.setContent(content != null ? content : ""));
+    Platform.runLater(() -> view.getCodeMirrorView().setContent(content != null ? content : ""));
   }
 
   /**
    * Clears all text content.
    */
   public void clear() {
-    Platform.runLater(() -> codeMirrorView.setContent(""));
+    Platform.runLater(() -> view.getCodeMirrorView().setContent(""));
   }
 
   /**
@@ -276,26 +294,26 @@ public class TextResultController {
    *
    * @param listener Consumer that receives the newly selected format
    */
-  public void setOnFormatChanged(Consumer<String> listener) {
+  public void setOnFormatChanged(Consumer<SerializationFormat> listener) {
     this.onFormatChanged = listener;
   }
 
   /**
    * Returns the root view node.
    *
-   * @return The BorderPane containing all UI components
+   * @return The view's root node
    */
   public Node getView() {
-    return rootView;
+    return view.getRoot();
   }
 
   /**
    * Returns the currently selected format.
    *
-   * @return The selected format string (e.g., "TURTLE", "JSON-LD")
+   * @return The selected SerializationFormat
    */
-  public String getSelectedFormat() {
-    return formatChoiceBox.getValue();
+  public SerializationFormat getSelectedFormat() {
+    return view.getFormatChoiceBox().getValue();
   }
 
   /**
@@ -303,7 +321,7 @@ public class TextResultController {
    *
    * @param format The format to select
    */
-  public void setSelectedFormat(String format) {
-    Platform.runLater(() -> formatChoiceBox.getSelectionModel().select(format));
+  public void setSelectedFormat(SerializationFormat format) {
+    Platform.runLater(() -> view.getFormatChoiceBox().setValue(format));
   }
 }

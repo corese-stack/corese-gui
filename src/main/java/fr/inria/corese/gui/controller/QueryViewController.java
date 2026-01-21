@@ -3,6 +3,7 @@ package fr.inria.corese.gui.controller;
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.core.ResultViewConfig;
 import fr.inria.corese.gui.core.TabEditorConfig;
+import fr.inria.corese.gui.enums.SerializationFormat;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.factory.popup.TemplatePopup;
 import fr.inria.corese.gui.manager.QueryManager;
@@ -150,7 +151,7 @@ public class QueryViewController {
         
         // Set up format change listener for SELECT/ASK results
         resultController.setOnFormatChanged(format -> {
-          String formattedResult = stateManager.getFormattedCachedQuery(queryTabId, format);
+          String formattedResult = stateManager.getFormattedCachedQuery(queryTabId, format.getLabel());
           resultController.updateText(formattedResult);
         });
         
@@ -172,7 +173,7 @@ public class QueryViewController {
         
         // Set up format change listener for CONSTRUCT/DESCRIBE results
         resultController.setOnFormatChanged(format -> {
-          String formattedResult = stateManager.getFormattedCachedQuery(queryTabId, format);
+          String formattedResult = stateManager.getFormattedCachedQuery(queryTabId, format.getLabel());
           resultController.updateText(formattedResult);
         });
         

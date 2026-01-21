@@ -249,7 +249,7 @@ public class ValidationController {
 
       // Configure callback for format changes
       resultController.setOnFormatChanged(format -> {
-        String formattedReport = model.formatLastReport(format);
+        String formattedReport = model.formatLastReport(format.getLabel());
         if (formattedReport != null) {
           resultController.updateText(formattedReport);
         }

@@ -2,6 +2,7 @@ package fr.inria.corese.gui.controller;
 
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.core.ResultViewConfig;
+import fr.inria.corese.gui.enums.SerializationFormat;
 import fr.inria.corese.gui.model.ValidationReportItem;
 import fr.inria.corese.gui.view.ResultView;
 import javafx.application.Platform;
@@ -179,7 +180,7 @@ public class ResultController {
    *
    * @param listener Consumer that receives the newly selected format
    */
-  public void setOnFormatChanged(Consumer<String> listener) {
+  public void setOnFormatChanged(Consumer<SerializationFormat> listener) {
     if (textController != null) {
       runOnFxThread(() -> textController.setOnFormatChanged(listener));
     }
