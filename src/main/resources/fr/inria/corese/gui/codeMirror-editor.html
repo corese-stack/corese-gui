@@ -1,79 +1,87 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
     <meta charset="utf-8">
+    <title>Corese Editor</title>
     <style>
-        body, html {
+        /* --- LAYOUT --- */
+        body,
+        html {
             height: 100%;
             margin: 0;
             padding: 0;
             overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
+
         .editor-container {
             display: flex;
             flex-direction: column;
-            height: 100vh; /* Utilisez viewport height au lieu de 100% */
+            height: 100vh;
             position: relative;
-            overflow: hidden;
         }
 
+        /* --- CODEMIRROR OVERRIDES --- */
         .CodeMirror {
             flex: 1;
-            height: 100% !important; /* Force la hauteur à 100% */
+            height: 100% !important;
             width: 100%;
-            position: relative;
-            display: flex;
-            flex-direction: column;
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
         }
 
-        .CodeMirror-scroll {
-            flex: 1;
-            height: auto !important;
-            max-height: none !important;
-        }
-
+        /* Fallback textarea if JS fails */
         #editor {
             width: 100%;
             height: 100%;
+            display: block;
         }
+
+        /* --- STATUS BAR --- */
         .status-bar {
-            height: 25px;
+            height: 26px;
             background-color: #f3f3f3;
             border-top: 1px solid #ddd;
             display: flex;
             align-items: center;
             padding: 0 10px;
-            font-size: 12px;
-            font-family: sans-serif;
+            font-size: 11px;
             color: #666;
+            user-select: none;
         }
+
         .status-bar-right {
             margin-left: auto;
             display: flex;
             gap: 15px;
         }
-        .status-item {
-            margin-left: 15px;
-        }
 
+        /* --- ERROR INDICATORS --- */
         .error-indicators {
             position: absolute;
-            bottom: 50px;
-            right: 50px;
+            bottom: 40px;
+            right: 20px;
             display: flex;
             gap: 10px;
-            z-index: 1000;
+            z-index: 20;
+            pointer-events: none;
+            /* Let clicks pass through */
         }
 
-        .error-count, .warning-count {
+        .error-count,
+        .warning-count {
             background-color: white;
             border-radius: 4px;
-            padding: 2px 8px;
+            padding: 4px 8px;
             font-size: 12px;
             display: flex;
             align-items: center;
-            gap: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            gap: 6px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            pointer-events: auto;
+            opacity: 0.9;
         }
 
         .error-count {
@@ -86,353 +94,284 @@
             border: 1px solid #ffe0b2;
         }
 
+        /* --- LINTING STYLES --- */
         .CodeMirror-line-error {
-            background-color: rgba(255, 0, 0, 0.1);
+            background-color: rgba(211, 47, 47, 0.1) !important;
         }
 
         .CodeMirror-line-warning {
-            background-color: rgba(255, 152, 0, 0.1);
-        }
-
-        .error-icon, .warning-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 16px;
-            height: 16px;
-        }
-
-        .error-icon svg {
-            fill: #d32f2f;
-        }
-
-        .warning-icon svg {
-            fill: #f57c00;
-        }
-
-        .CodeMirror-linenumbers {
-            padding: 0;
-            min-width: 2px;
-            max-width: 2px;
+            background-color: rgba(245, 124, 0, 0.1) !important;
         }
 
         .CodeMirror-lint-tooltip {
-            background-color: white;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 12px;
-            padding: 4px 8px;
-            transition: opacity .4s;
-            white-space: pre-wrap;
             z-index: 100;
-            box-shadow: 0 2px 8px rgba(0,0,0,.15);
         }
 
-        .CodeMirror-lint-mark {
+        /* --- OFFLINE ERROR MSG --- */
+        #loading-error {
             display: none;
-            background-position: left bottom;
-            background-repeat: repeat-x;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #ef9a9a;
+            z-index: 1000;
         }
-
     </style>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/eclipse.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/turtle/turtle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/scroll/simplescrollbars.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/selection/active-line.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldcode.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/lint/lint.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/lint/lint.css">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/eclipse.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldgutter.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/lint/lint.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/turtle/turtle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldgutter.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/lint/lint.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/n3@1.16.2/browser/n3.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@frogcat/rdf-validate@1.0.0/rdf-validate.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/selection/undo.js"></script>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
+
 <body>
+    <div id="loading-error">
+        Network Error: Unable to load CodeMirror libraries. Editor features are disabled.
+    </div>
+
     <div class="editor-container">
         <div class="error-indicators">
             <div class="error-count" id="error-count" style="display:none">
-                <span class="error-icon">
-                    <svg viewBox="0 0 24 24" width="16" height="16">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-                    </svg>
-                </span>
-                <span class="count">0</span> errors
+                <i class="fas fa-times-circle"></i> <span class="count">0</span>
             </div>
             <div class="warning-count" id="warning-count" style="display:none">
-                <span class="warning-icon">
-                    <svg viewBox="0 0 24 24" width="16" height="16">
-                        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-                    </svg>
-                </span>
-                <span class="count">0</span> warnings
+                <i class="fas fa-exclamation-triangle"></i> <span class="count">0</span>
             </div>
         </div>
-        <textarea id="editor"></textarea>
+
+        <textarea id="editor" autocomplete="off"></textarea>
+
         <div class="status-bar">
             <div class="status-bar-right">
                 <span id="cursor-position">Ln 1, Col 1</span>
-                <span class="status-item" id="selection-count"></span>
-                <span class="status-item" id="file-info">UTF-8</span>
-                <span class="status-item" id="editor-mode">Turtle</span>
+                <span style="margin: 0 10px; color: #ccc;">|</span>
+                <span id="selection-count"></span>
+                <span style="margin: 0 10px; color: #ccc;">|</span>
+                <span id="editor-mode">Turtle</span>
             </div>
         </div>
     </div>
 
     <script>
-        window.onerror = function(message, source, lineno, colno, error) {
-            if (window.bridge) {
-                window.bridge.log("JS Error: " + message + " at " + source + ":" + lineno + ":" + colno);
-            }
-        };
+        // =========================================================================
+        // 1. GLOBAL VARIABLES & API DEFINITIONS (Defined FIRST to prevent Java crash)
+        // =========================================================================
 
-        console.log = function(message) {
-            if (window.bridge) {
-                window.bridge.log(message);
-            }
-        };
+        var editor = null;
+        var errorLines = [];
 
-        console.error = function(message) {
-            if (window.bridge) {
-                window.bridge.log("Error: " + message);
-            }
-        };
-
-        function getRealPosition(text, globalColumn) {
-            let lines = text.split("\n");
-            let charCount = 0;
-
-            for (let i = 0; i < lines.length; i++) {
-                if (charCount + lines[i].length >= globalColumn) {
-                    return { realLine: i, realColumn: globalColumn - charCount };
-                }
-                charCount += lines[i].length + 1; // +1 pour le "\n"
-            }
-
-            // Si on dépasse la longueur du texte, on retourne la dernière position connue
-            return { realLine: lines.length - 1, realColumn: lines[lines.length - 1].length };
+        // --- Java Bridge Helpers ---
+        function safeLog(msg) {
+            if (window.bridge) window.bridge.log(msg);
+            else console.log(msg);
         }
 
-        function extractLineNumber(message) {
-            const lineMatch = message.match(/on line (\d+)/);
-                if (lineMatch) {
-                    return parseInt(lineMatch[1]) - 1; // -1 car CodeMirror commence à 0
-                }
-            return null;
+        function safeError(msg) {
+            if (window.bridge) window.bridge.log("ERROR: " + msg);
+            else console.error(msg);
         }
 
-        function updateErrorCounts(issues) {
-            const errorCount = issues.filter(i => i.severity === 'error').length;
-            const warningCount = issues.filter(i => i.severity === 'warning').length;
+        // --- Public API called by Java ---
 
-            const errorCounter = document.getElementById('error-count');
-            const warningCounter = document.getElementById('warning-count');
-
-            if (errorCounter) {
-                errorCounter.style.display = errorCount > 0 ? 'flex' : 'none';
-                const countElement = errorCounter.querySelector('.count');
-                if (countElement) {
-                    countElement.textContent = errorCount;
-                }
-            }
-
-            if (warningCounter) {
-                warningCounter.style.display = warningCount > 0 ? 'flex' : 'none';
-                const countElement = warningCounter.querySelector('.count');
-                if (countElement) {
-                    countElement.textContent = warningCount;
-                }
-            }
-        }
-
-        function turtleLinter(text, callback) {
-            console.log("Running turtleLinter!");
-
-            console.log("Before N3.Parser initialization");
-            const parser = new N3.Parser({ format: 'Turtle' });
-            console.log("After N3.Parser initialization");
-
-            var issues = [];
-            const lines = text.split('\n');
-            console.log(lines);
-            let currentText = '';
-
-            if (window.errorLines) {
-
-                window.errorLines.forEach(lineNumber => {
-                    console.log("line "+lineNumber);
-                    editor.removeLineClass(lineNumber, 'background', 'CodeMirror-line-error');
-                });
-            }
-            window.errorLines = [];
-
-            new Promise((resolve) => {
-                parser.parse(text, (error, quad, prefixes) => {
-                    if (error) {
-                        console.error("Parsing error detected:");
-                        console.error(`Message: ${error.message}`);
-                        console.error(`Line: ${error.line}, Column: ${error.column}`);
-
-                        let { realLine, realColumn } = getRealPosition(text, error.column);
-                        console.log(`Recalculated position -> Line: ${realLine}, Column: ${realColumn}`);
-
-                        let line = extractLineNumber(error.message);
-                        console.log("line : "+line);
-
-                        issues.push({
-                            message: error.message,
-                            severity: 'error',
-                            from: CodeMirror.Pos(line, realColumn),
-                            to: CodeMirror.Pos(line, realColumn + 1)
-                        });
-
-                        editor.addLineClass(line, 'background', 'CodeMirror-line-error');
-                        window.errorLines.push(line);
-                    }
-                    updateErrorCounts(issues);
-                    resolve();
-                });
-            }).then(() => {
-                updateErrorCounts(issues);
-                callback(issues);
-            }).catch((e) => {
-                console.error("Catch block error:", e);
-                issues.push({
-                    message: e.message,
-                    severity: 'error',
-                    from: CodeMirror.Pos(0, 0),
-                    to: CodeMirror.Pos(0, 1)
-                });
-                updateErrorCounts(issues);
-                callback(issues);
-            });
-        }
-
-        CodeMirror.registerHelper("lint", "turtle", turtleLinter);
-
-        var editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
-            mode: 'turtle',
-            theme: 'eclipse',
-            lineNumbers: true,
-            matchBrackets: true,
-            autoCloseBrackets: true,
-            lineWrapping: true,
-            tabSize: 2,
-            autofocus: true,
-            styleActiveLine: true,
-            scrollbarStyle: 'overlay',
-            foldGutter: true,
-            historyEventDelay: 350,
-            undoDepth: 200,
-            lint: {
-                getAnnotations: turtleLinter,
-                async: true
-            },
-            gutters: ["CodeMirror-linenumbers", "CodeMirror-lint-markers", "CodeMirror-foldgutter"],
-            extraKeys: {
-                "Ctrl-S": function(cm) {
-                    if (window.bridge) {
-                        window.bridge.saveFile();
-                    }
-                },
-                "Ctrl-F": "findPersistent",
-                "Ctrl-/": "toggleComment",
-                "Ctrl-Space": "autocomplete",
-                "Ctrl-Z": function(cm) { cm.undo(); },
-                "Ctrl-Y": function(cm) { cm.redo(); },
-            },
-            viewportMargin: Infinity,
-            scrollbarStyle: 'native'
-        });
-
-        (function setupZooming() {
-            let currentFontSize = 12;
-
-        function setFontSize(size) {
-            currentFontSize = Math.max(8, Math.min(40, size));
-            editor.getWrapperElement().style.fontSize = currentFontSize + 'px';
-            editor.refresh();
-        }
-
-        editor.getWrapperElement().addEventListener('wheel', function(e) {
-            if (e.ctrlKey) {
-                e.preventDefault();
-                if (e.deltaY < 0) {
-                    setFontSize(currentFontSize + 1); // Zoom in
-                } else {
-                    setFontSize(currentFontSize - 1); // Zoom out
-                }
-            }
-        });
-        })();
-
-
-        setTimeout(() => {
-            editor.refresh();
-        }, 100);
-
-        // Mise à jour de la position du curseur
-        editor.on('cursorActivity', function() {
-            var pos = editor.getCursor();
-            var sel = editor.getSelection();
-            document.getElementById('cursor-position').textContent =
-                'Ln ' + (pos.line + 1) + ', Col ' + (pos.ch + 1);
-
-            // Afficher le nombre de caractères sélectionnés
-            if (sel && sel.length > 0) {
-                document.getElementById('selection-count').textContent =
-                    sel.length + ' selected';
+        // Sets content into the editor (or textarea fallback)
+        window.setContent = function (content) {
+            if (editor) {
+                var doc = editor.getDoc();
+                var cursor = doc.getCursor();
+                var scrollInfo = editor.getScrollInfo();
+                editor.setValue(content || '');
+                editor.setCursor(cursor);
+                editor.scrollTo(scrollInfo.left, scrollInfo.top);
             } else {
-                document.getElementById('selection-count').textContent = '';
+                document.getElementById('editor').value = content || '';
             }
-        });
+        };
 
-        editor.on('change', function(cm, change) {
-            editor.refresh();
-            if (!change.origin || change.origin !== 'setValue') {
-                if (window.bridge) {
-                    window.bridge.onContentChanged(editor.getValue());
-                    turtleLinter(editor.getValue, '');
-                }
+        // Gets content from the editor (or textarea fallback)
+        window.getContent = function () {
+            if (editor) return editor.getValue();
+            return document.getElementById('editor').value;
+        };
+
+        // Sets the editor theme
+        window.setTheme = function (themeName) {
+            if (editor) {
+                editor.setOption("theme", themeName);
             }
-        });
-
-        window.setContent = function(content) {
-            var cursor = editor.getCursor();
-            var scrollInfo = editor.getScrollInfo();
-            editor.setValue(content || '');
-            editor.setCursor(cursor);
-            editor.scrollTo(scrollInfo.left, scrollInfo.top);
-            editor.refresh();
         };
 
-        window.getContent = function() {
-            return editor.getValue();
-        };
-
-        window.setTheme = function(theme) {
-            editor.setOption("theme", theme);
-        };
-
-        window.setStatusBarTheme = function(backgroundColor, textColor, borderColor) {
+        // Sets status bar colors
+        window.setStatusBarTheme = function (bgColor, textColor, borderColor) {
             var statusBar = document.querySelector('.status-bar');
             if (statusBar) {
-                statusBar.style.backgroundColor = backgroundColor;
+                statusBar.style.backgroundColor = bgColor;
                 statusBar.style.color = textColor;
                 statusBar.style.borderTopColor = borderColor;
             }
         };
 
-        window.addEventListener('resize', () => {
-            editor.refresh();
-        });
+        // =========================================================================
+        // 2. INITIALIZATION LOGIC
+        // =========================================================================
+
+        window.onload = function () {
+            // CHECK IF LIBRARIES LOADED
+            if (typeof CodeMirror === 'undefined') {
+                document.getElementById('loading-error').style.display = 'block';
+                safeError("CodeMirror JS not loaded. Check internet connection.");
+                return; // Stop initialization, but API functions above still exist!
+            }
+
+            try {
+                initCodeMirror();
+            } catch (e) {
+                safeError("Exception during init: " + e.message);
+            }
+        };
+
+        function initCodeMirror() {
+            // Register Linter Helper
+            CodeMirror.registerHelper("lint", "turtle", turtleLinter);
+
+            editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+                mode: 'turtle',
+                theme: 'eclipse',
+                lineNumbers: true,
+                matchBrackets: true,
+                autoCloseBrackets: true,
+                lineWrapping: true,
+                foldGutter: true,
+                gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter", "CodeMirror-lint-markers"],
+                lint: {
+                    getAnnotations: turtleLinter,
+                    async: true,
+                    delay: 800 // Delay linting to avoid lag on typing
+                },
+                extraKeys: {
+                    "Ctrl-Space": "autocomplete",
+                    "Ctrl-/": "toggleComment"
+                }
+            });
+
+            // Event Listeners
+            editor.on('cursorActivity', updateStatusBar);
+
+            editor.on('change', function (cm, change) {
+                if (change.origin !== 'setValue' && window.bridge) {
+                    window.bridge.onContentChanged(editor.getValue());
+                }
+            });
+
+            // Zoom handling (Ctrl + Wheel)
+            setupZoom();
+        }
+
+        // =========================================================================
+        // 3. UTILITIES & LINTER
+        // =========================================================================
+
+        function updateStatusBar() {
+            if (!editor) return;
+            var pos = editor.getCursor();
+            var sel = editor.getSelection();
+            document.getElementById('cursor-position').textContent = 'Ln ' + (pos.line + 1) + ', Col ' + (pos.ch + 1);
+            document.getElementById('selection-count').textContent = (sel && sel.length > 0) ? sel.length + ' chars' : '';
+        }
+
+        function setupZoom() {
+            var fontSize = 14;
+            editor.getWrapperElement().addEventListener('wheel', function (e) {
+                if (e.ctrlKey) {
+                    e.preventDefault();
+                    if (e.deltaY < 0) fontSize++; else fontSize = Math.max(8, fontSize - 1);
+                    editor.getWrapperElement().style.fontSize = fontSize + 'px';
+                    editor.refresh();
+                }
+            });
+        }
+
+        // --- Turtle Linter ---
+        function turtleLinter(text, callback) {
+            // Safe check for N3 library
+            if (typeof N3 === 'undefined') {
+                callback([]); // No N3, no linting
+                return;
+            }
+
+            var parser = new N3.Parser({ format: 'Turtle' });
+            var issues = [];
+
+            // Clear old error styling
+            if (editor && errorLines.length > 0) {
+                errorLines.forEach(line => editor.removeLineClass(line, 'background', 'CodeMirror-line-error'));
+                errorLines = [];
+            }
+
+            parser.parse(text, (error, quad, prefixes) => {
+                if (error) {
+                    // Try to extract line number
+                    var line = 0;
+                    var col = 0;
+
+                    // N3 usually gives 'error on line X'
+                    var match = error.message.match(/line (\d+)/);
+                    if (match) line = parseInt(match[1]) - 1;
+
+                    issues.push({
+                        message: error.message,
+                        severity: 'error',
+                        from: CodeMirror.Pos(line, col),
+                        to: CodeMirror.Pos(line, 999)
+                    });
+
+                    if (editor) {
+                        editor.addLineClass(line, 'background', 'CodeMirror-line-error');
+                        errorLines.push(line);
+                    }
+                }
+            });
+
+            // Wait a bit for parsing to finish (simplistic approach for sync parser)
+            setTimeout(() => {
+                updateErrorBadges(issues);
+                callback(issues);
+            }, 50);
+        }
+
+        function updateErrorBadges(issues) {
+            var errors = issues.filter(i => i.severity === 'error').length;
+            var warns = issues.filter(i => i.severity === 'warning').length;
+
+            var eBadge = document.getElementById('error-count');
+            var wBadge = document.getElementById('warning-count');
+
+            if (eBadge) {
+                eBadge.style.display = errors > 0 ? 'flex' : 'none';
+                eBadge.querySelector('.count').textContent = errors;
+            }
+            if (wBadge) {
+                wBadge.style.display = warns > 0 ? 'flex' : 'none';
+                wBadge.querySelector('.count').textContent = warns;
+            }
+        }
     </script>
 </body>
+
 </html>
