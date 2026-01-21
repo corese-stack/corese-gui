@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Corese Editor</title>
+    <style>
+        /* --- THEME VARIABLES --- */
+        :root {
+            /* Default / Cupertino Light */
+            --bg-color: #ffffff;
+            --text-color: #24292e;
+            --status-bar-bg: #f3f3f3;
+            --status-bar-border: #e1e4e8;
+            --status-bar-text: #586069;
+            --caret-color: #24292e;
+            --selection-bg: #b3d7ff;
+            --accent-color: #0078D4;
+        }
+
+        /* --- DARK DEFAULTS (Cupertino Dark) --- */
+        body.dark-theme {
+            --bg-color: #1e1e1e;
+            --text-color: #d4d4d4;
+            --status-bar-bg: #2d2d2d;
+            --status-bar-border: #3e3e42;
+            --status-bar-text: #cccccc;
+            --caret-color: #d4d4d4;
+            --selection-bg: #264f78;
+        }
+
+        /* --- NORD THEME --- */
+        /* Nord Light */
+        body.theme-nord {
+            --bg-color: #ECEFF4;
+            --text-color: #2E3440;
+            --status-bar-bg: #D8DEE9;
+            --status-bar-border: #E5E9F0;
+            --status-bar-text: #4C566A;
+            --caret-color: #2E3440;
+            --selection-bg: #88C0D0; /* Frost */
+        }
+        /* Nord Dark */
+        body.theme-nord.dark-theme {
+            --bg-color: #2E3440;
+            --text-color: #D8DEE9;
+            --status-bar-bg: #3B4252;
+            --status-bar-border: #434C5E;
+            --status-bar-text: #D8DEE9;
+            --caret-color: #D8DEE9;
+            --selection-bg: #434C5E;
+        }
+
+        /* --- PRIMER THEME (GitHub) --- */
+        /* Primer Light */
+        body.theme-primer {
+            --bg-color: #ffffff;
+            --text-color: #24292f;
+            --status-bar-bg: #f6f8fa;
+            --status-bar-border: #d0d7de;
+            --status-bar-text: #57606a;
+            --caret-color: #24292f;
+            --selection-bg: #0969da33; /* accent muted */
+        }
+        /* Primer Dark */
+        body.theme-primer.dark-theme {
+            --bg-color: #0d1117;
+            --text-color: #c9d1d9;
+            --status-bar-bg: #161b22;
+            --status-bar-border: #30363d;
+            --status-bar-text: #8b949e;
+            --caret-color: #c9d1d9;
+            --selection-bg: #1f6feb33;
+        }
+
+        /* --- BASE CSS --- */
+        body,
+        html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            /* System fonts for UI, safe and fast */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* --- EDITOR AREA --- */
+        #editor {
+            flex: 1;
+            width: 100%;
+            border: none;
+            outline: none;
+            padding: 10px;
+            /* Monospace stack: tries to find the best coding font available on the OS */
+            font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: none;
+            box-sizing: border-box;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            caret-color: var(--caret-color);
+        }
+        
+        #editor::selection {
+            background-color: var(--selection-bg);
+        }
+
+        /* --- STATUS BAR --- */
+        .status-bar {
+            height: 26px;
+            background-color: var(--status-bar-bg);
+            border-top: 1px solid var(--status-bar-border);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 11px;
+            color: var(--status-bar-text);
+            user-select: none;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+
+        .status-bar-right {
+            margin-left: auto;
+            display: flex;
+            gap: 15px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="editor-container">
+        <textarea id="editor" autocomplete="off" spellcheck="false"></textarea>
+
+        <div class="status-bar">
+            <div class="status-bar-right">
+                <span id="cursor-position">Ln 1, Col 1</span>
+                <span style="margin: 0 10px; color: var(--status-bar-border);">|</span>
+                <span id="selection-count"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // 1. DEBUGGING BRIDGE
+        // =========================================================================
+
+        // Redirect JS errors to Java logger
+        globalThis.onerror = function (msg, url, line, col, error) {
+            if (globalThis.bridge) {
+                globalThis.bridge.log("JS ERROR: " + msg + " (Line: " + line + ")");
+            }
+        };
+
+        // Redirect console.log to Java logger
+        var oldLog = console.log;
+        console.log = function (msg) {
+            if (globalThis.bridge) globalThis.bridge.log(msg);
+            oldLog.apply(console, arguments);
+        };
+
+        // =========================================================================
+        // 2. PUBLIC API (Called by Java)
+        // =========================================================================
+
+        var editorElement = document.getElementById('editor');
+
+        // Using globalThis instead of window
+        globalThis.setContent = function (content) {
+            editorElement.value = content || '';
+            updateStatusBar();
+        };
+
+        globalThis.getContent = function () {
+            return editorElement.value;
+        };
+
+        globalThis.setReadOnly = function (isReadOnly) {
+            editorElement.readOnly = isReadOnly;
+        };
+        
+        globalThis.setTheme = function (isDark, accentColor, themeName) {
+            // Toggle Dark Mode
+            if (isDark) {
+                document.body.classList.add('dark-theme');
+            } else {
+                document.body.classList.remove('dark-theme');
+            }
+            
+            // Apply Theme Family Class
+            document.body.classList.remove('theme-nord', 'theme-primer', 'theme-cupertino');
+            if (themeName && themeName !== 'default') {
+                document.body.classList.add('theme-' + themeName);
+            }
+            
+            // Apply Accent Color
+            if (accentColor) {
+                document.documentElement.style.setProperty('--accent-color', accentColor);
+            }
+        };
+
+        // =========================================================================
+        // 3. INITIALIZATION & EVENTS
+        // =========================================================================
+
+        globalThis.onload = function () {
+            console.log("DOM Loaded. Initializing Editor...");
+
+            // Cursor events
+            editorElement.addEventListener('click', updateStatusBar);
+            editorElement.addEventListener('keyup', updateStatusBar);
+            editorElement.addEventListener('select', updateStatusBar);
+
+            // Content change event (Sync to Java)
+            editorElement.addEventListener('input', function () {
+                if (globalThis.bridge) {
+                    globalThis.bridge.onContentChanged(editorElement.value);
+                }
+            });
+
+            // Initial focus
+            editorElement.focus();
+            updateStatusBar();
+        };
+
+        function updateStatusBar() {
+            var text = editorElement.value;
+            var selStart = editorElement.selectionStart;
+            var selEnd = editorElement.selectionEnd;
+
+            // Basic Line/Col calculation
+            var textUpToCursor = text.substring(0, selStart);
+            var lines = textUpToCursor.split('\n');
+            var line = lines.length;
+            var col = lines[lines.length - 1].length + 1;
+
+            document.getElementById('cursor-position').textContent = 'Ln ' + line + ', Col ' + col;
+
+            var selLength = selEnd - selStart;
+            document.getElementById('selection-count').textContent = selLength > 0 ? selLength + ' chars' : '';
+        }
+    </script>
+</body>
+
+</html>

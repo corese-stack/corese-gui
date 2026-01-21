@@ -1,9 +1,8 @@
 package fr.inria.corese.gui.view.codeEditor;
 
-import atlantafx.base.theme.Theme;
+import fr.inria.corese.gui.view.utils.AppTheme;
 import fr.inria.corese.gui.view.utils.ThemeManager;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.net.URL;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -11,42 +10,73 @@ import javafx.concurrent.Worker;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
-import netscape.javascript.JSException;
+// JSException import removed to fix deprecation warning
 import netscape.javascript.JSObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A JavaFX wrapper around the CodeMirror JavaScript editor using WebView.
+ * A JavaFX wrapper around a simple web-based text editor using WebView.
  *
- * <p>This view handles the bridge between Java and JavaScript, ensuring thread safety and robust
- * error handling during the initialization phase (loading of external JS libraries).
+ * <p>This view provides a clean, minimal text editor with basic functionality for editing content
+ * without external dependencies.
+ *
+ * <p><b>Base Features:</b>
+ *
+ * <ul>
+ *   <li>Robust Resource Loading (works offline)
+ *   <li>Bidirectional Binding (Java <-> JS)
+ *   <li>Thread Safety (Platform.runLater)
+ *   <li>Defensive JS Execution
+ * </ul>
  */
 public class CodeMirrorView extends VBox {
   private static final Logger logger = LoggerFactory.getLogger(CodeMirrorView.class);
-  private static final String EDITOR_RESOURCE_PATH = "/fr/inria/corese/gui/codeMirror-editor.html";
+
+  // Default path if none is provided
+  public static final String DEFAULT_RESOURCE_PATH = "/fr/inria/corese/gui/web/editor.html";
 
   private final WebView webView;
   private final WebEngine webEngine;
   private final StringProperty contentProperty = new SimpleStringProperty("");
   private final JavaBridge bridge = new JavaBridge();
 
+  // Customizable resource path
+  private final String resourcePath;
+
   private boolean initialized = false;
   private boolean isInternalUpdate = false;
-  private boolean isDarkTheme = false;
   private final boolean readOnly;
 
   // ==============================================================================================
-  // Constructor
+  // Constructors
   // ==============================================================================================
 
+  /** Default constructor using the default editor HTML path. */
   public CodeMirrorView() {
-    this(false);
+    this(DEFAULT_RESOURCE_PATH, false);
   }
 
+  /**
+   * Constructor with read-only option using the default editor HTML path.
+   *
+   * @param readOnly true to set the editor to read-only mode.
+   */
   public CodeMirrorView(boolean readOnly) {
+    this(DEFAULT_RESOURCE_PATH, readOnly);
+  }
+
+  /**
+   * Fully customizable constructor.
+   *
+   * @param resourcePath The classpath location of the HTML editor file.
+   * @param readOnly true to set the editor to read-only mode.
+   */
+  public CodeMirrorView(String resourcePath, boolean readOnly) {
+    this.resourcePath = resourcePath;
     this.readOnly = readOnly;
     this.webView = new WebView();
     this.webEngine = webView.getEngine();
@@ -54,8 +84,8 @@ public class CodeMirrorView extends VBox {
     initializeLayout();
     initializeListeners();
 
-    // Load the HTML content asynchronously
-    Platform.runLater(this::loadEditorHtml);
+    // Load URL directly on the FX Thread
+    Platform.runLater(this::loadEditorUrl);
   }
 
   // ==============================================================================================
@@ -63,74 +93,27 @@ public class CodeMirrorView extends VBox {
   // ==============================================================================================
 
   private void initializeLayout() {
-    // WebView configuration
+    // Disable default context menu (Reload, Print...)
     webView.setContextMenuEnabled(false);
+
+    // Proper resizing logic
     webView.setPrefWidth(Region.USE_COMPUTED_SIZE);
     webView.setPrefHeight(Region.USE_COMPUTED_SIZE);
     webView.setMinHeight(0);
     webView.setMinWidth(0);
 
-    // VBox configuration
     setVgrow(webView, Priority.ALWAYS);
-    setPrefHeight(Region.USE_COMPUTED_SIZE);
-    setPrefWidth(Region.USE_COMPUTED_SIZE);
-    setFillWidth(true);
-
     getChildren().add(webView);
   }
 
   private void initializeListeners() {
-    // 1. Sync Java content -> JavaScript
+    // Java -> JS Sync
     contentProperty.addListener(
         (obs, old, newValue) -> {
           if (initialized && newValue != null && !isInternalUpdate) {
             updateEditorContent(newValue);
           }
         });
-
-    // 2. Handle Window Resize
-    heightProperty()
-        .addListener(
-            (obs, oldVal, newVal) -> {
-              if (initialized) {
-                // Debounce could be added here if performance is an issue
-                executeScriptSafe("if (window.editor) { editor.refresh(); }");
-              }
-            });
-
-    // 3. Handle Theme Changes
-    ThemeManager.getInstance()
-        .themeProperty()
-        .addListener(
-            (obs, oldTheme, newTheme) -> {
-              if (newTheme != null) {
-                boolean isDark =
-                    ThemeManager.getInstance()
-                        .isDarkTheme(ThemeManager.getInstance().getCurrentThemeName());
-                setTheme(isDark);
-              }
-            });
-
-    // Initialize initial theme state
-    Theme currentTheme = ThemeManager.getInstance().getTheme();
-    if (currentTheme != null) {
-      this.isDarkTheme =
-          ThemeManager.getInstance().isDarkTheme(ThemeManager.getInstance().getCurrentThemeName());
-    }
-  }
-
-  private void loadEditorHtml() {
-    try {
-      var resource = getClass().getResourceAsStream(EDITOR_RESOURCE_PATH);
-      if (resource == null) {
-        logger.error("CodeMirror HTML resource not found at: {}", EDITOR_RESOURCE_PATH);
-        return;
-      }
-      String html = new String(resource.readAllBytes(), StandardCharsets.UTF_8);
-      webEngine.loadContent(html);
-    } catch (IOException e) {
-      logger.error("Failed to read CodeMirror HTML resource", e);
-    }
 
     // Monitor loading state
     webEngine
@@ -141,18 +124,72 @@ public class CodeMirrorView extends VBox {
               if (newState == Worker.State.SUCCEEDED) {
                 onPageLoaded();
               } else if (newState == Worker.State.FAILED) {
-                logger.error("Failed to load CodeMirror web engine content.");
+                logger.error("Failed to load editor from: {}", resourcePath);
               }
             });
+
+    // Theme Management Integration
+    ThemeManager.getInstance()
+        .themeProperty()
+        .addListener((obs, old, newVal) -> Platform.runLater(this::updateTheme));
+    ThemeManager.getInstance()
+        .accentColorProperty()
+        .addListener((obs, old, newVal) -> Platform.runLater(this::updateTheme));
   }
 
   /**
-   * Called when the WebView has finished loading the DOM. Note: External scripts (CDN) might still
-   * be processing or have failed.
+   * Pushes the current application theme configuration to the web editor.
    */
+  private void updateTheme() {
+    if (!initialized) return;
+
+    ThemeManager tm = ThemeManager.getInstance();
+    boolean isDark = false;
+    String themeName = "default";
+
+    // Determine if dark mode is active and get theme name
+    if (tm.getTheme() != null) {
+      AppTheme appTheme = AppTheme.fromTheme(tm.getTheme());
+      if (appTheme != null) {
+        isDark = appTheme.isDark();
+        themeName = appTheme.getBaseName().toLowerCase();
+      }
+    }
+
+    // Format accent color
+    Color accent = tm.getAccentColor();
+    String hexColor = toHex(accent);
+
+    // Call JS
+    String script = String.format("if(window.setTheme) window.setTheme(%b, '%s', '%s');", isDark, hexColor, themeName);
+    executeScriptSafe(script);
+  }
+
+  private String toHex(Color color) {
+    return String.format(
+        "#%02X%02X%02X",
+        (int) (color.getRed() * 255),
+        (int) (color.getGreen() * 255),
+        (int) (color.getBlue() * 255));
+  }
+
+  /**
+   * Loads the HTML file using its URL. This is crucial for relative paths (js/..., css/...) to
+   * work.
+   */
+  private void loadEditorUrl() {
+    URL url = getClass().getResource(resourcePath);
+    if (url == null) {
+      logger.error("Resource not found: {}", resourcePath);
+      return;
+    }
+    webEngine.load(url.toExternalForm());
+  }
+
+  /** Called when the WebView DOM is ready. */
   private void onPageLoaded() {
     try {
-      // 1. Inject Java Bridge (Critical)
+      // 1. Inject Java Bridge
       JSObject window = (JSObject) webEngine.executeScript("window");
       window.setMember("bridge", bridge);
       initialized = true;
@@ -163,46 +200,47 @@ public class CodeMirrorView extends VBox {
         updateEditorContent(initialContent);
       }
 
-      // 3. Set ReadOnly Mode if needed
+      // 3. Set ReadOnly if needed
       if (readOnly) {
-        executeScriptSafe("if (window.editor) { editor.setOption('readOnly', true); }");
+        executeScriptSafe("if(window.setReadOnly) window.setReadOnly(true);");
       }
 
-      // 4. Apply Theme (Safely)
-      safeSetTheme(isDarkTheme);
+      // 4. Apply Theme
+      updateTheme();
 
     } catch (Exception e) {
-      logger.error("Error during CodeMirror JS initialization", e);
+      logger.error("Error during editor initialization", e);
     }
   }
 
   // ==============================================================================================
-  // Javascript Interaction Methods (Defensive Programming)
+  // Javascript Interaction Methods
   // ==============================================================================================
 
-  /**
-   * Executes JavaScript safely, catching specific JS exceptions to prevent Java crashes. This
-   * solves the "undefined is not a function" crash.
-   */
+  /** * Executes JavaScript safely without crashing the Java thread. */
   private void executeScriptSafe(String script) {
     if (!initialized || webEngine.getLoadWorker().getState() != Worker.State.SUCCEEDED) {
       return;
     }
     try {
       webEngine.executeScript(script);
-    } catch (JSException e) {
-      // Log warning but do not crash the application
-      logger.warn("JavaScript Execution Warning: {}", e.getMessage());
     } catch (Exception e) {
-      logger.error("Unexpected error executing JavaScript", e);
+      // JSException is a RuntimeException, so catching Exception covers it.
+      // We removed the explicit JSException catch block to avoid using the deprecated class.
+      logger.warn("JS Execution Warning: {}", e.getMessage());
     }
   }
 
   private void updateEditorContent(String content) {
+    // Basic escaping strategy (No external dependencies)
     String escapedContent =
-        content.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r");
+        content
+            .replace("\\", "\\\\") // Escape backslashes first!
+            .replace("'", "\\'") // Escape single quotes
+            .replace("\n", "\\n") // Escape newlines
+            .replace("\r", "\\r"); // Escape carriage returns
 
-    // Check if setContent exists before calling it
+    // Call the JS function defined in editor.html
     String script =
         "if (typeof window.setContent === 'function') { window.setContent('"
             + escapedContent
@@ -210,43 +248,9 @@ public class CodeMirrorView extends VBox {
     executeScriptSafe(script);
   }
 
-  private void safeSetTheme(boolean isDark) {
-    String theme = isDark ? "dracula" : "eclipse";
-    ThemeColors colors = getThemeColors(isDark);
-
-    // Construct a robust JS script that checks function existence
-    String script =
-        """
-            if (typeof window.setTheme === 'function') {
-                window.setTheme('%s');
-            }
-            if (document && document.body) {
-                document.body.style.backgroundColor = '%s';
-            }
-            if (typeof window.setStatusBarTheme === 'function') {
-                window.setStatusBarTheme('%s', '%s', '%s');
-            }
-        """
-            .formatted(
-                theme,
-                colors.backgroundColor,
-                colors.statusBarBg,
-                colors.statusBarText,
-                colors.statusBarBorder);
-
-    executeScriptSafe(script);
-  }
-
   // ==============================================================================================
   // Public API
   // ==============================================================================================
-
-  public void setTheme(boolean isDark) {
-    this.isDarkTheme = isDark;
-    if (initialized) {
-      safeSetTheme(isDark);
-    }
-  }
 
   public void setContent(String content) {
     contentProperty.set(content);
@@ -260,8 +264,8 @@ public class CodeMirrorView extends VBox {
               "typeof window.getContent === 'function' ? window.getContent() : ''");
       return result != null ? result.toString() : "";
     } catch (Exception e) {
-      logger.error("Error getting editor content", e);
-      return contentProperty.get(); // Fallback to last known Java state
+      logger.error("Error retrieving content", e);
+      return contentProperty.get();
     }
   }
 
@@ -270,10 +274,10 @@ public class CodeMirrorView extends VBox {
   }
 
   // ==============================================================================================
-  // Internal Helper Classes
+  // Bridge Class
   // ==============================================================================================
 
-  /** Bridge class to allow JavaScript to call Java methods. */
+  /** Bridge to allow JavaScript to call Java. Note: Methods must be public. */
   public class JavaBridge {
     public void onContentChanged(String newContent) {
       Platform.runLater(
@@ -285,55 +289,7 @@ public class CodeMirrorView extends VBox {
     }
 
     public void log(String message) {
-      logger.debug("[JS Log]: {}", message);
-    }
-  }
-
-  private ThemeColors getThemeColors(boolean isDark) {
-    String backgroundColor = isDark ? "#2e3440" : "#ffffff";
-    String statusBarBg = isDark ? "#3b4252" : "#f3f3f3";
-    String statusBarText = isDark ? "#d8dee9" : "#666666";
-    String statusBarBorder = isDark ? "#4c566a" : "#dddddd";
-
-    String themeName = ThemeManager.getInstance().getCurrentThemeName();
-
-    if (themeName != null) {
-      if (themeName.contains("PRIMER")) {
-        backgroundColor = isDark ? "#0d1117" : "#ffffff";
-        statusBarBg = isDark ? "#161b22" : "#f6f8fa";
-        statusBarText = isDark ? "#8b949e" : "#57606a";
-        statusBarBorder = isDark ? "#30363d" : "#d0d7de";
-      } else if (themeName.contains("NORD")) {
-        backgroundColor = isDark ? "#2e3440" : "#eceff4";
-        statusBarBg = isDark ? "#3b4252" : "#e5e9f0";
-        statusBarText = isDark ? "#d8dee9" : "#4c566a";
-        statusBarBorder = isDark ? "#4c566a" : "#d8dee9";
-      } else if (themeName.contains("CUPERTINO")) {
-        backgroundColor = isDark ? "#1c1c1e" : "#f2f2f7";
-        statusBarBg = isDark ? "#2c2c2e" : "#e5e5ea";
-        statusBarText = isDark ? "#aeaeb2" : "#8e8e93";
-        statusBarBorder = isDark ? "#3a3a3c" : "#c6c6c8";
-      } else if (themeName.contains("DRACULA")) {
-        backgroundColor = "#282a36";
-        statusBarBg = "#44475a";
-        statusBarText = "#f8f8f2";
-        statusBarBorder = "#6272a4";
-      }
-    }
-    return new ThemeColors(backgroundColor, statusBarBg, statusBarText, statusBarBorder);
-  }
-
-  private static class ThemeColors {
-    final String backgroundColor;
-    final String statusBarBg;
-    final String statusBarText;
-    final String statusBarBorder;
-
-    ThemeColors(String bg, String sbBg, String sbText, String sbBorder) {
-      this.backgroundColor = bg;
-      this.statusBarBg = sbBg;
-      this.statusBarText = sbText;
-      this.statusBarBorder = sbBorder;
+      logger.debug("[JS]: {}", message);
     }
   }
 }
