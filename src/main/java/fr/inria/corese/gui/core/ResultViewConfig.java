@@ -39,7 +39,19 @@ public class ResultViewConfig {
     TEXT,
     VISUAL,
     TABLE,
-    GRAPH
+    GRAPH;
+
+    /**
+     * Returns the display label for this tab type.
+     *
+     * <p>Formats the enum name with title case (e.g., TEXT → "Text").
+     *
+     * @return The human-readable tab label
+     */
+    public String getLabel() {
+      String name = name();
+      return name.charAt(0) + name.substring(1).toLowerCase();
+    }
   }
 
   private final Set<TabType> enabledTabs;

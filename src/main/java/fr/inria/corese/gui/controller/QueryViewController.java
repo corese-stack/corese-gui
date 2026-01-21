@@ -154,11 +154,7 @@ public class QueryViewController {
           resultController.updateText(formattedResult);
         });
         
-        resultController
-            .getView()
-            .getTabPane()
-            .getSelectionModel()
-            .select(resultController.getView().getTableTab());
+        resultController.getView().selectTableTab();
         String csvResult = stateManager.getFormattedCachedQuery(queryTabId, "CSV");
         resultController.updateTableView(csvResult);
 
@@ -180,11 +176,7 @@ public class QueryViewController {
           resultController.updateText(formattedResult);
         });
         
-        resultController
-            .getView()
-            .getTabPane()
-            .getSelectionModel()
-            .select(resultController.getView().getGraphTab());
+        resultController.getView().selectGraphTab();
         String turtleResult = stateManager.getFormattedCachedQuery(queryTabId, "TURTLE");
         resultController.displayGraph(turtleResult);
         resultController.updateText(turtleResult);

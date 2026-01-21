@@ -125,32 +125,32 @@ public class ResultController {
   // Initialization
   // ==============================================================================================
 
-  /** Initializes the view by assembling configured tabs. */
+  /**
+   * Initializes the view by assembling configured tabs.
+   *
+   * <p>Uses high-level methods from ResultView to respect Demeter's Law and reduce coupling.
+   */
   private void initialize() {
-    view.getTabPane().getTabs().clear();
+    view.clearAllTabs();
 
     // Add TEXT tab if configured
-    if (config.hasTab(ResultViewConfig.TabType.TEXT) && textController != null) {
-      view.getTextTab().setContent(textController.getView());
-      view.getTabPane().getTabs().add(view.getTextTab());
+    if (shouldEnableTab(ResultViewConfig.TabType.TEXT, textController)) {
+      view.enableTextTab(textController.getView());
     }
 
     // Add VISUAL tab if configured
-    if (config.hasTab(ResultViewConfig.TabType.VISUAL) && visualController != null) {
-      view.getVisualTab().setContent(visualController.getView());
-      view.getTabPane().getTabs().add(view.getVisualTab());
+    if (shouldEnableTab(ResultViewConfig.TabType.VISUAL, visualController)) {
+      view.enableVisualTab(visualController.getView());
     }
 
     // Add TABLE tab if configured
-    if (config.hasTab(ResultViewConfig.TabType.TABLE) && tableController != null) {
-      view.getTableTab().setContent(tableController.getView());
-      view.getTabPane().getTabs().add(view.getTableTab());
+    if (shouldEnableTab(ResultViewConfig.TabType.TABLE, tableController)) {
+      view.enableTableTab(tableController.getView());
     }
 
     // Add GRAPH tab if configured
-    if (config.hasTab(ResultViewConfig.TabType.GRAPH) && graphController != null) {
-      view.getGraphTab().setContent(graphController.getView());
-      view.getTabPane().getTabs().add(view.getGraphTab());
+    if (shouldEnableTab(ResultViewConfig.TabType.GRAPH, graphController)) {
+      view.enableGraphTab(graphController.getView());
     }
   }
 
@@ -162,23 +162,26 @@ public class ResultController {
    * Updates the text display with new content.
    *
    * <p>This method delegates to the TextResultController if the TEXT tab is configured.
+   * Thread-safe: automatically runs on the JavaFX Application Thread.
    *
    * @param content The text content to display (RDF, SPARQL results, etc.)
    */
   public void updateText(String content) {
     if (textController != null) {
-      textController.updateText(content);
+      runOnFxThread(() -> textController.updateText(content));
     }
   }
 
   /**
    * Sets the callback for format change events in the text view.
    *
+   * <p>Thread-safe: automatically runs on the JavaFX Application Thread.
+   *
    * @param listener Consumer that receives the newly selected format
    */
   public void setOnFormatChanged(Consumer<String> listener) {
     if (textController != null) {
-      textController.setOnFormatChanged(listener);
+      runOnFxThread(() -> textController.setOnFormatChanged(listener));
     }
   }
 
@@ -190,12 +193,13 @@ public class ResultController {
    * Updates the table view with CSV formatted SPARQL results.
    *
    * <p>This method delegates to the TableResultController if the TABLE tab is configured.
+   * Thread-safe: automatically runs on the JavaFX Application Thread.
    *
    * @param csvResult The CSV formatted result string
    */
   public void updateTableView(String csvResult) {
     if (tableController != null) {
-      tableController.updateTable(csvResult);
+      runOnFxThread(() -> tableController.updateTable(csvResult));
     }
   }
 
@@ -207,12 +211,13 @@ public class ResultController {
    * Displays SHACL validation report items.
    *
    * <p>This method delegates to the VisualResultController if the VISUAL tab is configured.
+   * Thread-safe: automatically runs on the JavaFX Application Thread.
    *
    * @param items List of validation report items to display
    */
   public void displayReportItems(List<ValidationReportItem> items) {
     if (visualController != null) {
-      visualController.displayReport(items);
+      runOnFxThread(() -> visualController.displayReport(items));
     }
   }
 
@@ -225,12 +230,13 @@ public class ResultController {
    * Displays an RDF graph visualization from TTL data.
    *
    * <p>This method delegates to the GraphResultController if the GRAPH tab is configured.
+   * Thread-safe: automatically runs on the JavaFX Application Thread.
    *
    * @param ttlData The RDF data in Turtle format
    */
   public void displayGraph(String ttlData) {
     if (graphController != null) {
-      graphController.displayGraph(ttlData);
+      runOnFxThread(() -> graphController.displayGraph(ttlData));
     }
   }
 
@@ -240,20 +246,25 @@ public class ResultController {
 
   /**
    * Clears all results from all configured tabs.
+   *
+   * <p>Thread-safe: automatically runs on the JavaFX Application Thread.
    */
   public void clearResults() {
-    if (textController != null) {
-      textController.clear();
-    }
-    if (tableController != null) {
-      tableController.clear();
-    }
-    if (visualController != null) {
-      visualController.clear();
-    }
-    if (graphController != null) {
-      graphController.clear();
-    }
+    runOnFxThread(
+        () -> {
+          if (textController != null) {
+            textController.clear();
+          }
+          if (tableController != null) {
+            tableController.clear();
+          }
+          if (visualController != null) {
+            visualController.clear();
+          }
+          if (graphController != null) {
+            graphController.clear();
+          }
+        });
   }
 
   /**
@@ -276,10 +287,12 @@ public class ResultController {
 
   /**
    * Selects the Text tab programmatically.
+   *
+   * <p>Thread-safe: automatically runs on the JavaFX Application Thread.
    */
   public void selectTextTab() {
     if (config.hasTab(ResultViewConfig.TabType.TEXT)) {
-      view.getTabPane().getSelectionModel().select(view.getTextTab());
+      runOnFxThread(() -> view.selectTextTab());
     }
   }
 
@@ -287,17 +300,16 @@ public class ResultController {
    * Enables or disables a specific tab.
    *
    * <p>When disabled, the tab is shown but grayed out and not selectable.
+   * Thread-safe: automatically runs on the JavaFX Application Thread.
    *
    * @param tabType The type of tab to enable/disable
    * @param enabled True to enable the tab, false to disable it
    */
   public void setTabEnabled(ResultViewConfig.TabType tabType, boolean enabled) {
-    Platform.runLater(
+    runOnFxThread(
         () -> {
           javafx.scene.control.Tab tab = getTabForType(tabType);
-          if (tab != null) {
-            tab.setDisable(!enabled);
-          }
+          view.setTabEnabled(tab, enabled);
         });
   }
 
@@ -339,11 +351,33 @@ public class ResultController {
    * @return The Tab instance, or null if not configured
    */
   private javafx.scene.control.Tab getTabForType(ResultViewConfig.TabType tabType) {
-    return switch (tabType) {
-      case TEXT -> view.getTextTab();
-      case VISUAL -> view.getVisualTab();
-      case TABLE -> view.getTableTab();
-      case GRAPH -> view.getGraphTab();
-    };
+    return view.getTabByType(tabType);
+  }
+
+  /**
+   * Checks if a tab should be enabled based on configuration and controller availability.
+   *
+   * @param tabType The type of tab to check
+   * @param controller The controller instance (can be null)
+   * @return True if the tab is configured and has a non-null controller
+   */
+  private boolean shouldEnableTab(ResultViewConfig.TabType tabType, Object controller) {
+    return config.hasTab(tabType) && controller != null;
+  }
+
+  /**
+   * Executes a UI update on the JavaFX Application Thread.
+   *
+   * <p>This method ensures thread-safety by checking if we're already on the FX thread. If not, it
+   * schedules the action using Platform.runLater.
+   *
+   * @param action The UI update action to execute
+   */
+  private void runOnFxThread(Runnable action) {
+    if (Platform.isFxApplicationThread()) {
+      action.run();
+    } else {
+      Platform.runLater(action);
+    }
   }
 }
