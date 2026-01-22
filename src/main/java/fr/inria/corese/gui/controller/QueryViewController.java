@@ -232,7 +232,7 @@ public class QueryViewController {
                       tabEditorController.setExecutionState(false);
                       showError("Query Execution Error", e.getMessage());
                     });
-                e.printStackTrace();
+                logger.error("Error executing query", e);
               }
             })
         .start();

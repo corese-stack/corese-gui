@@ -193,8 +193,8 @@ public class ValidationController {
 
       // Update UI on JavaFX Application Thread
       Platform.runLater(() -> handleValidationResult(result, resultController));
-    } catch (Throwable e) {
-      e.printStackTrace();
+    } catch (Exception e) {
+      logger.error("Error during validation", e);
       Platform.runLater(
           () -> {
             tabEditorController.setExecutionState(false);

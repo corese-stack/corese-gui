@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
  *   <li>Defensive JS Execution
  * </ul>
  */
+@SuppressWarnings("removal")
 public class CodeMirrorView extends VBox {
   private static final Logger logger = LoggerFactory.getLogger(CodeMirrorView.class);
 
