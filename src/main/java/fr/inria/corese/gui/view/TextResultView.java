@@ -48,6 +48,7 @@ public class TextResultView extends AbstractView {
     // Initialize components
     this.formatLabel = new Label("Format:");
     this.formatChoiceBox = new ChoiceBox<>();
+    this.formatChoiceBox.setPrefWidth(120); // Ensure a consistent width on first render
     this.copyButton = new Button("Copy");
     this.exportButton = new Button("Export");
     this.codeMirrorView = new CodeMirrorView(true); // Read-only mode

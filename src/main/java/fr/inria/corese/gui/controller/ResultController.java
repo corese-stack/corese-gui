@@ -315,6 +315,18 @@ public class ResultController {
   }
 
   /**
+   * Configures the available formats in the text result view.
+   *
+   * @param formats Array of available formats
+   * @param defaultFormat Default format to select
+   */
+  public void configureTextFormats(SerializationFormat[] formats, SerializationFormat defaultFormat) {
+    if (textController != null) {
+      runOnFxThread(() -> textController.setAvailableFormats(formats, defaultFormat));
+    }
+  }
+
+  /**
    * Configures tab states based on query result type.
    *
    * <p>This is a convenience method for enabling/disabling multiple tabs at once based on the

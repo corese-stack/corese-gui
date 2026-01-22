@@ -351,4 +351,31 @@ public class TextResultController {
   public void setSelectedFormat(SerializationFormat format) {
     Platform.runLater(() -> view.getFormatChoiceBox().setValue(format));
   }
+
+  /**
+   * Updates the available formats in the format selector.
+   *
+   * @param formats The list of available serialization formats
+   * @param defaultFormat The format to select by default
+   */
+  public void setAvailableFormats(SerializationFormat[] formats, SerializationFormat defaultFormat) {
+    Platform.runLater(() -> {
+      view.configureFormatSelector(
+          formats,
+          defaultFormat,
+          new StringConverter<SerializationFormat>() {
+            @Override
+            public String toString(SerializationFormat format) {
+              return format != null ? format.getLabel() : "";
+            }
+
+            @Override
+            public SerializationFormat fromString(String string) {
+              return SerializationFormat.fromString(string);
+            }
+          });
+      // Ensure highlighting is updated for the new default
+      updateSyntaxHighlighting(defaultFormat);
+    });
+  }
 }
