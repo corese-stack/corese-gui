@@ -85,6 +85,10 @@ public class CodeEditorModel {
     return content;
   }
 
+  public StringProperty filePathProperty() {
+    return filePath;
+  }
+
   public BooleanProperty modifiedProperty() {
     return modified;
   }

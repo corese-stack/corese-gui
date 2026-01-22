@@ -55,6 +55,7 @@ public class TabEditorConfig {
   private final Node emptyStateView;
   private final List<MenuItem> menuItems;
   private final boolean preloadFirstTab;
+  private final List<String> allowedExtensions;
 
   // ===============================================================================
   // Constructor (Private - use Builder)
@@ -69,6 +70,7 @@ public class TabEditorConfig {
     this.emptyStateView = builder.emptyStateView;
     this.menuItems = builder.menuItems != null ? List.copyOf(builder.menuItems) : new ArrayList<>();
     this.preloadFirstTab = builder.preloadFirstTab;
+    this.allowedExtensions = builder.allowedExtensions != null ? List.copyOf(builder.allowedExtensions) : List.of();
   }
 
   // ===============================================================================
@@ -77,6 +79,10 @@ public class TabEditorConfig {
 
   public List<ButtonConfig> getEditorButtons() {
     return editorButtons;
+  }
+
+  public List<String> getAllowedExtensions() {
+    return allowedExtensions;
   }
 
   public ButtonConfig getExecutionButton() {
@@ -161,6 +167,7 @@ public class TabEditorConfig {
     private Node emptyStateView;
     private List<MenuItem> menuItems;
     private boolean preloadFirstTab = false;
+    private List<String> allowedExtensions;
 
     private Builder() {}
 
@@ -172,6 +179,17 @@ public class TabEditorConfig {
      */
     public Builder withEditorButtons(List<ButtonConfig> buttons) {
       this.editorButtons = buttons;
+      return this;
+    }
+
+    /**
+     * Restricts the allowed file extensions for opening and saving files.
+     *
+     * @param extensions List of allowed extensions (e.g., ".ttl", ".rq")
+     * @return This builder for chaining
+     */
+    public Builder withAllowedExtensions(List<String> extensions) {
+      this.allowedExtensions = extensions;
       return this;
     }
 

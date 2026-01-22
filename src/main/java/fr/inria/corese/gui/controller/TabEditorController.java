@@ -461,7 +461,7 @@ public class TabEditorController {
   private Tab createTabWithoutAdding(String title, String content, String filePath) {
     // 1. Create controllers
     CodeEditorController editorController =
-        new CodeEditorController(config.getEditorButtons(), content);
+        new CodeEditorController(config.getEditorButtons(), content, config.getAllowedExtensions());
     ResultController resultController = createResultControllerIfConfigured();
 
     // 2. Assemble UI

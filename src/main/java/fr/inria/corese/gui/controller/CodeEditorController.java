@@ -21,8 +21,11 @@ public class CodeEditorController {
   private final CodeEditorView view;
   private final CodeEditorModel model;
   private final IconButtonBarController iconButtonBarController;
+  private final List<String> allowedExtensions;
 
-  public CodeEditorController(List<ButtonConfig> buttons, String initialContent) {
+  public CodeEditorController(List<ButtonConfig> buttons, String initialContent, List<String> allowedExtensions) {
+    this.allowedExtensions = allowedExtensions != null ? allowedExtensions : List.of();
+    
     // Extract IconButtonType from ButtonConfig for IconButtonBarController
     List<IconButtonType> iconButtons = buttons != null 
         ? buttons.stream().map(ButtonConfig::getIcon).toList()
@@ -46,8 +49,114 @@ public class CodeEditorController {
     Platform.runLater(this::initializeEditor);
   }
 
+  // Constructor overloading for backward compatibility or when no restriction is needed
+  public CodeEditorController(List<ButtonConfig> buttons, String initialContent) {
+    this(buttons, initialContent, List.of());
+  }
+
   private void initializeEditor() {
     view.getCodeMirrorView().contentProperty().bindBidirectional(model.contentProperty());
+
+    // Listen for file path changes to update syntax highlighting
+    model.filePathProperty().addListener((obs, oldVal, newVal) -> detectAndSetMode());
+
+    // Listen for content changes to update mode if file is untitled (auto-detect)
+    model.contentProperty().addListener((obs, oldVal, newVal) -> {
+        if (model.getFilePath() == null) {
+            detectAndSetMode();
+        }
+    });
+
+    // Initial mode check
+    Platform.runLater(this::detectAndSetMode);
+  }
+
+  /**
+   * Detects the appropriate syntax highlighting mode based on file extension
+   * or content heuristics, and updates the view.
+   */
+  private void detectAndSetMode() {
+    String path = model.getFilePath();
+    String content = model.getContent();
+    String mode = "text/plain";
+
+    if (path != null) {
+      String lowerPath = path.toLowerCase();
+      if (lowerPath.endsWith(".ttl") || lowerPath.endsWith(".n3") || lowerPath.endsWith(".nt")) {
+        mode = "turtle";
+      } else if (lowerPath.endsWith(".rq") || lowerPath.endsWith(".sparql")) {
+        mode = "sparql";
+      } else if (lowerPath.endsWith(".rdf") || lowerPath.endsWith(".owl") || lowerPath.endsWith(".xml")) {
+        mode = "xml";
+      } else if (lowerPath.endsWith(".json") || lowerPath.endsWith(".jsonld")) {
+        mode = "json";
+      } else if (lowerPath.endsWith(".trig")) {
+        mode = "trig";
+      } else if (lowerPath.endsWith(".js")) {
+        mode = "javascript";
+      }
+    } else if (content != null) {
+      // Heuristic analysis for untitled files to determine syntax
+      String trimmed = content.trim();
+      String lower = content.toLowerCase();
+
+      // Check SPARQL keywords
+      if (isModeAllowed("sparql") && (
+          lower.contains("select ") || 
+          lower.contains("construct ") || 
+          lower.contains("ask ") || 
+          lower.contains("describe ") || 
+          lower.startsWith("prefix ") || 
+          lower.contains("\nprefix "))) {
+          mode = "sparql";
+      }
+      // Check Turtle / TriG patterns
+      else if ((isModeAllowed("turtle") || isModeAllowed("trig")) && (
+          lower.contains("@prefix") || 
+          lower.contains("@base") || 
+          lower.contains(" a ") || 
+          trimmed.endsWith("."))) {
+          mode = isModeAllowed("trig") ? "trig" : "turtle";
+      }
+      // Check JSON-LD structure
+      else if (isModeAllowed("json") && (trimmed.startsWith("{") || trimmed.startsWith("["))) {
+          mode = "json";
+      }
+      // Check XML/RDF structure
+      else if (isModeAllowed("xml") && trimmed.startsWith("<")) {
+          mode = "xml";
+      }
+    }
+
+    view.getCodeMirrorView().setMode(mode);
+  }
+
+  private boolean isModeAllowed(String mode) {
+      if (allowedExtensions.isEmpty()) return true;
+
+      for (String ext : allowedExtensions) {
+          switch (mode) {
+              case "sparql":
+                  if (ext.equals(".rq") || ext.equals(".sparql")) return true;
+                  break;
+              case "turtle":
+                  if (ext.equals(".ttl") || ext.equals(".n3") || ext.equals(".nt")) return true;
+                  break;
+              case "trig":
+                  if (ext.equals(".trig")) return true;
+                  break;
+              case "xml":
+                  if (ext.equals(".xml") || ext.equals(".rdf") || ext.equals(".owl")) return true;
+                  break;
+              case "json":
+                  if (ext.equals(".json") || ext.equals(".jsonld")) return true;
+                  break;
+              case "javascript":
+                  if (ext.equals(".js")) return true;
+                  break;
+          }
+      }
+      return false;
   }
 
   public void saveFile() {
@@ -74,17 +183,56 @@ public class CodeEditorController {
   public void saveFileAs() {
     FileChooser fileChooser = new FileChooser();
     fileChooser.setTitle("Save File As");
+    
     FileChooser.ExtensionFilter ttlFilter =
         new FileChooser.ExtensionFilter("Turtle files (*.ttl)", "*.ttl");
     FileChooser.ExtensionFilter rqFilter =
         new FileChooser.ExtensionFilter("SPARQL Query files (*.rq)", "*.rq");
     FileChooser.ExtensionFilter rdfFilter =
         new FileChooser.ExtensionFilter("RDF/XML files (*.rdf)", "*.rdf");
+    FileChooser.ExtensionFilter trigFilter = 
+        new FileChooser.ExtensionFilter("TriG files (*.trig)", "*.trig");
+    FileChooser.ExtensionFilter jsonldFilter = 
+        new FileChooser.ExtensionFilter("JSON-LD files (*.jsonld)", "*.jsonld");
+    FileChooser.ExtensionFilter shaclFilter = 
+        new FileChooser.ExtensionFilter("SHACL files (*.shacl)", "*.shacl");
     FileChooser.ExtensionFilter allFilter = new FileChooser.ExtensionFilter("All Files", "*.*");
 
-    fileChooser.getExtensionFilters().addAll(ttlFilter, rqFilter, rdfFilter, allFilter);
-
-    fileChooser.setSelectedExtensionFilter(ttlFilter);
+    if (allowedExtensions.isEmpty()) {
+        fileChooser.getExtensionFilters().addAll(ttlFilter, rqFilter, rdfFilter, trigFilter, jsonldFilter, shaclFilter, allFilter);
+        fileChooser.setSelectedExtensionFilter(ttlFilter);
+    } else {
+        boolean added = false;
+        // Logic to add filters based on allowedExtensions
+        if (isAllowed(".ttl") || isAllowed(".n3") || isAllowed(".nt")) {
+            fileChooser.getExtensionFilters().add(ttlFilter);
+            added = true;
+        }
+        if (isAllowed(".rq") || isAllowed(".sparql")) {
+            fileChooser.getExtensionFilters().add(rqFilter);
+            added = true;
+        }
+        if (isAllowed(".rdf") || isAllowed(".owl") || isAllowed(".xml")) {
+            fileChooser.getExtensionFilters().add(rdfFilter);
+            added = true;
+        }
+        if (isAllowed(".trig")) {
+            fileChooser.getExtensionFilters().add(trigFilter);
+            added = true;
+        }
+        if (isAllowed(".jsonld") || isAllowed(".json")) {
+            fileChooser.getExtensionFilters().add(jsonldFilter);
+            added = true;
+        }
+        if (isAllowed(".shacl")) {
+             fileChooser.getExtensionFilters().add(shaclFilter);
+             added = true;
+        }
+        
+        if (!added) {
+            fileChooser.getExtensionFilters().add(allFilter);
+        }
+    }
 
     File file = fileChooser.showSaveDialog(view.getRoot().getScene().getWindow());
 
@@ -98,6 +246,14 @@ public class CodeEditorController {
       }
       writeToFile(file);
     }
+  }
+
+  private boolean isAllowed(String ext) {
+      if (allowedExtensions.isEmpty()) return true;
+      for (String allowed : allowedExtensions) {
+          if (allowed.equalsIgnoreCase(ext)) return true;
+      }
+      return false;
   }
 
   private void writeToFile(File file) {
