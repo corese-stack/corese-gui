@@ -3,24 +3,21 @@ package fr.inria.corese.gui.view;
 import fr.inria.corese.gui.enums.SerializationFormat;
 import fr.inria.corese.gui.view.base.AbstractView;
 import fr.inria.corese.gui.view.codeEditor.CodeMirrorView;
-import javafx.scene.control.Button;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.ToolBar;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 
 /**
- * View for displaying text-based results with format selection and action buttons.
+ * View for displaying text-based results with format selection.
  *
  * <p>This view provides:
  *
  * <ul>
- *   <li>A toolbar with format selector, copy and export buttons
  *   <li>A CodeMirror editor for displaying formatted text results
- *   <li>Proper layout that doesn't overlap UI elements
+ *   <li>A floating format selector in the top-right corner
  * </ul>
  *
  * <p><b>Design:</b> Clean separation of UI structure from controller logic.
@@ -31,11 +28,8 @@ public class TextResultView extends AbstractView {
   // UI Components
   // ==============================================================================================
 
-  private final ToolBar toolbar;
   private final Label formatLabel;
   private final ChoiceBox<SerializationFormat> formatChoiceBox;
-  private final Button copyButton;
-  private final Button exportButton;
   private final CodeMirrorView codeMirrorView;
 
   // ==============================================================================================
@@ -43,44 +37,27 @@ public class TextResultView extends AbstractView {
   // ==============================================================================================
 
   public TextResultView() {
-    super(new BorderPane(), null);
+    super(new StackPane(), null);
 
     // Initialize components
     this.formatLabel = new Label("Format:");
     this.formatChoiceBox = new ChoiceBox<>();
-    this.formatChoiceBox.setPrefWidth(120); // Ensure a consistent width on first render
-    this.copyButton = new Button("Copy");
-    this.exportButton = new Button("Export");
+    this.formatChoiceBox.setPrefWidth(120);
     this.codeMirrorView = new CodeMirrorView(true); // Read-only mode
 
-    // Initialize toolbar
-    this.toolbar = createToolbar();
-
     // Build layout
-    BorderPane root = (BorderPane) getRoot();
-    root.setTop(toolbar);
-    root.setCenter(codeMirrorView);
-  }
+    StackPane root = (StackPane) getRoot();
+    
+    // Format selector container
+    HBox formatBox = new HBox(10, formatLabel, formatChoiceBox);
+    formatBox.setAlignment(Pos.CENTER_RIGHT);
+    formatBox.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+    formatBox.setPadding(new Insets(10));
+    formatBox.setStyle("-fx-background-color: rgba(255, 255, 255, 0.8); -fx-background-radius: 5;"); // Semi-transparent background
 
-  // ==============================================================================================
-  // Initialization
-  // ==============================================================================================
-
-  /**
-   * Creates the toolbar with format selector and action buttons.
-   *
-   * @return Configured toolbar
-   */
-  private ToolBar createToolbar() {
-    // Spacer to push buttons to the right
-    Region spacer = new Region();
-    HBox.setHgrow(spacer, Priority.ALWAYS);
-
-    ToolBar bar = new ToolBar();
-    bar.getItems().addAll(formatLabel, formatChoiceBox, spacer, copyButton, exportButton);
-    bar.setStyle("-fx-padding: 5px;");
-
-    return bar;
+    // Stack components
+    root.getChildren().addAll(codeMirrorView, formatBox);
+    StackPane.setAlignment(formatBox, Pos.TOP_RIGHT);
   }
 
   // ==============================================================================================
@@ -94,24 +71,6 @@ public class TextResultView extends AbstractView {
    */
   public ChoiceBox<SerializationFormat> getFormatChoiceBox() {
     return formatChoiceBox;
-  }
-
-  /**
-   * Returns the copy button.
-   *
-   * @return The copy button
-   */
-  public Button getCopyButton() {
-    return copyButton;
-  }
-
-  /**
-   * Returns the export button.
-   *
-   * @return The export button
-   */
-  public Button getExportButton() {
-    return exportButton;
   }
 
   /**

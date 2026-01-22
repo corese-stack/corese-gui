@@ -68,48 +68,12 @@ public class TextResultController {
    */
   public TextResultController(List<ButtonConfig> buttons) {
     this.view = new TextResultView();
-    applyButtonConfigs(buttons);
     initialize();
   }
 
   // ==============================================================================================
   // Initialization
   // ==============================================================================================
-
-  /**
-   * Applies button configurations from the provided list.
-   *
-   * @param buttons List of button configurations
-   */
-  private void applyButtonConfigs(List<ButtonConfig> buttons) {
-    // Apply custom configuration to Copy button if provided
-    buttons.stream()
-        .filter(b -> b.getIcon() == IconButtonType.COPY)
-        .findFirst()
-        .ifPresent(
-            config -> {
-              if (config.getText() != null) {
-                view.getCopyButton().setText(config.getText());
-              }
-              if (config.getTooltip() != null) {
-                view.getCopyButton().setTooltip(new Tooltip(config.getTooltip()));
-              }
-            });
-
-    // Apply custom configuration to Export button if provided
-    buttons.stream()
-        .filter(b -> b.getIcon() == IconButtonType.EXPORT)
-        .findFirst()
-        .ifPresent(
-            config -> {
-              if (config.getText() != null) {
-                view.getExportButton().setText(config.getText());
-              }
-              if (config.getTooltip() != null) {
-                view.getExportButton().setTooltip(new Tooltip(config.getTooltip()));
-              }
-            });
-  }
 
   /** Initializes UI components and event handlers. */
   private void initialize() {
@@ -142,18 +106,6 @@ public class TextResultController {
 
     // Initial highlighting setup
     updateSyntaxHighlighting(view.getFormatChoiceBox().getValue());
-
-    // Set default tooltips if not already configured
-    if (view.getCopyButton().getTooltip() == null) {
-      view.getCopyButton().setTooltip(new Tooltip("Copy to clipboard"));
-    }
-    if (view.getExportButton().getTooltip() == null) {
-      view.getExportButton().setTooltip(new Tooltip("Export to file"));
-    }
-
-    // Configure button actions
-    view.getCopyButton().setOnAction(event -> handleCopy());
-    view.getExportButton().setOnAction(event -> handleExport());
   }
 
   /**
@@ -179,24 +131,14 @@ public class TextResultController {
   // ==============================================================================================
 
   /** Handles copy to clipboard action. */
-  private void handleCopy() {
+  public void copyContent() {
     ClipboardContent content = new ClipboardContent();
     content.putString(view.getCodeMirrorView().getContent());
     Clipboard.getSystemClipboard().setContent(content);
-
-    // Temporary tooltip feedback
-    Tooltip tooltip = view.getCopyButton().getTooltip();
-    if (tooltip != null) {
-      String originalText = tooltip.getText();
-      tooltip.setText("Copied!");
-      PauseTransition pause = new PauseTransition(Duration.seconds(1.5));
-      pause.setOnFinished(e -> tooltip.setText(originalText));
-      pause.play();
-    }
   }
 
   /** Handles export to file action (asynchronous to avoid blocking UI). */
-  private void handleExport() {
+  public void exportContent() {
     String contentToExport = view.getCodeMirrorView().getContent();
     if (contentToExport == null || contentToExport.isBlank()) {
       showError("Export Error", "There is no text content to export.");
