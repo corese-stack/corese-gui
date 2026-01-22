@@ -132,10 +132,16 @@ public class TextResultController {
     // Listen to format changes using high-level method
     view.setOnFormatChanged(
         (obs, oldVal, newVal) -> {
-          if (newVal != null && onFormatChanged != null) {
-            onFormatChanged.accept(newVal);
+          if (newVal != null) {
+            updateSyntaxHighlighting(newVal);
+            if (onFormatChanged != null) {
+              onFormatChanged.accept(newVal);
+            }
           }
         });
+
+    // Initial highlighting setup
+    updateSyntaxHighlighting(view.getFormatChoiceBox().getValue());
 
     // Set default tooltips if not already configured
     if (view.getCopyButton().getTooltip() == null) {
@@ -148,6 +154,24 @@ public class TextResultController {
     // Configure button actions
     view.getCopyButton().setOnAction(event -> handleCopy());
     view.getExportButton().setOnAction(event -> handleExport());
+  }
+
+  /**
+   * Updates the CodeMirror syntax highlighting mode based on the selected format.
+   *
+   * @param format The current serialization format
+   */
+  private void updateSyntaxHighlighting(SerializationFormat format) {
+    if (format == null) return;
+
+    String mode = switch (format) {
+      case TURTLE, TRIG, N_TRIPLES, N_QUADS -> "turtle";
+      case RDF_XML, XML -> "xml";
+      case JSON_LD, JSON -> "json";
+      default -> "text/plain";
+    };
+
+    Platform.runLater(() -> view.getCodeMirrorView().setMode(mode));
   }
 
   // ==============================================================================================
