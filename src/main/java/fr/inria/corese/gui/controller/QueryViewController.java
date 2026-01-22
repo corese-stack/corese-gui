@@ -3,7 +3,6 @@ package fr.inria.corese.gui.controller;
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.core.ResultViewConfig;
 import fr.inria.corese.gui.core.TabEditorConfig;
-import fr.inria.corese.gui.enums.SerializationFormat;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.factory.popup.TemplatePopup;
 import fr.inria.corese.gui.manager.QueryManager;
@@ -17,11 +16,13 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Tab;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class QueryViewController {
+  private static final Logger logger = LoggerFactory.getLogger(QueryViewController.class);
   private final QueryView view;
   private TabEditorController tabEditorController;
-  private Node emptyStateView;
   private final QueryManager stateManager = QueryManager.getInstance();
 
   public QueryViewController(QueryView view) {
@@ -41,44 +42,40 @@ public class QueryViewController {
             this::onOpenFilesButtonClick,
             () -> {
               Stage stage = (Stage) view.getRoot().getScene().getWindow();
-              TemplatePopup.show(stage, query -> tabEditorController.createNewTab("untitled", query));
+              TemplatePopup.show(
+                  stage, query -> tabEditorController.createNewTab("untitled", query));
             });
 
     // Build configuration with Builder pattern
-    TabEditorConfig config = TabEditorConfig.builder()
-        .withEditorButtons(
-            List.of(
-                new ButtonConfig(IconButtonType.SAVE, "Save File"),
-                new ButtonConfig(IconButtonType.CLEAR, "Clear Content"),
-                new ButtonConfig(IconButtonType.UNDO, "Undo"),
-                new ButtonConfig(IconButtonType.REDO, "Redo")))
-        .withExecution(
-            new ButtonConfig(IconButtonType.PLAY, "Run Query"),
-            this::executeQuery)
-        .withResultView(
-            List.of(
-                new ButtonConfig(IconButtonType.COPY, "Copy to Clipboard"),
-                new ButtonConfig(IconButtonType.EXPORT, "Export Results")),
-            ResultViewConfig.builder()
-                .withTextTab()
-                .withTableTab()
-                .withGraphTab()
-                .build())
-        .withEmptyState(emptyState)
-        .withAllowedExtensions(List.of(".rq", ".sparql"))
-        .withMenuItems(
-            List.of(
-                new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
-                new TabEditorConfig.MenuItem("Open File", this::onOpenFilesButtonClick),
-                new TabEditorConfig.MenuItem(
-                    "Templates",
-                    () -> {
-                      Stage stage = (Stage) view.getRoot().getScene().getWindow();
-                      TemplatePopup.show(
-                          stage, query -> tabEditorController.createNewTab("untitled", query));
-                    })))
-        .withPreloadFirstTab()
-        .build();
+    TabEditorConfig config =
+        TabEditorConfig.builder()
+            .withEditorButtons(
+                List.of(
+                    new ButtonConfig(IconButtonType.SAVE, "Save File"),
+                    new ButtonConfig(IconButtonType.CLEAR, "Clear Content"),
+                    new ButtonConfig(IconButtonType.UNDO, "Undo"),
+                    new ButtonConfig(IconButtonType.REDO, "Redo")))
+            .withExecution(new ButtonConfig(IconButtonType.PLAY, "Run Query"), this::executeQuery)
+            .withResultView(
+                List.of(
+                    new ButtonConfig(IconButtonType.COPY, "Copy to Clipboard"),
+                    new ButtonConfig(IconButtonType.EXPORT, "Export Results")),
+                ResultViewConfig.builder().withTextTab().withTableTab().withGraphTab().build())
+            .withEmptyState(emptyState)
+            .withAllowedExtensions(List.of(".rq", ".sparql"))
+            .withMenuItems(
+                List.of(
+                    new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
+                    new TabEditorConfig.MenuItem("Open File", this::onOpenFilesButtonClick),
+                    new TabEditorConfig.MenuItem(
+                        "Templates",
+                        () -> {
+                          Stage stage = (Stage) view.getRoot().getScene().getWindow();
+                          TemplatePopup.show(
+                              stage, query -> tabEditorController.createNewTab("untitled", query));
+                        })))
+            .withPreloadFirstTab()
+            .build();
 
     // Create controller with complete configuration
     tabEditorController = new TabEditorController(config);
@@ -92,8 +89,8 @@ public class QueryViewController {
   }
 
   /**
-   * Configures a ResultController for Query-specific needs.
-   * Removes Visual tab and adds Table and Graph tabs.
+   * Configures a ResultController for Query-specific needs. Removes Visual tab and adds Table and
+   * Graph tabs.
    */
   private void setupTabListeners() {
     tabEditorController.addSelectionListener(
@@ -144,18 +141,20 @@ public class QueryViewController {
       case "SELECT", "ASK":
         // Configure tabs: SELECT results have text and table, but not graph
         resultController.configureTabsForResult(
-            true,   // text: enabled
-            false,  // visual: disabled (not used for queries)
-            true,   // table: enabled
-            false   // graph: disabled for SELECT
-        );
-        
+            true, // text: enabled
+            false, // visual: disabled (not used for queries)
+            true, // table: enabled
+            false // graph: disabled for SELECT
+            );
+
         // Set up format change listener for SELECT/ASK results
-        resultController.setOnFormatChanged(format -> {
-          String formattedResult = stateManager.getFormattedCachedQuery(queryTabId, format.getLabel());
-          resultController.updateText(formattedResult);
-        });
-        
+        resultController.setOnFormatChanged(
+            format -> {
+              String formattedResult =
+                  stateManager.getFormattedCachedQuery(queryTabId, format.getLabel());
+              resultController.updateText(formattedResult);
+            });
+
         resultController.getView().selectTableTab();
         String csvResult = stateManager.getFormattedCachedQuery(queryTabId, "CSV");
         resultController.updateTableView(csvResult);
@@ -166,18 +165,20 @@ public class QueryViewController {
       case "CONSTRUCT", "DESCRIBE":
         // Configure tabs: CONSTRUCT/DESCRIBE results have text and graph, but not table
         resultController.configureTabsForResult(
-            true,   // text: enabled
-            false,  // visual: disabled (not used for queries)
-            false,  // table: disabled for CONSTRUCT
-            true    // graph: enabled
-        );
-        
+            true, // text: enabled
+            false, // visual: disabled (not used for queries)
+            false, // table: disabled for CONSTRUCT
+            true // graph: enabled
+            );
+
         // Set up format change listener for CONSTRUCT/DESCRIBE results
-        resultController.setOnFormatChanged(format -> {
-          String formattedResult = stateManager.getFormattedCachedQuery(queryTabId, format.getLabel());
-          resultController.updateText(formattedResult);
-        });
-        
+        resultController.setOnFormatChanged(
+            format -> {
+              String formattedResult =
+                  stateManager.getFormattedCachedQuery(queryTabId, format.getLabel());
+              resultController.updateText(formattedResult);
+            });
+
         resultController.getView().selectGraphTab();
         String turtleResult = stateManager.getFormattedCachedQuery(queryTabId, "TURTLE");
         resultController.displayGraph(turtleResult);

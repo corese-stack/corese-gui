@@ -17,6 +17,8 @@ import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
 import javafx.scene.control.Tab;
 import javafx.stage.FileChooser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Controller for the Validation View.
@@ -33,6 +35,8 @@ import javafx.stage.FileChooser;
  * </ul>
  */
 public class ValidationController {
+
+  private static final Logger logger = LoggerFactory.getLogger(ValidationController.class);
 
   // ==============================================================================================
   // Fields
@@ -84,30 +88,31 @@ public class ValidationController {
         view.createEmptyState(this::onNewFileButtonClick, this::onOpenFilesButtonClick);
 
     // Build configuration with Builder pattern
-    TabEditorConfig config = TabEditorConfig.builder()
-        .withEditorButtons(
-            List.of(
-                new ButtonConfig(IconButtonType.SAVE),
-                new ButtonConfig(IconButtonType.EXPORT),
-                new ButtonConfig(IconButtonType.CLEAR),
-                new ButtonConfig(IconButtonType.UNDO),
-                new ButtonConfig(IconButtonType.REDO)))
-        .withExecution(
-            new ButtonConfig(IconButtonType.PLAY, view.getRunValidationLabel()),
-            this::executeValidation)
-        .withResultView(
-            view.getResultToolbarButtons(),
-            ResultViewConfig.builder()
-                .withTextTab()
-                .withVisualTab()
-                .build())
-        .withEmptyState(emptyState)
-        .withAllowedExtensions(List.of(".ttl", ".n3", ".nt", ".rdf", ".owl", ".xml", ".jsonld", ".json", ".trig", ".shacl"))
-        .withMenuItems(
-            List.of(
-                new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
-                new TabEditorConfig.MenuItem("Open File", this::onOpenFilesButtonClick)))
-        .build();
+    TabEditorConfig config =
+        TabEditorConfig.builder()
+            .withEditorButtons(
+                List.of(
+                    new ButtonConfig(IconButtonType.SAVE),
+                    new ButtonConfig(IconButtonType.EXPORT),
+                    new ButtonConfig(IconButtonType.CLEAR),
+                    new ButtonConfig(IconButtonType.UNDO),
+                    new ButtonConfig(IconButtonType.REDO)))
+            .withExecution(
+                new ButtonConfig(IconButtonType.PLAY, view.getRunValidationLabel()),
+                this::executeValidation)
+            .withResultView(
+                view.getResultToolbarButtons(),
+                ResultViewConfig.builder().withTextTab().withVisualTab().build())
+            .withEmptyState(emptyState)
+            .withAllowedExtensions(
+                List.of(
+                    ".ttl", ".n3", ".nt", ".rdf", ".owl", ".xml", ".jsonld", ".json", ".trig",
+                    ".shacl"))
+            .withMenuItems(
+                List.of(
+                    new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
+                    new TabEditorConfig.MenuItem("Open File", this::onOpenFilesButtonClick)))
+            .build();
 
     // Create controller with complete configuration
     tabEditorController = new TabEditorController(config);
@@ -228,16 +233,16 @@ public class ValidationController {
       // Success: Display the report
       Tab selectedTab = tabEditorController.getSelectedTab();
       ValidationModel model = tabModels.get(selectedTab);
-      
+
       tabEditorController.showResultPane();
 
       // Configure tabs: Validation results have text and visual, but not table or graph
       resultController.configureTabsForResult(
-          true,   // text: enabled (TURTLE/RDF/XML report)
-          true,   // visual: enabled (validation report table)
-          false,  // table: disabled (not used for validation)
-          false   // graph: disabled (not used for validation)
-      );
+          true, // text: enabled (TURTLE/RDF/XML report)
+          true, // visual: enabled (validation report table)
+          false, // table: disabled (not used for validation)
+          false // graph: disabled (not used for validation)
+          );
 
       // Ensure the text tab is visible to show the report
       resultController.selectTextTab();
@@ -249,12 +254,13 @@ public class ValidationController {
       }
 
       // Configure callback for format changes
-      resultController.setOnFormatChanged(format -> {
-        String formattedReport = model.formatLastReport(format.getLabel());
-        if (formattedReport != null) {
-          resultController.updateText(formattedReport);
-        }
-      });
+      resultController.setOnFormatChanged(
+          format -> {
+            String formattedReport = model.formatLastReport(format.getLabel());
+            if (formattedReport != null) {
+              resultController.updateText(formattedReport);
+            }
+          });
 
       // Pass the report items for visualization
       resultController.displayReportItems(ShaclManager.getInstance().extractReportItems(result));
@@ -291,7 +297,17 @@ public class ValidationController {
     fileChooser.setTitle("Open Shapes File");
     fileChooser
         .getExtensionFilters()
-        .addAll(new FileChooser.ExtensionFilter("RDF & SHACL Files", "*.ttl", "*.rdf", "*.n3", "*.shacl", "*.jsonld", "*.trig", "*.xml", "*.owl"));
+        .addAll(
+            new FileChooser.ExtensionFilter(
+                "RDF & SHACL Files",
+                "*.ttl",
+                "*.rdf",
+                "*.n3",
+                "*.shacl",
+                "*.jsonld",
+                "*.trig",
+                "*.xml",
+                "*.owl"));
 
     File file =
         fileChooser.showOpenDialog(
