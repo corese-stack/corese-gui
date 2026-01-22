@@ -65,6 +65,7 @@ public class QueryViewController {
                 .withGraphTab()
                 .build())
         .withEmptyState(emptyState)
+        .withAllowedExtensions(List.of(".rq", ".sparql"))
         .withMenuItems(
             List.of(
                 new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
@@ -239,11 +240,11 @@ public class QueryViewController {
 
   private void onOpenFilesButtonClick() {
     FileChooser fileChooser = new FileChooser();
-    fileChooser.setTitle("Open File");
+    fileChooser.setTitle("Open Query File");
     fileChooser
         .getExtensionFilters()
         .addAll(
-            new FileChooser.ExtensionFilter("RDF & SPARQL", "*.ttl", "*.rdf", "*.n3", "*.rq"),
+            new FileChooser.ExtensionFilter("SPARQL Query", "*.rq", "*.sparql"),
             new FileChooser.ExtensionFilter("All Files", "*.*"));
     File file = fileChooser.showOpenDialog(null);
     if (file != null) openQueryFile(file);

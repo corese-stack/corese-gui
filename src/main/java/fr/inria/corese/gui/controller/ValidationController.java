@@ -102,6 +102,7 @@ public class ValidationController {
                 .withVisualTab()
                 .build())
         .withEmptyState(emptyState)
+        .withAllowedExtensions(List.of(".ttl", ".n3", ".nt", ".rdf", ".owl", ".xml", ".jsonld", ".json", ".trig", ".shacl"))
         .withMenuItems(
             List.of(
                 new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
@@ -290,7 +291,7 @@ public class ValidationController {
     fileChooser.setTitle("Open Shapes File");
     fileChooser
         .getExtensionFilters()
-        .addAll(new FileChooser.ExtensionFilter("RDF Files", "*.ttl", "*.rdf", "*.n3", "*.shacl"));
+        .addAll(new FileChooser.ExtensionFilter("RDF & SHACL Files", "*.ttl", "*.rdf", "*.n3", "*.shacl", "*.jsonld", "*.trig", "*.xml", "*.owl"));
 
     File file =
         fileChooser.showOpenDialog(
