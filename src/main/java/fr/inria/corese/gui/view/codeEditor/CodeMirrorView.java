@@ -257,6 +257,19 @@ public class CodeMirrorView extends VBox {
     contentProperty.set(content);
   }
 
+  /**
+   * Sets the syntax highlighting mode for the editor.
+   *
+   * @param mode The mode string (e.g., "turtle", "sparql", "xml", "json").
+   */
+  public void setMode(String mode) {
+    if (mode == null || mode.isEmpty()) return;
+    Platform.runLater(() -> {
+      String script = String.format("if(window.setMode) window.setMode('%s');", mode);
+      executeScriptSafe(script);
+    });
+  }
+
   public String getContent() {
     if (!initialized) return contentProperty.get();
     try {

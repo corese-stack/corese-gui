@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="utf-8">
     <title>Corese Editor</title>
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="lib/codemirror/codemirror.min.css">
+    <link rel="stylesheet" href="lib/codemirror/addon/hint/show-hint.min.css">
+
     <style>
         /* --- THEME VARIABLES --- */
         :root {
@@ -18,6 +21,7 @@
             --caret-color: #24292e;
             --selection-bg: #b3d7ff;
             --accent-color: #0078D4;
+            --active-line-bg: #f1f8ff;
         }
 
         /* --- DARK DEFAULTS (Cupertino Dark) --- */
@@ -31,72 +35,18 @@
             --status-bar-text: #cccccc;
             --caret-color: #d4d4d4;
             --selection-bg: #264f78;
-        }
-
-        /* --- NORD THEME --- */
-        /* Nord Light */
-        body.theme-nord {
-            --bg-color: #ECEFF4;
-            --text-color: #2E3440;
-            --gutter-bg: #E5E9F0;
-            --gutter-text: #4C566A;
-            --status-bar-bg: #D8DEE9;
-            --status-bar-border: #E5E9F0;
-            --status-bar-text: #4C566A;
-            --caret-color: #2E3440;
-            --selection-bg: #88C0D0; /* Frost */
-        }
-        /* Nord Dark */
-        body.theme-nord.dark-theme {
-            --bg-color: #2E3440;
-            --text-color: #D8DEE9;
-            --gutter-bg: #3B4252;
-            --gutter-text: #616E88;
-            --status-bar-bg: #3B4252;
-            --status-bar-border: #434C5E;
-            --status-bar-text: #D8DEE9;
-            --caret-color: #D8DEE9;
-            --selection-bg: #434C5E;
-        }
-
-        /* --- PRIMER THEME (GitHub) --- */
-        /* Primer Light */
-        body.theme-primer {
-            --bg-color: #ffffff;
-            --text-color: #24292f;
-            --gutter-bg: #f6f8fa;
-            --gutter-text: #8c959f;
-            --status-bar-bg: #f6f8fa;
-            --status-bar-border: #d0d7de;
-            --status-bar-text: #57606a;
-            --caret-color: #24292f;
-            --selection-bg: #0969da33; /* accent muted */
-        }
-        /* Primer Dark */
-        body.theme-primer.dark-theme {
-            --bg-color: #0d1117;
-            --text-color: #c9d1d9;
-            --gutter-bg: #0d1117;
-            --gutter-text: #484f58;
-            --status-bar-bg: #161b22;
-            --status-bar-border: #30363d;
-            --status-bar-text: #8b949e;
-            --caret-color: #c9d1d9;
-            --selection-bg: #1f6feb33;
+            --active-line-bg: #2c2c2c;
         }
 
         /* --- BASE CSS --- */
-        body,
-        html {
+        body, html {
             height: 100%;
             margin: 0;
             padding: 0;
             overflow: hidden;
-            /* System fonts for UI, safe and fast */
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
-            transition: background-color 0.2s, color 0.2s;
         }
 
         .editor-container {
@@ -112,51 +62,41 @@
             position: relative;
         }
 
-        /* --- GUTTER AREA --- */
-        .gutter {
-            width: 45px;
-            padding: 10px 5px;
+        /* --- CODEMIRROR OVERRIDES --- */
+        .CodeMirror {
+            height: 100%;
+            width: 100%;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Segoe UI Mono', 'Roboto Mono', 'Source Code Pro', 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .CodeMirror-gutters {
             background-color: var(--gutter-bg);
             border-right: 1px solid var(--status-bar-border);
             color: var(--gutter-text);
-            text-align: right;
-            font-family: 'JetBrains Mono', 'Fira Code', monospace;
-            font-size: 14px;
-            font-weight: 400;
-            line-height: 1.6;
-            user-select: none;
-            overflow: hidden;
-            flex-shrink: 0;
-            box-sizing: border-box;
-            transition: background-color 0.2s, border-color 0.2s;
         }
 
-        /* --- EDITOR AREA --- */
-        #editor {
-            flex: 1;
-            width: 100%;
-            border: none;
-            outline: none;
-            padding: 10px;
-            /* Monospace stack: tries to find the best coding font available on the OS */
-            font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Segoe UI Mono', 'Roboto Mono', 'Source Code Pro', 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 14px;
-            font-weight: 500; /* Slightly bolder for better readability */
-            line-height: 1.6;
-            font-variant-ligatures: contextual;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            resize: none;
-            box-sizing: border-box;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            caret-color: var(--text-color); /* Matches text */
-            white-space: pre;
-            overflow: auto;
+        .CodeMirror-linenumber {
+            color: var(--gutter-text);
+        }
+
+        .CodeMirror-cursor {
+            border-left: 2px solid var(--caret-color) !important;
+        }
+
+        .CodeMirror-selected {
+            background-color: var(--selection-bg) !important;
+        }
+
+        .CodeMirror-focused .CodeMirror-selected {
+            background-color: var(--selection-bg) !important;
         }
         
-        #editor::selection {
-            background-color: var(--selection-bg);
+        .CodeMirror-activeline-background {
+            background: var(--active-line-bg);
         }
 
         /* --- STATUS BAR --- */
@@ -166,52 +106,80 @@
             border-top: 1px solid var(--status-bar-border);
             display: flex;
             align-items: center;
+            justify-content: space-between; /* Push left and right apart */
             padding: 0 10px;
             font-size: 11px;
             color: var(--status-bar-text);
             user-select: none;
-            transition: background-color 0.2s, border-color 0.2s;
             z-index: 10;
         }
 
-        .status-bar-right {
-            margin-left: auto;
+        .status-bar-left {
             display: flex;
+            align-items: center;
             gap: 15px;
+        }
+
+        .status-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-separator {
+             margin: 0 5px;
+             color: var(--status-bar-border);
         }
     </style>
 </head>
-
 <body>
 
     <div class="editor-container">
         <div class="editor-wrapper">
-            <div id="gutter" class="gutter">1</div>
             <textarea id="editor" autocomplete="off" spellcheck="false"></textarea>
         </div>
 
         <div class="status-bar">
+            <div class="status-bar-left">
+                <div id="mode-display" style="font-weight: bold;" title="Plain Text">Plain Text</div>
+            </div>
+            
             <div class="status-bar-right">
                 <span id="cursor-position">Ln 1, Col 1</span>
-                <span style="margin: 0 10px; color: var(--status-bar-border);">|</span>
                 <span id="selection-count"></span>
+                <span class="status-separator">|</span>
+                <span>Spaces: 4</span>
+                <span class="status-separator">|</span>
+                <span>UTF-8</span>
             </div>
         </div>
     </div>
+
+    <!-- CODE MIRROR SCRIPTS -->
+    <script src="lib/codemirror/codemirror.min.js"></script>
+    
+    <!-- MODES -->
+    <script src="lib/codemirror/mode/sparql/sparql.min.js"></script>
+    <script src="lib/codemirror/mode/turtle/turtle.min.js"></script>
+    <script src="lib/codemirror/mode/xml/xml.min.js"></script>
+    <script src="lib/codemirror/mode/javascript/javascript.min.js"></script>
+
+    <!-- ADDONS -->
+    <script src="lib/codemirror/addon/edit/matchbrackets.min.js"></script>
+    <script src="lib/codemirror/addon/edit/closebrackets.min.js"></script>
+    <script src="lib/codemirror/addon/comment/comment.min.js"></script>
+    <script src="lib/codemirror/addon/hint/show-hint.min.js"></script>
 
     <script>
         // =========================================================================
         // 1. DEBUGGING BRIDGE
         // =========================================================================
-
-        // Redirect JS errors to Java logger
         globalThis.onerror = function (msg, url, line, col, error) {
             if (globalThis.bridge) {
                 globalThis.bridge.log("JS ERROR: " + msg + " (Line: " + line + ")");
             }
         };
 
-        // Redirect console.log to Java logger
         var oldLog = console.log;
         console.log = function (msg) {
             if (globalThis.bridge) globalThis.bridge.log(msg);
@@ -219,109 +187,139 @@
         };
 
         // =========================================================================
-        // 2. PUBLIC API (Called by Java)
+        // 2. INITIALIZATION
+        // =========================================================================
+        
+        var editorArea = document.getElementById('editor');
+        var cm = CodeMirror.fromTextArea(editorArea, {
+            lineNumbers: true,
+            mode: "text/plain", // Default
+            matchBrackets: true,
+            autoCloseBrackets: true,
+            indentUnit: 4,
+            tabSize: 4,
+            lineWrapping: true,
+            styleActiveLine: true,
+            extraKeys: {
+                "Ctrl-Space": "autocomplete",
+                "Cmd-/": "toggleComment",
+                "Ctrl-/": "toggleComment"
+            }
+        });
+
+        // =========================================================================
+        // 3. EVENTS
         // =========================================================================
 
-        var editorElement = document.getElementById('editor');
-        var gutterElement = document.getElementById('gutter');
+        cm.on("change", function(instance, changeObj) {
+            if (changeObj.origin === 'setValue') return;
+            if (globalThis.bridge) {
+                globalThis.bridge.onContentChanged(instance.getValue());
+            }
+            updateStatusBar();
+        });
 
-        // Using globalThis instead of window
+        cm.on("cursorActivity", function() {
+            updateStatusBar();
+        });
+
+        function updateStatusBar() {
+            var pos = cm.getCursor();
+            var line = pos.line + 1;
+            var col = pos.ch + 1;
+            
+            document.getElementById('cursor-position').textContent = 'Ln ' + line + ', Col ' + col;
+            
+            var selection = cm.getSelection();
+            var selLength = selection.length;
+            document.getElementById('selection-count').textContent = selLength > 0 ? '(' + selLength + ' selected)' : '';
+        }
+
+        // =========================================================================
+        // 4. PUBLIC API
+        // =========================================================================
+
         globalThis.setContent = function (content) {
-            editorElement.value = content || '';
-            updateLineNumbers();
+            if (content !== cm.getValue()) {
+                cm.setValue(content || '');
+                cm.clearHistory();
+            }
             updateStatusBar();
         };
 
         globalThis.getContent = function () {
-            return editorElement.value;
+            return cm.getValue();
         };
 
         globalThis.setReadOnly = function (isReadOnly) {
-            editorElement.readOnly = isReadOnly;
+            cm.setOption("readOnly", isReadOnly);
+        };
+
+        globalThis.setMode = function (modeName) {
+            var mime = "text/plain";
+            var displayName = "Plain Text";
+            var tooltip = "";
+
+            switch (modeName.toLowerCase()) {
+                case "turtle":
+                case "ttl":
+                case "n3":
+                case "nt":
+                case "nq":
+                case "trig":
+                    mime = "text/turtle";
+                    displayName = "Turtle";
+                    tooltip = "Trig, Turtle, N-Triples, N-Quads, N3";
+                    break;
+                case "sparql":
+                case "rq":
+                    mime = "application/sparql-query";
+                    displayName = "SPARQL";
+                    break;
+                case "xml":
+                case "rdf":
+                case "owl":
+                    mime = "application/xml";
+                    displayName = "XML/RDF";
+                    break;
+                case "json":
+                case "jsonld":
+                case "json-ld":
+                    mime = "application/ld+json"; // Supported by javascript mode
+                    displayName = "JSON-LD";
+                    break;
+            }
+
+            cm.setOption("mode", mime);
+            var modeDisplay = document.getElementById('mode-display');
+            modeDisplay.textContent = displayName;
+            modeDisplay.title = tooltip;
         };
         
         globalThis.setTheme = function (isDark, accentColor, themeName) {
             var root = document.documentElement;
-
-            // 1. Toggle Dark Mode
             if (isDark) {
                 document.body.classList.add('dark-theme');
             } else {
                 document.body.classList.remove('dark-theme');
             }
             
-            // 2. Toggle Theme Family
-            document.body.classList.remove('theme-nord', 'theme-primer', 'theme-cupertino');
-            if (themeName && themeName !== 'default') {
-                document.body.classList.add('theme-' + themeName);
-            }
-            
-            // 3. Apply Accent Color
             if (accentColor) {
                 root.style.setProperty('--accent-color', accentColor);
-                // Simple opacity hack for selection color based on accent
-                // Note: hex + '40' (approx 25% opacity)
                 root.style.setProperty('--selection-bg', accentColor + '40');
             }
+            
+            // We use CSS variables to theme CodeMirror, so no need to change cm.setOption("theme", ...)
+            // unless we want to support specific CodeMirror themes.
+            // The CSS override block above handles mapping vars to CodeMirror classes.
         };
 
-        // =========================================================================
-        // 3. INITIALIZATION & EVENTS
-        // =========================================================================
-
-        globalThis.onload = function () {
-            console.log("DOM Loaded. Initializing Editor...");
-
-            // Cursor events
-            editorElement.addEventListener('click', updateStatusBar);
-            editorElement.addEventListener('keyup', updateStatusBar);
-            editorElement.addEventListener('select', updateStatusBar);
-
-            // Sync scrolling
-            editorElement.addEventListener('scroll', function() {
-                gutterElement.scrollTop = editorElement.scrollTop;
-            });
-
-            // Content change event (Sync to Java)
-            editorElement.addEventListener('input', function () {
-                updateLineNumbers();
-                if (globalThis.bridge) {
-                    globalThis.bridge.onContentChanged(editorElement.value);
-                }
-            });
-
-            // Initial focus
-            editorElement.focus();
-            updateLineNumbers();
-            updateStatusBar();
-        };
-
-        function updateLineNumbers() {
-            var lines = editorElement.value.split('\n').length;
-            var lineNumbers = [];
-            for (var i = 1; i <= lines; i++) {
-                lineNumbers.push(i);
-            }
-            gutterElement.innerHTML = lineNumbers.join('<br>');
+        // Initialize with bridge check
+        globalThis.onload = function() {
+            // Signal ready
+            console.log("Editor Loaded.");
         }
 
-        function updateStatusBar() {
-            var text = editorElement.value;
-            var selStart = editorElement.selectionStart;
-            var selEnd = editorElement.selectionEnd;
-
-            // Basic Line/Col calculation
-            var textUpToCursor = text.substring(0, selStart);
-            var lines = textUpToCursor.split('\n');
-            var line = lines.length;
-            var col = lines[lines.length - 1].length + 1;
-
-            document.getElementById('cursor-position').textContent = 'Ln ' + line + ', Col ' + col;
-
-            var selLength = selEnd - selStart;
-            document.getElementById('selection-count').textContent = selLength > 0 ? selLength + ' chars' : '';
-        }
     </script>
 </body>
-
 </html>
