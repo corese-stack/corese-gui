@@ -43,6 +43,7 @@ public class CodeMirrorView extends VBox {
   private final WebView webView;
   private final WebEngine webEngine;
   private final StringProperty contentProperty = new SimpleStringProperty("");
+  private final StringProperty modeProperty = new SimpleStringProperty("text/plain");
   private final JavaBridge bridge = new JavaBridge();
 
   // Customizable resource path
@@ -115,6 +116,13 @@ public class CodeMirrorView extends VBox {
             updateEditorContent(newValue);
           }
         });
+
+    // Mode Sync
+    modeProperty.addListener((obs, old, newValue) -> {
+        if (initialized && newValue != null) {
+            applyMode(newValue);
+        }
+    });
 
     // Monitor loading state
     webEngine
@@ -207,7 +215,10 @@ public class CodeMirrorView extends VBox {
         executeScriptSafe("if(window.setReadOnly) window.setReadOnly(true);");
       }
 
-      // 4. Apply Theme
+      // 4. Apply Mode
+      applyMode(modeProperty.get());
+
+      // 5. Apply Theme
       updateTheme();
 
     } catch (Exception e) {
@@ -250,6 +261,11 @@ public class CodeMirrorView extends VBox {
     executeScriptSafe(script);
   }
 
+  private void applyMode(String mode) {
+      String script = String.format("if(window.setMode) window.setMode('%s');", mode);
+      executeScriptSafe(script);
+  }
+
   // ==============================================================================================
   // Public API
   // ==============================================================================================
@@ -265,10 +281,11 @@ public class CodeMirrorView extends VBox {
    */
   public void setMode(String mode) {
     if (mode == null || mode.isEmpty()) return;
-    Platform.runLater(() -> {
-      String script = String.format("if(window.setMode) window.setMode('%s');", mode);
-      executeScriptSafe(script);
-    });
+    Platform.runLater(() -> modeProperty.set(mode));
+  }
+
+  public StringProperty modeProperty() {
+      return modeProperty;
   }
 
   public String getContent() {

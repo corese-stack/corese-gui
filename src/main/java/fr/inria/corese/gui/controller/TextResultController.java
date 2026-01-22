@@ -303,7 +303,10 @@ public class TextResultController {
    * @param content The text content to display
    */
   public void updateText(String content) {
-    Platform.runLater(() -> view.getCodeMirrorView().setContent(content != null ? content : ""));
+    Platform.runLater(() -> {
+        view.getCodeMirrorView().setContent(content != null ? content : "");
+        updateSyntaxHighlighting(view.getFormatChoiceBox().getValue());
+    });
   }
 
   /**
