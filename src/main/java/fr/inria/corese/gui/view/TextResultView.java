@@ -4,14 +4,17 @@ import fr.inria.corese.gui.enums.SerializationFormat;
 import fr.inria.corese.gui.view.base.AbstractView;
 import fr.inria.corese.gui.view.codeEditor.CodeMirrorView;
 import fr.inria.corese.gui.view.icon.IconButtonBarView;
+import javafx.animation.FadeTransition;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
+import javafx.util.Duration;
 
 /**
  * View for displaying text-based results with format selection.
@@ -43,6 +46,11 @@ public class TextResultView extends AbstractView {
   private static final double SELECTOR_TOP_MARGIN = 15.0;
   private static final double SELECTOR_RIGHT_MARGIN = 20.0;
 
+  // Animation Constants
+  private static final double OPACITY_IDLE = 0.4;
+  private static final double OPACITY_HOVER = 1.0;
+  private static final int FADE_DURATION_MS = 200;
+
   // ==============================================================================================
   // Constructor
   // ==============================================================================================
@@ -61,6 +69,12 @@ public class TextResultView extends AbstractView {
     formatBox.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
     formatBox.getStyleClass().add("format-selector-box");
 
+    // Set initial opacity from code to match animation logic (overrides CSS initial state)
+    formatBox.setOpacity(OPACITY_IDLE);
+
+    // Setup Hover Animation (Fade)
+    setupHoverAnimation(formatBox);
+
     // Center area: Editor + Floating Selector
     StackPane centerStack = new StackPane(codeMirrorView, formatBox);
     centerStack.getStyleClass().add("result-center-stack");
@@ -72,6 +86,31 @@ public class TextResultView extends AbstractView {
     BorderPane root = (BorderPane) getRoot();
     root.setCenter(centerStack);
     root.setRight(iconButtonBarView);
+  }
+
+  /**
+   * Configures the fade transition for the format selector box.
+   *
+   * @param node The node to animate
+   */
+  private void setupHoverAnimation(Node node) {
+    FadeTransition fade = new FadeTransition(Duration.millis(FADE_DURATION_MS), node);
+
+    node.setOnMouseEntered(
+        e -> {
+          fade.stop();
+          fade.setFromValue(node.getOpacity());
+          fade.setToValue(OPACITY_HOVER);
+          fade.play();
+        });
+
+    node.setOnMouseExited(
+        e -> {
+          fade.stop();
+          fade.setFromValue(node.getOpacity());
+          fade.setToValue(OPACITY_IDLE);
+          fade.play();
+        });
   }
 
   // ==============================================================================================
