@@ -3,12 +3,9 @@ package fr.inria.corese.gui.controller;
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.core.ResultViewConfig;
 import fr.inria.corese.gui.enums.SerializationFormat;
-import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.model.ValidationReportItem;
 import fr.inria.corese.gui.view.ResultView;
-import fr.inria.corese.gui.view.icon.IconButtonBarView;
 import javafx.application.Platform;
-import javafx.scene.control.Button;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -97,7 +94,7 @@ public class ResultController {
     // Instantiate only the sub-controllers for configured tabs
     this.textController =
         this.config.hasTab(ResultViewConfig.TabType.TEXT)
-            ? new TextResultController(this.buttons) // Pass buttons? No, text controller doesn't need them anymore
+            ? new TextResultController(this.buttons)
             : null;
 
     this.tableController =
@@ -159,52 +156,6 @@ public class ResultController {
     if (shouldEnableTab(ResultViewConfig.TabType.GRAPH, graphController)) {
       view.enableGraphTab(graphController.getView());
     }
-    
-    initializeSidebar();
-  }
-
-  /**
-   * Initializes the shared sidebar with buttons and event handlers.
-   */
-  private void initializeSidebar() {
-      IconButtonBarView sidebar = view.getIconButtonBarView();
-      
-      // Initialize buttons based on configuration
-      List<IconButtonType> types = buttons.stream()
-          .map(ButtonConfig::getIcon)
-          .toList();
-          
-      if (types.isEmpty()) {
-          // Default if no buttons provided
-          types = List.of(IconButtonType.COPY, IconButtonType.EXPORT);
-      }
-      
-      sidebar.initializeButtons(types);
-      
-      // Bind actions
-      Button copyBtn = sidebar.getButton(IconButtonType.COPY);
-      if (copyBtn != null) {
-          copyBtn.setOnAction(e -> handleCopyAction());
-      }
-      
-      Button exportBtn = sidebar.getButton(IconButtonType.EXPORT);
-      if (exportBtn != null) {
-          exportBtn.setOnAction(e -> handleExportAction());
-      }
-  }
-
-  private void handleCopyAction() {
-      if (view.getTabPane().getSelectionModel().getSelectedItem() == view.getTextTab() && textController != null) {
-          textController.copyContent();
-      }
-      // Add other tabs handlers here (Visual, Table, Graph) if they support copy
-  }
-
-  private void handleExportAction() {
-      if (view.getTabPane().getSelectionModel().getSelectedItem() == view.getTextTab() && textController != null) {
-          textController.exportContent();
-      }
-      // Add other tabs handlers here
   }
   
   // ==============================================================================================

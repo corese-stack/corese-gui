@@ -1,0 +1,12 @@
+/* ==========================================================================
+   Text Result View Stylesheet
+   ========================================================================== */
+
+.format-selector-box {
+    /* Use AtlantaFX theme variables for background to adapt to light/dark modes */
+    -fx-background-color: -color-bg-default;
+    -fx-background-radius: 5px;
+    -fx-border-color: -color-border-muted;
+    -fx-border-radius: 5px;
+    -fx-effect: dropshadow(three-pass-box, -color-shadow-default, 8, 0, 0, 2);
+}

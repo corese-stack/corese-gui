@@ -4,23 +4,22 @@ import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.enums.SerializationFormat;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.view.TextResultView;
-import javafx.animation.PauseTransition;
+import fr.inria.corese.gui.view.icon.IconButtonBarView;
+import java.io.File;
+import java.nio.file.Files;
+import java.util.List;
+import java.util.function.Consumer;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
-import javafx.util.Duration;
 import javafx.util.StringConverter;
-
-import java.io.File;
-import java.nio.file.Files;
-import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * Controller for text-based result display with format selection and export capabilities.
@@ -54,6 +53,8 @@ public class TextResultController {
   /** The view component managed by this controller. */
   private final TextResultView view;
 
+  private final List<ButtonConfig> buttons;
+
   /** Callback invoked when format selection changes. */
   private Consumer<SerializationFormat> onFormatChanged;
 
@@ -68,6 +69,7 @@ public class TextResultController {
    */
   public TextResultController(List<ButtonConfig> buttons) {
     this.view = new TextResultView();
+    this.buttons = buttons != null ? buttons : List.of();
     initialize();
   }
 
@@ -77,6 +79,8 @@ public class TextResultController {
 
   /** Initializes UI components and event handlers. */
   private void initialize() {
+    initializeSidebar();
+
     // Configure format selector using high-level method
     view.configureFormatSelector(
         SerializationFormat.rdfFormats(),
@@ -108,6 +112,44 @@ public class TextResultController {
     updateSyntaxHighlighting(view.getFormatChoiceBox().getValue());
   }
 
+  private void initializeSidebar() {
+    IconButtonBarView sidebar = view.getIconButtonBarView();
+
+    List<IconButtonType> types = buttons.stream().map(ButtonConfig::getIcon).toList();
+
+    if (types.isEmpty()) {
+      types = List.of(IconButtonType.COPY, IconButtonType.EXPORT);
+    }
+
+    sidebar.initializeButtons(types);
+
+    Button copyBtn = sidebar.getButton(IconButtonType.COPY);
+    if (copyBtn != null) {
+      copyBtn.setOnAction(e -> copyContent());
+      // Set tooltip if config provided
+      buttons.stream()
+          .filter(b -> b.getIcon() == IconButtonType.COPY)
+          .findFirst()
+          .ifPresent(
+              b -> {
+                if (b.getTooltip() != null) copyBtn.setTooltip(new Tooltip(b.getTooltip()));
+              });
+    }
+
+    Button exportBtn = sidebar.getButton(IconButtonType.EXPORT);
+    if (exportBtn != null) {
+      exportBtn.setOnAction(e -> exportContent());
+      // Set tooltip if config provided
+      buttons.stream()
+          .filter(b -> b.getIcon() == IconButtonType.EXPORT)
+          .findFirst()
+          .ifPresent(
+              b -> {
+                if (b.getTooltip() != null) exportBtn.setTooltip(new Tooltip(b.getTooltip()));
+              });
+    }
+  }
+
   /**
    * Updates the CodeMirror syntax highlighting mode based on the selected format.
    *
@@ -116,12 +158,13 @@ public class TextResultController {
   private void updateSyntaxHighlighting(SerializationFormat format) {
     if (format == null) return;
 
-    String mode = switch (format) {
-      case TURTLE, TRIG, N_TRIPLES, N_QUADS -> "turtle";
-      case RDF_XML, XML -> "xml";
-      case JSON_LD, JSON -> "json";
-      default -> "text/plain";
-    };
+    String mode =
+        switch (format) {
+          case TURTLE, TRIG, N_TRIPLES, N_QUADS -> "turtle";
+          case RDF_XML, XML -> "xml";
+          case JSON_LD, JSON -> "json";
+          default -> "text/plain";
+        };
 
     Platform.runLater(() -> view.getCodeMirrorView().setMode(mode));
   }
@@ -162,7 +205,8 @@ public class TextResultController {
     fileChooser.getExtensionFilters().add(extFilter);
     fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
 
-    Window window = view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null;
+    Window window =
+        view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null;
     File file = fileChooser.showSaveDialog(window);
 
     if (file != null) {
@@ -245,15 +289,14 @@ public class TextResultController {
    * @param content The text content to display
    */
   public void updateText(String content) {
-    Platform.runLater(() -> {
-        view.getCodeMirrorView().setContent(content != null ? content : "");
-        updateSyntaxHighlighting(view.getFormatChoiceBox().getValue());
-    });
+    Platform.runLater(
+        () -> {
+          view.getCodeMirrorView().setContent(content != null ? content : "");
+          updateSyntaxHighlighting(view.getFormatChoiceBox().getValue());
+        });
   }
 
-  /**
-   * Clears all text content.
-   */
+  /** Clears all text content. */
   public void clear() {
     Platform.runLater(() -> view.getCodeMirrorView().setContent(""));
   }
@@ -300,24 +343,26 @@ public class TextResultController {
    * @param formats The list of available serialization formats
    * @param defaultFormat The format to select by default
    */
-  public void setAvailableFormats(SerializationFormat[] formats, SerializationFormat defaultFormat) {
-    Platform.runLater(() -> {
-      view.configureFormatSelector(
-          formats,
-          defaultFormat,
-          new StringConverter<SerializationFormat>() {
-            @Override
-            public String toString(SerializationFormat format) {
-              return format != null ? format.getLabel() : "";
-            }
+  public void setAvailableFormats(
+      SerializationFormat[] formats, SerializationFormat defaultFormat) {
+    Platform.runLater(
+        () -> {
+          view.configureFormatSelector(
+              formats,
+              defaultFormat,
+              new StringConverter<SerializationFormat>() {
+                @Override
+                public String toString(SerializationFormat format) {
+                  return format != null ? format.getLabel() : "";
+                }
 
-            @Override
-            public SerializationFormat fromString(String string) {
-              return SerializationFormat.fromString(string);
-            }
-          });
-      // Ensure highlighting is updated for the new default
-      updateSyntaxHighlighting(defaultFormat);
-    });
+                @Override
+                public SerializationFormat fromString(String string) {
+                  return SerializationFormat.fromString(string);
+                }
+              });
+          // Ensure highlighting is updated for the new default
+          updateSyntaxHighlighting(defaultFormat);
+        });
   }
 }

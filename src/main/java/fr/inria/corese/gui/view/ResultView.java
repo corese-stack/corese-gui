@@ -32,12 +32,9 @@ public class ResultView extends AbstractView {
     private final Tab visualTab;
     private final Tab tableTab;
     private final Tab graphTab;
-    private final IconButtonBarView iconButtonBarView;
 
     public ResultView() {
         super(new BorderPane(), null);
-        
-        iconButtonBarView = new IconButtonBarView();
         
         tabPane = new TabPane();
         textTab = new Tab(ResultViewConfig.TabType.TEXT.getLabel());
@@ -51,7 +48,6 @@ public class ResultView extends AbstractView {
 
         BorderPane root = (BorderPane) getRoot();
         root.setCenter(tabPane);
-        root.setRight(iconButtonBarView);
     }
 
     // ==============================================================================================
@@ -75,9 +71,6 @@ public class ResultView extends AbstractView {
 
     /** Returns the graph tab (package-private - prefer enableGraphTab()). */
     Tab getGraphTab() { return graphTab; }
-
-    /** Returns the icon button bar view. */
-    public IconButtonBarView getIconButtonBarView() { return iconButtonBarView; }
 
     // ==============================================================================================
     // High-level Tab Management (Demeter's Law compliance)

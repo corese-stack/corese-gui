@@ -3,11 +3,14 @@ package fr.inria.corese.gui.view;
 import fr.inria.corese.gui.enums.SerializationFormat;
 import fr.inria.corese.gui.view.base.AbstractView;
 import fr.inria.corese.gui.view.codeEditor.CodeMirrorView;
+import fr.inria.corese.gui.view.icon.IconButtonBarView;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 
 /**
@@ -18,6 +21,7 @@ import javafx.scene.layout.StackPane;
  * <ul>
  *   <li>A CodeMirror editor for displaying formatted text results
  *   <li>A floating format selector in the top-right corner
+ *   <li>A dedicated sidebar for actions (Copy, Export)
  * </ul>
  *
  * <p><b>Design:</b> Clean separation of UI structure from controller logic.
@@ -31,33 +35,40 @@ public class TextResultView extends AbstractView {
   private final Label formatLabel;
   private final ChoiceBox<SerializationFormat> formatChoiceBox;
   private final CodeMirrorView codeMirrorView;
+  private final IconButtonBarView iconButtonBarView;
+
+  private static final String STYLESHEET_PATH = "/styles/text-result-view.css";
 
   // ==============================================================================================
   // Constructor
   // ==============================================================================================
 
   public TextResultView() {
-    super(new StackPane(), null);
+    super(new BorderPane(), STYLESHEET_PATH);
 
     // Initialize components
     this.formatLabel = new Label("Format:");
     this.formatChoiceBox = new ChoiceBox<>();
     this.formatChoiceBox.setPrefWidth(120);
     this.codeMirrorView = new CodeMirrorView(true); // Read-only mode
+    this.iconButtonBarView = new IconButtonBarView();
 
-    // Build layout
-    StackPane root = (StackPane) getRoot();
-    
-    // Format selector container
+    // Format selector container (Floating)
     HBox formatBox = new HBox(10, formatLabel, formatChoiceBox);
     formatBox.setAlignment(Pos.CENTER_RIGHT);
     formatBox.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
     formatBox.setPadding(new Insets(10));
-    formatBox.setStyle("-fx-background-color: rgba(255, 255, 255, 0.8); -fx-background-radius: 5;"); // Semi-transparent background
+    formatBox.getStyleClass().add("format-selector-box");
 
-    // Stack components
-    root.getChildren().addAll(codeMirrorView, formatBox);
+    // Center area: Editor + Floating Selector
+    StackPane centerStack = new StackPane(codeMirrorView, formatBox);
     StackPane.setAlignment(formatBox, Pos.TOP_RIGHT);
+    StackPane.setMargin(formatBox, new Insets(15, 20, 0, 0));
+
+    // Main Layout
+    BorderPane root = (BorderPane) getRoot();
+    root.setCenter(centerStack);
+    root.setRight(iconButtonBarView);
   }
 
   // ==============================================================================================
@@ -80,6 +91,15 @@ public class TextResultView extends AbstractView {
    */
   public CodeMirrorView getCodeMirrorView() {
     return codeMirrorView;
+  }
+  
+  /**
+   * Returns the icon button bar view.
+   *
+   * @return The sidebar view
+   */
+  public IconButtonBarView getIconButtonBarView() {
+    return iconButtonBarView;
   }
 
   // ==============================================================================================
