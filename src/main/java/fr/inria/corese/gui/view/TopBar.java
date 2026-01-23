@@ -1,14 +1,15 @@
 package fr.inria.corese.gui.view;
 
+import fr.inria.corese.gui.core.ButtonConfig;
+import fr.inria.corese.gui.enums.icon.IconButtonType;
+import fr.inria.corese.gui.view.icon.IconButtonView;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-
-import fr.inria.corese.gui.enums.icon.IconButtonType;
-import fr.inria.corese.gui.view.icon.IconButtonView;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -68,31 +69,34 @@ public class TopBar extends HBox {
   /**
    * Ajoute des boutons dans le conteneur de gauche.
    *
-   * @param buttonTypes Liste des types de boutons à ajouter
+   * @param configs Liste des configurations de boutons à ajouter
    */
-  public void addLeftButtons(List<IconButtonType> buttonTypes) {
+  public void addLeftButtons(List<ButtonConfig> configs) {
     leftButtonsContainer.getChildren().clear();
-    buttonTypes.forEach(
-        type -> {
-          IconButtonView button = new IconButtonView(type);
-          buttons.put(type, button);
-          leftButtonsContainer.getChildren().add(button);
-        });
+    addButtonsToContainer(configs, leftButtonsContainer);
   }
 
   /**
    * Ajoute des boutons dans le conteneur de droite.
    *
-   * @param buttonTypes Liste des types de boutons à ajouter
+   * @param configs Liste des configurations de boutons à ajouter
    */
-  public void addRightButtons(List<IconButtonType> buttonTypes) {
+  public void addRightButtons(List<ButtonConfig> configs) {
     rightButtonsContainer.getChildren().clear();
-    buttonTypes.forEach(
-        type -> {
-          IconButtonView button = new IconButtonView(type);
-          buttons.put(type, button);
-          rightButtonsContainer.getChildren().add(button);
-        });
+    addButtonsToContainer(configs, rightButtonsContainer);
+  }
+
+  private void addButtonsToContainer(List<ButtonConfig> configs, HBox container) {
+    if (configs == null) return;
+
+    for (ButtonConfig config : configs) {
+        if (config.getIcon() == null) continue;
+
+        IconButtonView button = new IconButtonView(config);
+
+        buttons.put(config.getIcon(), button);
+        container.getChildren().add(button);
+    }
   }
 
   /**
@@ -103,18 +107,5 @@ public class TopBar extends HBox {
    */
   public Button getButton(IconButtonType type) {
     return buttons.get(type);
-  }
-
-  /**
-   * Définit l'action à exécuter pour un bouton spécifique.
-   *
-   * @param type Le type de bouton
-   * @param action L'action à exécuter lors du clic
-   */
-  public void setOnAction(IconButtonType type, Runnable action) {
-    IconButtonView button = buttons.get(type);
-    if (button != null) {
-      button.setOnAction(e -> action.run());
-    }
   }
 }

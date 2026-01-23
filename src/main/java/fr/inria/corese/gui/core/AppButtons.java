@@ -44,15 +44,47 @@ public final class AppButtons {
     return new ButtonConfig(IconButtonType.CLEAR, "Clear Content", action);
   }
 
-  /**
-   * Creates a standardized Save button.
-   *
-   * @param action The action to execute
-   * @return A configured ButtonConfig
-   */
-  public static ButtonConfig save(Runnable action) {
-    return new ButtonConfig(IconButtonType.SAVE, "Save", action);
+    /**
+     * Creates a standardized Save button.
+     *
+     * @param action The action to execute
+     * @return A configured ButtonConfig
+     */
+    public static ButtonConfig save(Runnable action) {
+      return new ButtonConfig(IconButtonType.SAVE, "Save", action);
+    }
+  
+    public static ButtonConfig importFile(Runnable action) {
+      return new ButtonConfig(IconButtonType.IMPORT, "Import files", action);
+    }
+  
+    public static ButtonConfig reload(Runnable action) {
+      return new ButtonConfig(IconButtonType.RELOAD, "Reload", action);
+    }
+  
+    public static ButtonConfig delete(Runnable action) {
+      return new ButtonConfig(IconButtonType.DELETE, "Delete", action);
+    }
+  
+    public static ButtonConfig logs(Runnable action) {
+      return new ButtonConfig(IconButtonType.LOGS, "Show logs", action);
+    }
+  
+    public static ButtonConfig documentation(Runnable action) {
+      return new ButtonConfig(IconButtonType.DOCUMENTATION, "Documentation", action);
+    }
+  
+    public static ButtonConfig undo(Runnable action) {
+      return new ButtonConfig(IconButtonType.UNDO, "Undo", action);
+    }
+  
+    public static ButtonConfig redo(Runnable action) {
+      return new ButtonConfig(IconButtonType.REDO, "Redo", action);
+    }
+  
+    public static ButtonConfig play(Runnable action) {
+      return new ButtonConfig(IconButtonType.PLAY, "Run", action);
+    }
+    
+    // Add other standard buttons (Undo, Redo, Play...) as needed
   }
-
-  // Add other standard buttons (Undo, Redo, Play...) as needed
-}

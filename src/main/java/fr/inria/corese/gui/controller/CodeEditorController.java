@@ -36,6 +36,7 @@ public class CodeEditorController {
     
     // Use the existing IconButtonBarView from the view instead of creating a new one via Factory
     this.iconButtonBarController = new IconButtonBarController(
+        buttons != null ? buttons : List.of(),
         new fr.inria.corese.gui.model.IconButtonBarModel(iconButtons), 
         view.getIconButtonBarView(), 
         this

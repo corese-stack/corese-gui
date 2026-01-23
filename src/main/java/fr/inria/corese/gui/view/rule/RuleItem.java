@@ -1,12 +1,14 @@
 package fr.inria.corese.gui.view.rule;
 
 import atlantafx.base.controls.Spacer;
+import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.view.icon.IconButtonView;
 
 import java.io.File;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 
 /**
@@ -49,7 +51,7 @@ public class RuleItem extends HBox {
     Spacer spacer = new Spacer();
 
     // Create documentation button using IconButtonView
-    documentationButton = new IconButtonView(IconButtonType.DOCUMENTATION);
+    documentationButton = new IconButtonView(new ButtonConfig(IconButtonType.DOCUMENTATION, "Show documentation"));
 
     // Add all elements to the HBox
     getChildren().addAll(checkBox, spacer, documentationButton);
@@ -73,7 +75,7 @@ public class RuleItem extends HBox {
     Spacer spacer = new Spacer();
 
     // Create documentation button using IconButtonView
-    documentationButton = new IconButtonView(IconButtonType.DOCUMENTATION);
+    documentationButton = new IconButtonView(new ButtonConfig(IconButtonType.DOCUMENTATION, "Show documentation"));
 
     // Add all elements to the HBox
     getChildren().addAll(checkBox, spacer, documentationButton);

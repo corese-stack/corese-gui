@@ -2,6 +2,7 @@ package fr.inria.corese.gui.view;
 
 import java.util.function.Consumer;
 
+import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.model.fileList.FileItem;
 import fr.inria.corese.gui.model.fileList.FileListModel;
@@ -14,6 +15,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -72,10 +74,10 @@ public class FileListView extends VBox {
    * <p>Crée et positionne les boutons : - Charger - Recharger - Effacer
    */
   private void setupIconButtons() {
-    // Créer les boutons avec IconButtonView
-    loadButton = new IconButtonView(IconButtonType.IMPORT);
-    reloadButton = new IconButtonView(IconButtonType.RELOAD);
-    clearButton = new IconButtonView(IconButtonType.DELETE);
+    // Créer les boutons avec IconButtonView et ButtonConfig pour les tooltips
+    loadButton = new IconButtonView(new ButtonConfig(IconButtonType.IMPORT, "Import files"));
+    reloadButton = new IconButtonView(new ButtonConfig(IconButtonType.RELOAD, "Reload all files"));
+    clearButton = new IconButtonView(new ButtonConfig(IconButtonType.DELETE, "Clear all files"));
 
     // Ajouter les boutons au conteneur vertical dans l'ordre souhaité
     buttonContainer.setOrientation(javafx.geometry.Orientation.VERTICAL);
@@ -190,7 +192,8 @@ public class FileListView extends VBox {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        IconButtonView deleteButton = new IconButtonView(IconButtonType.DELETE);
+        // Use smart constructor
+        IconButtonView deleteButton = new IconButtonView(new ButtonConfig(IconButtonType.DELETE, "Remove file"));
         deleteButton.setOnAction(
             e -> {
               if (onRemove != null) {

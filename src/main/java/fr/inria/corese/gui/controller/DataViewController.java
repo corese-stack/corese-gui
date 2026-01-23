@@ -3,6 +3,7 @@ package fr.inria.corese.gui.controller;
 import java.io.File;
 import java.util.List;
 
+import fr.inria.corese.gui.core.AppButtons;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.factory.popup.*;
 import fr.inria.corese.gui.manager.DataManager;
@@ -41,9 +42,10 @@ public class DataViewController {
 
   /** Initializes the controller. */
   private void initialize() {
-    view.getTopBar().addRightButtons(List.of(IconButtonType.LOGS, IconButtonType.SAVE));
-    view.getTopBar().setOnAction(IconButtonType.LOGS, this::handleShowLogs);
-    view.getTopBar().setOnAction(IconButtonType.SAVE, this::handleSaveAs);
+    view.getTopBar().addRightButtons(List.of(
+        AppButtons.logs(this::handleShowLogs),
+        AppButtons.save(this::handleSaveAs)
+    ));
 
     setupFileList();
     setupRulesView();

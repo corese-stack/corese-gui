@@ -22,20 +22,9 @@ public class IconButtonBarView extends VBox {
     setMaxHeight(Double.MAX_VALUE);
   }
 
-  public void initializeButtons(List<IconButtonType> buttonTypes) {
-    getChildren().clear();
-    buttons.clear();
-    buttonTypes.forEach(
-        type -> {
-          Button button = new IconButtonView(type);
-          buttons.put(type, button);
-        });
-    getChildren().addAll(buttons.values());
-  }
-
   /**
-   * Initializes the sidebar with a list of fully configured buttons (including actions). This is
-   * the preferred method for the new architecture.
+   * Initializes the sidebar with a list of fully configured buttons (including actions).
+   * This is the preferred method for the new architecture.
    *
    * @param configs The list of button configurations
    */
@@ -48,17 +37,8 @@ public class IconButtonBarView extends VBox {
     for (ButtonConfig config : configs) {
       if (config.getIcon() == null) continue;
 
-      Button button = new IconButtonView(config.getIcon());
-
-      // Apply Tooltip
-      if (config.getTooltip() != null && !config.getTooltip().isBlank()) {
-        button.setTooltip(new Tooltip(config.getTooltip()));
-      }
-
-      // Bind Action
-      if (config.getAction() != null) {
-        button.setOnAction(e -> config.getAction().run());
-      }
+      // Create button directly from config (handles tooltip and action internally)
+      Button button = new IconButtonView(config);
 
       buttons.put(config.getIcon(), button);
       getChildren().add(button);
@@ -67,9 +47,5 @@ public class IconButtonBarView extends VBox {
 
   public Button getButton(IconButtonType type) {
     return buttons.get(type);
-  }
-
-  public void addCustomButton(Button runButton) {
-    getChildren().add(runButton);
   }
 }

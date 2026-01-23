@@ -3,6 +3,7 @@ package fr.inria.corese.gui.controller;
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.api.Loader;
 import fr.inria.corese.core.load.Load;
+import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.enums.icon.IconButtonType;
 import fr.inria.corese.gui.factory.popup.DocumentationPopup;
 import fr.inria.corese.gui.factory.popup.ExportFormatPopup;
@@ -14,6 +15,8 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.List;
+
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.scene.control.Alert;
@@ -27,13 +30,50 @@ public class IconButtonBarController {
   private final CodeEditorController parentController;
 
   public IconButtonBarController(
-      IconButtonBarModel model, IconButtonBarView view, CodeEditorController parentController) {
+      List<ButtonConfig> buttons,
+      IconButtonBarModel model,
+      IconButtonBarView view,
+      CodeEditorController parentController) {
     this.model = model;
     this.view = view;
     this.parentController = parentController;
 
-    view.initializeButtons(model.getAvailableButtons());
-    initializeButtonHandlers();
+    initializeButtons(buttons);
+  }
+
+  private void initializeButtons(List<ButtonConfig> buttons) {
+    if (buttons == null) return;
+
+    // Enhance configs with default actions if missing
+    List<ButtonConfig> enhancedConfigs = buttons.stream()
+        .map(config -> {
+            if (config.getAction() != null) return config; // Keep existing action
+
+            // Bind default actions based on icon type
+            Runnable action = getDefaultAction(config.getIcon());
+            if (action != null) {
+                return new ButtonConfig(config.getIcon(), config.getTooltip(), action);
+            }
+            return config;
+        })
+        .toList();
+
+    view.setButtons(enhancedConfigs);
+  }
+
+  private Runnable getDefaultAction(IconButtonType type) {
+      if (type == null) return null;
+      return switch (type) {
+          case SAVE -> () -> { if (parentController != null) parentController.saveFile(); };
+          case OPEN_FILE -> this::onOpenFilesButtonClick;
+          case EXPORT -> this::onExportButtonClick;
+          case IMPORT -> this::onImportButtonClick;
+          case CLEAR -> this::onClearButtonClick;
+          case UNDO -> this::onUndoButtonClick;
+          case REDO -> this::onRedoButtonClick;
+          case DOCUMENTATION -> this::onDocumentationButtonClick;
+          default -> null;
+      };
   }
 
   /**
@@ -75,51 +115,6 @@ public class IconButtonBarController {
               exportButton.disableProperty().bind(isEmpty);
           }
       }
-  }
-
-  private void initializeButtonHandlers() {
-    model.getAvailableButtons().forEach(this::initializeHandler);
-  }
-
-  private void initializeHandler(IconButtonType type) {
-    Button button = view.getButton(type);
-    if (button == null) return;
-
-    switch (type) {
-      case SAVE ->
-          button.setOnAction(
-              e -> {
-                if (parentController != null) {
-                  parentController.saveFile();
-                }
-              });
-      case OPEN_FILE ->
-          button.setOnAction(
-              e -> onOpenFilesButtonClick());
-      case EXPORT -> button.setOnAction(e -> onExportButtonClick());
-      case IMPORT -> button.setOnAction(e -> onImportButtonClick());
-      case CLEAR -> button.setOnAction(e -> onClearButtonClick());
-      case UNDO -> button.setOnAction(e -> onUndoButtonClick());
-      case REDO -> button.setOnAction(e -> onRedoButtonClick());
-      case DOCUMENTATION -> button.setOnAction(e -> onDocumentationButtonClick());
-      // Cases non implémentées - pas d'action pour l'instant
-      case NEW_FILE,
-          NEW_FOLDER,
-          FULL_SCREEN,
-          LOGS,
-          CLOSE_FILE_EXPLORER,
-          COPY,
-          DELETE,
-          ZOOM_IN,
-          RELOAD,
-          OPEN_FOLDER,
-          TEMPLATE,
-          SPLIT,
-          PASTE,
-          ZOOM_OUT -> {
-        // Placeholder pour futures implémentations
-      }
-    }
   }
 
   private void onOpenFilesButtonClick() {
