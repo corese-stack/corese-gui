@@ -72,27 +72,9 @@ public class TextResultView extends AbstractView {
   }
 
   // ==============================================================================================
-  // Accessors
+  // Accessors & Encapsulation
   // ==============================================================================================
 
-  /**
-   * Returns the format choice box.
-   *
-   * @return The ChoiceBox for format selection
-   */
-  public ChoiceBox<SerializationFormat> getFormatChoiceBox() {
-    return formatChoiceBox;
-  }
-
-  /**
-   * Returns the CodeMirror view component.
-   *
-   * @return The CodeMirror editor view
-   */
-  public CodeMirrorView getCodeMirrorView() {
-    return codeMirrorView;
-  }
-  
   /**
    * Returns the icon button bar view.
    *
@@ -100,6 +82,51 @@ public class TextResultView extends AbstractView {
    */
   public IconButtonBarView getIconButtonBarView() {
     return iconButtonBarView;
+  }
+
+  /**
+   * Sets the content of the text editor.
+   *
+   * @param content The text to display
+   */
+  public void setEditorContent(String content) {
+    codeMirrorView.setContent(content);
+  }
+
+  /**
+   * Retrieves the current content of the text editor.
+   *
+   * @return The text content
+   */
+  public String getEditorContent() {
+    return codeMirrorView.getContent();
+  }
+
+  /**
+   * Sets the syntax highlighting mode of the editor.
+   *
+   * @param mode The mode string (e.g., "turtle", "xml", "json")
+   */
+  public void setEditorMode(String mode) {
+    codeMirrorView.setMode(mode);
+  }
+
+  /**
+   * Retrieves the currently selected serialization format.
+   *
+   * @return The selected format, or null
+   */
+  public SerializationFormat getSelectedFormat() {
+    return formatChoiceBox.getValue();
+  }
+
+  /**
+   * Sets the selected serialization format.
+   *
+   * @param format The format to select
+   */
+  public void setSelectedFormat(SerializationFormat format) {
+    formatChoiceBox.setValue(format);
   }
 
   // ==============================================================================================

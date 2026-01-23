@@ -81,23 +81,13 @@ public class TextResultController {
   private void initialize() {
     initializeSidebar();
 
-    // Configure format selector using high-level method
+    // Configure format selector
     view.configureFormatSelector(
         SerializationFormat.rdfFormats(),
         SerializationFormat.TURTLE,
-        new StringConverter<SerializationFormat>() {
-          @Override
-          public String toString(SerializationFormat format) {
-            return format != null ? format.getLabel() : "";
-          }
+        createFormatStringConverter());
 
-          @Override
-          public SerializationFormat fromString(String string) {
-            return SerializationFormat.fromString(string);
-          }
-        });
-
-    // Listen to format changes using high-level method
+    // Listen to format changes
     view.setOnFormatChanged(
         (obs, oldVal, newVal) -> {
           if (newVal != null) {
@@ -109,44 +99,48 @@ public class TextResultController {
         });
 
     // Initial highlighting setup
-    updateSyntaxHighlighting(view.getFormatChoiceBox().getValue());
+    updateSyntaxHighlighting(view.getSelectedFormat());
+  }
+
+  private StringConverter<SerializationFormat> createFormatStringConverter() {
+    return new StringConverter<>() {
+      @Override
+      public String toString(SerializationFormat format) {
+        return format != null ? format.getLabel() : "";
+      }
+
+      @Override
+      public SerializationFormat fromString(String string) {
+        return SerializationFormat.fromString(string);
+      }
+    };
   }
 
   private void initializeSidebar() {
     IconButtonBarView sidebar = view.getIconButtonBarView();
 
+    // Determine buttons to show
     List<IconButtonType> types = buttons.stream().map(ButtonConfig::getIcon).toList();
-
     if (types.isEmpty()) {
       types = List.of(IconButtonType.COPY, IconButtonType.EXPORT);
     }
-
     sidebar.initializeButtons(types);
 
-    Button copyBtn = sidebar.getButton(IconButtonType.COPY);
-    if (copyBtn != null) {
-      copyBtn.setOnAction(e -> copyContent());
-      // Set tooltip if config provided
-      buttons.stream()
-          .filter(b -> b.getIcon() == IconButtonType.COPY)
-          .findFirst()
-          .ifPresent(
-              b -> {
-                if (b.getTooltip() != null) copyBtn.setTooltip(new Tooltip(b.getTooltip()));
-              });
-    }
+    // Configure specific buttons
+    configureSidebarButton(IconButtonType.COPY, e -> copyContent());
+    configureSidebarButton(IconButtonType.EXPORT, e -> exportContent());
+  }
 
-    Button exportBtn = sidebar.getButton(IconButtonType.EXPORT);
-    if (exportBtn != null) {
-      exportBtn.setOnAction(e -> exportContent());
+  private void configureSidebarButton(IconButtonType type, javafx.event.EventHandler<javafx.event.ActionEvent> action) {
+    Button btn = view.getIconButtonBarView().getButton(type);
+    if (btn != null) {
+      btn.setOnAction(action);
       // Set tooltip if config provided
       buttons.stream()
-          .filter(b -> b.getIcon() == IconButtonType.EXPORT)
+          .filter(b -> b.getIcon() == type)
           .findFirst()
-          .ifPresent(
-              b -> {
-                if (b.getTooltip() != null) exportBtn.setTooltip(new Tooltip(b.getTooltip()));
-              });
+          .flatMap(b -> java.util.Optional.ofNullable(b.getTooltip()))
+          .ifPresent(text -> btn.setTooltip(new Tooltip(text)));
     }
   }
 
@@ -166,7 +160,7 @@ public class TextResultController {
           default -> "text/plain";
         };
 
-    Platform.runLater(() -> view.getCodeMirrorView().setMode(mode));
+    Platform.runLater(() -> view.setEditorMode(mode));
   }
 
   // ==============================================================================================
@@ -176,13 +170,13 @@ public class TextResultController {
   /** Handles copy to clipboard action. */
   public void copyContent() {
     ClipboardContent content = new ClipboardContent();
-    content.putString(view.getCodeMirrorView().getContent());
+    content.putString(view.getEditorContent());
     Clipboard.getSystemClipboard().setContent(content);
   }
 
   /** Handles export to file action (asynchronous to avoid blocking UI). */
   public void exportContent() {
-    String contentToExport = view.getCodeMirrorView().getContent();
+    String contentToExport = view.getEditorContent();
     if (contentToExport == null || contentToExport.isBlank()) {
       showError("Export Error", "There is no text content to export.");
       return;
@@ -191,7 +185,7 @@ public class TextResultController {
     FileChooser fileChooser = new FileChooser();
     fileChooser.setTitle("Export Result As");
 
-    SerializationFormat selectedFormat = view.getFormatChoiceBox().getValue();
+    SerializationFormat selectedFormat = view.getSelectedFormat();
     if (selectedFormat == null) {
       selectedFormat = SerializationFormat.TURTLE;
     }
@@ -227,40 +221,40 @@ public class TextResultController {
    * @param content The content to write
    */
   private void exportFileAsync(File file, String content) {
-    Task<Void> exportTask =
-        new Task<>() {
-          @Override
-          protected Void call() throws Exception {
-            Files.writeString(file.toPath(), content);
-            return null;
-          }
-
-          @Override
-          protected void succeeded() {
-            Platform.runLater(
-                () -> {
-                  Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                  alert.setTitle("Export Successful");
-                  alert.setHeaderText(null);
-                  alert.setContentText(
-                      "The result has been successfully exported to:\n" + file.getAbsolutePath());
-                  alert.showAndWait();
-                });
-          }
-
-          @Override
-          protected void failed() {
-            Platform.runLater(
-                () ->
-                    showError(
-                        "Export Failed",
-                        "An error occurred while saving the file:\n"
-                            + getException().getMessage()));
-          }
-        };
-
     // Run in background thread (daemon to avoid keeping JVM alive on app close)
-    Thread exportThread = new Thread(exportTask);
+    Thread exportThread =
+        new Thread(
+            new Task<Void>() {
+              @Override
+              protected Void call() throws Exception {
+                Files.writeString(file.toPath(), content);
+                return null;
+              }
+
+              @Override
+              protected void succeeded() {
+                Platform.runLater(
+                    () -> {
+                      Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                      alert.setTitle("Export Successful");
+                      alert.setHeaderText(null);
+                      alert.setContentText(
+                          "The result has been successfully exported to:\n"
+                              + file.getAbsolutePath());
+                      alert.showAndWait();
+                    });
+              }
+
+              @Override
+              protected void failed() {
+                Platform.runLater(
+                    () ->
+                        showError(
+                            "Export Failed",
+                            "An error occurred while saving the file:\n"
+                                + getException().getMessage()));
+              }
+            });
     exportThread.setDaemon(true);
     exportThread.start();
   }
@@ -291,14 +285,14 @@ public class TextResultController {
   public void updateText(String content) {
     Platform.runLater(
         () -> {
-          view.getCodeMirrorView().setContent(content != null ? content : "");
-          updateSyntaxHighlighting(view.getFormatChoiceBox().getValue());
+          view.setEditorContent(content != null ? content : "");
+          updateSyntaxHighlighting(view.getSelectedFormat());
         });
   }
 
   /** Clears all text content. */
   public void clear() {
-    Platform.runLater(() -> view.getCodeMirrorView().setContent(""));
+    Platform.runLater(() -> view.setEditorContent(""));
   }
 
   /**
@@ -325,7 +319,7 @@ public class TextResultController {
    * @return The selected SerializationFormat
    */
   public SerializationFormat getSelectedFormat() {
-    return view.getFormatChoiceBox().getValue();
+    return view.getSelectedFormat();
   }
 
   /**
@@ -334,7 +328,7 @@ public class TextResultController {
    * @param format The format to select
    */
   public void setSelectedFormat(SerializationFormat format) {
-    Platform.runLater(() -> view.getFormatChoiceBox().setValue(format));
+    Platform.runLater(() -> view.setSelectedFormat(format));
   }
 
   /**
@@ -348,19 +342,7 @@ public class TextResultController {
     Platform.runLater(
         () -> {
           view.configureFormatSelector(
-              formats,
-              defaultFormat,
-              new StringConverter<SerializationFormat>() {
-                @Override
-                public String toString(SerializationFormat format) {
-                  return format != null ? format.getLabel() : "";
-                }
-
-                @Override
-                public SerializationFormat fromString(String string) {
-                  return SerializationFormat.fromString(string);
-                }
-              });
+              formats, defaultFormat, createFormatStringConverter());
           // Ensure highlighting is updated for the new default
           updateSyntaxHighlighting(defaultFormat);
         });
