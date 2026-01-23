@@ -35,10 +35,8 @@ public final class ExportHelper {
    * @param format The target serialization format
    */
   public static void exportText(Window window, String content, SerializationFormat format) {
-    if (content == null || content.isBlank()) {
-      showError("Export Error", "There is no content to export.");
-      return;
-    }
+    // Treat null as empty content and allow exporting empty files (valid use case)
+    String contentToExport = (content != null) ? content : "";
 
     SerializationFormat safeFormat = (format != null) ? format : SerializationFormat.TURTLE;
 
@@ -63,7 +61,7 @@ public final class ExportHelper {
         file = new File(file.getAbsolutePath() + extension);
       }
 
-      writeFileAsync(file, content);
+      writeFileAsync(file, contentToExport);
     }
   }
 
