@@ -5,10 +5,9 @@ import fr.inria.corese.gui.core.ResultViewConfig;
 import fr.inria.corese.gui.enums.SerializationFormat;
 import fr.inria.corese.gui.model.ValidationReportItem;
 import fr.inria.corese.gui.view.ResultView;
-import javafx.application.Platform;
-
 import java.util.List;
 import java.util.function.Consumer;
+import javafx.application.Platform;
 
 /**
  * Orchestrator controller for result display with multiple view types.
@@ -22,8 +21,8 @@ import java.util.function.Consumer;
  *   <li>{@link GraphResultController} - RDF graph visualization
  * </ul>
  *
- * <p>The controller provides a unified API for updating results while delegating the actual work
- * to specialized sub-controllers. This design follows the Composition pattern, avoiding the "God
+ * <p>The controller provides a unified API for updating results while delegating the actual work to
+ * specialized sub-controllers. This design follows the Composition pattern, avoiding the "God
  * Class" anti-pattern.
  *
  * <p><b>Usage example:</b>
@@ -73,8 +72,6 @@ public class ResultController {
 
   /** Immutable configuration specifying which tabs are enabled. */
   private final ResultViewConfig config;
-  
-  private final List<ButtonConfig> buttons;
 
   // ==============================================================================================
   // Constructors
@@ -87,15 +84,12 @@ public class ResultController {
    * @param config Configuration specifying which tabs to enable (defaults if null)
    */
   public ResultController(List<ButtonConfig> buttons, ResultViewConfig config) {
-    this.buttons = buttons != null ? buttons : List.of();
     this.config = config != null ? config : ResultViewConfig.defaultConfig();
     this.view = new ResultView();
 
     // Instantiate only the sub-controllers for configured tabs
     this.textController =
-        this.config.hasTab(ResultViewConfig.TabType.TEXT)
-            ? new TextResultController(this.buttons)
-            : null;
+        this.config.hasTab(ResultViewConfig.TabType.TEXT) ? new TextResultController() : null;
 
     this.tableController =
         this.config.hasTab(ResultViewConfig.TabType.TABLE) ? new TableResultController() : null;
@@ -118,9 +112,7 @@ public class ResultController {
     this(buttons, ResultViewConfig.defaultConfig());
   }
 
-  /**
-   * Constructs a ResultController with default buttons and configuration.
-   */
+  /** Constructs a ResultController with default buttons and configuration. */
   public ResultController() {
     this(List.of(), ResultViewConfig.defaultConfig());
   }
@@ -157,7 +149,7 @@ public class ResultController {
       view.enableGraphTab(graphController.getView());
     }
   }
-  
+
   // ==============================================================================================
   // Public API - Text Results
 
@@ -175,7 +167,7 @@ public class ResultController {
    */
   public void updateText(String content) {
     if (textController != null) {
-      runOnFxThread(() -> textController.updateText(content));
+      runOnFxThread(() -> textController.setContent(content));
     }
   }
 
@@ -228,7 +220,6 @@ public class ResultController {
     }
   }
 
-
   // ==============================================================================================
   // Public API - Graph Visualization
   // ==============================================================================================
@@ -260,7 +251,7 @@ public class ResultController {
     runOnFxThread(
         () -> {
           if (textController != null) {
-            textController.clear();
+            textController.clearContent();
           }
           if (tableController != null) {
             tableController.clear();
@@ -299,15 +290,15 @@ public class ResultController {
    */
   public void selectTextTab() {
     if (config.hasTab(ResultViewConfig.TabType.TEXT)) {
-      runOnFxThread(() -> view.selectTextTab());
+      runOnFxThread(view::selectTextTab);
     }
   }
 
   /**
    * Enables or disables a specific tab.
    *
-   * <p>When disabled, the tab is shown but grayed out and not selectable.
-   * Thread-safe: automatically runs on the JavaFX Application Thread.
+   * <p>When disabled, the tab is shown but grayed out and not selectable. Thread-safe:
+   * automatically runs on the JavaFX Application Thread.
    *
    * @param tabType The type of tab to enable/disable
    * @param enabled True to enable the tab, false to disable it
@@ -326,7 +317,8 @@ public class ResultController {
    * @param formats Array of available formats
    * @param defaultFormat Default format to select
    */
-  public void configureTextFormats(SerializationFormat[] formats, SerializationFormat defaultFormat) {
+  public void configureTextFormats(
+      SerializationFormat[] formats, SerializationFormat defaultFormat) {
     if (textController != null) {
       runOnFxThread(() -> textController.setAvailableFormats(formats, defaultFormat));
     }
@@ -335,8 +327,8 @@ public class ResultController {
   /**
    * Configures tab states based on query result type.
    *
-   * <p>This is a convenience method for enabling/disabling multiple tabs at once based on the
-   * query result characteristics.
+   * <p>This is a convenience method for enabling/disabling multiple tabs at once based on the query
+   * result characteristics.
    *
    * @param enableText Enable text tab
    * @param enableVisual Enable visual tab

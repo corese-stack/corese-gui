@@ -4,8 +4,8 @@ import fr.inria.corese.gui.enums.SerializationFormat;
 import fr.inria.corese.gui.view.base.AbstractView;
 import fr.inria.corese.gui.view.codeEditor.CodeMirrorView;
 import fr.inria.corese.gui.view.icon.IconButtonBarView;
+import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
@@ -37,7 +37,11 @@ public class TextResultView extends AbstractView {
   private final CodeMirrorView codeMirrorView;
   private final IconButtonBarView iconButtonBarView;
 
-  private static final String STYLESHEET_PATH = "/styles/text-result-view.css";
+  private static final String STYLESHEET_PATH = "/styles/text-result.css";
+
+  // Layout Constants
+  private static final double SELECTOR_TOP_MARGIN = 15.0;
+  private static final double SELECTOR_RIGHT_MARGIN = 20.0;
 
   // ==============================================================================================
   // Constructor
@@ -49,21 +53,20 @@ public class TextResultView extends AbstractView {
     // Initialize components
     this.formatLabel = new Label("Format:");
     this.formatChoiceBox = new ChoiceBox<>();
-    this.formatChoiceBox.setPrefWidth(120);
     this.codeMirrorView = new CodeMirrorView(true); // Read-only mode
     this.iconButtonBarView = new IconButtonBarView();
 
     // Format selector container (Floating)
-    HBox formatBox = new HBox(10, formatLabel, formatChoiceBox);
-    formatBox.setAlignment(Pos.CENTER_RIGHT);
+    HBox formatBox = new HBox(formatLabel, formatChoiceBox);
     formatBox.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
-    formatBox.setPadding(new Insets(10));
     formatBox.getStyleClass().add("format-selector-box");
 
     // Center area: Editor + Floating Selector
     StackPane centerStack = new StackPane(codeMirrorView, formatBox);
-    StackPane.setAlignment(formatBox, Pos.TOP_RIGHT);
-    StackPane.setMargin(formatBox, new Insets(15, 20, 0, 0));
+    centerStack.getStyleClass().add("result-center-stack");
+
+    // Layout Constraints (Margins are instructions to the StackPane layout engine)
+    StackPane.setMargin(formatBox, new Insets(SELECTOR_TOP_MARGIN, SELECTOR_RIGHT_MARGIN, 0, 0));
 
     // Main Layout
     BorderPane root = (BorderPane) getRoot();
@@ -76,21 +79,12 @@ public class TextResultView extends AbstractView {
   // ==============================================================================================
 
   /**
-   * Returns the icon button bar view.
+   * Retrieves the currently selected serialization format.
    *
-   * @return The sidebar view
+   * @return The selected format, or null
    */
-  public IconButtonBarView getIconButtonBarView() {
-    return iconButtonBarView;
-  }
-
-  /**
-   * Sets the content of the text editor.
-   *
-   * @param content The text to display
-   */
-  public void setEditorContent(String content) {
-    codeMirrorView.setContent(content);
+  public SerializationFormat getFormat() {
+    return formatChoiceBox.getValue();
   }
 
   /**
@@ -98,35 +92,35 @@ public class TextResultView extends AbstractView {
    *
    * @return The text content
    */
-  public String getEditorContent() {
+  public String getContent() {
     return codeMirrorView.getContent();
   }
 
   /**
-   * Sets the syntax highlighting mode of the editor.
+   * Sets the content of the text editor.
    *
-   * @param mode The mode string (e.g., "turtle", "xml", "json")
+   * @param content The text to display
    */
-  public void setEditorMode(String mode) {
-    codeMirrorView.setMode(mode);
+  public void setContent(String content) {
+    codeMirrorView.setContent(content);
   }
 
   /**
-   * Retrieves the currently selected serialization format.
+   * Configures the toolbar buttons.
    *
-   * @return The selected format, or null
+   * @param buttons The list of button configurations (icon, tooltip, action)
    */
-  public SerializationFormat getSelectedFormat() {
-    return formatChoiceBox.getValue();
+  public void setToolbarButtons(java.util.List<fr.inria.corese.gui.core.ButtonConfig> buttons) {
+    iconButtonBarView.setButtons(buttons);
   }
 
   /**
-   * Sets the selected serialization format.
+   * Sets the syntax highlighting mode using a strongly-typed format.
    *
-   * @param format The format to select
+   * @param format The serialization format
    */
-  public void setSelectedFormat(SerializationFormat format) {
-    formatChoiceBox.setValue(format);
+  public void setMode(SerializationFormat format) {
+    codeMirrorView.setMode(format);
   }
 
   // ==============================================================================================
@@ -140,15 +134,11 @@ public class TextResultView extends AbstractView {
    *
    * @param formats Array of formats to display
    * @param defaultFormat The default selected format
-   * @param converter String converter for displaying format labels
    */
   public void configureFormatSelector(
-      SerializationFormat[] formats,
-      SerializationFormat defaultFormat,
-      javafx.util.StringConverter<SerializationFormat> converter) {
+      SerializationFormat[] formats, SerializationFormat defaultFormat) {
     formatChoiceBox.getItems().setAll(formats);
     formatChoiceBox.setValue(defaultFormat);
-    formatChoiceBox.setConverter(converter);
   }
 
   /**
@@ -156,8 +146,7 @@ public class TextResultView extends AbstractView {
    *
    * @param listener The listener to invoke when format changes
    */
-  public void setOnFormatChanged(
-      javafx.beans.value.ChangeListener<SerializationFormat> listener) {
+  public void setOnFormatChanged(ChangeListener<SerializationFormat> listener) {
     formatChoiceBox.getSelectionModel().selectedItemProperty().addListener(listener);
   }
 }

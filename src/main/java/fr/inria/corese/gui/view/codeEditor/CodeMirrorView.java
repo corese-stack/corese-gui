@@ -1,5 +1,6 @@
 package fr.inria.corese.gui.view.codeEditor;
 
+import fr.inria.corese.gui.enums.SerializationFormat;
 import fr.inria.corese.gui.view.utils.AppTheme;
 import fr.inria.corese.gui.view.utils.ThemeManager;
 import java.net.URL;
@@ -118,11 +119,12 @@ public class CodeMirrorView extends VBox {
         });
 
     // Mode Sync
-    modeProperty.addListener((obs, old, newValue) -> {
-        if (initialized && newValue != null) {
+    modeProperty.addListener(
+        (obs, old, newValue) -> {
+          if (initialized && newValue != null) {
             applyMode(newValue);
-        }
-    });
+          }
+        });
 
     // Monitor loading state
     webEngine
@@ -146,9 +148,7 @@ public class CodeMirrorView extends VBox {
         .addListener((obs, old, newVal) -> Platform.runLater(this::updateTheme));
   }
 
-  /**
-   * Pushes the current application theme configuration to the web editor.
-   */
+  /** Pushes the current application theme configuration to the web editor. */
   private void updateTheme() {
     if (!initialized) return;
 
@@ -170,7 +170,9 @@ public class CodeMirrorView extends VBox {
     String hexAccent = toHex(accent);
 
     // Call JS: setTheme(isDark, accentColor, themeName)
-    String script = String.format("if(window.setTheme) window.setTheme(%b, '%s', '%s');", isDark, hexAccent, themeName);
+    String script =
+        String.format(
+            "if(window.setTheme) window.setTheme(%b, '%s', '%s');", isDark, hexAccent, themeName);
     executeScriptSafe(script);
   }
 
@@ -262,8 +264,8 @@ public class CodeMirrorView extends VBox {
   }
 
   private void applyMode(String mode) {
-      String script = String.format("if(window.setMode) window.setMode('%s');", mode);
-      executeScriptSafe(script);
+    String script = String.format("if(window.setMode) window.setMode('%s');", mode);
+    executeScriptSafe(script);
   }
 
   // ==============================================================================================
@@ -272,6 +274,17 @@ public class CodeMirrorView extends VBox {
 
   public void setContent(String content) {
     contentProperty.set(content);
+  }
+
+  /**
+   * Sets the syntax highlighting mode using a SerializationFormat enum.
+   *
+   * @param format The serialization format to derive the mode from.
+   */
+  public void setMode(SerializationFormat format) {
+    if (format != null) {
+      setMode(format.getCodeMirrorMode());
+    }
   }
 
   /**
@@ -285,7 +298,7 @@ public class CodeMirrorView extends VBox {
   }
 
   public StringProperty modeProperty() {
-      return modeProperty;
+    return modeProperty;
   }
 
   public String getContent() {

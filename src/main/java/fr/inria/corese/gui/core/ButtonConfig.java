@@ -33,6 +33,7 @@ public class ButtonConfig {
   private final IconButtonType icon;
   private final String text;
   private final String tooltip;
+  private final Runnable action;
 
   // ===============================================================================
   // Constructors
@@ -44,9 +45,7 @@ public class ButtonConfig {
    * @param icon The icon to display
    */
   public ButtonConfig(IconButtonType icon) {
-    this.icon = icon;
-    this.tooltip = null;
-    this.text = null;
+    this(icon, null, null);
   }
 
   /**
@@ -56,8 +55,21 @@ public class ButtonConfig {
    * @param tooltip The tooltip text shown on hover
    */
   public ButtonConfig(IconButtonType icon, String tooltip) {
+    this(icon, tooltip, null);
+  }
+
+  /**
+   * Creates a ButtonConfig with icon, tooltip, and action. This is the preferred constructor for
+   * creating self-contained buttons.
+   *
+   * @param icon The icon to display
+   * @param tooltip The tooltip text shown on hover
+   * @param action The action to execute when clicked
+   */
+  public ButtonConfig(IconButtonType icon, String tooltip, Runnable action) {
     this.icon = icon;
     this.tooltip = tooltip;
+    this.action = action;
     this.text = null;
   }
 
@@ -90,5 +102,14 @@ public class ButtonConfig {
    */
   public String getTooltip() {
     return tooltip;
+  }
+
+  /**
+   * Returns the action associated with this button.
+   *
+   * @return The executable action, or null if handled externally
+   */
+  public Runnable getAction() {
+    return action;
   }
 }

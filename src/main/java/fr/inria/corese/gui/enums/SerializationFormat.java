@@ -45,6 +45,16 @@ public enum SerializationFormat {
    *
    * @return The format label (e.g., "Turtle", "JSON-LD")
    */
+  @Override
+  public String toString() {
+    return label;
+  }
+
+  /**
+   * Returns the human-readable label for this format.
+   *
+   * @return The format label (e.g., "Turtle", "JSON-LD")
+   */
   public String getLabel() {
     return label;
   }
@@ -56,6 +66,20 @@ public enum SerializationFormat {
    */
   public String getExtension() {
     return extension;
+  }
+
+  /**
+   * Returns the CodeMirror mode string associated with this format.
+   *
+   * @return The CodeMirror mode (e.g., "turtle", "xml", "json")
+   */
+  public String getCodeMirrorMode() {
+    return switch (this) {
+      case TURTLE, TRIG, N_TRIPLES, N_QUADS -> "turtle";
+      case RDF_XML, XML -> "xml";
+      case JSON_LD, JSON -> "json";
+      case CSV, TSV, MARKDOWN -> "text/plain";
+    };
   }
 
   /**
@@ -82,7 +106,7 @@ public enum SerializationFormat {
     String normalized = formatString.toUpperCase().replace("/", "_").replace("-", "_");
     try {
       return valueOf(normalized);
-    } catch (IllegalArgumentException e) {
+    } catch (IllegalArgumentException _) {
       return TURTLE; // Default fallback
     }
   }
@@ -93,7 +117,7 @@ public enum SerializationFormat {
    * @return Array of RDF formats
    */
   public static SerializationFormat[] rdfFormats() {
-    return new SerializationFormat[]{TURTLE, RDF_XML, JSON_LD, N_TRIPLES, N_QUADS, TRIG};
+    return new SerializationFormat[] {TURTLE, RDF_XML, JSON_LD, N_TRIPLES, N_QUADS, TRIG};
   }
 
   /**
