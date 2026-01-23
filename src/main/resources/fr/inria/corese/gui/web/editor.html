@@ -8,9 +8,8 @@
     <link rel="stylesheet" href="lib/codemirror/addon/hint/show-hint.min.css">
 
     <style>
-        /* --- THEME VARIABLES --- */
+        /* --- THEME VARIABLES (Default / Cupertino Light) --- */
         :root {
-            /* Default / Cupertino Light */
             --bg-color: #ffffff;
             --text-color: #24292e;
             --gutter-bg: #f8f9fa;
@@ -23,7 +22,7 @@
             --accent-color: #0078D4;
             --active-line-bg: #f1f8ff;
 
-            /* Syntax Highlighting - Light */
+            /* Syntax Highlighting */
             --syntax-keyword: #7f0055;
             --syntax-atom: #219;
             --syntax-number: #164;
@@ -45,6 +44,43 @@
             --syntax-error: #f00;
         }
 
+        /* --- PRIMER LIGHT --- */
+        body.theme-primer {
+            --bg-color: #ffffff; /* Keep white for max readability */
+            --text-color: #24292f;
+            --gutter-bg: #f6f8fa;
+            --gutter-text: #6e7781;
+            --status-bar-bg: #ffffff;
+            --status-bar-border: #d0d7de;
+            --status-bar-text: #57606a;
+            --caret-color: #24292f;
+            --selection-bg: #b3d7ff;
+            --active-line-bg: #f6f8fa;
+        }
+
+        /* --- NORD LIGHT --- */
+        body.theme-nord {
+            --bg-color: #ffffff; /* Changed from #eceff4 to White for contrast against UI */
+            --text-color: #2e3440;
+            --gutter-bg: #eceff4; /* Use the main theme color for gutter instead */
+            --gutter-text: #4c566a;
+            --status-bar-bg: #eceff4;
+            --status-bar-border: #d8dee9;
+            --status-bar-text: #4c566a;
+            --caret-color: #2e3440;
+            --selection-bg: #88c0d040;
+            --active-line-bg: #f7f9fb; /* Very light subtle highlight */
+            
+            /* Nord Syntax Light Adjustments */
+            --syntax-keyword: #81a1c1;
+            --syntax-atom: #b48ead;
+            --syntax-number: #b48ead;
+            --syntax-def: #88c0d0;
+            --syntax-variable: #2e3440;
+            --syntax-string: #a3be8c;
+            --syntax-comment: #4c566a;
+        }
+
         /* --- DARK DEFAULTS (Cupertino Dark) --- */
         body.dark-theme {
             --bg-color: #1e1e1e;
@@ -58,27 +94,79 @@
             --selection-bg: #264f78;
             --active-line-bg: #2c2c2c;
 
-            /* Syntax Highlighting - Dark */
-            --syntax-keyword: #c586c0;      /* Pink/Purple */
-            --syntax-atom: #569cd6;         /* Light Blue */
-            --syntax-number: #b5cea8;       /* Light Green */
-            --syntax-def: #dcdcaa;          /* Beige */
-            --syntax-variable: #9cdcfe;     /* Light Blue */
-            --syntax-variable-2: #4ec9b0;   /* Teal */
-            --syntax-variable-3: #dcdcaa;   /* Beige */
-            --syntax-property: #d4d4d4;     /* White */
-            --syntax-operator: #d4d4d4;     /* White */
-            --syntax-comment: #6a9955;      /* Greenish Grey */
-            --syntax-string: #ce9178;       /* Orange */
-            --syntax-meta: #569cd6;         /* Blue */
-            --syntax-qualifier: #dcdcaa;    /* Beige */
-            --syntax-builtin: #4ec9b0;      /* Teal */
-            --syntax-bracket: #ffd700;      /* Gold */
-            --syntax-tag: #569cd6;          /* Blue */
-            --syntax-attribute: #9cdcfe;    /* Light Blue */
-            --syntax-link: #3794ff;         /* Blue link */
-            --syntax-error: #f44747;        /* Red */
+            /* Syntax Highlighting - Dark Defaults */
+            --syntax-keyword: #c586c0;
+            --syntax-atom: #569cd6;
+            --syntax-number: #b5cea8;
+            --syntax-def: #dcdcaa;
+            --syntax-variable: #9cdcfe;
+            --syntax-variable-2: #4ec9b0;
+            --syntax-variable-3: #dcdcaa;
+            --syntax-property: #d4d4d4;
+            --syntax-operator: #d4d4d4;
+            --syntax-comment: #6a9955;
+            --syntax-string: #ce9178;
+            --syntax-meta: #569cd6;
+            --syntax-qualifier: #dcdcaa;
+            --syntax-builtin: #4ec9b0;
+            --syntax-bracket: #ffd700;
+            --syntax-tag: #569cd6;
+            --syntax-attribute: #9cdcfe;
+            --syntax-link: #3794ff;
+            --syntax-error: #f44747;
         }
+
+        /* --- PRIMER DARK --- */
+        body.theme-primer.dark-theme {
+            --bg-color: #010409; /* Darker than UI (#0d1117) for depth */
+            --text-color: #c9d1d9;
+            --gutter-bg: #0d1117; /* Matches UI background for seamless gutter */
+            --gutter-text: #8b949e;
+            --status-bar-bg: #0d1117;
+            --status-bar-border: #30363d;
+            --status-bar-text: #8b949e;
+            --caret-color: #c9d1d9;
+            --selection-bg: #1f6feb40;
+            --active-line-bg: #0d1117;
+            
+            /* Primer Dark Syntax */
+            --syntax-keyword: #ff7b72;
+            --syntax-atom: #79c0ff;
+            --syntax-number: #79c0ff;
+            --syntax-def: #d2a8ff;
+            --syntax-variable: #c9d1d9;
+            --syntax-string: #a5d6ff;
+            --syntax-comment: #8b949e;
+        }
+
+        /* --- NORD DARK --- */
+        body.theme-nord.dark-theme {
+            --bg-color: #242933; /* Slightly darker than UI (#2e3440) for focus */
+            --text-color: #d8dee9;
+            --gutter-bg: #2e3440; /* Matches UI background */
+            --gutter-text: #616e88;
+            --status-bar-bg: #2e3440;
+            --status-bar-border: #434c5e;
+            --status-bar-text: #d8dee9;
+            --caret-color: #d8dee9;
+            --selection-bg: #434c5e;
+            --active-line-bg: #2e3440;
+
+            /* Nord Dark Syntax */
+            --syntax-keyword: #81a1c1;
+            --syntax-atom: #b48ead;
+            --syntax-number: #b48ead;
+            --syntax-def: #88c0d0;
+            --syntax-variable: #d8dee9;
+            --syntax-variable-2: #8fbcbb;
+            --syntax-property: #d8dee9;
+            --syntax-operator: #81a1c1;
+            --syntax-comment: #616e88;
+            --syntax-string: #a3be8c;
+            --syntax-tag: #81a1c1;
+            --syntax-attribute: #8fbcbb;
+        }
+
 
         /* --- BASE CSS --- */
         body, html {
@@ -362,15 +450,31 @@
         
         globalThis.setTheme = function (isDark, accentColor, themeName) {
             var root = document.documentElement;
+            var body = document.body;
+            
+            // 1. Set Dark/Light Mode
             if (isDark) {
-                document.body.classList.add('dark-theme');
+                body.classList.add('dark-theme');
             } else {
-                document.body.classList.remove('dark-theme');
+                body.classList.remove('dark-theme');
+            }
+
+            // 2. Set Theme Family (primer, nord, cupertino)
+            // Remove existing theme-* classes
+            body.className = body.className.replace(/\btheme-\S+/g, '').trim();
+            if (themeName) {
+                body.classList.add('theme-' + themeName.toLowerCase());
             }
             
             if (accentColor) {
                 root.style.setProperty('--accent-color', accentColor);
-                root.style.setProperty('--selection-bg', accentColor + '40');
+                if (!isDark) {
+                     // Lighter selection for light mode
+                     root.style.setProperty('--selection-bg', accentColor + '40');
+                } else {
+                     // Slightly more opaque for dark mode visibility
+                     root.style.setProperty('--selection-bg', accentColor + '60');
+                }
             }
             
             // We use CSS variables to theme CodeMirror, so no need to change cm.setOption("theme", ...)
