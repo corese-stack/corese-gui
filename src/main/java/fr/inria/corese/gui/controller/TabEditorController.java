@@ -147,8 +147,8 @@ public class TabEditorController {
   /** Initializes the view with configuration and listeners */
   private void initialize() {
     // Setup empty state
-    if (config.getEmptyStateView() != null) {
-      view.setEmptyStateView(config.getEmptyStateView());
+    if (config.getEmptyStateWidget() != null) {
+      view.setEmptyStateWidget(config.getEmptyStateWidget());
     }
 
     // Setup menu items

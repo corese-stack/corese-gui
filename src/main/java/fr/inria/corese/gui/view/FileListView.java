@@ -1,12 +1,11 @@
 package fr.inria.corese.gui.view;
 
-import java.util.function.Consumer;
-
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.enums.icon.ButtonIcon;
 import fr.inria.corese.gui.model.fileList.FileItem;
 import fr.inria.corese.gui.model.fileList.FileListModel;
 import fr.inria.corese.gui.view.icon.ActionButtonWidget;
+import java.util.function.Consumer;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -38,7 +37,7 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
  */
 public class FileListView extends VBox {
   private Consumer<FileItem> onRemoveAction;
-  private EmptyStateView emptyStateView;
+  private EmptyStateWidget emptyStateWidget;
   private Button clearButton;
   private Button reloadButton;
   private Button loadButton;
@@ -109,7 +108,7 @@ public class FileListView extends VBox {
   public void setModel(FileListModel model) {
     if (model != null && fileList != null) {
       fileList.setItems(model.getFiles());
-      emptyStateView.visibleProperty().bind(Bindings.isEmpty(model.getFiles()));
+      emptyStateWidget.visibleProperty().bind(Bindings.isEmpty(model.getFiles()));
     }
   }
 
@@ -123,13 +122,17 @@ public class FileListView extends VBox {
   /** Retourne l'espace quand il n'y a pas de fichiers chargés. */
   private void setupEmptyState() {
     // Create empty state view
-    emptyStateView = new EmptyStateView(MaterialDesignF.FILE_DOCUMENT, "No files loaded", "Open a folder or load a TTL file to visualize semantic graphs");
+    emptyStateWidget =
+        new EmptyStateWidget(
+            MaterialDesignF.FILE_DOCUMENT,
+            "No files loaded",
+            "Open a folder or load a TTL file to visualize semantic graphs");
 
     // Create a StackPane to hold both the ListView and empty state
     StackPane contentContainer = new StackPane();
 
     // Add both to the stack pane, with the ListView ALWAYS visible
-    contentContainer.getChildren().addAll(fileList, emptyStateView);
+    contentContainer.getChildren().addAll(fileList, emptyStateWidget);
     HBox.setHgrow(contentContainer, Priority.ALWAYS);
 
     // Assurez-vous que le conteneur a les mêmes styles que fileList pour l'encadré
@@ -142,7 +145,7 @@ public class FileListView extends VBox {
     getChildren().add(mainContainer);
 
     // Initially hide the empty state until model is set
-    emptyStateView.setVisible(false);
+    emptyStateWidget.setVisible(false);
   }
 
   public Button getClearButton() {
@@ -192,7 +195,8 @@ public class FileListView extends VBox {
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         // Use smart constructor
-        ActionButtonWidget deleteButton = new ActionButtonWidget(new ButtonConfig(ButtonIcon.DELETE, "Remove file"));
+        ActionButtonWidget deleteButton =
+            new ActionButtonWidget(new ButtonConfig(ButtonIcon.DELETE, "Remove file"));
         deleteButton.setOnAction(
             e -> {
               if (onRemove != null) {

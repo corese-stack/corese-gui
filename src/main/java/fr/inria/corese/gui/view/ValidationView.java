@@ -71,16 +71,16 @@ public class ValidationView extends AbstractView {
    *
    * @param onNewAction Action to perform when "New Shapes File" is clicked.
    * @param onLoadAction Action to perform when "Load Shapes File" is clicked.
-   * @return The configured EmptyStateView node ready to be displayed.
+   * @return The configured EmptyStateWidget node ready to be displayed.
    */
   public Node createEmptyState(Runnable onNewAction, Runnable onLoadAction) {
-    return new EmptyStateView(
+    return new EmptyStateWidget(
         MaterialDesignS.SHIELD_CHECK_OUTLINE,
         "No shapes files open",
         "Create a new shapes file or load an existing one",
-        EmptyStateView.createAction(
+        EmptyStateWidget.createAction(
             "New Shapes File", MaterialDesignP.PLUS, onNewAction),
-        EmptyStateView.createAction(
+        EmptyStateWidget.createAction(
             "Load Shapes File", MaterialDesignF.FOLDER_OPEN, onLoadAction));
   }
 }

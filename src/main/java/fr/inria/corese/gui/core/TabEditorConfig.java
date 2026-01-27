@@ -52,7 +52,7 @@ public class TabEditorConfig {
   private final Runnable executionAction;
   private final List<ButtonConfig> resultViewButtons;
   private final ResultViewConfig resultViewConfig;
-  private final Node emptyStateView;
+  private final Node emptyStateWidget;
   private final List<MenuItem> menuItems;
   private final boolean preloadFirstTab;
   private final List<String> allowedExtensions;
@@ -67,7 +67,7 @@ public class TabEditorConfig {
     this.executionAction = builder.executionAction;
     this.resultViewButtons = builder.resultViewButtons != null ? List.copyOf(builder.resultViewButtons) : null;
     this.resultViewConfig = builder.resultViewConfig;
-    this.emptyStateView = builder.emptyStateView;
+    this.emptyStateWidget = builder.emptyStateWidget;
     this.menuItems = builder.menuItems != null ? List.copyOf(builder.menuItems) : new ArrayList<>();
     this.preloadFirstTab = builder.preloadFirstTab;
     this.allowedExtensions = builder.allowedExtensions != null ? List.copyOf(builder.allowedExtensions) : List.of();
@@ -109,8 +109,8 @@ public class TabEditorConfig {
     return resultViewConfig != null;
   }
 
-  public Node getEmptyStateView() {
-    return emptyStateView;
+  public Node getEmptyStateWidget() {
+    return emptyStateWidget;
   }
 
   public List<MenuItem> getMenuItems() {
@@ -164,7 +164,7 @@ public class TabEditorConfig {
     private Runnable executionAction;
     private List<ButtonConfig> resultViewButtons;
     private ResultViewConfig resultViewConfig;
-    private Node emptyStateView;
+    private Node emptyStateWidget;
     private List<MenuItem> menuItems;
     private boolean preloadFirstTab = false;
     private List<String> allowedExtensions;
@@ -226,7 +226,7 @@ public class TabEditorConfig {
      * @return This builder for chaining
      */
     public Builder withEmptyState(Node emptyState) {
-      this.emptyStateView = emptyState;
+      this.emptyStateWidget = emptyState;
       return this;
     }
 

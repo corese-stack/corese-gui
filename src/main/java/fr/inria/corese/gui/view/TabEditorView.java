@@ -78,7 +78,7 @@ public class TabEditorView extends AbstractView {
 
   // Ids
   private static final String TAB_CONTENT_WRAPPER_ID = "tab-content-wrapper";
-  private static final String EMPTY_STATE_VIEW_ID = "empty-state-view";
+  private static final String EMPTY_STATE_VIEW_ID = "empty-state-widget";
 
   // Result Pane Animation
   private static final javafx.util.Duration SPLIT_ANIMATION_DURATION =
@@ -396,12 +396,12 @@ public class TabEditorView extends AbstractView {
   /**
    * Sets the empty state view displayed when no tabs are open.
    *
-   * @param emptyStateView The node to display as empty state
+   * @param emptyStateWidget The node to display as empty state
    */
-  public void setEmptyStateView(Node emptyStateView) {
-    emptyStateView.setId(EMPTY_STATE_VIEW_ID);
+  public void setEmptyStateWidget(Node emptyStateWidget) {
+    emptyStateWidget.setId(EMPTY_STATE_VIEW_ID);
     contentContainer.getChildren().removeIf(node -> EMPTY_STATE_VIEW_ID.equals(node.getId()));
-    contentContainer.getChildren().add(0, emptyStateView);
+    contentContainer.getChildren().add(0, emptyStateWidget);
   }
 
   /**

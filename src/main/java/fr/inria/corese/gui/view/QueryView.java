@@ -17,24 +17,25 @@ public class QueryView extends AbstractView {
         ((BorderPane) getRoot()).setCenter(node);
     }
 
-    /**
-     * Creates the empty state view for the query screen.
-     *
-     * @param onNewAction Action to perform when "New Query" is clicked.
-     * @param onLoadAction Action to perform when "Load Query" is clicked.
-     * @param onTemplateAction Action to perform when "Templates" is clicked.
-     * @return The configured EmptyStateView node.
-     */
-    public Node createEmptyState(Runnable onNewAction, Runnable onLoadAction, Runnable onTemplateAction) {
-        return new EmptyStateView(
+  /**
+   * Creates the empty state view for the query screen.
+   *
+   * @param onNewAction Action to perform when "New Query" is clicked.
+   * @param onLoadAction Action to perform when "Load Query" is clicked.
+   * @param onTemplateAction Action to perform when "Templates" is clicked.
+   * @return The configured EmptyStateWidget node.
+   */
+  public Node createEmptyState(
+      Runnable onNewAction, Runnable onLoadAction, Runnable onTemplateAction) {
+        return new EmptyStateWidget(
             MaterialDesignM.MAGNIFY,
             "No queries open",
             "Create a new query, load one, or use a template.",
-            EmptyStateView.createAction(
+            EmptyStateWidget.createAction(
                 "New Query", MaterialDesignP.PLUS, onNewAction),
-            EmptyStateView.createAction(
+            EmptyStateWidget.createAction(
                 "Load Query", MaterialDesignF.FOLDER_OPEN, onLoadAction),
-            EmptyStateView.createAction(
+            EmptyStateWidget.createAction(
                 "Templates", MaterialDesignF.FILE_DOCUMENT_MULTIPLE, onTemplateAction));
     }
 }

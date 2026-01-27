@@ -2,7 +2,7 @@
  * Empty State View Styles
  * ============================================================================================== */
 
-.empty-state-view {
+.empty-state-widget{
     -fx-alignment: center;
     -fx-spacing: 20;
     -fx-background-color: -color-bg-default;
