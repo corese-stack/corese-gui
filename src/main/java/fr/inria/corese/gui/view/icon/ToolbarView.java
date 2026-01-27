@@ -19,14 +19,14 @@ import javafx.scene.layout.VBox;
  * <p><b>Features:</b>
  * <ul>
  *   <li>Vertical layout (VBox)</li>
- *   <li>Consistent styling via CSS ("secondary-bar")</li>
+ *   <li>Consistent styling via CSS ("app-toolbar")</li>
  *   <li>Dynamic button creation from configuration</li>
  * </ul>
  */
 public class ToolbarView extends AbstractView {
 
-  private static final String STYLESHEET = "/styles/icon-button-bar.css";
-  private static final String STYLE_CLASS = "secondary-bar";
+  private static final String STYLESHEET = "/styles/toolbar.css";
+  private static final String STYLE_CLASS = "app-toolbar";
 
   private final VBox container;
   private final Map<ButtonIcon, Button> buttons = new LinkedHashMap<>();

@@ -1,7 +1,7 @@
 /*
- * Icon Button Bar Styles
+ * Application Toolbar Styles
  *
- * Defines the visual appearance of the vertical icon button bar (secondary toolbar)
+ * Defines the visual appearance of the vertical application toolbar
  * typically displayed on the right side of the editor.
  *
  * Design considerations:
@@ -12,10 +12,10 @@
  */
 
 /* ============================================================================= */
-/* Secondary Toolbar (Vertical Icon Button Bar)                                 */
+/* Application Toolbar (Vertical Icon Button Bar)                               */
 /* ============================================================================= */
 
-.secondary-bar {
+.app-toolbar {
     /* Theme-aware background color - subtle variant for visual separation */
     -fx-background-color: -color-bg-subtle;
     
