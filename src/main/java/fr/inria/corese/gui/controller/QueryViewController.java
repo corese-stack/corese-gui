@@ -4,7 +4,7 @@ import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.core.ResultViewConfig;
 import fr.inria.corese.gui.core.TabEditorConfig;
 import fr.inria.corese.gui.enums.SerializationFormat;
-import fr.inria.corese.gui.enums.icon.IconButtonType;
+import fr.inria.corese.gui.enums.icon.ButtonIcon;
 import fr.inria.corese.gui.factory.popup.TemplatePopup;
 import fr.inria.corese.gui.manager.QueryManager;
 import fr.inria.corese.gui.view.QueryView;
@@ -52,15 +52,15 @@ public class QueryViewController {
         TabEditorConfig.builder()
             .withEditorButtons(
                 List.of(
-                    new ButtonConfig(IconButtonType.SAVE, "Save File"),
-                    new ButtonConfig(IconButtonType.CLEAR, "Clear Content"),
-                    new ButtonConfig(IconButtonType.UNDO, "Undo"),
-                    new ButtonConfig(IconButtonType.REDO, "Redo")))
-            .withExecution(new ButtonConfig(IconButtonType.PLAY, "Run Query"), this::executeQuery)
+                    new ButtonConfig(ButtonIcon.SAVE, "Save File"),
+                    new ButtonConfig(ButtonIcon.CLEAR, "Clear Content"),
+                    new ButtonConfig(ButtonIcon.UNDO, "Undo"),
+                    new ButtonConfig(ButtonIcon.REDO, "Redo")))
+            .withExecution(new ButtonConfig(ButtonIcon.PLAY, "Run Query"), this::executeQuery)
             .withResultView(
                 List.of(
-                    new ButtonConfig(IconButtonType.COPY, "Copy to Clipboard"),
-                    new ButtonConfig(IconButtonType.EXPORT, "Export Results")),
+                    new ButtonConfig(ButtonIcon.COPY, "Copy to Clipboard"),
+                    new ButtonConfig(ButtonIcon.EXPORT, "Export Results")),
                 ResultViewConfig.builder().withTextTab().withTableTab().withGraphTab().build())
             .withEmptyState(emptyState)
             .withAllowedExtensions(List.of(".rq", ".sparql"))

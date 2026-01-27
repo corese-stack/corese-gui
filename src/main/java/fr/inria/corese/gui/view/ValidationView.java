@@ -1,7 +1,7 @@
 package fr.inria.corese.gui.view;
 
 import fr.inria.corese.gui.core.ButtonConfig;
-import fr.inria.corese.gui.enums.icon.IconButtonType;
+import fr.inria.corese.gui.enums.icon.ButtonIcon;
 import fr.inria.corese.gui.view.base.AbstractView;
 import java.util.List;
 import javafx.scene.Node;
@@ -47,8 +47,8 @@ public class ValidationView extends AbstractView {
    */
   public List<ButtonConfig> getResultToolbarButtons() {
     return List.of(
-        new ButtonConfig(IconButtonType.COPY),
-        new ButtonConfig(IconButtonType.EXPORT));
+        new ButtonConfig(ButtonIcon.COPY),
+        new ButtonConfig(ButtonIcon.EXPORT));
   }
 
   /**

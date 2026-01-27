@@ -27,7 +27,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
  * <p><b>Usage example:</b>
  *
  * <pre>{@code
- * ButtonConfig config = new ButtonConfig(IconButtonType.PLAY, "Execute Query");
+ * ButtonConfig config = new ButtonConfig(ButtonIcon.PLAY, "Execute Query");
  * FloatingButton fab = new FloatingButton(config);
  * fab.setOnAction(e -> executeQuery());
  * fab.setLoading(true); // Show spinner during execution

@@ -1,10 +1,41 @@
-/* Secondary Toolbar (Right side) */
+/*
+ * Icon Button Bar Styles
+ *
+ * Defines the visual appearance of the vertical icon button bar (secondary toolbar)
+ * typically displayed on the right side of the editor.
+ *
+ * Design considerations:
+ * - Fixed width for consistent icon sizing
+ * - Subtle background to distinguish from main content
+ * - Border on the left to separate from editor area
+ * - Top-aligned buttons with consistent spacing
+ */
+
+/* ============================================================================= */
+/* Secondary Toolbar (Vertical Icon Button Bar)                                 */
+/* ============================================================================= */
+
 .secondary-bar {
+    /* Theme-aware background color - subtle variant for visual separation */
     -fx-background-color: -color-bg-subtle;
+    
+    /* Left border only to separate from main content area */
     -fx-border-color: -color-border-default;
     -fx-border-width: 0 0 0 1;
+    
+    /* Compact padding for icon buttons */
     -fx-padding: 5px;
+    
+    /* Fixed width to accommodate icon buttons consistently */
     -fx-min-width: 48px;
     -fx-pref-width: 48px;
+    
+    /* Align buttons to the top center */
     -fx-alignment: top-center;
+    
+    /* Vertical spacing between buttons */
+    -fx-spacing: 10px;
+    
+    /* Allow vertical expansion */
+    -fx-max-height: Infinity;
 }

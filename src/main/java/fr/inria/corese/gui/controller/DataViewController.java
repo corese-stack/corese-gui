@@ -3,8 +3,7 @@ package fr.inria.corese.gui.controller;
 import java.io.File;
 import java.util.List;
 
-import fr.inria.corese.gui.core.AppButtons;
-import fr.inria.corese.gui.enums.icon.IconButtonType;
+import fr.inria.corese.gui.core.ButtonFactory;
 import fr.inria.corese.gui.factory.popup.*;
 import fr.inria.corese.gui.manager.DataManager;
 import fr.inria.corese.gui.manager.GraphManager;
@@ -43,8 +42,8 @@ public class DataViewController {
   /** Initializes the controller. */
   private void initialize() {
     view.getTopBar().addRightButtons(List.of(
-        AppButtons.logs(this::handleShowLogs),
-        AppButtons.save(this::handleSaveAs)
+        ButtonFactory.logs(this::handleShowLogs),
+        ButtonFactory.save(this::handleSaveAs)
     ));
 
     setupFileList();

@@ -2,13 +2,12 @@ package fr.inria.corese.gui.view.rule;
 
 import atlantafx.base.controls.Spacer;
 import fr.inria.corese.gui.core.ButtonConfig;
-import fr.inria.corese.gui.enums.icon.IconButtonType;
-import fr.inria.corese.gui.view.icon.IconButtonView;
+import fr.inria.corese.gui.enums.icon.ButtonIcon;
+import fr.inria.corese.gui.view.icon.ToolbarButton;
 
 import java.io.File;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 
 /**
@@ -26,7 +25,7 @@ import javafx.scene.layout.HBox;
  */
 public class RuleItem extends HBox {
   private final CheckBox checkBox;
-  private final IconButtonView documentationButton;
+  private final ToolbarButton documentationButton;
   private final File ruleFile;
   private final String ruleName;
 
@@ -51,7 +50,7 @@ public class RuleItem extends HBox {
     Spacer spacer = new Spacer();
 
     // Create documentation button using IconButtonView
-    documentationButton = new IconButtonView(new ButtonConfig(IconButtonType.DOCUMENTATION, "Show documentation"));
+    documentationButton = new ToolbarButton(new ButtonConfig(ButtonIcon.DOCUMENTATION, "Show documentation"));
 
     // Add all elements to the HBox
     getChildren().addAll(checkBox, spacer, documentationButton);
@@ -75,7 +74,7 @@ public class RuleItem extends HBox {
     Spacer spacer = new Spacer();
 
     // Create documentation button using IconButtonView
-    documentationButton = new IconButtonView(new ButtonConfig(IconButtonType.DOCUMENTATION, "Show documentation"));
+    documentationButton = new ToolbarButton(new ButtonConfig(ButtonIcon.DOCUMENTATION, "Show documentation"));
 
     // Add all elements to the HBox
     getChildren().addAll(checkBox, spacer, documentationButton);

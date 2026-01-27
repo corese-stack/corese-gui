@@ -25,17 +25,17 @@ import org.kordamp.ikonli.javafx.FontIcon;
  *
  * <pre>{@code
  * ButtonConfig config = new ButtonConfig(
- *     IconButtonType.SAVE,
+ *     ButtonIcon.SAVE,
  *     "Save File",
  *     () -> saveFile()
  * );
- * IconButtonView button = new IconButtonView(config);
+ * ToolbarButton button = new ToolbarButton(config);
  * }</pre>
  *
  * @see ButtonConfig
- * @see fr.inria.corese.gui.core.AppButtons
+ * @see fr.inria.corese.gui.core.ButtonFactory
  */
-public class IconButtonView extends Button {
+public class ToolbarButton extends Button {
 
   // ===============================================================================
   // Constants
@@ -53,7 +53,7 @@ public class IconButtonView extends Button {
    * @param config The button configuration (icon, tooltip, action)
    * @throws IllegalArgumentException if config is null or has no icon
    */
-  public IconButtonView(ButtonConfig config) {
+  public ToolbarButton(ButtonConfig config) {
     if (config == null || config.getIcon() == null) {
       throw new IllegalArgumentException("ButtonConfig must not be null and must have an icon.");
     }

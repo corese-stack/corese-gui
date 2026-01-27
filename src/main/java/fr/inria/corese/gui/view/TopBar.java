@@ -1,15 +1,14 @@
 package fr.inria.corese.gui.view;
 
 import fr.inria.corese.gui.core.ButtonConfig;
-import fr.inria.corese.gui.enums.icon.IconButtonType;
-import fr.inria.corese.gui.view.icon.IconButtonView;
+import fr.inria.corese.gui.enums.icon.ButtonIcon;
+import fr.inria.corese.gui.view.icon.ToolbarButton;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -32,7 +31,7 @@ public class TopBar extends HBox {
   private HBox leftButtonsContainer;
   private HBox rightButtonsContainer;
 
-  private final Map<IconButtonType, IconButtonView> buttons;
+  private final Map<ButtonIcon, ToolbarButton> buttons;
 
   /**
    * Constructeur par défaut.
@@ -41,7 +40,7 @@ public class TopBar extends HBox {
    * barre supérieure
    */
   public TopBar() {
-    this.buttons = new EnumMap<>(IconButtonType.class);
+    this.buttons = new EnumMap<>(ButtonIcon.class);
     initializeLayout();
     getStyleClass().add("top-bar");
   }
@@ -92,7 +91,7 @@ public class TopBar extends HBox {
     for (ButtonConfig config : configs) {
         if (config.getIcon() == null) continue;
 
-        IconButtonView button = new IconButtonView(config);
+        ToolbarButton button = new ToolbarButton(config);
 
         buttons.put(config.getIcon(), button);
         container.getChildren().add(button);
@@ -105,7 +104,7 @@ public class TopBar extends HBox {
    * @param type Le type de bouton recherché
    * @return Le bouton correspondant, ou null s'il n'existe pas
    */
-  public Button getButton(IconButtonType type) {
+  public Button getButton(ButtonIcon type) {
     return buttons.get(type);
   }
 }

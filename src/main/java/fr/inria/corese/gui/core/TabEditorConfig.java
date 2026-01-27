@@ -24,15 +24,15 @@ import java.util.function.Supplier;
  * <pre>{@code
  * TabEditorConfig config = TabEditorConfig.builder()
  *     .withEditorButtons(List.of(
- *         new ButtonConfig(IconButtonType.SAVE, "Save"),
- *         new ButtonConfig(IconButtonType.UNDO, "Undo")
+ *         new ButtonConfig(ButtonIcon.SAVE, "Save"),
+ *         new ButtonConfig(ButtonIcon.UNDO, "Undo")
  *     ))
  *     .withExecution(
- *         new ButtonConfig(IconButtonType.PLAY, "Run"),
+ *         new ButtonConfig(ButtonIcon.PLAY, "Run"),
  *         this::executeQuery
  *     )
  *     .withResultView(
- *         List.of(new ButtonConfig(IconButtonType.COPY, "Copy")),
+ *         List.of(new ButtonConfig(ButtonIcon.COPY, "Copy")),
  *         ResultViewConfig.builder().withTextTab().build()
  *     )
  *     .withEmptyState(emptyStateNode)

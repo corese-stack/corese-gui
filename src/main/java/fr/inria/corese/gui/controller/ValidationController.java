@@ -3,7 +3,7 @@ package fr.inria.corese.gui.controller;
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.core.ResultViewConfig;
 import fr.inria.corese.gui.core.TabEditorConfig;
-import fr.inria.corese.gui.enums.icon.IconButtonType;
+import fr.inria.corese.gui.enums.icon.ButtonIcon;
 import fr.inria.corese.gui.manager.ShaclManager;
 import fr.inria.corese.gui.model.ValidationModel;
 import fr.inria.corese.gui.model.ValidationResult;
@@ -92,13 +92,13 @@ public class ValidationController {
         TabEditorConfig.builder()
             .withEditorButtons(
                 List.of(
-                    new ButtonConfig(IconButtonType.SAVE),
-                    new ButtonConfig(IconButtonType.EXPORT),
-                    new ButtonConfig(IconButtonType.CLEAR),
-                    new ButtonConfig(IconButtonType.UNDO),
-                    new ButtonConfig(IconButtonType.REDO)))
+                    new ButtonConfig(ButtonIcon.SAVE),
+                    new ButtonConfig(ButtonIcon.EXPORT),
+                    new ButtonConfig(ButtonIcon.CLEAR),
+                    new ButtonConfig(ButtonIcon.UNDO),
+                    new ButtonConfig(ButtonIcon.REDO)))
             .withExecution(
-                new ButtonConfig(IconButtonType.PLAY, view.getRunValidationLabel()),
+                new ButtonConfig(ButtonIcon.PLAY, view.getRunValidationLabel()),
                 this::executeValidation)
             .withResultView(
                 view.getResultToolbarButtons(),

@@ -4,8 +4,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import fr.inria.corese.gui.core.ButtonConfig;
-import fr.inria.corese.gui.enums.icon.IconButtonType;
+import fr.inria.corese.gui.enums.icon.ButtonIcon;
 import fr.inria.corese.gui.model.codeEditor.CodeEditorModel;
+import fr.inria.corese.gui.model.ToolbarModel;
 import fr.inria.corese.gui.view.codeEditor.CodeEditorView;
 
 import java.io.File;
@@ -20,37 +21,36 @@ public class CodeEditorController {
   
   private final CodeEditorView view;
   private final CodeEditorModel model;
-  private final IconButtonBarController iconButtonBarController;
+  private final ToolbarController toolbarController;
   private final List<String> allowedExtensions;
 
   public CodeEditorController(List<ButtonConfig> buttons, String initialContent, List<String> allowedExtensions) {
     this.allowedExtensions = allowedExtensions != null ? allowedExtensions : List.of();
     
-    // Extract IconButtonType from ButtonConfig for IconButtonBarController
-    List<IconButtonType> iconButtons = buttons != null 
+    // Extract ButtonIcon from ButtonConfig
+    List<ButtonIcon> iconButtons = buttons != null 
         ? buttons.stream().map(ButtonConfig::getIcon).toList()
         : List.of();
     
     this.view = new CodeEditorView();
     this.model = new CodeEditorModel();
     
-    // Use the existing IconButtonBarView from the view instead of creating a new one via Factory
-    this.iconButtonBarController = new IconButtonBarController(
+    // Create ToolbarController
+    this.toolbarController = new ToolbarController(
         buttons != null ? buttons : List.of(),
-        new fr.inria.corese.gui.model.IconButtonBarModel(iconButtons), 
-        view.getIconButtonBarView(), 
+        new ToolbarModel(iconButtons), 
+        view.getToolbarView(), 
         this
     );
 
-    this.iconButtonBarController.getModel().setCodeEditorModel(this.model);
-    this.iconButtonBarController.bindToModel();
-    // No need to add child, as we are using the view's component directly
+    this.toolbarController.setEditorModel(this.model);
+    this.toolbarController.bindToModel();
 
     model.setContent(initialContent);
     Platform.runLater(this::initializeEditor);
   }
 
-  // Constructor overloading for backward compatibility or when no restriction is needed
+  // Constructor overloading for backward compatibility
   public CodeEditorController(List<ButtonConfig> buttons, String initialContent) {
     this(buttons, initialContent, List.of());
   }
@@ -58,17 +58,14 @@ public class CodeEditorController {
   private void initializeEditor() {
     view.getCodeMirrorView().contentProperty().bindBidirectional(model.contentProperty());
 
-    // Listen for file path changes to update syntax highlighting
     model.filePathProperty().addListener((obs, oldVal, newVal) -> detectAndSetMode());
 
-    // Listen for content changes to update mode if file is untitled (auto-detect)
     model.contentProperty().addListener((obs, oldVal, newVal) -> {
         if (model.getFilePath() == null) {
             detectAndSetMode();
         }
     });
 
-    // Initial mode check
     Platform.runLater(this::detectAndSetMode);
   }
 
@@ -171,8 +168,6 @@ public class CodeEditorController {
         File parentDir = file.getParentFile();
         if (parentDir == null || !parentDir.exists()) {
           logger.warn("Cannot save file: parent directory no longer exists: {}", path);
-          // Show dialog to user suggesting to save as a new file
-          // For now, fall back to Save As
           saveFileAs();
           return;
         }
@@ -204,7 +199,6 @@ public class CodeEditorController {
         fileChooser.setSelectedExtensionFilter(ttlFilter);
     } else {
         boolean added = false;
-        // Logic to add filters based on allowedExtensions
         if (isAllowed(".ttl") || isAllowed(".n3") || isAllowed(".nt")) {
             fileChooser.getExtensionFilters().add(ttlFilter);
             added = true;
@@ -258,11 +252,9 @@ public class CodeEditorController {
   }
 
   private void writeToFile(File file) {
-    // Check if parent directory exists, if not it might have been deleted
     File parentDir = file.getParentFile();
     if (parentDir != null && !parentDir.exists()) {
       logger.error("Cannot save file: parent directory does not exist: {}", parentDir.getAbsolutePath());
-      // The caller should handle the error - we could throw an exception here
       return;
     }
     
@@ -275,32 +267,14 @@ public class CodeEditorController {
     }
   }
 
-  /**
-   * Disposes of resources to prevent memory leaks.
-   * 
-   * <p>This method should be called when the editor is no longer needed,
-   * typically when the associated tab is closed. It unbinds all properties
-   * to allow proper garbage collection.
-   */
   public void dispose() {
-    // Unbind bidirectional binding to prevent memory leaks
     view.getCodeMirrorView().contentProperty().unbindBidirectional(model.contentProperty());
-    
-    // Dispose icon button bar controller if it has resources
-    if (iconButtonBarController != null) {
-      // IconButtonBarController cleanup if needed
-    }
   }
 
   public CodeEditorModel getModel() {
     return model;
   }
 
-  /**
-   * Returns the root node of the view for integration into parent layouts.
-   * 
-   * @return The root node
-   */
   public javafx.scene.Node getViewRoot() {
     return view.getRoot();
   }
@@ -309,7 +283,7 @@ public class CodeEditorController {
     return view;
   }
 
-  public IconButtonBarController getIconButtonBarController() {
-    return iconButtonBarController;
+  public ToolbarController getToolbarController() {
+    return toolbarController;
   }
 }

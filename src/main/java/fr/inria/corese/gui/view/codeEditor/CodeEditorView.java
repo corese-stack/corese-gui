@@ -1,22 +1,22 @@
 package fr.inria.corese.gui.view.codeEditor;
 
 import fr.inria.corese.gui.view.base.AbstractView;
-import fr.inria.corese.gui.view.icon.IconButtonBarView;
+import fr.inria.corese.gui.view.icon.ToolbarView;
 import javafx.scene.layout.BorderPane;
 
 public class CodeEditorView extends AbstractView {
   private final BorderPane root;
   private final CodeMirrorView codeMirrorView;
-  private final IconButtonBarView iconButtonBarView;
+  private final ToolbarView iconButtonBarView;
 
   public CodeEditorView() {
     super(new BorderPane(), null);
     this.root = (BorderPane) getRoot();
     this.codeMirrorView = new CodeMirrorView();
-    this.iconButtonBarView = new IconButtonBarView();
+    this.iconButtonBarView = new ToolbarView();
 
     root.setCenter(codeMirrorView);
-    root.setRight(iconButtonBarView);
+    root.setRight(iconButtonBarView.getRoot());
   }
 
   public String getText() {
@@ -32,7 +32,12 @@ public class CodeEditorView extends AbstractView {
     codeMirrorView.setContent(content);
   }
 
-  public IconButtonBarView getIconButtonBarView() {
-    return iconButtonBarView;
+    public ToolbarView getToolbarView() {
+
+      return iconButtonBarView;
+
+    }
+
   }
-}
+
+  

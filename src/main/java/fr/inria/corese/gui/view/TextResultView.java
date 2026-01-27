@@ -3,7 +3,7 @@ package fr.inria.corese.gui.view;
 import fr.inria.corese.gui.enums.SerializationFormat;
 import fr.inria.corese.gui.view.base.AbstractView;
 import fr.inria.corese.gui.view.codeEditor.CodeMirrorView;
-import fr.inria.corese.gui.view.icon.IconButtonBarView;
+import fr.inria.corese.gui.view.icon.ToolbarView;
 import javafx.animation.FadeTransition;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
@@ -38,7 +38,7 @@ public class TextResultView extends AbstractView {
   private final Label formatLabel;
   private final ChoiceBox<SerializationFormat> formatChoiceBox;
   private final CodeMirrorView codeMirrorView;
-  private final IconButtonBarView iconButtonBarView;
+  private final ToolbarView iconButtonBarView;
 
   private static final String STYLESHEET_PATH = "/styles/text-result.css";
 
@@ -62,7 +62,7 @@ public class TextResultView extends AbstractView {
     this.formatLabel = new Label("Format:");
     this.formatChoiceBox = new ChoiceBox<>();
     this.codeMirrorView = new CodeMirrorView(true); // Read-only mode
-    this.iconButtonBarView = new IconButtonBarView();
+    this.iconButtonBarView = new ToolbarView();
 
     // Format selector container (Floating)
     HBox formatBox = new HBox(formatLabel, formatChoiceBox);
@@ -85,7 +85,7 @@ public class TextResultView extends AbstractView {
     // Main Layout
     BorderPane root = (BorderPane) getRoot();
     root.setCenter(centerStack);
-    root.setRight(iconButtonBarView);
+    root.setRight(iconButtonBarView.getRoot());
   }
 
   /**

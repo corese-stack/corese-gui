@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.controller;
 
-import fr.inria.corese.gui.core.AppButtons;
+import fr.inria.corese.gui.core.ButtonFactory;
 import fr.inria.corese.gui.enums.SerializationFormat;
 import fr.inria.corese.gui.utils.ExportHelper;
 import fr.inria.corese.gui.view.TextResultView;
@@ -79,7 +79,7 @@ public class TextResultController {
 
   private void initializeSidebar() {
     view.setToolbarButtons(
-        List.of(AppButtons.copy(this::copyContent), AppButtons.export(this::exportContent)));
+        List.of(ButtonFactory.copy(this::copyContent), ButtonFactory.export(this::exportContent)));
   }
 
   /**
