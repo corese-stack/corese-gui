@@ -7,20 +7,19 @@ import javafx.scene.layout.BorderPane;
 public class CodeEditorView extends AbstractView {
   private final BorderPane root;
   private final CodeMirrorView codeMirrorView;
-  private final ToolbarView iconButtonBarView;
+  private final ToolbarView toolbarView;
 
   public CodeEditorView() {
     super(new BorderPane(), null);
     this.root = (BorderPane) getRoot();
     this.codeMirrorView = new CodeMirrorView();
-    this.iconButtonBarView = new ToolbarView();
+    this.toolbarView = new ToolbarView();
 
     root.setCenter(codeMirrorView);
-    root.setRight(iconButtonBarView.getRoot());
+    root.setRight(toolbarView.getRoot());
   }
 
   public String getText() {
-
     return codeMirrorView.getContent();
   }
 
@@ -32,12 +31,7 @@ public class CodeEditorView extends AbstractView {
     codeMirrorView.setContent(content);
   }
 
-    public ToolbarView getToolbarView() {
-
-      return iconButtonBarView;
-
-    }
-
+  public ToolbarView getToolbarView() {
+    return toolbarView;
   }
-
-  
+}

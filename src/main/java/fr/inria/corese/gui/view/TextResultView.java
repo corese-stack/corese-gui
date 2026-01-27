@@ -38,7 +38,7 @@ public class TextResultView extends AbstractView {
   private final Label formatLabel;
   private final ChoiceBox<SerializationFormat> formatChoiceBox;
   private final CodeMirrorView codeMirrorView;
-  private final ToolbarView iconButtonBarView;
+  private final ToolbarView toolbarView;
 
   private static final String STYLESHEET_PATH = "/styles/text-result.css";
 
@@ -62,7 +62,7 @@ public class TextResultView extends AbstractView {
     this.formatLabel = new Label("Format:");
     this.formatChoiceBox = new ChoiceBox<>();
     this.codeMirrorView = new CodeMirrorView(true); // Read-only mode
-    this.iconButtonBarView = new ToolbarView();
+    this.toolbarView = new ToolbarView();
 
     // Format selector container (Floating)
     HBox formatBox = new HBox(formatLabel, formatChoiceBox);
@@ -85,7 +85,7 @@ public class TextResultView extends AbstractView {
     // Main Layout
     BorderPane root = (BorderPane) getRoot();
     root.setCenter(centerStack);
-    root.setRight(iconButtonBarView.getRoot());
+    root.setRight(toolbarView.getRoot());
   }
 
   /**
@@ -150,7 +150,7 @@ public class TextResultView extends AbstractView {
    * @param buttons The list of button configurations (icon, tooltip, action)
    */
   public void setToolbarButtons(java.util.List<fr.inria.corese.gui.core.ButtonConfig> buttons) {
-    iconButtonBarView.setButtons(buttons);
+    toolbarView.setButtons(buttons);
   }
 
   /**
