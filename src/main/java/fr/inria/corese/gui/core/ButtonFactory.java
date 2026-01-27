@@ -80,6 +80,16 @@ public final class ButtonFactory {
     return new ButtonConfig(ButtonIcon.EXPORT, "Export to File", action);
   }
 
+  /**
+   * Creates a standardized Open File button configuration.
+   *
+   * @param action The action to execute when clicked, or null if wired later
+   * @return A configured ButtonConfig with open file icon and tooltip
+   */
+  public static ButtonConfig openFile(Runnable action) {
+    return new ButtonConfig(ButtonIcon.OPEN_FILE, "Open File", action);
+  }
+
   // ===============================================================================
   // Editor Operations
   // ===============================================================================

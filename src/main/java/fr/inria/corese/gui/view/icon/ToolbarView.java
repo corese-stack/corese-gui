@@ -10,23 +10,43 @@ import javafx.scene.control.Button;
 import javafx.scene.layout.VBox;
 
 /**
- * A vertical bar containing icon buttons, typically used as a secondary toolbar.
+ * A vertical toolbar view containing icon buttons.
  *
- * <p>This view provides a vertical layout of icon buttons.
+ * <p>This view displays a column of buttons, typically positioned on the right side of the editor.
+ * It is completely generic and relies on {@link ButtonConfig} for content and {@link ToolbarButton}
+ * for rendering.
+ *
+ * <p><b>Features:</b>
+ * <ul>
+ *   <li>Vertical layout (VBox)</li>
+ *   <li>Consistent styling via CSS ("secondary-bar")</li>
+ *   <li>Dynamic button creation from configuration</li>
+ * </ul>
  */
 public class ToolbarView extends AbstractView {
 
   private static final String STYLESHEET = "/styles/icon-button-bar.css";
+  private static final String STYLE_CLASS = "secondary-bar";
 
   private final VBox container;
   private final Map<ButtonIcon, Button> buttons = new LinkedHashMap<>();
 
+  /**
+   * Creates a new generic toolbar view.
+   */
   public ToolbarView() {
     super(new VBox(), STYLESHEET);
     this.container = (VBox) getRoot();
-    container.getStyleClass().add("secondary-bar");
+    container.getStyleClass().add(STYLE_CLASS);
   }
 
+  /**
+   * Sets the buttons to be displayed in the toolbar.
+   *
+   * <p>This clears the current buttons and rebuilds the toolbar based on the provided list of configurations.
+   *
+   * @param configs The list of button configurations. If null, the toolbar is cleared.
+   */
   public void setButtons(List<ButtonConfig> configs) {
     container.getChildren().clear();
     buttons.clear();
@@ -46,6 +66,12 @@ public class ToolbarView extends AbstractView {
     }
   }
 
+  /**
+   * Retrieves a button by its icon type.
+   *
+   * @param type The type of the button to retrieve.
+   * @return The JavaFX Button instance, or null if not found.
+   */
   public Button getButton(ButtonIcon type) {
     return buttons.get(type);
   }

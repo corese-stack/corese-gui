@@ -58,7 +58,7 @@ public class ToolbarController {
   private ButtonConfig createConfigFromFactory(ButtonIcon icon) {
     return switch (icon) {
       case SAVE -> ButtonFactory.save(null);
-      case OPEN_FILE -> new ButtonConfig(ButtonIcon.OPEN_FILE, "Open File");
+      case OPEN_FILE -> ButtonFactory.openFile(null);
       case EXPORT -> ButtonFactory.export(null);
       case IMPORT -> ButtonFactory.importFile(null);
       case CLEAR -> ButtonFactory.clear(null);
