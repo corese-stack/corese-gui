@@ -3,21 +3,31 @@ package fr.inria.corese.gui.controller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.inria.corese.core.Graph;
+import fr.inria.corese.core.api.Loader;
+import fr.inria.corese.core.load.Load;
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.enums.icon.ButtonIcon;
+import fr.inria.corese.gui.factory.popup.DocumentationPopup;
+import fr.inria.corese.gui.factory.popup.ExportFormatPopup;
 import fr.inria.corese.gui.model.codeEditor.CodeEditorModel;
 import fr.inria.corese.gui.view.codeEditor.CodeEditorView;
 import fr.inria.corese.gui.view.icon.ToolbarWidget;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.List;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 
 /**
  * Controller for the code editor component.
@@ -36,9 +46,10 @@ public class CodeEditorController {
     this.view = new CodeEditorView();
     this.model = new CodeEditorModel();
     
-    // Initialize the toolbar widget directly in the view
+    // Enrich buttons with default actions and initialize toolbar
     if (buttons != null && !buttons.isEmpty()) {
-        view.getToolbarWidget().setButtons(buttons);
+        List<ButtonConfig> enrichedButtons = enrichButtonsWithDefaultActions(buttons);
+        view.getToolbarWidget().setButtons(enrichedButtons);
     }
 
     // Bind the toolbar buttons state to the editor state
@@ -52,6 +63,49 @@ public class CodeEditorController {
   public CodeEditorController(List<ButtonConfig> buttons, String initialContent) {
     this(buttons, initialContent, List.of());
   }
+
+  /**
+   * Enriches the provided button configurations with default actions if they are missing.
+   *
+   * @param buttons The list of button configurations.
+   * @return A new list of button configurations with actions populated.
+   */
+  private List<ButtonConfig> enrichButtonsWithDefaultActions(List<ButtonConfig> buttons) {
+    return buttons.stream()
+        .map(config -> {
+          if (config.getAction() != null) {
+            return config;
+          }
+          Runnable action = getDefaultAction(config.getIcon());
+          if (action != null) {
+            return new ButtonConfig(config.getIcon(), config.getTooltip(), action);
+          }
+          return config;
+        })
+        .toList();
+  }
+
+  /**
+   * Returns the default action for a given button type.
+   */
+  private Runnable getDefaultAction(ButtonIcon type) {
+    if (type == null) {
+      return null;
+    }
+    return switch (type) {
+      case SAVE -> this::saveFile;
+      case OPEN_FILE -> this::onOpenFilesButtonClick;
+      case EXPORT -> this::onExportButtonClick;
+      case IMPORT -> this::onImportButtonClick;
+      case CLEAR -> this::onClearButtonClick;
+      case UNDO -> this::onUndoButtonClick;
+      case REDO -> this::onRedoButtonClick;
+      case DOCUMENTATION -> this::onDocumentationButtonClick;
+      default -> null;
+    };
+  }
+
+  // ... (Existing methods like bindToolbarToEditor, initializeEditor, etc. remain unchanged)
 
   /**
    * Binds the toolbar buttons' enabled/disabled state to the code editor's state.
@@ -186,6 +240,99 @@ public class CodeEditorController {
       }
       return false;
   }
+
+  // --- Button Actions ---
+
+  private void onOpenFilesButtonClick() {
+    FileChooser fileChooser = new FileChooser();
+    fileChooser.setTitle("Open File");
+    fileChooser.getExtensionFilters().addAll(
+        new FileChooser.ExtensionFilter("RDF and SPARQL Files", "*.ttl", "*.rdf", "*.n3", "*.rq"),
+        new FileChooser.ExtensionFilter("All Files", "*.*")
+    );
+
+    File file = fileChooser.showOpenDialog(view.getRoot().getScene().getWindow());
+    if (file != null) {
+      try {
+        String content = Files.readString(file.toPath());
+        model.setContent(content);
+        model.setFilePath(file.getAbsolutePath());
+        model.markAsSaved();
+      } catch (Exception e) {
+        showError("Error Opening File", "Could not open the file: " + e.getMessage());
+      }
+    }
+  }
+
+  private void onImportButtonClick() {
+    FileChooser fileChooser = new FileChooser();
+    fileChooser.setTitle("Import File");
+    fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
+
+    File file = fileChooser.showOpenDialog(view.getRoot().getScene().getWindow());
+    if (file != null) {
+      try {
+        String content = Files.readString(file.toPath());
+        model.setContent(content);
+      } catch (Exception e) {
+        showError("Error Importing File", "Could not import the file: " + e.getMessage());
+      }
+    }
+  }
+
+  private void onExportButtonClick() {
+    String content = model.getContent();
+    if (content == null || content.trim().isEmpty()) {
+      showError("Export Error", "The editor is empty. There is nothing to export.");
+      return;
+    }
+
+    Graph graphToExport = Graph.create();
+    try {
+      Load.create(graphToExport)
+          .parse(
+              new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8)),
+              Loader.format.TURTLE_FORMAT);
+    } catch (Exception e) {
+      showError(
+          "Parsing Error",
+          "Could not parse the content. Please ensure it is valid RDF syntax.\n\n"
+              + e.getMessage());
+      return;
+    }
+
+    ExportFormatPopup.show((Stage) view.getRoot().getScene().getWindow(), graphToExport);
+  }
+
+  private void onClearButtonClick() {
+    model.setContent("");
+  }
+
+  private void onUndoButtonClick() {
+    if (model.canUndo()) {
+      model.undo();
+    }
+  }
+
+  private void onRedoButtonClick() {
+    if (model.canRedo()) {
+      model.redo();
+    }
+  }
+
+  private void onDocumentationButtonClick() {
+    new DocumentationPopup().displayPopup();
+  }
+
+  private void showError(String title, String content) {
+    Alert alert = new Alert(Alert.AlertType.ERROR);
+    alert.setTitle(title);
+    alert.setHeaderText(null);
+    alert.setContentText(content);
+    alert.showAndWait();
+  }
+
+  // --- End Button Actions ---
 
   public void saveFile() {
     String path = model.getFilePath();
