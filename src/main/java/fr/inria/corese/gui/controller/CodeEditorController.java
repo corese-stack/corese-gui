@@ -14,8 +14,14 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.stage.FileChooser;
 
+/**
+ * Controller for the code editor component.
+ * Manages the editor model, view, and the associated toolbar.
+ */
 public class CodeEditorController {
   private static final Logger logger = LoggerFactory.getLogger(CodeEditorController.class);
   
@@ -27,7 +33,7 @@ public class CodeEditorController {
   public CodeEditorController(List<ButtonConfig> buttons, String initialContent, List<String> allowedExtensions) {
     this.allowedExtensions = allowedExtensions != null ? allowedExtensions : List.of();
     
-    // Extract ButtonIcon from ButtonConfig
+    // Extract ButtonIcon from ButtonConfig to create the ToolbarModel
     List<ButtonIcon> iconButtons = buttons != null 
         ? buttons.stream().map(ButtonConfig::getIcon).toList()
         : List.of();
@@ -35,16 +41,15 @@ public class CodeEditorController {
     this.view = new CodeEditorView();
     this.model = new CodeEditorModel();
     
-    // Create ToolbarController
+    // Initialize the generic ToolbarController
     this.toolbarController = new ToolbarController(
         buttons != null ? buttons : List.of(),
         new ToolbarModel(iconButtons), 
-        view.getToolbarView(), 
-        this
+        view.getToolbarView()
     );
 
-    this.toolbarController.setEditorModel(this.model);
-    this.toolbarController.bindToModel();
+    // Bind the toolbar model state to the editor state
+    bindToolbarToEditor();
 
     model.setContent(initialContent);
     Platform.runLater(this::initializeEditor);
@@ -53,6 +58,53 @@ public class CodeEditorController {
   // Constructor overloading for backward compatibility
   public CodeEditorController(List<ButtonConfig> buttons, String initialContent) {
     this(buttons, initialContent, List.of());
+  }
+
+  /**
+   * Binds the toolbar's enabled/disabled state to the code editor's state.
+   */
+  private void bindToolbarToEditor() {
+    ToolbarModel toolbarModel = toolbarController.getModel();
+
+    // Define when the editor is considered empty
+    BooleanBinding isEmpty = Bindings.createBooleanBinding(
+            () -> {
+              String content = model.getContent();
+              return content == null || content.trim().isEmpty();
+            },
+            model.contentProperty()
+    );
+
+    // Bind SAVE: Enabled if modified AND not empty
+    if (toolbarModel.getAvailableButtons().contains(ButtonIcon.SAVE)) {
+      toolbarModel.enabledProperty(ButtonIcon.SAVE).bind(
+          model.modifiedProperty().and(isEmpty.not())
+      );
+    }
+
+    // Bind CLEAR: Enabled if not empty
+    if (toolbarModel.getAvailableButtons().contains(ButtonIcon.CLEAR)) {
+      toolbarModel.enabledProperty(ButtonIcon.CLEAR).bind(isEmpty.not());
+    }
+
+    // Bind EXPORT: Enabled if not empty
+    if (toolbarModel.getAvailableButtons().contains(ButtonIcon.EXPORT)) {
+      toolbarModel.enabledProperty(ButtonIcon.EXPORT).bind(isEmpty.not());
+    }
+
+    // Bind UNDO/REDO: Listen to changes
+    model.contentProperty().addListener((obs, old, newV) -> updateUndoRedoState());
+    updateUndoRedoState();
+  }
+
+  private void updateUndoRedoState() {
+    ToolbarModel toolbarModel = toolbarController.getModel();
+    if (toolbarModel.getAvailableButtons().contains(ButtonIcon.UNDO)) {
+      toolbarModel.setButtonEnabled(ButtonIcon.UNDO, model.canUndo());
+    }
+    if (toolbarModel.getAvailableButtons().contains(ButtonIcon.REDO)) {
+      toolbarModel.setButtonEnabled(ButtonIcon.REDO, model.canRedo());
+    }
   }
 
   private void initializeEditor() {
@@ -69,10 +121,6 @@ public class CodeEditorController {
     Platform.runLater(this::detectAndSetMode);
   }
 
-  /**
-   * Detects the appropriate syntax highlighting mode based on file extension
-   * or content heuristics, and updates the view.
-   */
   private void detectAndSetMode() {
     String path = model.getFilePath();
     String content = model.getContent();
@@ -94,11 +142,9 @@ public class CodeEditorController {
         mode = "javascript";
       }
     } else if (content != null) {
-      // Heuristic analysis for untitled files to determine syntax
       String trimmed = content.trim();
       String lower = content.toLowerCase();
 
-      // Check SPARQL keywords
       if (isModeAllowed("sparql") && (
           lower.contains("select ") || 
           lower.contains("construct ") || 
@@ -107,21 +153,15 @@ public class CodeEditorController {
           lower.startsWith("prefix ") || 
           lower.contains("\nprefix "))) {
           mode = "sparql";
-      }
-      // Check Turtle / TriG patterns
-      else if ((isModeAllowed("turtle") || isModeAllowed("trig")) && (
+      } else if ((isModeAllowed("turtle") || isModeAllowed("trig")) && (
           lower.contains("@prefix") || 
           lower.contains("@base") || 
           lower.contains(" a ") || 
           trimmed.endsWith("."))) {
           mode = isModeAllowed("trig") ? "trig" : "turtle";
-      }
-      // Check JSON-LD structure
-      else if (isModeAllowed("json") && (trimmed.startsWith("{") || trimmed.startsWith("["))) {
+      } else if (isModeAllowed("json") && (trimmed.startsWith("{") || trimmed.startsWith("["))) {
           mode = "json";
-      }
-      // Check XML/RDF structure
-      else if (isModeAllowed("xml") && trimmed.startsWith("<")) {
+      } else if (isModeAllowed("xml") && trimmed.startsWith("<")) {
           mode = "xml";
       }
     }
@@ -163,7 +203,6 @@ public class CodeEditorController {
       saveFileAs();
     } else {
       File file = new File(path);
-      // Check if file or parent directory still exists
       if (!file.exists()) {
         File parentDir = file.getParentFile();
         if (parentDir == null || !parentDir.exists()) {
