@@ -8,6 +8,11 @@ import org.kordamp.ikonli.materialdesign2.*;
  * reference icons throughout the application.
  */
 public enum IconButtonType {
+
+  // =============================================================================================
+  // Enum Constants
+  // =============================================================================================
+
   SAVE(MaterialDesignC.CONTENT_SAVE_OUTLINE),
   OPEN_FILE(MaterialDesignF.FILE),
   IMPORT(MaterialDesignI.IMPORT),
@@ -16,24 +21,23 @@ public enum IconButtonType {
   UNDO(MaterialDesignU.UNDO),
   REDO(MaterialDesignR.REDO),
   DOCUMENTATION(MaterialDesignL.LINK),
-  ZOOM_IN(MaterialDesignM.MAGNIFY_PLUS_OUTLINE),
-  ZOOM_OUT(MaterialDesignM.MAGNIFY_MINUS_OUTLINE),
-  FULL_SCREEN(MaterialDesignF.FULLSCREEN),
-  NEW_FILE(MaterialDesignF.FILE_PLUS_OUTLINE),
-  NEW_FOLDER(MaterialDesignF.FOLDER_PLUS_OUTLINE),
-  OPEN_FOLDER(MaterialDesignF.FOLDER_OPEN),
-  CLOSE_FILE_EXPLORER(MaterialDesignF.FOLDER_OUTLINE),
   RELOAD(MaterialDesignR.REFRESH),
   LOGS(MaterialDesignB.BOOK_OPEN_VARIANT),
   DELETE(MaterialDesignT.TRASH_CAN),
   COPY(MaterialDesignC.CONTENT_COPY),
-  PASTE(MaterialDesignC.CONTENT_PASTE),
-  TEMPLATE(MaterialDesignS.SCRIPT_OUTLINE),
-  SPLIT(MaterialDesignV.VIEW_SPLIT_VERTICAL),
   PLAY(MaterialDesignP.PLAY);
+
+  // ==============================================================================================
+  // Fields
+  // ==============================================================================================
 
   private final Ikon ikon;
 
+  /**
+   * Constructor for IconButtonType.
+   *
+   * @param ikon The Ikon associated with the button type
+   */
   IconButtonType(Ikon ikon) {
     this.ikon = ikon;
   }
