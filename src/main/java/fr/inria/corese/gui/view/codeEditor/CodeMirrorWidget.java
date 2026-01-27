@@ -14,31 +14,18 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
-// JSException import removed to fix deprecation warning
 import netscape.javascript.JSObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * A JavaFX wrapper around a simple web-based text editor using WebView.
- *
- * <p>This view provides a clean, minimal text editor with basic functionality for editing content
- * without external dependencies.
- *
- * <p><b>Base Features:</b>
- *
- * <ul>
- *   <li>Robust Resource Loading (works offline)
- *   <li>Bidirectional Binding (Java <-> JS)
- *   <li>Thread Safety (Platform.runLater)
- *   <li>Defensive JS Execution
- * </ul>
+ * This widget provides a clean, minimal text editor.
  */
 @SuppressWarnings("removal")
-public class CodeMirrorView extends VBox {
-  private static final Logger logger = LoggerFactory.getLogger(CodeMirrorView.class);
+public class CodeMirrorWidget extends VBox {
+  private static final Logger logger = LoggerFactory.getLogger(CodeMirrorWidget.class);
 
-  // Default path if none is provided
   public static final String DEFAULT_RESOURCE_PATH = "/fr/inria/corese/gui/web/editor.html";
 
   private final WebView webView;
@@ -47,38 +34,21 @@ public class CodeMirrorView extends VBox {
   private final StringProperty modeProperty = new SimpleStringProperty("text/plain");
   private final JavaBridge bridge = new JavaBridge();
 
-  // Customizable resource path
   private final String resourcePath;
 
   private boolean initialized = false;
   private boolean isInternalUpdate = false;
   private final boolean readOnly;
 
-  // ==============================================================================================
-  // Constructors
-  // ==============================================================================================
-
-  /** Default constructor using the default editor HTML path. */
-  public CodeMirrorView() {
+  public CodeMirrorWidget() {
     this(DEFAULT_RESOURCE_PATH, false);
   }
 
-  /**
-   * Constructor with read-only option using the default editor HTML path.
-   *
-   * @param readOnly true to set the editor to read-only mode.
-   */
-  public CodeMirrorView(boolean readOnly) {
+  public CodeMirrorWidget(boolean readOnly) {
     this(DEFAULT_RESOURCE_PATH, readOnly);
   }
 
-  /**
-   * Fully customizable constructor.
-   *
-   * @param resourcePath The classpath location of the HTML editor file.
-   * @param readOnly true to set the editor to read-only mode.
-   */
-  public CodeMirrorView(String resourcePath, boolean readOnly) {
+  public CodeMirrorWidget(String resourcePath, boolean readOnly) {
     this.resourcePath = resourcePath;
     this.readOnly = readOnly;
     this.webView = new WebView();
@@ -87,19 +57,11 @@ public class CodeMirrorView extends VBox {
     initializeLayout();
     initializeListeners();
 
-    // Load URL directly on the FX Thread
     Platform.runLater(this::loadEditorUrl);
   }
 
-  // ==============================================================================================
-  // Initialization Logic
-  // ==============================================================================================
-
   private void initializeLayout() {
-    // Disable default context menu (Reload, Print...)
     webView.setContextMenuEnabled(false);
-
-    // Proper resizing logic
     webView.setPrefWidth(Region.USE_COMPUTED_SIZE);
     webView.setPrefHeight(Region.USE_COMPUTED_SIZE);
     webView.setMinHeight(0);
@@ -110,7 +72,6 @@ public class CodeMirrorView extends VBox {
   }
 
   private void initializeListeners() {
-    // Java -> JS Sync
     contentProperty.addListener(
         (obs, old, newValue) -> {
           if (initialized && newValue != null && !isInternalUpdate) {
@@ -118,7 +79,6 @@ public class CodeMirrorView extends VBox {
           }
         });
 
-    // Mode Sync
     modeProperty.addListener(
         (obs, old, newValue) -> {
           if (initialized && newValue != null) {
@@ -126,7 +86,6 @@ public class CodeMirrorView extends VBox {
           }
         });
 
-    // Monitor loading state
     webEngine
         .getLoadWorker()
         .stateProperty()
@@ -139,7 +98,6 @@ public class CodeMirrorView extends VBox {
               }
             });
 
-    // Theme Management Integration
     ThemeManager.getInstance()
         .themeProperty()
         .addListener((obs, old, newVal) -> Platform.runLater(this::updateTheme));
@@ -148,7 +106,6 @@ public class CodeMirrorView extends VBox {
         .addListener((obs, old, newVal) -> Platform.runLater(this::updateTheme));
   }
 
-  /** Pushes the current application theme configuration to the web editor. */
   private void updateTheme() {
     if (!initialized) return;
 
@@ -156,7 +113,6 @@ public class CodeMirrorView extends VBox {
     boolean isDark = false;
     String themeName = "default";
 
-    // Determine if dark mode is active and get theme name
     if (tm.getTheme() != null) {
       AppTheme appTheme = AppTheme.fromTheme(tm.getTheme());
       if (appTheme != null) {
@@ -165,11 +121,9 @@ public class CodeMirrorView extends VBox {
       }
     }
 
-    // Format accent color
     Color accent = tm.getAccentColor();
     String hexAccent = toHex(accent);
 
-    // Call JS: setTheme(isDark, accentColor, themeName)
     String script =
         String.format(
             "if(window.setTheme) window.setTheme(%b, '%s', '%s');", isDark, hexAccent, themeName);
@@ -185,10 +139,6 @@ public class CodeMirrorView extends VBox {
         (int) (color.getBlue() * 255));
   }
 
-  /**
-   * Loads the HTML file using its URL. This is crucial for relative paths (js/..., css/...) to
-   * work.
-   */
   private void loadEditorUrl() {
     URL url = getClass().getResource(resourcePath);
     if (url == null) {
@@ -198,29 +148,22 @@ public class CodeMirrorView extends VBox {
     webEngine.load(url.toExternalForm());
   }
 
-  /** Called when the WebView DOM is ready. */
   private void onPageLoaded() {
     try {
-      // 1. Inject Java Bridge
       JSObject window = (JSObject) webEngine.executeScript("window");
       window.setMember("bridge", bridge);
       initialized = true;
 
-      // 2. Set Initial Content
       String initialContent = contentProperty.get();
       if (initialContent != null && !initialContent.isEmpty()) {
         updateEditorContent(initialContent);
       }
 
-      // 3. Set ReadOnly if needed
       if (readOnly) {
         executeScriptSafe("if(window.setReadOnly) window.setReadOnly(true);");
       }
 
-      // 4. Apply Mode
       applyMode(modeProperty.get());
-
-      // 5. Apply Theme
       updateTheme();
 
     } catch (Exception e) {
@@ -228,11 +171,6 @@ public class CodeMirrorView extends VBox {
     }
   }
 
-  // ==============================================================================================
-  // Javascript Interaction Methods
-  // ==============================================================================================
-
-  /** * Executes JavaScript safely without crashing the Java thread. */
   private void executeScriptSafe(String script) {
     if (!initialized || webEngine.getLoadWorker().getState() != Worker.State.SUCCEEDED) {
       return;
@@ -240,8 +178,6 @@ public class CodeMirrorView extends VBox {
     try {
       webEngine.executeScript(script);
     } catch (Exception e) {
-      // JSException is a RuntimeException, so catching Exception covers it.
-      // We removed the explicit JSException catch block to avoid using the deprecated class.
       logger.warn("JS Execution Warning: {}", e.getMessage());
     }
   }
@@ -268,30 +204,16 @@ public class CodeMirrorView extends VBox {
     executeScriptSafe(script);
   }
 
-  // ==============================================================================================
-  // Public API
-  // ==============================================================================================
-
   public void setContent(String content) {
     contentProperty.set(content);
   }
 
-  /**
-   * Sets the syntax highlighting mode using a SerializationFormat enum.
-   *
-   * @param format The serialization format to derive the mode from.
-   */
   public void setMode(SerializationFormat format) {
     if (format != null) {
       setMode(format.getCodeMirrorMode());
     }
   }
 
-  /**
-   * Sets the syntax highlighting mode for the editor.
-   *
-   * @param mode The mode string (e.g., "turtle", "sparql", "xml", "json").
-   */
   public void setMode(String mode) {
     if (mode == null || mode.isEmpty()) return;
     Platform.runLater(() -> modeProperty.set(mode));
@@ -318,11 +240,6 @@ public class CodeMirrorView extends VBox {
     return contentProperty;
   }
 
-  // ==============================================================================================
-  // Bridge Class
-  // ==============================================================================================
-
-  /** Bridge to allow JavaScript to call Java. Note: Methods must be public. */
   public class JavaBridge {
     public void onContentChanged(String newContent) {
       Platform.runLater(

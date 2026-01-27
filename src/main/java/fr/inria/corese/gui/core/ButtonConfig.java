@@ -36,7 +36,7 @@ import fr.inria.corese.gui.enums.icon.ButtonIcon;
  *
  * @see ButtonIcon
  * @see ButtonFactory
- * @see fr.inria.corese.gui.view.icon.ToolbarButton
+ * @see fr.inria.corese.gui.view.icon.ActionButtonWidget
  */
 public class ButtonConfig {
 

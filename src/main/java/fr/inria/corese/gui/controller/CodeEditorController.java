@@ -6,8 +6,8 @@ import org.slf4j.LoggerFactory;
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.enums.icon.ButtonIcon;
 import fr.inria.corese.gui.model.codeEditor.CodeEditorModel;
-import fr.inria.corese.gui.model.ToolbarModel;
 import fr.inria.corese.gui.view.codeEditor.CodeEditorView;
+import fr.inria.corese.gui.view.icon.ToolbarWidget;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -16,6 +16,7 @@ import java.util.List;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
+import javafx.scene.control.Button;
 import javafx.stage.FileChooser;
 
 /**
@@ -27,28 +28,20 @@ public class CodeEditorController {
   
   private final CodeEditorView view;
   private final CodeEditorModel model;
-  private final ToolbarController toolbarController;
   private final List<String> allowedExtensions;
 
   public CodeEditorController(List<ButtonConfig> buttons, String initialContent, List<String> allowedExtensions) {
     this.allowedExtensions = allowedExtensions != null ? allowedExtensions : List.of();
     
-    // Extract ButtonIcon from ButtonConfig to create the ToolbarModel
-    List<ButtonIcon> iconButtons = buttons != null 
-        ? buttons.stream().map(ButtonConfig::getIcon).toList()
-        : List.of();
-    
     this.view = new CodeEditorView();
     this.model = new CodeEditorModel();
     
-    // Initialize the generic ToolbarController
-    this.toolbarController = new ToolbarController(
-        buttons != null ? buttons : List.of(),
-        new ToolbarModel(iconButtons), 
-        view.getToolbarView()
-    );
+    // Initialize the toolbar widget directly in the view
+    if (buttons != null && !buttons.isEmpty()) {
+        view.getToolbarWidget().setButtons(buttons);
+    }
 
-    // Bind the toolbar model state to the editor state
+    // Bind the toolbar buttons state to the editor state
     bindToolbarToEditor();
 
     model.setContent(initialContent);
@@ -61,10 +54,10 @@ public class CodeEditorController {
   }
 
   /**
-   * Binds the toolbar's enabled/disabled state to the code editor's state.
+   * Binds the toolbar buttons' enabled/disabled state to the code editor's state.
    */
   private void bindToolbarToEditor() {
-    ToolbarModel toolbarModel = toolbarController.getModel();
+    ToolbarWidget toolbar = view.getToolbarWidget();
 
     // Define when the editor is considered empty
     BooleanBinding isEmpty = Bindings.createBooleanBinding(
@@ -75,21 +68,22 @@ public class CodeEditorController {
             model.contentProperty()
     );
 
-    // Bind SAVE: Enabled if modified AND not empty
-    if (toolbarModel.getAvailableButtons().contains(ButtonIcon.SAVE)) {
-      toolbarModel.enabledProperty(ButtonIcon.SAVE).bind(
-          model.modifiedProperty().and(isEmpty.not())
-      );
+    // Bind SAVE: Disabled if NOT (modified AND not empty)
+    Button saveButton = toolbar.getButton(ButtonIcon.SAVE);
+    if (saveButton != null) {
+        saveButton.disableProperty().bind(model.modifiedProperty().not().or(isEmpty));
     }
 
-    // Bind CLEAR: Enabled if not empty
-    if (toolbarModel.getAvailableButtons().contains(ButtonIcon.CLEAR)) {
-      toolbarModel.enabledProperty(ButtonIcon.CLEAR).bind(isEmpty.not());
+    // Bind CLEAR: Disabled if empty
+    Button clearButton = toolbar.getButton(ButtonIcon.CLEAR);
+    if (clearButton != null) {
+        clearButton.disableProperty().bind(isEmpty);
     }
 
-    // Bind EXPORT: Enabled if not empty
-    if (toolbarModel.getAvailableButtons().contains(ButtonIcon.EXPORT)) {
-      toolbarModel.enabledProperty(ButtonIcon.EXPORT).bind(isEmpty.not());
+    // Bind EXPORT: Disabled if empty
+    Button exportButton = toolbar.getButton(ButtonIcon.EXPORT);
+    if (exportButton != null) {
+        exportButton.disableProperty().bind(isEmpty);
     }
 
     // Bind UNDO/REDO: Listen to changes
@@ -98,13 +92,9 @@ public class CodeEditorController {
   }
 
   private void updateUndoRedoState() {
-    ToolbarModel toolbarModel = toolbarController.getModel();
-    if (toolbarModel.getAvailableButtons().contains(ButtonIcon.UNDO)) {
-      toolbarModel.setButtonEnabled(ButtonIcon.UNDO, model.canUndo());
-    }
-    if (toolbarModel.getAvailableButtons().contains(ButtonIcon.REDO)) {
-      toolbarModel.setButtonEnabled(ButtonIcon.REDO, model.canRedo());
-    }
+    ToolbarWidget toolbar = view.getToolbarWidget();
+    toolbar.setButtonDisabled(ButtonIcon.UNDO, !model.canUndo());
+    toolbar.setButtonDisabled(ButtonIcon.REDO, !model.canRedo());
   }
 
   private void initializeEditor() {
@@ -320,9 +310,5 @@ public class CodeEditorController {
 
   public CodeEditorView getView() {
     return view;
-  }
-
-  public ToolbarController getToolbarController() {
-    return toolbarController;
   }
 }

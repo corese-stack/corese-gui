@@ -1,29 +1,29 @@
 package fr.inria.corese.gui.view.codeEditor;
 
 import fr.inria.corese.gui.view.base.AbstractView;
-import fr.inria.corese.gui.view.icon.ToolbarView;
+import fr.inria.corese.gui.view.icon.ToolbarWidget;
 import javafx.scene.layout.BorderPane;
 
 public class CodeEditorView extends AbstractView {
   private final BorderPane root;
-  private final CodeMirrorView codeMirrorView;
-  private final ToolbarView toolbarView;
+  private final CodeMirrorWidget codeMirrorView;
+  private final ToolbarWidget toolbarWidget;
 
   public CodeEditorView() {
     super(new BorderPane(), null);
     this.root = (BorderPane) getRoot();
-    this.codeMirrorView = new CodeMirrorView();
-    this.toolbarView = new ToolbarView();
+    this.codeMirrorView = new CodeMirrorWidget();
+    this.toolbarWidget = new ToolbarWidget();
 
     root.setCenter(codeMirrorView);
-    root.setRight(toolbarView.getRoot());
+    root.setRight(toolbarWidget);
   }
 
   public String getText() {
     return codeMirrorView.getContent();
   }
 
-  public CodeMirrorView getCodeMirrorView() {
+  public CodeMirrorWidget getCodeMirrorView() {
     return codeMirrorView;
   }
 
@@ -31,7 +31,7 @@ public class CodeEditorView extends AbstractView {
     codeMirrorView.setContent(content);
   }
 
-  public ToolbarView getToolbarView() {
-    return toolbarView;
+  public ToolbarWidget getToolbarWidget() {
+    return toolbarWidget;
   }
 }

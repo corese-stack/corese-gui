@@ -13,23 +13,8 @@ import javafx.scene.input.ClipboardContent;
 
 /**
  * Controller for text-based result display with format selection and export capabilities.
- *
- * <p>This controller manages:
- *
- * <ul>
- *   <li>CodeMirror view for displaying results with syntax highlighting
- *   <li>Format selector (Turtle, RDF/XML, JSON-LD, etc.)
- *   <li>Copy to clipboard functionality
- *   <li>Export to file functionality (via {@link ExportHelper})
- * </ul>
- *
- * <p><b>Architecture:</b> Follows clean MVC separation with {@link TextResultView}.
  */
 public class TextResultController {
-
-  // ==============================================================================================
-  // Fields
-  // ==============================================================================================
 
   /** The view component managed by this controller. */
   private final TextResultView view;
@@ -37,23 +22,13 @@ public class TextResultController {
   /** Callback invoked when format selection changes. */
   private Consumer<SerializationFormat> onFormatChanged;
 
-  // ==============================================================================================
-  // Constructor
-  // ==============================================================================================
-
   /**
    * Constructs a new TextResultController.
-   *
-   * <p>Initializes the view with default Copy and Export capabilities.
    */
   public TextResultController() {
     this.view = new TextResultView();
     initialize();
   }
-
-  // ==============================================================================================
-  // Initialization
-  // ==============================================================================================
 
   /** Initializes UI components and event handlers. */
   private void initialize() {
@@ -78,8 +53,11 @@ public class TextResultController {
   }
 
   private void initializeSidebar() {
-    view.setToolbarButtons(
-        List.of(ButtonFactory.copy(this::copyContent), ButtonFactory.export(this::exportContent)));
+    // Configure the toolbar widget directly via the view
+    view.getToolbarView().setButtons(List.of(
+        ButtonFactory.copy(this::copyContent), 
+        ButtonFactory.export(this::exportContent)
+    ));
   }
 
   /**
@@ -91,10 +69,6 @@ public class TextResultController {
     if (format == null) return;
     view.setMode(format);
   }
-
-  // ==============================================================================================
-  // Event Handlers
-  // ==============================================================================================
 
   /** Handles copy to clipboard action. */
   public void copyContent() {
@@ -108,10 +82,6 @@ public class TextResultController {
     ExportHelper.exportText(
         view.getRoot().getScene().getWindow(), view.getContent(), view.getFormat());
   }
-
-  // ==============================================================================================
-  // Public API
-  // ==============================================================================================
 
   /**
    * Sets the displayed text content.

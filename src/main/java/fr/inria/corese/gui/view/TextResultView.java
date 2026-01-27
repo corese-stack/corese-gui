@@ -2,8 +2,8 @@ package fr.inria.corese.gui.view;
 
 import fr.inria.corese.gui.enums.SerializationFormat;
 import fr.inria.corese.gui.view.base.AbstractView;
-import fr.inria.corese.gui.view.codeEditor.CodeMirrorView;
-import fr.inria.corese.gui.view.icon.ToolbarView;
+import fr.inria.corese.gui.view.codeEditor.CodeMirrorWidget;
+import fr.inria.corese.gui.view.icon.ToolbarWidget;
 import javafx.animation.FadeTransition;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
@@ -37,8 +37,8 @@ public class TextResultView extends AbstractView {
 
   private final Label formatLabel;
   private final ChoiceBox<SerializationFormat> formatChoiceBox;
-  private final CodeMirrorView codeMirrorView;
-  private final ToolbarView toolbarView;
+  private final CodeMirrorWidget codeMirrorView;
+  private final ToolbarWidget toolbarView;
 
   private static final String STYLESHEET_PATH = "/styles/text-result.css";
 
@@ -61,8 +61,8 @@ public class TextResultView extends AbstractView {
     // Initialize components
     this.formatLabel = new Label("Format:");
     this.formatChoiceBox = new ChoiceBox<>();
-    this.codeMirrorView = new CodeMirrorView(true); // Read-only mode
-    this.toolbarView = new ToolbarView();
+    this.codeMirrorView = new CodeMirrorWidget(true); // Read-only mode
+    this.toolbarView = new ToolbarWidget();
 
     // Format selector container (Floating)
     HBox formatBox = new HBox(formatLabel, formatChoiceBox);
@@ -85,7 +85,7 @@ public class TextResultView extends AbstractView {
     // Main Layout
     BorderPane root = (BorderPane) getRoot();
     root.setCenter(centerStack);
-    root.setRight(toolbarView.getRoot());
+    root.setRight(toolbarView);
   }
 
   /**
@@ -145,12 +145,12 @@ public class TextResultView extends AbstractView {
   }
 
   /**
-   * Configures the toolbar buttons.
+   * Returns the toolbar view component.
    *
-   * @param buttons The list of button configurations (icon, tooltip, action)
+   * @return The side toolbar view
    */
-  public void setToolbarButtons(java.util.List<fr.inria.corese.gui.core.ButtonConfig> buttons) {
-    toolbarView.setButtons(buttons);
+  public ToolbarWidget getToolbarView() {
+    return toolbarView;
   }
 
   /**

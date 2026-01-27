@@ -3,7 +3,7 @@ package fr.inria.corese.gui.view.rule;
 import atlantafx.base.controls.Spacer;
 import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.enums.icon.ButtonIcon;
-import fr.inria.corese.gui.view.icon.ToolbarButton;
+import fr.inria.corese.gui.view.icon.ActionButtonWidget;
 
 import java.io.File;
 import javafx.scene.control.Button;
@@ -25,7 +25,7 @@ import javafx.scene.layout.HBox;
  */
 public class RuleItem extends HBox {
   private final CheckBox checkBox;
-  private final ToolbarButton documentationButton;
+  private final ActionButtonWidget documentationButton;
   private final File ruleFile;
   private final String ruleName;
 
@@ -49,8 +49,8 @@ public class RuleItem extends HBox {
     // Create flexible space between checkbox and buttons
     Spacer spacer = new Spacer();
 
-    // Create documentation button using IconButtonView
-    documentationButton = new ToolbarButton(new ButtonConfig(ButtonIcon.DOCUMENTATION, "Show documentation"));
+    // Create documentation button using ActionButtonWidget
+    documentationButton = new ActionButtonWidget(new ButtonConfig(ButtonIcon.DOCUMENTATION, "Show documentation"));
 
     // Add all elements to the HBox
     getChildren().addAll(checkBox, spacer, documentationButton);
@@ -73,8 +73,8 @@ public class RuleItem extends HBox {
     // Create flexible space between checkbox and buttons
     Spacer spacer = new Spacer();
 
-    // Create documentation button using IconButtonView
-    documentationButton = new ToolbarButton(new ButtonConfig(ButtonIcon.DOCUMENTATION, "Show documentation"));
+    // Create documentation button using ActionButtonWidget
+    documentationButton = new ActionButtonWidget(new ButtonConfig(ButtonIcon.DOCUMENTATION, "Show documentation"));
 
     // Add all elements to the HBox
     getChildren().addAll(checkBox, spacer, documentationButton);
