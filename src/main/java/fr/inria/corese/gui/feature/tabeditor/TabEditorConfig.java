@@ -4,7 +4,7 @@ import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 
 import fr.inria.corese.gui.core.enums.ButtonIcon;
-import fr.inria.corese.gui.feature.textresult.ResultController;
+import fr.inria.corese.gui.feature.result.ResultController;
 
 
 
@@ -150,7 +150,8 @@ public class TabEditorConfig {
     if (!hasResultView()) {
       return null;
     }
-    return () -> new ResultController(resultViewButtons, resultViewConfig);
+    // Use the available constructor; resultViewButtons are currently ignored/managed internally
+    return () -> new ResultController(resultViewConfig);
   }
 
   // ===============================================================================

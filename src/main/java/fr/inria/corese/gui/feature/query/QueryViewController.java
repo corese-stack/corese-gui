@@ -10,7 +10,7 @@ import fr.inria.corese.gui.core.factory.popup.TemplatePopup;
 import fr.inria.corese.gui.feature.codeeditor.CodeEditorController;
 import fr.inria.corese.gui.feature.tabeditor.TabEditorConfig;
 import fr.inria.corese.gui.feature.tabeditor.TabEditorController;
-import fr.inria.corese.gui.feature.textresult.ResultController;
+import fr.inria.corese.gui.feature.result.ResultController;
 
 
 

@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.feature.textresult;
+package fr.inria.corese.gui.feature.result.table;
 
 import fr.inria.corese.gui.feature.rule.CustomPagination;
 
@@ -272,5 +272,17 @@ public class TableResultController {
           rowsPerPageField.setText(String.valueOf(this.rowsPerPage));
           updatePagination();
         });
+  }
+
+  /**
+   * Displays validation report items in the table.
+   * 
+   * @param items List of validation report items
+   */
+  public void displayReport(List<fr.inria.corese.gui.core.model.ValidationReportItem> items) {
+      // Placeholder: Convert items to CSV-like structure or specialized table
+      // For now, clear table to avoid errors
+      clear(); 
+      // TODO: Implement proper report display
   }
 }

@@ -8,7 +8,7 @@ import fr.inria.corese.gui.core.manager.GraphManager;
 import fr.inria.corese.gui.core.manager.ShaclManager;
 import fr.inria.corese.gui.feature.tabeditor.TabEditorConfig;
 import fr.inria.corese.gui.feature.tabeditor.TabEditorController;
-import fr.inria.corese.gui.feature.textresult.ResultController;
+import fr.inria.corese.gui.feature.result.ResultController;
 
 
 

@@ -1,7 +1,7 @@
 package fr.inria.corese.gui.core.config;
 
-import fr.inria.corese.gui.feature.textresult.ResultController;
-import fr.inria.corese.gui.feature.textresult.ResultView;
+import fr.inria.corese.gui.feature.result.ResultController;
+import fr.inria.corese.gui.feature.result.ResultView;
 
 
 

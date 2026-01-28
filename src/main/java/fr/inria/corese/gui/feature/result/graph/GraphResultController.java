@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.feature.textresult;
+package fr.inria.corese.gui.feature.result.graph;
 
 import fr.inria.corese.gui.utils.ThemeManager;
 

@@ -8,7 +8,7 @@ import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.core.manager.FileLoaderService;
 import fr.inria.corese.gui.feature.codeeditor.CodeEditorController;
-import fr.inria.corese.gui.feature.textresult.ResultController;
+import fr.inria.corese.gui.feature.result.ResultController;
 
 
 

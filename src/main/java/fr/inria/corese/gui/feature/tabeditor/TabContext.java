@@ -2,7 +2,7 @@ package fr.inria.corese.gui.feature.tabeditor;
 
 import fr.inria.corese.gui.component.button.FloatingButtonWidget;
 import fr.inria.corese.gui.feature.codeeditor.CodeEditorController;
-import fr.inria.corese.gui.feature.textresult.ResultController;
+import fr.inria.corese.gui.feature.result.ResultController;
 
 
 
