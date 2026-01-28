@@ -1,8 +1,9 @@
 package fr.inria.corese.gui.feature.validation;
 
+import fr.inria.corese.gui.core.config.ButtonConfig;
+import fr.inria.corese.gui.core.config.ResultViewConfig;
+
 import fr.inria.corese.gui.component.toolbar.ButtonIcon;
-import fr.inria.corese.gui.core.ButtonConfig;
-import fr.inria.corese.gui.core.ResultViewConfig;
 import fr.inria.corese.gui.core.manager.GraphManager;
 import fr.inria.corese.gui.core.manager.ShaclManager;
 import fr.inria.corese.gui.feature.tabEditor.TabEditorConfig;

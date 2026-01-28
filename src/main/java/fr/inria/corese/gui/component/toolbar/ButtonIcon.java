@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.component.toolbar;
 
-import fr.inria.corese.gui.core.ButtonConfig;
+import fr.inria.corese.gui.core.config.ButtonConfig;
+
 import fr.inria.corese.gui.core.factory.ButtonFactory;
 
 

@@ -1,7 +1,8 @@
 package fr.inria.corese.gui.component.floating;
 
+import fr.inria.corese.gui.core.config.ButtonConfig;
+
 import fr.inria.corese.gui.component.toolbar.ButtonIcon;
-import fr.inria.corese.gui.core.ButtonConfig;
 
 
 

@@ -1,10 +1,11 @@
 package fr.inria.corese.gui.feature.tabEditor;
 
+import fr.inria.corese.gui.core.config.ButtonConfig;
+import fr.inria.corese.gui.core.config.ResultViewConfig;
+
 import fr.inria.corese.gui.component.floating.FloatingButton;
 import fr.inria.corese.gui.component.toolbar.ButtonIcon;
-import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.core.DialogHelper;
-import fr.inria.corese.gui.core.ResultViewConfig;
 import fr.inria.corese.gui.core.manager.FileLoaderService;
 import fr.inria.corese.gui.feature.codeEditor.CodeEditorController;
 import fr.inria.corese.gui.feature.textResult.ResultController;

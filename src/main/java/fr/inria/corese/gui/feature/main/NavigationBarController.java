@@ -1,7 +1,8 @@
 package fr.inria.corese.gui.feature.main;
 
+import fr.inria.corese.gui.core.enums.ViewId;
+
 import fr.inria.corese.gui.AppConstants;
-import fr.inria.corese.gui.core.ViewId;
 import fr.inria.corese.gui.utils.BrowserUtils;
 import fr.inria.corese.gui.utils.ThemeManager;
 

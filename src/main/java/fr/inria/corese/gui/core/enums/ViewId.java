@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.core;
+package fr.inria.corese.gui.core.enums;
 
 import fr.inria.corese.gui.component.base.AbstractView;
 import fr.inria.corese.gui.feature.data.DataView;

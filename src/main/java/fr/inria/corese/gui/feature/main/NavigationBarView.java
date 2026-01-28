@@ -1,7 +1,8 @@
 package fr.inria.corese.gui.feature.main;
 
+import fr.inria.corese.gui.core.enums.ViewId;
+
 import fr.inria.corese.gui.component.base.AbstractView;
-import fr.inria.corese.gui.core.ViewId;
 import fr.inria.corese.gui.utils.SvgImageLoader;
 
 

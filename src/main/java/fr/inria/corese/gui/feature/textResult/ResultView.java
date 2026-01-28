@@ -1,7 +1,8 @@
 package fr.inria.corese.gui.feature.textResult;
 
+import fr.inria.corese.gui.core.config.ResultViewConfig;
+
 import fr.inria.corese.gui.component.base.AbstractView;
-import fr.inria.corese.gui.core.ResultViewConfig;
 import fr.inria.corese.gui.utils.TabPaneUtils;
 
 
@@ -187,7 +188,7 @@ public class ResultView extends AbstractView {
      * @param tabType The type of tab to retrieve
      * @return The Tab instance, or null if the type is not recognized
      */
-    public Tab getTabByType(fr.inria.corese.gui.core.ResultViewConfig.TabType tabType) {
+    public Tab getTabByType(ResultViewConfig.TabType tabType) {
         return switch (tabType) {
             case TEXT -> textTab;
             case VISUAL -> visualTab;
