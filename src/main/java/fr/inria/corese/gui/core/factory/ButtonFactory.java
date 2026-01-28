@@ -1,7 +1,6 @@
 package fr.inria.corese.gui.core.factory;
 
 import fr.inria.corese.gui.core.config.ButtonConfig;
-
 import fr.inria.corese.gui.core.enums.ButtonIcon;
 
 /**
@@ -41,9 +40,7 @@ public final class ButtonFactory {
   // Constructor
   // ===============================================================================
 
-  /**
-   * Private constructor to prevent instantiation of this utility class.
-   */
+  /** Private constructor to prevent instantiation of this utility class. */
   private ButtonFactory() {
     throw new AssertionError("Utility class - do not instantiate");
   }
@@ -134,6 +131,26 @@ public final class ButtonFactory {
    */
   public static ButtonConfig copy(Runnable action) {
     return new ButtonConfig(ButtonIcon.COPY, "Copy to Clipboard", action);
+  }
+
+  /**
+   * Creates a standardized Zoom In button configuration.
+   *
+   * @param action The action to execute when clicked, or null if wired later
+   * @return A configured ButtonConfig with zoom in icon and tooltip
+   */
+  public static ButtonConfig zoomIn(Runnable action) {
+    return new ButtonConfig(ButtonIcon.ZOOM_IN, "Zoom In", action);
+  }
+
+  /**
+   * Creates a standardized Zoom Out button configuration.
+   *
+   * @param action The action to execute when clicked, or null if wired later
+   * @return A configured ButtonConfig with zoom out icon and tooltip
+   */
+  public static ButtonConfig zoomOut(Runnable action) {
+    return new ButtonConfig(ButtonIcon.ZOOM_OUT, "Zoom Out", action);
   }
 
   // ===============================================================================

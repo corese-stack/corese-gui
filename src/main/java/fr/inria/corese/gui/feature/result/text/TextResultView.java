@@ -173,6 +173,16 @@ public class TextResultView extends AbstractView {
     editorWidget.setMode(format);
   }
 
+  /** Zooms in the text editor content. */
+  public void zoomIn() {
+    editorWidget.zoomIn();
+  }
+
+  /** Zooms out the text editor content. */
+  public void zoomOut() {
+    editorWidget.zoomOut();
+  }
+
   // ==============================================================================================
   // Public API - Configuration (Demeter's Law)
   // ==============================================================================================

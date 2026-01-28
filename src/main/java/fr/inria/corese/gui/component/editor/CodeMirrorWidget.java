@@ -6,9 +6,12 @@ import fr.inria.corese.gui.utils.CssUtils;
 import fr.inria.corese.gui.utils.ThemeManager;
 import java.net.URL;
 import javafx.application.Platform;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.concurrent.Worker;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
@@ -21,9 +24,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A JavaFX wrapper around a simple web-based text editor using WebView.
- * <p>
- * This widget provides a clean, minimal text editor powered by CodeMirror inside a WebView.
- * It handles bidirectional communication between Java and JavaScript for content, mode, and theme.
+ *
+ * <p>This widget provides a clean, minimal text editor powered by CodeMirror inside a WebView. It
+ * handles bidirectional communication between Java and JavaScript for content, mode, and theme.
  */
 public class CodeMirrorWidget extends VBox {
   private static final Logger logger = LoggerFactory.getLogger(CodeMirrorWidget.class);
@@ -32,14 +35,21 @@ public class CodeMirrorWidget extends VBox {
   private static final String DEFAULT_EDITOR_HTML_PATH = "/fr/inria/corese/gui/web/editor.html";
   private static final String DEFAULT_MODE = "text/plain";
 
+  // Zoom Constants
+  private static final double MIN_ZOOM = 0.5;
+  private static final double MAX_ZOOM = 3.0;
+  private static final double ZOOM_STEP = 0.1;
+  private static final double DEFAULT_ZOOM = 1.0;
+
   // Components
   private final WebView webView;
   private final WebEngine webEngine;
-  
+
   // Properties
   private final StringProperty contentProperty = new SimpleStringProperty("");
   private final StringProperty modeProperty = new SimpleStringProperty(DEFAULT_MODE);
-  
+  private final DoubleProperty zoomProperty = new SimpleDoubleProperty(DEFAULT_ZOOM);
+
   // Bridge
   private final JavaBridge bridge = new JavaBridge();
 
@@ -118,6 +128,9 @@ public class CodeMirrorWidget extends VBox {
           }
         });
 
+    // Zoom synchronization
+    zoomProperty.addListener((obs, oldVal, newVal) -> webView.setZoom(newVal.doubleValue()));
+
     // Loading status listener
     webEngine
         .getLoadWorker()
@@ -138,6 +151,26 @@ public class CodeMirrorWidget extends VBox {
     ThemeManager.getInstance()
         .accentColorProperty()
         .addListener((obs, old, newVal) -> Platform.runLater(this::updateTheme));
+
+    // Mouse Scroll Zoom (Ctrl + Scroll)
+    // We attach the filter to 'this' (VBox) to intercept events before they reach the WebView
+    this.addEventFilter(
+        ScrollEvent.SCROLL,
+        event -> {
+          if (event.isControlDown()) {
+            // Adjust zoom based on scroll direction
+            // DeltaY is usually positive for scrolling up (zoom in) and negative for down (zoom
+            // out)
+            double delta = event.getDeltaY();
+            if (delta > 0) {
+              zoomIn();
+            } else if (delta < 0) {
+              zoomOut();
+            }
+            // Always consume the event to prevent actual scrolling of the page content
+            event.consume();
+          }
+        });
   }
 
   private void loadEditorUrl() {
@@ -168,6 +201,9 @@ public class CodeMirrorWidget extends VBox {
 
       applyMode(modeProperty.get());
       updateTheme();
+
+      // Apply initial zoom
+      webView.setZoom(zoomProperty.get());
 
     } catch (Exception e) {
       logger.error("Error during editor initialization", e);
@@ -213,7 +249,7 @@ public class CodeMirrorWidget extends VBox {
 
     // Call the JS function defined in editor.html
     String script =
-        "if (typeof window.setContent === 'function') { window.setContent('" 
+        "if (typeof window.setContent === 'function') { window.setContent('"
             + escapedContent
             + "'); }";
     executeScriptSafe(script);
@@ -280,6 +316,31 @@ public class CodeMirrorWidget extends VBox {
   }
 
   // ==============================================================================================
+  // Zoom API
+  // ==============================================================================================
+
+  public void zoomIn() {
+    setZoom(zoomProperty.get() + ZOOM_STEP);
+  }
+
+  public void zoomOut() {
+    setZoom(zoomProperty.get() - ZOOM_STEP);
+  }
+
+  public void resetZoom() {
+    setZoom(DEFAULT_ZOOM);
+  }
+
+  public void setZoom(double value) {
+    double clamped = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
+    zoomProperty.set(clamped);
+  }
+
+  public DoubleProperty zoomProperty() {
+    return zoomProperty;
+  }
+
+  // ==============================================================================================
   // Java Bridge (JS -> Java)
   // ==============================================================================================
 
@@ -287,6 +348,7 @@ public class CodeMirrorWidget extends VBox {
   public class JavaBridge {
     /**
      * Called by JavaScript when the content changes.
+     *
      * @param newContent The new content of the editor
      */
     public void onContentChanged(String newContent) {
@@ -300,6 +362,7 @@ public class CodeMirrorWidget extends VBox {
 
     /**
      * Called by JavaScript to log messages to the Java logger.
+     *
      * @param message The message to log
      */
     public void log(String message) {

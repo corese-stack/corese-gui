@@ -1,15 +1,8 @@
 package fr.inria.corese.gui.feature.codeeditor;
 
-import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.component.editor.CodeMirrorWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
-
-
-
-
-
-
-
+import fr.inria.corese.gui.core.view.AbstractView;
 import javafx.scene.layout.BorderPane;
 
 public class CodeEditorView extends AbstractView {
@@ -41,5 +34,13 @@ public class CodeEditorView extends AbstractView {
 
   public ToolbarWidget getToolbarWidget() {
     return toolbarWidget;
+  }
+
+  public void zoomIn() {
+    codeMirrorView.zoomIn();
+  }
+
+  public void zoomOut() {
+    codeMirrorView.zoomOut();
   }
 }

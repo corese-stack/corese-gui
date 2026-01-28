@@ -1,14 +1,6 @@
 package fr.inria.corese.gui.core.enums;
 
 import fr.inria.corese.gui.core.config.ButtonConfig;
-
-import fr.inria.corese.gui.core.factory.ButtonFactory;
-
-
-
-
-
-
 import org.kordamp.ikonli.Ikon;
 import org.kordamp.ikonli.materialdesign2.*;
 
@@ -72,6 +64,12 @@ public enum ButtonIcon {
 
   /** Icon for redo operations. */
   REDO(MaterialDesignR.REDO),
+
+  /** Icon for zoom in operations. */
+  ZOOM_IN(MaterialDesignM.MAGNIFY_PLUS_OUTLINE),
+
+  /** Icon for zoom out operations. */
+  ZOOM_OUT(MaterialDesignM.MAGNIFY_MINUS_OUTLINE),
 
   // ===============================================================================
   // Enum Constants - Navigation & Information

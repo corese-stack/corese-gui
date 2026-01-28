@@ -42,7 +42,11 @@ public class TextResultController {
   private void initialize() {
     // 1. Setup Toolbar
     view.setToolbarActions(
-        List.of(ButtonFactory.copy(this::copyContent), ButtonFactory.export(this::exportContent)));
+        List.of(
+            ButtonFactory.copy(this::copyContent),
+            ButtonFactory.export(this::exportContent),
+            ButtonFactory.zoomIn(this::zoomIn),
+            ButtonFactory.zoomOut(this::zoomOut)));
 
     // 2. Configure format selector (default: Turtle)
     view.configureFormatSelector(SerializationFormat.rdfFormats(), SerializationFormat.TURTLE);
@@ -81,6 +85,17 @@ public class TextResultController {
   private void exportContent() {
     ExportHelper.exportText(
         view.getRoot().getScene().getWindow(), view.getContent(), view.getFormat());
+  }
+
+  private void zoomIn() {
+    // Access the editor widget directly if exposed, or add delegate methods to View
+    // Since 'editorWidget' is private in View and has no direct getter for the widget itself,
+    // we should add zoom methods to TextResultView
+    view.zoomIn();
+  }
+
+  private void zoomOut() {
+    view.zoomOut();
   }
 
   // ==============================================================================================
