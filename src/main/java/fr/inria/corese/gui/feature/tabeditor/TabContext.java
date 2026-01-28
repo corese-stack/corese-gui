@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.feature.tabeditor;
 
-import fr.inria.corese.gui.component.floating.FloatingWidget;
+import fr.inria.corese.gui.component.button.FloatingButtonWidget;
 import fr.inria.corese.gui.feature.codeeditor.CodeEditorController;
 import fr.inria.corese.gui.feature.textresult.ResultController;
 
@@ -53,7 +53,7 @@ public class TabContext {
   private final ResultController resultController;
 
   /** Floating execution button for this tab. May be null if no execution configured. */
-  private final FloatingWidget executionButton;
+  private final FloatingButtonWidget executionButton;
 
   // ===============================================================================
   // Constructor
@@ -70,7 +70,7 @@ public class TabContext {
   public TabContext(
       CodeEditorController editorController,
       ResultController resultController,
-      FloatingWidget executionButton) {
+      FloatingButtonWidget executionButton) {
     if (editorController == null) {
       throw new NullPointerException("editorController cannot be null");
     }
@@ -134,7 +134,7 @@ public class TabContext {
    *
    * @return The execution button, or null if not configured
    */
-  public FloatingWidget getExecutionButton() {
+  public FloatingButtonWidget getExecutionButton() {
     return executionButton;
   }
 

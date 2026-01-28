@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.component.floating;
+package fr.inria.corese.gui.component.button;
 
 import atlantafx.base.controls.RingProgressIndicator;
 import atlantafx.base.theme.Styles;
@@ -28,7 +28,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
  *
  * <pre>{@code
  * ButtonConfig config = new ButtonConfig(ButtonIcon.PLAY, "Execute Query");
- * FloatingWidget fab = new FloatingWidget(config);
+ * FloatingButtonWidget fab = new FloatingButtonWidget(config);
  * fab.setOnAction(e -> executeQuery());
  * fab.setLoading(true); // Show spinner during execution
  * }</pre>
@@ -39,7 +39,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
  * @see ButtonConfig
  * @see RingProgressIndicator
  */
-public class FloatingWidget extends Button {
+public class FloatingButtonWidget extends Button {
 
   // ==============================================================================================
   // Constants
@@ -72,7 +72,7 @@ public class FloatingWidget extends Button {
   // ==============================================================================================
 
   /**
-   * Constructs a new FloatingWidget with the specified configuration.
+   * Constructs a new FloatingButtonWidget with the specified configuration.
    *
    * <p>The button is initialized with:
    *
@@ -86,7 +86,7 @@ public class FloatingWidget extends Button {
    * @param config The button configuration containing icon, tooltip, and other settings
    * @throws NullPointerException if config is null
    */
-  public FloatingWidget(ButtonConfig config) {
+  public FloatingButtonWidget(ButtonConfig config) {
     Objects.requireNonNull(config, "ButtonConfig cannot be null");
 
     // Initialize icon

@@ -3,7 +3,7 @@ package fr.inria.corese.gui.feature.tabeditor;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 
-import fr.inria.corese.gui.component.floating.FloatingWidget;
+import fr.inria.corese.gui.component.button.FloatingButtonWidget;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.core.manager.FileLoaderService;
@@ -482,7 +482,7 @@ public class TabEditorController {
     Tab tab = view.createEditorTab(title, tabContent);
 
     // 4. Attach context (single source of truth)
-    FloatingWidget executionButton = setupExecutionButton(editorWrapper, editorController);
+    FloatingButtonWidget executionButton = setupExecutionButton(editorWrapper, editorController);
     attachContext(tab, editorController, resultController, executionButton);
 
     // 5. Final setup
@@ -508,7 +508,7 @@ public class TabEditorController {
       Tab tab,
       CodeEditorController editorController,
       ResultController resultController,
-      FloatingWidget executionButton) {
+      FloatingButtonWidget executionButton) {
     TabContext context = new TabContext(editorController, resultController, executionButton);
     tab.setUserData(context);
   }
@@ -532,13 +532,13 @@ public class TabEditorController {
     return splitPane;
   }
 
-  private FloatingWidget setupExecutionButton(
+  private FloatingButtonWidget setupExecutionButton(
       StackPane editorWrapper, CodeEditorController editorController) {
     if (!config.hasExecution()) {
       return null;
     }
 
-    FloatingWidget runButton = createExecutionButton(editorController);
+    FloatingButtonWidget runButton = createExecutionButton(editorController);
     StackPane.setAlignment(runButton, Pos.BOTTOM_RIGHT);
     StackPane.setMargin(runButton, TabEditorView.getExecutionButtonMargin());
     editorWrapper.getChildren().add(runButton);
@@ -546,8 +546,8 @@ public class TabEditorController {
     return runButton;
   }
 
-  private FloatingWidget createExecutionButton(CodeEditorController editorController) {
-    FloatingWidget runButton = new FloatingWidget(config.getExecutionButton());
+  private FloatingButtonWidget createExecutionButton(CodeEditorController editorController) {
+    FloatingButtonWidget runButton = new FloatingButtonWidget(config.getExecutionButton());
 
     // Set action
     runButton.setOnAction(

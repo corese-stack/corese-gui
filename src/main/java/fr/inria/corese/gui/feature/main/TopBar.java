@@ -2,7 +2,7 @@ package fr.inria.corese.gui.feature.main;
 
 import fr.inria.corese.gui.core.config.ButtonConfig;
 
-import fr.inria.corese.gui.component.toolbar.ActionButtonWidget;
+import fr.inria.corese.gui.component.button.IconButtonWidget;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
 
 
@@ -38,7 +38,7 @@ public class TopBar extends HBox {
   private HBox leftButtonsContainer;
   private HBox rightButtonsContainer;
 
-  private final Map<ButtonIcon, ActionButtonWidget> buttons;
+  private final Map<ButtonIcon, IconButtonWidget> buttons;
 
   /**
    * Constructeur par défaut.
@@ -98,7 +98,7 @@ public class TopBar extends HBox {
     for (ButtonConfig config : configs) {
         if (config.getIcon() == null) continue;
 
-        ActionButtonWidget button = new ActionButtonWidget(config);
+        IconButtonWidget button = new IconButtonWidget(config);
 
         buttons.put(config.getIcon(), button);
         container.getChildren().add(button);

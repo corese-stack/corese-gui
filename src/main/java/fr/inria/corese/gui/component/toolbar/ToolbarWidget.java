@@ -1,5 +1,6 @@
 package fr.inria.corese.gui.component.toolbar;
 
+import fr.inria.corese.gui.component.button.IconButtonWidget;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
 import java.net.URL;
@@ -55,7 +56,7 @@ public class ToolbarWidget extends VBox {
         continue;
       }
 
-      ActionButtonWidget button = new ActionButtonWidget(config);
+      IconButtonWidget button = new IconButtonWidget(config);
       buttons.put(config.getIcon(), button);
       getChildren().add(button);
     }
