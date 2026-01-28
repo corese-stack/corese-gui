@@ -40,7 +40,7 @@ public class TextResultView extends AbstractView {
 
   private static final String STYLESHEET_PATH = "/styles/text-result.css";
   private static final String COMMON_STYLESHEET_PATH = "/styles/common.css";
-  
+
   // Layout
   private static final double SELECTOR_TOP_MARGIN = 15.0;
   private static final double SELECTOR_RIGHT_MARGIN = 20.0;
@@ -65,7 +65,7 @@ public class TextResultView extends AbstractView {
 
   public TextResultView() {
     super(new BorderPane(), STYLESHEET_PATH);
-    
+
     // Load common styles (for floating panels)
     CssUtils.applyViewStyles(getRoot(), COMMON_STYLESHEET_PATH);
 
@@ -87,7 +87,7 @@ public class TextResultView extends AbstractView {
     // Format selector container (Floating)
     HBox formatBox = new HBox(formatLabel, formatChoiceBox);
     formatBox.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
-    
+
     // Apply common style for floating look + specific style for layout
     formatBox.getStyleClass().addAll("floating-panel", "format-selector-box");
 
@@ -179,7 +179,7 @@ public class TextResultView extends AbstractView {
 
   /**
    * Configures the toolbar buttons.
-   * 
+   *
    * @param buttons List of button configurations
    */
   public void setToolbarActions(List<ButtonConfig> buttons) {

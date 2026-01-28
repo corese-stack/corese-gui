@@ -5,6 +5,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.paint.Color;
 
 /**
  * Utility class for managing CSS stylesheets across the application.
@@ -53,6 +54,21 @@ public final class CssUtils {
 
     node.getStylesheets().add(css.toExternalForm());
     LOGGER.log(Level.FINE, "Applied stylesheet to view: {0}", stylesheetPath);
+  }
+
+  /**
+   * Converts a JavaFX Color to a CSS hex string.
+   *
+   * @param color The color to convert.
+   * @return A string in the format "#RRGGBB".
+   */
+  public static String toHex(Color color) {
+    if (color == null) return "#000000";
+    return String.format(
+        "#%02X%02X%02X",
+        (int) (color.getRed() * 255),
+        (int) (color.getGreen() * 255),
+        (int) (color.getBlue() * 255));
   }
 
   // ===== Private Methods =====

@@ -2,6 +2,7 @@ package fr.inria.corese.gui.component.editor;
 
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.utils.AppTheme;
+import fr.inria.corese.gui.utils.CssUtils;
 import fr.inria.corese.gui.utils.ThemeManager;
 import java.net.URL;
 import javafx.application.Platform;
@@ -19,36 +20,61 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A JavaFX wrapper around a simple web-based text editor using WebView. This widget provides a
- * clean, minimal text editor.
+ * A JavaFX wrapper around a simple web-based text editor using WebView.
+ * <p>
+ * This widget provides a clean, minimal text editor powered by CodeMirror inside a WebView.
+ * It handles bidirectional communication between Java and JavaScript for content, mode, and theme.
  */
 public class CodeMirrorWidget extends VBox {
   private static final Logger logger = LoggerFactory.getLogger(CodeMirrorWidget.class);
 
-  public static final String DEFAULT_RESOURCE_PATH = "/fr/inria/corese/gui/web/editor.html";
+  // Constants
+  private static final String DEFAULT_EDITOR_HTML_PATH = "/fr/inria/corese/gui/web/editor.html";
+  private static final String DEFAULT_MODE = "text/plain";
 
+  // Components
   private final WebView webView;
   private final WebEngine webEngine;
+  
+  // Properties
   private final StringProperty contentProperty = new SimpleStringProperty("");
-  private final StringProperty modeProperty = new SimpleStringProperty("text/plain");
+  private final StringProperty modeProperty = new SimpleStringProperty(DEFAULT_MODE);
+  
+  // Bridge
   private final JavaBridge bridge = new JavaBridge();
 
-  private final String resourcePath;
-
+  // State
+  private final String editorHtmlPath;
+  private final boolean readOnly;
   private boolean initialized = false;
   private boolean isInternalUpdate = false;
-  private final boolean readOnly;
 
+  // ==============================================================================================
+  // Constructors
+  // ==============================================================================================
+
+  /** Creates a new read-write editor with the default resource path. */
   public CodeMirrorWidget() {
-    this(DEFAULT_RESOURCE_PATH, false);
+    this(DEFAULT_EDITOR_HTML_PATH, false);
   }
 
+  /**
+   * Creates a new editor with the default resource path.
+   *
+   * @param readOnly true for read-only mode, false for editable
+   */
   public CodeMirrorWidget(boolean readOnly) {
-    this(DEFAULT_RESOURCE_PATH, readOnly);
+    this(DEFAULT_EDITOR_HTML_PATH, readOnly);
   }
 
-  public CodeMirrorWidget(String resourcePath, boolean readOnly) {
-    this.resourcePath = resourcePath;
+  /**
+   * Creates a new editor with a custom resource path.
+   *
+   * @param editorHtmlPath path to the HTML editor resource
+   * @param readOnly true for read-only mode, false for editable
+   */
+  public CodeMirrorWidget(String editorHtmlPath, boolean readOnly) {
+    this.editorHtmlPath = editorHtmlPath;
     this.readOnly = readOnly;
     this.webView = new WebView();
     this.webEngine = webView.getEngine();
@@ -59,8 +85,13 @@ public class CodeMirrorWidget extends VBox {
     Platform.runLater(this::loadEditorUrl);
   }
 
+  // ==============================================================================================
+  // Initialization
+  // ==============================================================================================
+
   private void initializeLayout() {
     webView.setContextMenuEnabled(false);
+    // Allow WebView to shrink properly
     webView.setPrefWidth(Region.USE_COMPUTED_SIZE);
     webView.setPrefHeight(Region.USE_COMPUTED_SIZE);
     webView.setMinHeight(0);
@@ -71,6 +102,7 @@ public class CodeMirrorWidget extends VBox {
   }
 
   private void initializeListeners() {
+    // Content synchronization (Java -> JS)
     contentProperty.addListener(
         (obs, old, newValue) -> {
           if (initialized && newValue != null && !isInternalUpdate) {
@@ -78,6 +110,7 @@ public class CodeMirrorWidget extends VBox {
           }
         });
 
+    // Mode synchronization (Java -> JS)
     modeProperty.addListener(
         (obs, old, newValue) -> {
           if (initialized && newValue != null) {
@@ -85,6 +118,7 @@ public class CodeMirrorWidget extends VBox {
           }
         });
 
+    // Loading status listener
     webEngine
         .getLoadWorker()
         .stateProperty()
@@ -93,10 +127,11 @@ public class CodeMirrorWidget extends VBox {
               if (newState == Worker.State.SUCCEEDED) {
                 onPageLoaded();
               } else if (newState == Worker.State.FAILED) {
-                logger.error("Failed to load editor from: {}", resourcePath);
+                logger.error("Failed to load editor from: {}", editorHtmlPath);
               }
             });
 
+    // Theme synchronization
     ThemeManager.getInstance()
         .themeProperty()
         .addListener((obs, old, newVal) -> Platform.runLater(this::updateTheme));
@@ -105,43 +140,10 @@ public class CodeMirrorWidget extends VBox {
         .addListener((obs, old, newVal) -> Platform.runLater(this::updateTheme));
   }
 
-  private void updateTheme() {
-    if (!initialized) return;
-
-    ThemeManager tm = ThemeManager.getInstance();
-    boolean isDark = false;
-    String themeName = "default";
-
-    if (tm.getTheme() != null) {
-      AppTheme appTheme = AppTheme.fromTheme(tm.getTheme());
-      if (appTheme != null) {
-        isDark = appTheme.isDark();
-        themeName = appTheme.getBaseName().toLowerCase();
-      }
-    }
-
-    Color accent = tm.getAccentColor();
-    String hexAccent = toHex(accent);
-
-    String script =
-        String.format(
-            "if(window.setTheme) window.setTheme(%b, '%s', '%s');", isDark, hexAccent, themeName);
-    executeScriptSafe(script);
-  }
-
-  private String toHex(Color color) {
-    if (color == null) return "#000000";
-    return String.format(
-        "#%02X%02X%02X",
-        (int) (color.getRed() * 255),
-        (int) (color.getGreen() * 255),
-        (int) (color.getBlue() * 255));
-  }
-
   private void loadEditorUrl() {
-    URL url = getClass().getResource(resourcePath);
+    URL url = getClass().getResource(editorHtmlPath);
     if (url == null) {
-      logger.error("Resource not found: {}", resourcePath);
+      logger.error("Resource not found: {}", editorHtmlPath);
       return;
     }
     webEngine.load(url.toExternalForm());
@@ -149,10 +151,12 @@ public class CodeMirrorWidget extends VBox {
 
   private void onPageLoaded() {
     try {
+      // Inject Java Bridge into JavaScript
       JSObject window = (JSObject) webEngine.executeScript("window");
       window.setMember("bridge", bridge);
       initialized = true;
 
+      // Restore state
       String initialContent = contentProperty.get();
       if (initialContent != null && !initialContent.isEmpty()) {
         updateEditorContent(initialContent);
@@ -170,15 +174,32 @@ public class CodeMirrorWidget extends VBox {
     }
   }
 
-  private void executeScriptSafe(String script) {
-    if (!initialized || webEngine.getLoadWorker().getState() != Worker.State.SUCCEEDED) {
-      return;
+  // ==============================================================================================
+  // Interop Logic (Java -> JS)
+  // ==============================================================================================
+
+  private void updateTheme() {
+    if (!initialized) return;
+
+    ThemeManager tm = ThemeManager.getInstance();
+    boolean isDark = false;
+    String themeName = "default";
+
+    if (tm.getTheme() != null) {
+      AppTheme appTheme = AppTheme.fromTheme(tm.getTheme());
+      if (appTheme != null) {
+        isDark = appTheme.isDark();
+        themeName = appTheme.getBaseName().toLowerCase();
+      }
     }
-    try {
-      webEngine.executeScript(script);
-    } catch (Exception e) {
-      logger.warn("JS Execution Warning: {}", e.getMessage());
-    }
+
+    Color accent = tm.getAccentColor();
+    String hexAccent = CssUtils.toHex(accent);
+
+    String script =
+        String.format(
+            "if(window.setTheme) window.setTheme(%b, '%s', '%s');", isDark, hexAccent, themeName);
+    executeScriptSafe(script);
   }
 
   private void updateEditorContent(String content) {
@@ -192,7 +213,7 @@ public class CodeMirrorWidget extends VBox {
 
     // Call the JS function defined in editor.html
     String script =
-        "if (typeof window.setContent === 'function') { window.setContent('"
+        "if (typeof window.setContent === 'function') { window.setContent('" 
             + escapedContent
             + "'); }";
     executeScriptSafe(script);
@@ -203,16 +224,34 @@ public class CodeMirrorWidget extends VBox {
     executeScriptSafe(script);
   }
 
+  private void executeScriptSafe(String script) {
+    if (!initialized || webEngine.getLoadWorker().getState() != Worker.State.SUCCEEDED) {
+      return;
+    }
+    try {
+      webEngine.executeScript(script);
+    } catch (Exception e) {
+      logger.warn("JS Execution Warning: {}", e.getMessage());
+    }
+  }
+
+  // ==============================================================================================
+  // Public API
+  // ==============================================================================================
+
+  /** Sets the content of the editor. */
   public void setContent(String content) {
     contentProperty.set(content);
   }
 
+  /** Sets the syntax highlighting mode using a serialization format. */
   public void setMode(SerializationFormat format) {
     if (format != null) {
       setMode(format.getCodeMirrorMode());
     }
   }
 
+  /** Sets the syntax highlighting mode (MIME type or CodeMirror mode name). */
   public void setMode(String mode) {
     if (mode == null || mode.isEmpty()) return;
     Platform.runLater(() -> modeProperty.set(mode));
@@ -222,6 +261,7 @@ public class CodeMirrorWidget extends VBox {
     return modeProperty;
   }
 
+  /** Gets the current content of the editor. */
   public String getContent() {
     if (!initialized) return contentProperty.get();
     try {
@@ -239,7 +279,16 @@ public class CodeMirrorWidget extends VBox {
     return contentProperty;
   }
 
+  // ==============================================================================================
+  // Java Bridge (JS -> Java)
+  // ==============================================================================================
+
+  /** Bridge class exposed to JavaScript for callbacks. */
   public class JavaBridge {
+    /**
+     * Called by JavaScript when the content changes.
+     * @param newContent The new content of the editor
+     */
     public void onContentChanged(String newContent) {
       Platform.runLater(
           () -> {
@@ -249,6 +298,10 @@ public class CodeMirrorWidget extends VBox {
           });
     }
 
+    /**
+     * Called by JavaScript to log messages to the Java logger.
+     * @param message The message to log
+     */
     public void log(String message) {
       logger.debug("[JS]: {}", message);
     }

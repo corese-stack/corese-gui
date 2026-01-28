@@ -10,9 +10,9 @@ import javafx.scene.Node;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 
-/** 
+/**
  * Controller for text-based result display.
- * 
+ *
  * <p>Manages the {@link TextResultView}, handles user interactions (format change, copy, export),
  * and coordinates data updates.
  */
@@ -41,10 +41,8 @@ public class TextResultController {
   /** Initializes UI components and event handlers. */
   private void initialize() {
     // 1. Setup Toolbar
-    view.setToolbarActions(List.of(
-        ButtonFactory.copy(this::copyContent),
-        ButtonFactory.export(this::exportContent)
-    ));
+    view.setToolbarActions(
+        List.of(ButtonFactory.copy(this::copyContent), ButtonFactory.export(this::exportContent)));
 
     // 2. Configure format selector (default: Turtle)
     view.configureFormatSelector(SerializationFormat.rdfFormats(), SerializationFormat.TURTLE);
