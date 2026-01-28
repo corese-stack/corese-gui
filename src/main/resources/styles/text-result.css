@@ -2,24 +2,33 @@
    Text Result View Stylesheet
    ========================================================================== */
 
+/**
+ * Floating container for the format selection (ChoiceBox).
+ * Inherits visual style from .floating-panel (common.css).
+ */
 .format-selector-box {
-  /* Layout */
-  -fx-padding: 10px;
-  -fx-spacing: 10px;
-  -fx-alignment: center-right;
-
-  /* Appearance */
-  -fx-background-color: -color-bg-default;
-  -fx-background-radius: 5px;
-  -fx-border-color: -color-border-muted;
-  -fx-border-radius: 5px;
-  -fx-effect: dropshadow(three-pass-box, -color-shadow-default, 8, 0, 0, 2);
+    /* Layout positioning specific to this view */
+    -fx-alignment: CENTER_RIGHT;
 }
 
+/**
+ * Ensure the choice box has a consistent width.
+ */
 .format-selector-box .choice-box {
-  -fx-pref-width: 120px;
+    -fx-pref-width: 130px;
 }
 
+/**
+ * Ensure the label in the selector matches the theme.
+ */
+.format-selector-box .label {
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-size: 0.9em;
+}
+
+/**
+ * Container stacking the editor and the floating selector.
+ */
 .result-center-stack {
-  -fx-alignment: top-right;
+    -fx-alignment: TOP_RIGHT;
 }

@@ -1,14 +1,8 @@
 package fr.inria.corese.gui.feature.textresult;
 
-import fr.inria.corese.gui.core.factory.ButtonFactory;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.core.factory.ButtonFactory;
 import fr.inria.corese.gui.utils.ExportHelper;
-
-
-
-
-
-
 import java.util.List;
 import java.util.function.Consumer;
 import javafx.application.Platform;
@@ -16,10 +10,17 @@ import javafx.scene.Node;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 
-/**
- * Controller for text-based result display with format selection and export capabilities.
+/** 
+ * Controller for text-based result display.
+ * 
+ * <p>Manages the {@link TextResultView}, handles user interactions (format change, copy, export),
+ * and coordinates data updates.
  */
 public class TextResultController {
+
+  // ==============================================================================================
+  // Fields
+  // ==============================================================================================
 
   /** The view component managed by this controller. */
   private final TextResultView view;
@@ -27,9 +28,11 @@ public class TextResultController {
   /** Callback invoked when format selection changes. */
   private Consumer<SerializationFormat> onFormatChanged;
 
-  /**
-   * Constructs a new TextResultController.
-   */
+  // ==============================================================================================
+  // Constructor & Initialization
+  // ==============================================================================================
+
+  /** Constructs a new TextResultController. */
   public TextResultController() {
     this.view = new TextResultView();
     initialize();
@@ -37,33 +40,54 @@ public class TextResultController {
 
   /** Initializes UI components and event handlers. */
   private void initialize() {
-    initializeSidebar();
+    // 1. Setup Toolbar
+    view.setToolbarActions(List.of(
+        ButtonFactory.copy(this::copyContent),
+        ButtonFactory.export(this::exportContent)
+    ));
 
-    // Configure format selector
+    // 2. Configure format selector (default: Turtle)
     view.configureFormatSelector(SerializationFormat.rdfFormats(), SerializationFormat.TURTLE);
 
-    // Listen to format changes
+    // 3. Setup Listeners
     view.setOnFormatChanged(
         (obs, oldVal, newVal) -> {
           if (newVal != null) {
-            updateSyntaxHighlighting(newVal);
-            if (onFormatChanged != null) {
-              onFormatChanged.accept(newVal);
-            }
+            handleFormatChange(newVal);
           }
         });
 
-    // Initial highlighting setup
+    // 4. Initial State
     updateSyntaxHighlighting(view.getFormat());
   }
 
-  private void initializeSidebar() {
-    // Configure the toolbar widget directly via the view
-    view.getToolbarView().setButtons(List.of(
-        ButtonFactory.copy(this::copyContent), 
-        ButtonFactory.export(this::exportContent)
-    ));
+  // ==============================================================================================
+  // Event Handlers
+  // ==============================================================================================
+
+  private void handleFormatChange(SerializationFormat newVal) {
+    updateSyntaxHighlighting(newVal);
+    if (onFormatChanged != null) {
+      onFormatChanged.accept(newVal);
+    }
   }
+
+  /** Handles copy to clipboard action. */
+  private void copyContent() {
+    ClipboardContent content = new ClipboardContent();
+    content.putString(view.getContent());
+    Clipboard.getSystemClipboard().setContent(content);
+  }
+
+  /** Handles export to file action. */
+  private void exportContent() {
+    ExportHelper.exportText(
+        view.getRoot().getScene().getWindow(), view.getContent(), view.getFormat());
+  }
+
+  // ==============================================================================================
+  // Logic
+  // ==============================================================================================
 
   /**
    * Updates the CodeMirror syntax highlighting mode based on the selected format.
@@ -75,18 +99,9 @@ public class TextResultController {
     view.setMode(format);
   }
 
-  /** Handles copy to clipboard action. */
-  public void copyContent() {
-    ClipboardContent content = new ClipboardContent();
-    content.putString(view.getContent());
-    Clipboard.getSystemClipboard().setContent(content);
-  }
-
-  /** Handles export to file action. */
-  public void exportContent() {
-    ExportHelper.exportText(
-        view.getRoot().getScene().getWindow(), view.getContent(), view.getFormat());
-  }
+  // ==============================================================================================
+  // Public API
+  // ==============================================================================================
 
   /**
    * Sets the displayed text content.

@@ -29,7 +29,7 @@ public class ErrorDialogWidget extends ModalBox {
   private static final int MAX_WIDTH = 400;
   private static final int MAX_HEIGHT_WITH_DETAIL = 500;
   private static final int MAX_HEIGHT_WITHOUT_DETAIL = 100;
-  private static final String STYLESHEET = "/styles/error-dialog.css";
+  private static final String STYLESHEET = "/styles/error-dialog-widget.css";
 
   // ==============================================================================================
   // Constructor

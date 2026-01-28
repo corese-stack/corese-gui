@@ -46,7 +46,7 @@ public class FloatingButtonWidget extends Button {
   // ==============================================================================================
 
   /** Path to the CSS stylesheet for floating button styles. */
-  private static final String STYLESHEET = "/styles/floating-button.css";
+  private static final String STYLESHEET = "/styles/floating-button-widget.css";
 
   /** Primary CSS style class applied to this button. */
   private static final String STYLE_CLASS = "floating-button";

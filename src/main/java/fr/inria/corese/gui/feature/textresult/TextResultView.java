@@ -1,15 +1,12 @@
 package fr.inria.corese.gui.feature.textresult;
 
-import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.component.editor.CodeMirrorWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
+import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-
-
-
-
-
-
+import fr.inria.corese.gui.core.view.AbstractView;
+import fr.inria.corese.gui.utils.CssUtils;
+import java.util.List;
 import javafx.animation.FadeTransition;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
@@ -38,24 +35,29 @@ import javafx.util.Duration;
 public class TextResultView extends AbstractView {
 
   // ==============================================================================================
+  // Constants
+  // ==============================================================================================
+
+  private static final String STYLESHEET_PATH = "/styles/text-result.css";
+  private static final String COMMON_STYLESHEET_PATH = "/styles/common.css";
+  
+  // Layout
+  private static final double SELECTOR_TOP_MARGIN = 15.0;
+  private static final double SELECTOR_RIGHT_MARGIN = 20.0;
+
+  // Animation
+  private static final double OPACITY_IDLE = 0.4;
+  private static final double OPACITY_HOVER = 1.0;
+  private static final int FADE_DURATION_MS = 200;
+
+  // ==============================================================================================
   // UI Components
   // ==============================================================================================
 
   private final Label formatLabel;
   private final ChoiceBox<SerializationFormat> formatChoiceBox;
-  private final CodeMirrorWidget codeMirrorView;
-  private final ToolbarWidget toolbarView;
-
-  private static final String STYLESHEET_PATH = "/styles/text-result.css";
-
-  // Layout Constants
-  private static final double SELECTOR_TOP_MARGIN = 15.0;
-  private static final double SELECTOR_RIGHT_MARGIN = 20.0;
-
-  // Animation Constants
-  private static final double OPACITY_IDLE = 0.4;
-  private static final double OPACITY_HOVER = 1.0;
-  private static final int FADE_DURATION_MS = 200;
+  private final CodeMirrorWidget editorWidget;
+  private final ToolbarWidget toolbarWidget;
 
   // ==============================================================================================
   // Constructor
@@ -63,35 +65,47 @@ public class TextResultView extends AbstractView {
 
   public TextResultView() {
     super(new BorderPane(), STYLESHEET_PATH);
+    
+    // Load common styles (for floating panels)
+    CssUtils.applyViewStyles(getRoot(), COMMON_STYLESHEET_PATH);
 
     // Initialize components
     this.formatLabel = new Label("Format:");
     this.formatChoiceBox = new ChoiceBox<>();
-    this.codeMirrorView = new CodeMirrorWidget(true); // Read-only mode
-    this.toolbarView = new ToolbarWidget();
+    this.editorWidget = new CodeMirrorWidget(true); // Read-only mode
+    this.toolbarWidget = new ToolbarWidget();
 
+    // Setup Layout
+    setupLayout();
+  }
+
+  // ==============================================================================================
+  // Layout & Initialization
+  // ==============================================================================================
+
+  private void setupLayout() {
     // Format selector container (Floating)
     HBox formatBox = new HBox(formatLabel, formatChoiceBox);
     formatBox.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
-    formatBox.getStyleClass().add("format-selector-box");
+    
+    // Apply common style for floating look + specific style for layout
+    formatBox.getStyleClass().addAll("floating-panel", "format-selector-box");
 
-    // Set initial opacity from code to match animation logic (overrides CSS initial state)
+    // Animation setup for the floating box
     formatBox.setOpacity(OPACITY_IDLE);
-
-    // Setup Hover Animation (Fade)
     setupHoverAnimation(formatBox);
 
-    // Center area: Editor + Floating Selector
-    StackPane centerStack = new StackPane(codeMirrorView, formatBox);
+    // Center area: Editor + Floating Selector stacked
+    StackPane centerStack = new StackPane(editorWidget, formatBox);
     centerStack.getStyleClass().add("result-center-stack");
 
-    // Layout Constraints (Margins are instructions to the StackPane layout engine)
+    // Constraints for floating box position
     StackPane.setMargin(formatBox, new Insets(SELECTOR_TOP_MARGIN, SELECTOR_RIGHT_MARGIN, 0, 0));
 
     // Main Layout
     BorderPane root = (BorderPane) getRoot();
     root.setCenter(centerStack);
-    root.setRight(toolbarView);
+    root.setRight(toolbarWidget);
   }
 
   /**
@@ -120,7 +134,7 @@ public class TextResultView extends AbstractView {
   }
 
   // ==============================================================================================
-  // Accessors & Encapsulation
+  // Public API - Content & State
   // ==============================================================================================
 
   /**
@@ -138,7 +152,7 @@ public class TextResultView extends AbstractView {
    * @return The text content
    */
   public String getContent() {
-    return codeMirrorView.getContent();
+    return editorWidget.getContent();
   }
 
   /**
@@ -147,16 +161,7 @@ public class TextResultView extends AbstractView {
    * @param content The text to display
    */
   public void setContent(String content) {
-    codeMirrorView.setContent(content);
-  }
-
-  /**
-   * Returns the toolbar view component.
-   *
-   * @return The side toolbar view
-   */
-  public ToolbarWidget getToolbarView() {
-    return toolbarView;
+    editorWidget.setContent(content);
   }
 
   /**
@@ -165,17 +170,24 @@ public class TextResultView extends AbstractView {
    * @param format The serialization format
    */
   public void setMode(SerializationFormat format) {
-    codeMirrorView.setMode(format);
+    editorWidget.setMode(format);
   }
 
   // ==============================================================================================
-  // High-level Configuration Methods (Demeter's Law compliance)
+  // Public API - Configuration (Demeter's Law)
   // ==============================================================================================
 
   /**
+   * Configures the toolbar buttons.
+   * 
+   * @param buttons List of button configurations
+   */
+  public void setToolbarActions(List<ButtonConfig> buttons) {
+    toolbarWidget.setButtons(buttons);
+  }
+
+  /**
    * Configures the format choice box with the specified formats.
-   *
-   * <p>This method encapsulates the internal configuration of the choice box.
    *
    * @param formats Array of formats to display
    * @param defaultFormat The default selected format
