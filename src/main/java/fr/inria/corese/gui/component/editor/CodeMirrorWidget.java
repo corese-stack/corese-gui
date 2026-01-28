@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
  * A JavaFX wrapper around a simple web-based text editor using WebView. This widget provides a
  * clean, minimal text editor.
  */
-@SuppressWarnings("removal")
 public class CodeMirrorWidget extends VBox {
   private static final Logger logger = LoggerFactory.getLogger(CodeMirrorWidget.class);
 
