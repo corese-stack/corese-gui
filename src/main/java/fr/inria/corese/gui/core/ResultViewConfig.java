@@ -1,5 +1,14 @@
 package fr.inria.corese.gui.core;
 
+import fr.inria.corese.gui.feature.textResult.ResultController;
+import fr.inria.corese.gui.feature.textResult.ResultView;
+
+
+
+
+
+
+
 import java.util.EnumSet;
 import java.util.Set;
 

@@ -1,6 +1,12 @@
 package fr.inria.corese.gui.utils;
 
-import fr.inria.corese.gui.enums.SerializationFormat;
+import fr.inria.corese.gui.core.enums.SerializationFormat;
+
+
+
+
+
+
 import java.io.File;
 import java.nio.file.Files;
 import javafx.application.Platform;

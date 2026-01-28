@@ -1,11 +1,17 @@
 package fr.inria.corese.gui;
 
-import fr.inria.corese.gui.controller.MainController;
-import fr.inria.corese.gui.controller.NavigationBarController;
-import fr.inria.corese.gui.manager.ViewManager;
-import fr.inria.corese.gui.view.MainView;
-import fr.inria.corese.gui.view.utils.SvgImageLoader;
-import fr.inria.corese.gui.view.utils.ThemeManager;
+import fr.inria.corese.gui.core.manager.ViewManager;
+import fr.inria.corese.gui.feature.main.MainController;
+import fr.inria.corese.gui.feature.main.MainView;
+import fr.inria.corese.gui.feature.main.NavigationBarController;
+import fr.inria.corese.gui.utils.SvgImageLoader;
+import fr.inria.corese.gui.utils.ThemeManager;
+
+
+
+
+
+
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;

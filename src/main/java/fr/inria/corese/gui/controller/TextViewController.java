@@ -1,11 +1,18 @@
 package fr.inria.corese.gui.controller;
 
+import fr.inria.corese.gui.core.manager.QueryManager;
+import fr.inria.corese.gui.feature.textResult.ResultsPaneController;
+
+
+
+
+
+
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import fr.inria.corese.gui.manager.QueryManager;
 
 public class TextViewController {
   private static final Logger logger = LoggerFactory.getLogger(TextViewController.class);

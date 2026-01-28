@@ -1,8 +1,14 @@
 package fr.inria.corese.gui.factory.popup;
 
+import fr.inria.corese.gui.core.manager.QueryManager;
+
+
+
+
+
+
 import java.util.stream.Collectors;
 
-import fr.inria.corese.gui.manager.QueryManager;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;

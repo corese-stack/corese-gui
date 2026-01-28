@@ -1,6 +1,13 @@
 package fr.inria.corese.gui.core;
 
-import fr.inria.corese.gui.enums.icon.ButtonIcon;
+import fr.inria.corese.gui.component.toolbar.ActionButtonWidget;
+import fr.inria.corese.gui.component.toolbar.ButtonIcon;
+
+
+
+
+
+
 
 /**
  * Configuration class for button components.
@@ -36,7 +43,7 @@ import fr.inria.corese.gui.enums.icon.ButtonIcon;
  *
  * @see ButtonIcon
  * @see ButtonFactory
- * @see fr.inria.corese.gui.view.icon.ActionButtonWidget
+ * @see fr.inria.corese.gui.component.toolbar.ActionButtonWidget
  */
 public class ButtonConfig {
 

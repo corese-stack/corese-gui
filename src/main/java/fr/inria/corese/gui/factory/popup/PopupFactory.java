@@ -1,9 +1,15 @@
 package fr.inria.corese.gui.factory.popup;
 
+import fr.inria.corese.gui.core.manager.QueryManager;
+
+
+
+
+
+
 import java.util.HashMap;
 import java.util.Map;
 
-import fr.inria.corese.gui.manager.QueryManager;
 
 public class PopupFactory {
   public static final String WARNING_POPUP = "warning";

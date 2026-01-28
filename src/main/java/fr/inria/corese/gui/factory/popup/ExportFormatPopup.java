@@ -1,8 +1,14 @@
 package fr.inria.corese.gui.factory.popup;
 
+import fr.inria.corese.gui.core.manager.QueryManager;
+
+
+
+
+
+
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.print.ResultFormat;
-import fr.inria.corese.gui.manager.QueryManager;
 
 import java.io.File;
 import java.io.IOException;

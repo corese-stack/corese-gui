@@ -1,9 +1,15 @@
 package fr.inria.corese.gui.core;
 
+import fr.inria.corese.gui.component.dialog.ErrorDialog;
+
+
+
+
+
+
 import atlantafx.base.controls.ModalPane;
 import atlantafx.base.layout.ModalBox;
 import atlantafx.base.theme.Styles;
-import fr.inria.corese.gui.view.component.ErrorDialog;
 import java.util.function.Consumer;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
