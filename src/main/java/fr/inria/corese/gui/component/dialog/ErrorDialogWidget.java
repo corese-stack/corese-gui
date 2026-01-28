@@ -3,7 +3,7 @@ package fr.inria.corese.gui.component.dialog;
 import atlantafx.base.controls.ModalPane;
 import atlantafx.base.layout.ModalBox;
 import atlantafx.base.theme.Styles;
-import fr.inria.corese.gui.core.view.AbstractView;
+import fr.inria.corese.gui.utils.CssUtils;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
@@ -17,8 +17,10 @@ import org.kordamp.ikonli.javafx.FontIcon;
  *
  * <p>This dialog presents a title, a header message, and an optional detailed error message (e.g.,
  * a stack trace) in a scrollable text area.
+ * 
+ * <p>It extends {@link ModalBox} from AtlantaFX for direct integration with {@link ModalPane}.
  */
-public class ErrorDialogWidget extends AbstractView {
+public class ErrorDialogWidget extends ModalBox {
 
   // ==============================================================================================
   // Constants
@@ -42,7 +44,8 @@ public class ErrorDialogWidget extends AbstractView {
    * @param details the detailed error message (optional, e.g., stack trace)
    */
   public ErrorDialogWidget(ModalPane modalPane, String title, String header, String details) {
-    super(new ModalBox(modalPane), STYLESHEET);
+    super(modalPane);
+    CssUtils.applyViewStyles(this, STYLESHEET);
     initialize(title, header, details);
   }
 
@@ -58,17 +61,15 @@ public class ErrorDialogWidget extends AbstractView {
    * @param details the detailed error message
    */
   private void initialize(String title, String header, String details) {
-    ModalBox modalBox = (ModalBox) getRoot();
-
     // Set size based on whether details are present
     if (details == null || details.isBlank()) {
-      modalBox.setMaxSize(MAX_WIDTH, MAX_HEIGHT_WITHOUT_DETAIL);
+      setMaxSize(MAX_WIDTH, MAX_HEIGHT_WITHOUT_DETAIL);
     } else {
-      modalBox.setMaxSize(MAX_WIDTH, MAX_HEIGHT_WITH_DETAIL);
+      setMaxSize(MAX_WIDTH, MAX_HEIGHT_WITH_DETAIL);
     }
 
     VBox content = createContent(title, header, details);
-    modalBox.addContent(content);
+    addContent(content);
   }
 
   /**

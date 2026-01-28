@@ -88,7 +88,7 @@ public class DialogHelper {
   public static void showError(ModalPane modalPane, String title, String message, String details) {
     Platform.runLater(() -> {
       ErrorDialogWidget errorDialog = new ErrorDialogWidget(modalPane, title, message, details);
-      modalPane.show(errorDialog.getRoot());
+      modalPane.show(errorDialog);
     });
   }
 
