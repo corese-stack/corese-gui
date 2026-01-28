@@ -1,14 +1,7 @@
 package fr.inria.corese.gui.feature.query;
 
-import fr.inria.corese.gui.component.base.AbstractView;
-import fr.inria.corese.gui.component.emptyState.EmptyStateWidget;
-
-
-
-
-
-
-
+import fr.inria.corese.gui.component.emptystate.EmptyStateWidget;
+import fr.inria.corese.gui.core.view.AbstractView;
 import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignF;

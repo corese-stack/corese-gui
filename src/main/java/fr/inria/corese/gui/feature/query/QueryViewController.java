@@ -3,14 +3,14 @@ package fr.inria.corese.gui.feature.query;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 
-import fr.inria.corese.gui.component.toolbar.ButtonIcon;
+import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.manager.QueryManager;
 import fr.inria.corese.gui.core.factory.popup.TemplatePopup;
-import fr.inria.corese.gui.feature.codeEditor.CodeEditorController;
-import fr.inria.corese.gui.feature.tabEditor.TabEditorConfig;
-import fr.inria.corese.gui.feature.tabEditor.TabEditorController;
-import fr.inria.corese.gui.feature.textResult.ResultController;
+import fr.inria.corese.gui.feature.codeeditor.CodeEditorController;
+import fr.inria.corese.gui.feature.tabeditor.TabEditorConfig;
+import fr.inria.corese.gui.feature.tabeditor.TabEditorController;
+import fr.inria.corese.gui.feature.textresult.ResultController;
 
 
 

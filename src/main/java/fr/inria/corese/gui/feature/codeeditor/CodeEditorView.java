@@ -1,6 +1,6 @@
-package fr.inria.corese.gui.feature.codeEditor;
+package fr.inria.corese.gui.feature.codeeditor;
 
-import fr.inria.corese.gui.component.base.AbstractView;
+import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.component.editor.CodeMirrorWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 

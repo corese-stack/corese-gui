@@ -1,7 +1,7 @@
 package fr.inria.corese.gui.feature.data;
 
-import fr.inria.corese.gui.component.base.AbstractView;
-import fr.inria.corese.gui.feature.fileList.FileListView;
+import fr.inria.corese.gui.core.view.AbstractView;
+import fr.inria.corese.gui.feature.filelist.FileListView;
 import fr.inria.corese.gui.feature.main.TopBar;
 import fr.inria.corese.gui.feature.rule.RuleView;
 

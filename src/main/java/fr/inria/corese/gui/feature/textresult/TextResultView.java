@@ -1,6 +1,6 @@
-package fr.inria.corese.gui.feature.textResult;
+package fr.inria.corese.gui.feature.textresult;
 
-import fr.inria.corese.gui.component.base.AbstractView;
+import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.component.editor.CodeMirrorWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;

@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.feature.fileList;
+package fr.inria.corese.gui.feature.filelist;
 
 import java.io.File;
 

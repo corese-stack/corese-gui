@@ -1,15 +1,7 @@
 package fr.inria.corese.gui.component.toolbar;
 
 import fr.inria.corese.gui.core.config.ButtonConfig;
-
-import fr.inria.corese.gui.feature.codeEditor.CodeEditorView;
-import fr.inria.corese.gui.feature.textResult.TextResultView;
-
-
-
-
-
-
+import fr.inria.corese.gui.core.enums.ButtonIcon;
 import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,9 +13,9 @@ import javafx.scene.layout.VBox;
 /**
  * A vertical toolbar widget containing icon buttons.
  *
- * <p>This simple UI component displays a column of buttons. It is designed to be embedded
- * in other views (like CodeEditorView or TextResultView) and controlled directly by their
- * respective controllers.
+ * <p>This simple UI component displays a column of buttons. It is designed to be embedded in other
+ * views (like CodeEditorView or TextResultView) and controlled directly by their respective
+ * controllers.
  */
 public class ToolbarWidget extends VBox {
 
@@ -32,9 +24,7 @@ public class ToolbarWidget extends VBox {
 
   private final Map<ButtonIcon, Button> buttons = new LinkedHashMap<>();
 
-  /**
-   * Creates a new generic toolbar widget.
-   */
+  /** Creates a new generic toolbar widget. */
   public ToolbarWidget() {
     initialize();
   }
@@ -86,18 +76,17 @@ public class ToolbarWidget extends VBox {
 
   /**
    * Returns the disable property of a button for binding.
-   * 
+   *
    * @param type The button icon type.
    * @return The disable property, or null if button not found.
    */
   public BooleanProperty buttonDisableProperty(ButtonIcon type) {
-      Button button = buttons.get(type);
-      return button != null ? button.disableProperty() : null;
+    Button button = buttons.get(type);
+    return button != null ? button.disableProperty() : null;
   }
-  
+
   /**
-   * Retrieves a button instance directly.
-   * Prefer using setButtonDisabled for simple state changes.
+   * Retrieves a button instance directly. Prefer using setButtonDisabled for simple state changes.
    */
   public Button getButton(ButtonIcon type) {
     return buttons.get(type);

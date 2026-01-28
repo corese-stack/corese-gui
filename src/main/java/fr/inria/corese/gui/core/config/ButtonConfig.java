@@ -1,7 +1,7 @@
 package fr.inria.corese.gui.core.config;
 
 import fr.inria.corese.gui.component.toolbar.ActionButtonWidget;
-import fr.inria.corese.gui.component.toolbar.ButtonIcon;
+import fr.inria.corese.gui.core.enums.ButtonIcon;
 
 
 

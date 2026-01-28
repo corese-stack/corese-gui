@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.feature.codeEditor;
+package fr.inria.corese.gui.feature.codeeditor;
 
 import fr.inria.corese.gui.core.model.QueryResult;
 

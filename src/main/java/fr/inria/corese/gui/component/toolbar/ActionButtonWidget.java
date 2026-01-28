@@ -1,13 +1,6 @@
 package fr.inria.corese.gui.component.toolbar;
 
 import fr.inria.corese.gui.core.config.ButtonConfig;
-
-
-
-
-
-
-
 import javafx.scene.control.Button;
 import javafx.scene.control.Tooltip;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -15,8 +8,8 @@ import org.kordamp.ikonli.javafx.FontIcon;
 /**
  * A standard icon button component (Widget).
  *
- * <p>This widget renders an icon button with optional tooltip and action.
- * It is based on the {@link ButtonConfig} configuration.
+ * <p>This widget renders an icon button with optional tooltip and action. It is based on the {@link
+ * ButtonConfig} configuration.
  */
 public class ActionButtonWidget extends Button {
 

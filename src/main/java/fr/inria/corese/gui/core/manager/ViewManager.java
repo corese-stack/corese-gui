@@ -2,7 +2,7 @@ package fr.inria.corese.gui.core.manager;
 
 import fr.inria.corese.gui.core.enums.ViewId;
 
-import fr.inria.corese.gui.component.base.AbstractView;
+import fr.inria.corese.gui.core.view.AbstractView;
 
 
 

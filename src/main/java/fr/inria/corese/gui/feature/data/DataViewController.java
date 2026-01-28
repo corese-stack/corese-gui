@@ -10,8 +10,8 @@ import fr.inria.corese.gui.core.factory.popup.IPopup;
 import fr.inria.corese.gui.core.factory.popup.LogDialog;
 import fr.inria.corese.gui.core.factory.popup.PopupFactory;
 import fr.inria.corese.gui.core.factory.popup.WarningPopup;
-import fr.inria.corese.gui.feature.fileList.FileItem;
-import fr.inria.corese.gui.feature.fileList.FileListView;
+import fr.inria.corese.gui.feature.filelist.FileItem;
+import fr.inria.corese.gui.feature.filelist.FileListView;
 import fr.inria.corese.gui.feature.rule.RuleViewController;
 
 

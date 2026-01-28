@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.component.base;
+package fr.inria.corese.gui.core.view;
 
 import fr.inria.corese.gui.utils.CssUtils;
 

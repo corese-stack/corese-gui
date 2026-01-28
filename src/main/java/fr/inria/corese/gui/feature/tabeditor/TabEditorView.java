@@ -1,6 +1,6 @@
-package fr.inria.corese.gui.feature.tabEditor;
+package fr.inria.corese.gui.feature.tabeditor;
 
-import fr.inria.corese.gui.component.base.AbstractView;
+import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.utils.TabPaneUtils;
 import fr.inria.corese.gui.utils.ThemeManager;

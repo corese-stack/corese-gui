@@ -1,16 +1,8 @@
 package fr.inria.corese.gui.component.floating;
 
-import fr.inria.corese.gui.core.config.ButtonConfig;
-
-import fr.inria.corese.gui.component.toolbar.ButtonIcon;
-
-
-
-
-
-
 import atlantafx.base.controls.RingProgressIndicator;
 import atlantafx.base.theme.Styles;
+import fr.inria.corese.gui.core.config.ButtonConfig;
 import java.net.URL;
 import java.util.Objects;
 import javafx.beans.property.BooleanProperty;
@@ -36,7 +28,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
  *
  * <pre>{@code
  * ButtonConfig config = new ButtonConfig(ButtonIcon.PLAY, "Execute Query");
- * FloatingButton fab = new FloatingButton(config);
+ * FloatingWidget fab = new FloatingWidget(config);
  * fab.setOnAction(e -> executeQuery());
  * fab.setLoading(true); // Show spinner during execution
  * }</pre>
@@ -47,7 +39,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
  * @see ButtonConfig
  * @see RingProgressIndicator
  */
-public class FloatingButton extends Button {
+public class FloatingWidget extends Button {
 
   // ==============================================================================================
   // Constants
@@ -80,7 +72,7 @@ public class FloatingButton extends Button {
   // ==============================================================================================
 
   /**
-   * Constructs a new FloatingButton with the specified configuration.
+   * Constructs a new FloatingWidget with the specified configuration.
    *
    * <p>The button is initialized with:
    *
@@ -94,7 +86,7 @@ public class FloatingButton extends Button {
    * @param config The button configuration containing icon, tooltip, and other settings
    * @throws NullPointerException if config is null
    */
-  public FloatingButton(ButtonConfig config) {
+  public FloatingWidget(ButtonConfig config) {
     Objects.requireNonNull(config, "ButtonConfig cannot be null");
 
     // Initialize icon

@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.component.toolbar;
+package fr.inria.corese.gui.core.enums;
 
 import fr.inria.corese.gui.core.config.ButtonConfig;
 

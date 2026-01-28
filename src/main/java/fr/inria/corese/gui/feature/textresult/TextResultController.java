@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.feature.textResult;
+package fr.inria.corese.gui.feature.textresult;
 
 import fr.inria.corese.gui.core.factory.ButtonFactory;
 import fr.inria.corese.gui.core.enums.SerializationFormat;

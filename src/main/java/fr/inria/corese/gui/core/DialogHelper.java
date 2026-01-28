@@ -1,15 +1,9 @@
 package fr.inria.corese.gui.core;
 
-import fr.inria.corese.gui.component.dialog.ErrorDialog;
-
-
-
-
-
-
 import atlantafx.base.controls.ModalPane;
 import atlantafx.base.layout.ModalBox;
 import atlantafx.base.theme.Styles;
+import fr.inria.corese.gui.component.dialog.ErrorDialogWidget;
 import java.util.function.Consumer;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
@@ -93,7 +87,7 @@ public class DialogHelper {
    */
   public static void showError(ModalPane modalPane, String title, String message, String details) {
     Platform.runLater(() -> {
-      ErrorDialog errorDialog = new ErrorDialog(modalPane, title, message, details);
+      ErrorDialogWidget errorDialog = new ErrorDialogWidget(modalPane, title, message, details);
       modalPane.show(errorDialog.getRoot());
     });
   }

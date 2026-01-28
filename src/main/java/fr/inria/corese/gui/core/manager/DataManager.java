@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.core.manager;
 
-import fr.inria.corese.gui.feature.fileList.FileListModel;
+import fr.inria.corese.gui.feature.filelist.FileListModel;
 
 
 

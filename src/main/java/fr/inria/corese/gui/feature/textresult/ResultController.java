@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.feature.textResult;
+package fr.inria.corese.gui.feature.textresult;
 
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.config.ResultViewConfig;

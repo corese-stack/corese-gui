@@ -3,12 +3,6 @@ package fr.inria.corese.gui.component.editor;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.utils.AppTheme;
 import fr.inria.corese.gui.utils.ThemeManager;
-
-
-
-
-
-
 import java.net.URL;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -25,8 +19,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A JavaFX wrapper around a simple web-based text editor using WebView.
- * This widget provides a clean, minimal text editor.
+ * A JavaFX wrapper around a simple web-based text editor using WebView. This widget provides a
+ * clean, minimal text editor.
  */
 @SuppressWarnings("removal")
 public class CodeMirrorWidget extends VBox {
