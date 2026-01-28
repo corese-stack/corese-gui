@@ -1,9 +1,9 @@
 package fr.inria.corese.gui.feature.rule;
 
 import fr.inria.corese.gui.core.manager.RuleManager;
-import fr.inria.corese.gui.factory.popup.IPopup;
-import fr.inria.corese.gui.factory.popup.PopupFactory;
-import fr.inria.corese.gui.factory.popup.WarningPopup;
+import fr.inria.corese.gui.core.factory.popup.IPopup;
+import fr.inria.corese.gui.core.factory.popup.PopupFactory;
+import fr.inria.corese.gui.core.factory.popup.WarningPopup;
 import fr.inria.corese.gui.feature.data.DataViewController;
 
 

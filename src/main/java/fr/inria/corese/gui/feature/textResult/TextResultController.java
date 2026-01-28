@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.feature.textResult;
 
-import fr.inria.corese.gui.core.ButtonFactory;
+import fr.inria.corese.gui.core.factory.ButtonFactory;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.utils.ExportHelper;
 

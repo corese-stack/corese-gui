@@ -5,7 +5,7 @@ import fr.inria.corese.gui.core.ButtonConfig;
 import fr.inria.corese.gui.core.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.manager.QueryManager;
-import fr.inria.corese.gui.factory.popup.TemplatePopup;
+import fr.inria.corese.gui.core.factory.popup.TemplatePopup;
 import fr.inria.corese.gui.feature.codeEditor.CodeEditorController;
 import fr.inria.corese.gui.feature.tabEditor.TabEditorConfig;
 import fr.inria.corese.gui.feature.tabEditor.TabEditorController;

@@ -3,8 +3,8 @@ package fr.inria.corese.gui.feature.codeEditor;
 import fr.inria.corese.gui.component.toolbar.ButtonIcon;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.ButtonConfig;
-import fr.inria.corese.gui.factory.popup.DocumentationPopup;
-import fr.inria.corese.gui.factory.popup.ExportFormatPopup;
+import fr.inria.corese.gui.core.factory.popup.DocumentationPopup;
+import fr.inria.corese.gui.core.factory.popup.ExportFormatPopup;
 
 
 

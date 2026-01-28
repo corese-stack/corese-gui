@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.factory.popup;
+package fr.inria.corese.gui.core.factory.popup;
 
 import javafx.geometry.Insets;
 import javafx.scene.control.ButtonType;

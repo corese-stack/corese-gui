@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.factory.popup;
+package fr.inria.corese.gui.core.factory.popup;
 
 public interface IPopup {
   void closePopup(); // Au lieu de hide()

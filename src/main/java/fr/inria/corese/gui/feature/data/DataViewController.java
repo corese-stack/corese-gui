@@ -1,15 +1,15 @@
 package fr.inria.corese.gui.feature.data;
 
-import fr.inria.corese.gui.core.ButtonFactory;
+import fr.inria.corese.gui.core.factory.ButtonFactory;
 import fr.inria.corese.gui.core.manager.DataManager;
 import fr.inria.corese.gui.core.manager.GraphManager;
 import fr.inria.corese.gui.core.manager.QueryManager;
 import fr.inria.corese.gui.core.manager.RuleManager;
-import fr.inria.corese.gui.factory.popup.ClearGraphConfirmationPopup;
-import fr.inria.corese.gui.factory.popup.IPopup;
-import fr.inria.corese.gui.factory.popup.LogDialog;
-import fr.inria.corese.gui.factory.popup.PopupFactory;
-import fr.inria.corese.gui.factory.popup.WarningPopup;
+import fr.inria.corese.gui.core.factory.popup.ClearGraphConfirmationPopup;
+import fr.inria.corese.gui.core.factory.popup.IPopup;
+import fr.inria.corese.gui.core.factory.popup.LogDialog;
+import fr.inria.corese.gui.core.factory.popup.PopupFactory;
+import fr.inria.corese.gui.core.factory.popup.WarningPopup;
 import fr.inria.corese.gui.feature.fileList.FileItem;
 import fr.inria.corese.gui.feature.fileList.FileListView;
 import fr.inria.corese.gui.feature.rule.RuleViewController;
