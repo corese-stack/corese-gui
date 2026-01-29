@@ -3,7 +3,7 @@ package fr.inria.corese.gui.feature.result.table;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.view.AbstractView;
-import fr.inria.corese.gui.feature.rule.CustomPagination;
+import fr.inria.corese.gui.component.pagination.CustomPagination;
 import java.util.List;
 import java.util.function.Consumer;
 import javafx.application.Platform;

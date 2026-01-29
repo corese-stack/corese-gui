@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.feature.result;
 
-import fr.inria.corese.gui.feature.rule.CustomPagination;
+import fr.inria.corese.gui.component.pagination.CustomPagination;
 
 
 
