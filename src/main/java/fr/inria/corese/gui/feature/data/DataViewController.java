@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.feature.data;
 
-import fr.inria.corese.gui.core.manager.DataManager;
+import fr.inria.corese.gui.core.manager.CoreseGraphManager;
 import java.io.File;
 import java.util.List;
 import javafx.scene.control.Alert;
@@ -13,11 +13,11 @@ import javafx.stage.FileChooser;
 public class DataViewController {
 
     private final DataView view;
-    private final DataManager dataManager;
+    private final CoreseGraphManager graphManager;
 
     public DataViewController(DataView view) {
         this.view = view;
-        this.dataManager = DataManager.getInstance();
+        this.graphManager = CoreseGraphManager.getInstance();
         initialize();
     }
 
@@ -41,7 +41,7 @@ public class DataViewController {
 
             for (File file : files) {
                 try {
-                    dataManager.loadFile(file);
+                    graphManager.loadFromFile(file);
                     message.append("Loaded: ").append(file.getName()).append("\n");
                 } catch (Exception ex) {
                     errorOccurred = true;

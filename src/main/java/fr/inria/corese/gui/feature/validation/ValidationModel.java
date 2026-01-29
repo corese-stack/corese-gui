@@ -1,13 +1,22 @@
 package fr.inria.corese.gui.feature.validation;
 
-import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.manager.ExportManager;
-import fr.inria.corese.gui.core.manager.GraphManager;
+import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.core.manager.CoreseGraphManager;
 import fr.inria.corese.gui.core.manager.ShaclManager;
 import fr.inria.corese.gui.core.model.ValidationReportItem;
+
+
+
+
+
+
 import java.util.List;
 
-/** Model for the Validation feature. Handles the SHACL validation logic and stores the result. */
+/**
+ * Model for the Validation feature.
+ * Handles the SHACL validation logic and stores the result.
+ */
 public class ValidationModel {
 
   private ValidationResult lastResult;
@@ -18,7 +27,7 @@ public class ValidationModel {
    * @return true if data is loaded, false otherwise.
    */
   public boolean isDataLoaded() {
-    return GraphManager.getInstance().isDataLoaded();
+    return CoreseGraphManager.getInstance().isDataLoaded();
   }
 
   /**
@@ -42,8 +51,7 @@ public class ValidationModel {
     if (lastResult == null || lastResult.getReportGraph() == null) {
       return null;
     }
-    return ExportManager.getInstance()
-        .formatGraph(lastResult.getReportGraph(), SerializationFormat.fromString(format));
+    return ExportManager.getInstance().formatGraph(lastResult.getReportGraph(), SerializationFormat.fromString(format));
   }
 
   /**

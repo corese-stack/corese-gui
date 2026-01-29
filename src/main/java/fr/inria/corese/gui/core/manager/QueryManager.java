@@ -23,7 +23,7 @@ import java.util.Map;
 public class QueryManager {
   private static QueryManager instance;
 
-  private final GraphManager graphManager;
+  private final CoreseGraphManager graphManager;
   private QueryProcess queryProcess;
 
   private final List<String> logEntries;
@@ -31,7 +31,7 @@ public class QueryManager {
   private final Map<Integer, TabCacheEntry> queryResultCache = new HashMap<>();
 
   private QueryManager() {
-    this.graphManager = GraphManager.getInstance();
+    this.graphManager = CoreseGraphManager.getInstance();
     this.logEntries = new ArrayList<>();
   }
 
