@@ -5,9 +5,95 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Knowledge Graph Visualization</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-    <script src="../web/lib/ttl2jsonld.js"></script>
+    <!-- Use local libraries -->
+    <script src="lib/d3.min.js"></script>
+    <script src="lib/ttl2jsonld.js"></script>
     <style>
+        /* --- THEME VARIABLES (Default / Cupertino Light) --- */
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #24292e;
+            --gutter-bg: #f8f9fa;
+            --gutter-text: #adb5bd;
+            --status-bar-bg: #f3f3f3;
+            --status-bar-border: #e1e4e8;
+            --status-bar-text: #586069;
+            --caret-color: #24292e;
+            --selection-bg: #b3d7ff;
+            --accent-color: #0078D4;
+            --active-line-bg: #f1f8ff;
+        }
+
+        /* --- PRIMER LIGHT --- */
+        body.theme-primer {
+            --bg-color: #ffffff;
+            --text-color: #24292f;
+            --gutter-bg: #f6f8fa;
+            --gutter-text: #6e7781;
+            --status-bar-bg: #ffffff;
+            --status-bar-border: #d0d7de;
+            --status-bar-text: #57606a;
+            --caret-color: #24292f;
+            --selection-bg: #b3d7ff;
+            --active-line-bg: #f6f8fa;
+        }
+
+        /* --- NORD LIGHT --- */
+        body.theme-nord {
+            --bg-color: #ffffff;
+            --text-color: #2e3440;
+            --gutter-bg: #eceff4;
+            --gutter-text: #4c566a;
+            --status-bar-bg: #eceff4;
+            --status-bar-border: #d8dee9;
+            --status-bar-text: #4c566a;
+            --caret-color: #2e3440;
+            --selection-bg: #88c0d040;
+            --active-line-bg: #f7f9fb;
+        }
+
+        /* --- DARK DEFAULTS (Cupertino Dark) --- */
+        body.dark-theme {
+            --bg-color: #1e1e1e;
+            --text-color: #d4d4d4;
+            --gutter-bg: #252526;
+            --gutter-text: #858585;
+            --status-bar-bg: #2d2d2d;
+            --status-bar-border: #3e3e42;
+            --status-bar-text: #cccccc;
+            --caret-color: #d4d4d4;
+            --selection-bg: #264f78;
+            --active-line-bg: #2c2c2c;
+        }
+
+        /* --- PRIMER DARK --- */
+        body.theme-primer.dark-theme {
+            --bg-color: #010409;
+            --text-color: #c9d1d9;
+            --gutter-bg: #0d1117;
+            --gutter-text: #8b949e;
+            --status-bar-bg: #0d1117;
+            --status-bar-border: #30363d;
+            --status-bar-text: #8b949e;
+            --caret-color: #c9d1d9;
+            --selection-bg: #1f6feb40;
+            --active-line-bg: #0d1117;
+        }
+
+        /* --- NORD DARK --- */
+        body.theme-nord.dark-theme {
+            --bg-color: #242933;
+            --text-color: #d8dee9;
+            --gutter-bg: #2e3440;
+            --gutter-text: #616e88;
+            --status-bar-bg: #2e3440;
+            --status-bar-border: #434c5e;
+            --status-bar-text: #d8dee9;
+            --caret-color: #d8dee9;
+            --selection-bg: #434c5e;
+            --active-line-bg: #2e3440;
+        }
+
         html,
         body {
             height: 100%;
@@ -15,12 +101,9 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-        }
-
-        body {
-            height: 100vh;
-            width: 100vw;
-            box-sizing: border-box;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
         }
 
         #container {
@@ -34,41 +117,106 @@
             width: 100%;
             height: 100%;
         }
+        
+        /* Tooltip styling */
+        .kg-tooltip {
+            position: absolute;
+            padding: 12px 16px;
+            background: var(--bg-color, #ffffff);
+            color: var(--text-color, #333);
+            border-radius: 8px;
+            font-size: 12px;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 1000;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+            max-width: 450px;
+            line-height: 1.5;
+            border: 1px solid var(--status-bar-border, #e1e4e8);
+        }
+
+        .tooltip-title {
+            font-weight: bold;
+            color: var(--accent-color, #0078D4);
+            margin-bottom: 8px;
+            border-bottom: 1px solid var(--status-bar-border, #e1e4e8);
+            padding-bottom: 6px;
+            font-size: 14px;
+        }
+
+        .tooltip-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+
+        .tooltip-row strong {
+            color: var(--gutter-text, #adb5bd);
+            min-width: 50px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tooltip-row span {
+            word-break: break-all;
+            color: var(--text-color, #333);
+        }
     </style>
 </head>
 
 <body>
     <div id="container">
-        <div id="graph-controls"
-            style="position: absolute; top: 20px; right: 20px; z-index: 10; background: rgba(255,255,255,0.95); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 10px 16px; font-size: 14px;">
-            <label style="display: block; margin-bottom: 6px;">
-                <input type="checkbox" id="toggle-edge-labels" checked>
-                Show Edge Labels
-            </label>
-        </div>
         <kg-graph id="myGraph" width="100%" height="100%"></kg-graph>
     </div>
+    <div class="kg-tooltip" id="global-tooltip"></div>
 
     <script>
-        class KGGraphVis extends HTMLElement {
-            setShowLabels(show) {
-                if (!this.shadowRoot) return;
-
-                d3.select(this.shadowRoot)
-                    .selectAll('.nodes text')
-                    .style('display', show ? null : 'none');
-            }
-
-            setShowEdgeLabels(show) {
-                if (this.linkLabel) {
-                    this.linkLabel.style('display', show ? null : 'none');
+        // =========================================================================
+        // 1. LOGGING BRIDGE
+        // =========================================================================
+        function setupBridge() {
+            window.onerror = function (msg, url, line, col, error) {
+                if (window.bridge) {
+                    window.bridge.error("JS ERROR: " + msg + " (Line: " + line + ")");
                 }
-            }
-            setShowComments(show) {
-                if (!this.shadowRoot) return;
-                d3.select(this.shadowRoot)
-                    .selectAll('.rdfs-comment')
-                    .style('display', show ? null : 'none');
+            };
+
+            var oldLog = console.log;
+            console.log = function (msg) {
+                if (window.bridge) window.bridge.log(msg);
+                oldLog.apply(console, arguments);
+            };
+            
+            var oldError = console.error;
+            console.error = function (msg) {
+                if (window.bridge) {
+                    var errorMsg = msg;
+                    if (msg instanceof Error) errorMsg = msg.message + "\n" + msg.stack;
+                    else if (typeof msg === 'object') {
+                        try { errorMsg = JSON.stringify(msg); } catch(e) { errorMsg = String(msg); }
+                    }
+                    window.bridge.error(errorMsg);
+                }
+                oldError.apply(console, arguments);
+            };
+            
+            console.log("Bridge setup complete.");
+        }
+        // Try setup immediately if bridge is already there
+        if (window.bridge) setupBridge();
+
+        // =========================================================================
+        // 2. GRAPH COMPONENT
+        // =========================================================================
+        class KGGraphVis extends HTMLElement {
+            setShowEdgeLabels(show) {
+                this.showEdgeLabels = show;
+                if (this.linkLabelSelection) {
+                    this.linkLabelSelection.style('display', show ? null : 'none');
+                }
             }
 
             constructor() {
@@ -77,34 +225,46 @@
 
                 this.svg = null;
                 this.simulation = null;
-                this.defaultCharge = -1000;
-                this.defaultDistance = 180;
-                this.baseLinkDistance = this.defaultDistance;
-                this.linkHover = null;
-
+                this.defaultCharge = -1500;
+                this.defaultDistance = 150;
+                
                 this.internalData = new WeakMap()
                 this.internalData.set(this, {});
                 this.resizeObserver = null;
+                this.showEdgeLabels = true;
+                this.isDarkMode = false;
+                
+                this.linkSelection = null;
+                this.nodeSelection = null;
+                this.linkLabelSelection = null;
+
+                this.colors = {
+                    resource: '#1f77b4',
+                    literal: '#ff7f0e',
+                    blank: '#2ca02c',
+                    edge: '#999',
+                    textLight: '#333',
+                    textDark: '#eee'
+                };
             }
 
             reset() {
                 if (this.simulation) {
-                    this.simulation.stop();
-                    this.simulation = null;
+                    this.simulation.alpha(1).restart();
                 }
-                if (this.svg) {
-                    this.svg.selectAll("*").remove();
-                }
-
-                this.graph = null;
-                this.jsonLDOntology = null;
-
-                this.shadowRoot.innerHTML = '';
-                this.render();
-                this.svg = d3.select(this.shadowRoot.querySelector("#chart-container"));
             }
 
+            zoomIn() {
+                if (this.svg && this.zoomBehavior) {
+                    this.svg.transition().duration(300).call(this.zoomBehavior.scaleBy, 1.3);
+                }
+            }
 
+            zoomOut() {
+                if (this.svg && this.zoomBehavior) {
+                    this.svg.transition().duration(300).call(this.zoomBehavior.scaleBy, 1/1.3);
+                }
+            }
 
             set ttl(ttl) {
                 const data = this.internalData.get(this) || {};
@@ -119,87 +279,44 @@
 
             async connectedCallback() {
                 this.render();
-
                 this.observeResize();
-
                 await this.updateSize();
-
-                this.svg = d3.select(this.shadowRoot.querySelector("#chart-container"))
-                    .attr('width', this.width)
-                    .attr('height', this.height)
-
-                const defs = this.svg.append("defs");
-
-                defs.append("marker")
-                    .attr("id", "arrowhead")
-                    .attr("viewBox", "0 -5 10 10")
-                    .attr("refX", 10)
-                    .attr("refY", 0)
-                    .attr("markerWidth", 6)
-                    .attr("markerHeight", 6)
-                    .attr("orient", "auto")
-                    .attr("fill", "#999")
-                    .append("path")
-                    .attr("d", "M0,-5L10,0L0,5");
-
-                defs.append("marker")
-                    .attr("id", "arrowhead-unfilled")
-                    .attr("viewBox", "0 -5 10 10")
-                    .attr("refX", 10)
-                    .attr("refY", 0)
-                    .attr("markerWidth", 6)
-                    .attr("markerHeight", 6)
-                    .attr("orient", "auto")
-                    .attr("fill", "none")
-                    .attr("stroke", "#999")
-                    .append("path")
-                    .attr("d", "M0,-5L10,0L0,5");
             }
 
             disconnectedCallback() {
-                if (this.resizeObserver) {
-                    this.resizeObserver.disconnect();
-                }
+                if (this.resizeObserver) this.resizeObserver.disconnect();
+                if (this.simulation) this.simulation.stop();
             }
 
             render() {
                 this.shadowRoot.innerHTML = `
                     <style>
-                        :host {
-                            display: block;
-                            width: 100%;
-                            height: 100%;
+                        :host { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-select: none; }
+                        .container { width: 100%; height: 100%; box-sizing: border-box; }
+                        svg { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; }
+                        svg:active { cursor: grabbing; }
+                        .node-label {
+                            pointer-events: none; 
+                            font-family: 'Segoe UI', system-ui, sans-serif;
+                            font-size: 13px; font-weight: 600;
+                            fill: var(--text-color, #333);
                         }
-                        .container {
-                            width: 100%;
-                            height: 100%;
-                            box-sizing: border-box;
+                        .edge-label { 
+                            font-size: 11px; pointer-events: none; 
+                            fill: var(--text-color, #333);
                         }
-                        svg {
-                            width: 100%;
-                            height: 100%;
-                            border: 1px solid #ccc;
-                            display: block;
+                        .edge-path {
+                            stroke: var(--gutter-text, #999);
+                            stroke-width: 1.5px;
+                            fill: none;
                         }
-                        /* --- CHANGE: Added styles for the tooltip --- */
-                        .kg-tooltip {
-                            position: absolute;
-                            padding: 6px 10px;
-                            background: rgba(0, 0, 0, 0.8);
-                            color: #fff;
-                            border-radius: 4px;
-                            font-size: 14px;
-                            pointer-events: none;
-                            opacity: 0;
-                            transition: opacity 0.2s;
-                            z-index: 100;
+                        #arrowhead path {
+                            fill: var(--gutter-text, #999);
                         }
                     </style>
-                    <div class="container">
+                    <div class="container" id="main-container">
                         <svg id="chart-container"></svg>
                     </div>
-                    <!-- --- CHANGE: Added the tooltip div --- -->
-                    <div class="kg-tooltip"></div>
                 `;
             }
 
@@ -208,17 +325,11 @@
                     await this.updateSize();
                     if (this.svg) {
                         this.svg.attr('width', this.width).attr('height', this.height);
-
                         if (this.simulation) {
                             this.simulation.force("center", d3.forceCenter(this.width / 2, this.height / 2));
-                            this.simulation.alpha(0.2).restart();
+                            this.simulation.alphaTarget(0.05).restart();
+                            setTimeout(() => this.simulation.alphaTarget(0), 500);
                         }
-
-                        this.svg.select('.sliders').remove();
-                        this.svg.select('.legend-group').remove();
-
-                        this.setControls();
-                        this.setLegend();
                     }
                 });
                 this.resizeObserver.observe(this);
@@ -226,950 +337,282 @@
 
             async updateSize() {
                 const rect = this.getBoundingClientRect();
-                this.width = rect.width;
-                this.height = rect.height;
-            }
-
-            async computePixelValue(attr) {
-                return null;
+                this.width = rect.width || 800;
+                this.height = rect.height || 600;
             }
 
             async drawChart() {
-                if (!this.width || !this.height) {
-                    await this.updateSize();
-                }
-                if (this.simulation) {
-                    this.simulation.stop();
-                    this.simulation = null;
-                }
-                if (this.svg) {
-                    this.svg.selectAll("*").remove();
-                }
-                this.svg = d3.select(this.shadowRoot.querySelector("#chart-container"))
-                    .attr('width', this.width)
-                    .attr('height', this.height);
-
-                const defs = this.svg.append("defs");
-                defs.append("marker")
-                    .attr("id", "arrowhead")
-                    .attr("viewBox", "0 -5 10 10")
-                    .attr("refX", 10)
-                    .attr("refY", 0)
-                    .attr("markerWidth", 6)
-                    .attr("markerHeight", 6)
-                    .attr("orient", "auto")
-                    .attr("fill", "#999")
-                    .append("path")
-                    .attr("d", "M0,-5L10,0L0,5");
-
-                defs.append("marker")
-                    .attr("id", "arrowhead-unfilled")
-                    .attr("viewBox", "0 -5 10 10")
-                    .attr("refX", 10)
-                    .attr("refY", 0)
-                    .attr("markerWidth", 6)
-                    .attr("markerHeight", 6)
-                    .attr("orient", "auto")
-                    .attr("fill", "none")
-                    .attr("stroke", "#999")
-                    .append("path")
-                    .attr("d", "M0,-5L10,0L0,5");
+                if (!this.width || !this.height) await this.updateSize();
+                if (this.simulation) this.simulation.stop();
+                
+                const chartSvg = this.shadowRoot.querySelector("#chart-container");
+                if (!chartSvg) return;
+                
+                this.svg = d3.select(chartSvg);
+                this.svg.selectAll("*").remove();
 
                 if (!this.ttl) return;
+                if (typeof ttl2jsonld === 'undefined') {
+                    console.error("ttl2jsonld library not found");
+                    return;
+                }
 
-                this.jsonLDOntology = ttl2jsonld.parse(this.ttl);
+                try {
+                    this.jsonLDOntology = ttl2jsonld.parse(this.ttl);
+                    const graph = await this.createGraph();
+                    this.graph = graph;
+                    
+                    this.graph.nodes.forEach(node => {
+                        node.x = this.width / 2 + (Math.random() - 0.5) * 400;
+                        node.y = this.height / 2 + (Math.random() - 0.5) * 400;
+                        node.vx = 0;
+                        node.vy = 0;
+                    });
 
-                let graph = await this.createGraph();
-                this.graph = await this.duplicateTargetsForMultipleLinks(graph);
-
-                this.graph.nodes.forEach(node => { node.degree = 0; });
-                this.graph.links.forEach(link => {
-                    const sourceNode = this.graph.nodes.find(n => n.id === link.source);
-                    const targetNode = this.graph.nodes.find(n => n.id === link.target);
-                    if (sourceNode) sourceNode.degree = (sourceNode.degree || 0) + 1;
-                    if (targetNode) targetNode.degree = (targetNode.degree || 0) + 1;
-                });
-
-                await this.layoutGraphWithHierarchy(this.graph);
-
-                this.graph.nodes.forEach(node => {
-                    if (typeof node.x !== 'number' || isNaN(node.x) || node.x === 0) node.x = this.width / 2 + (Math.random() - 0.5) * 200;
-                    if (typeof node.y !== 'number' || isNaN(node.y) || node.y === 0) node.y = this.height / 2 + (Math.random() - 0.5) * 200;
-
-                    if (node.x === undefined || node.y === undefined || (node.x === 0 && node.y === 0)) {
-                        node.x = this.width / 2 + (Math.random() - 0.5) * 200;
-                        node.y = this.height / 2 + (Math.random() - 0.5) * 200;
-                    }
-                });
-
-                this.renderGraph();
+                    this.renderGraph();
+                } catch (e) {
+                    console.error("Graph drawing error:", e);
+                }
             }
-            async createGraph() {
-                let graph = {
-                    nodes: [],
-                    links: []
-                };
 
-                const addNode = (id, type) => {
+            async createGraph() {
+                let graph = { nodes: [], links: [] };
+                const addNode = (id, type, meta = {}) => {
+                    if (!id) return null;
                     let node = graph.nodes.find(n => n.id === id);
                     if (!node) {
-                        node = { id, name: id, type };
+                        node = { id, name: id, type, ...meta };
                         graph.nodes.push(node);
                     }
                     return node;
                 };
 
-                this.jsonLDOntology['@graph'].forEach((item) => {
-                    const subj = item['@id'] || item['@value'] || item['@node'] || item['@blank'] || item['@literal'];
-                    let subjType = 'default';
+                const processItem = (item) => {
+                    if (!item || typeof item !== 'object') return;
+                    
+                    const subj = item['@id'];
+                    if (!subj) return;
 
-                    if (item['@type'] && item['@type'].includes('Class')) {
-                        subjType = 'Class';
-                    } else if (item['@type'] && item['@type'].includes('Property')) {
-                        subjType = 'Property';
-                    } else if (item['@type'] && item['@type'].includes('Literal')) {
-                        subjType = 'Literal';
-                    } else if (subj && subj.startsWith('_:')) {
+                    let subjType = 'Resource';
+                    if (item['@type']) {
+                        const types = Array.isArray(item['@type']) ? item['@type'] : [item['@type']];
+                        if (types.some(t => t.includes('Class'))) subjType = 'Class';
+                    } else if (subj.startsWith('_:')) {
                         subjType = 'Blank';
-                    } else if (subj) {
-                        subjType = 'Class';
                     }
 
-                    const subjNode = addNode(subj, subjType);
-                    subjNode.rawData = item;
+                    addNode(subj, subjType);
 
                     Object.keys(item).forEach(pred => {
-                        if (pred === '@id' || pred === '@type') return;
-
-                        let objs = item[pred];
-                        if (!Array.isArray(objs)) objs = [objs];
-
+                        if (pred.startsWith('@')) return;
+                        let objs = Array.isArray(item[pred]) ? item[pred] : [item[pred]];
                         objs.forEach(obj => {
-                            let objId = obj['@id'] || obj['@value'] || obj['@node'] || obj['@blank'] || obj['@literal'] || obj;
-
-                            let objType = 'default';
-                            if (typeof obj === 'object' && obj !== null) {
-                                if (obj['@id']) {
-                                    objType = 'Class';
-                                } else {
-                                    objType = 'Literal';
-                                }
+                            let objId;
+                            let objType = 'Literal';
+                            let meta = {};
+                            
+                            if (typeof obj === 'object' && obj['@id']) {
+                                objId = obj['@id'];
+                                objType = 'Resource';
+                                processItem(obj); // Recurse for embedded objects
+                            } else if (typeof obj === 'object' && obj['@value'] !== undefined) {
+                                objId = String(obj['@value']);
+                                if (obj['@type']) meta.datatype = obj['@type'];
+                                if (obj['@language']) meta.language = obj['@language'];
                             } else {
-                                objType = 'Literal';
+                                objId = String(obj);
                             }
-
-                            addNode(objId, objType);
-                            graph.links.push({ source: subj, target: objId, name: pred });
+                            
+                            if (objId !== undefined && objId !== "undefined") {
+                                addNode(objId, objType, meta);
+                                graph.links.push({ source: subj, target: objId, name: pred });
+                            }
                         });
                     });
-                });
+                };
 
-                graph.links.forEach(link => {
-
-                    const propertyDefinitionNode = graph.nodes.find(n => n.id === link.name);
-
-                    if (propertyDefinitionNode && propertyDefinitionNode.rawData) {
-                        if (propertyDefinitionNode.rawData['rdfs:range']) {
-                            link.propertyType = 'Object';
-                        } else {
-                            link.propertyType = 'Datatype';
-                        }
-                    }
-                });
-
+                const root = this.jsonLDOntology;
+                const data = root['@graph'] ? root['@graph'] : (Array.isArray(root) ? root : [root]);
+                data.forEach(processItem);
+                
                 return graph;
-            }
-            async duplicateTargetsForMultipleLinks(graph) {
-                const sourceTargetCount = {};
-
-                const symmetricProperties = new Set(['ex:isMarriedTo', 'ex:friend']);
-
-                graph.links.forEach(link => {
-                    const key = `${link.source}->${link.target}`;
-                    sourceTargetCount[key] = (sourceTargetCount[key] || 0) + 1;
-                });
-
-                const newNodes = [...graph.nodes];
-                const newLinks = [];
-                const copyIndex = {};
-
-                graph.links.forEach(link => {
-                    const key = `${link.source}->${link.target}`;
-
-                    if (sourceTargetCount[key] > 1) {
-                        copyIndex[key] = (copyIndex[key] || 0) + 1;
-                        if (copyIndex[key] === 1) {
-                            newLinks.push(link);
-                        } else {
-                            const originalTarget = graph.nodes.find(n => n.id === link.target);
-                            const newTargetId = `${link.target}_copy${copyIndex[key]}`;
-                            const newTarget = {
-                                ...originalTarget,
-                                id: newTargetId
-                            };
-                            newNodes.push(newTarget);
-                            newLinks.push({
-                                ...link,
-                                target: newTargetId
-                            });
-                        }
-                    } else {
-                        newLinks.push(link);
-                    }
-
-                    if (symmetricProperties.has(link.name)) {
-                        newLinks.push({
-                            source: link.target,
-                            target: link.source,
-                            name: link.name,
-                            propertyType: link.propertyType,
-                            isSymmetric: true
-                        });
-                    }
-                });
-                return {
-                    nodes: newNodes,
-                    links: newLinks
-                };
-            }
-
-            async buildHierarchy(graph) {
-                const subclassLinks = graph.links.filter(l => l.name === 'rdfs:subClassOf');
-                const childrenByParent = {};
-                const allIds = new Set();
-                subclassLinks.forEach(link => {
-                    if (!childrenByParent[link.target]) {
-                        childrenByParent[link.target] = [];
-                    }
-                    childrenByParent[link.target].push(link.source);
-                    allIds.add(link.source);
-                    allIds.add(link.target);
-                });
-                const childIds = new Set(subclassLinks.map(l => l.source));
-                const rootIds = [...allIds].filter(id => !childIds.has(id));
-                function buildNode(id) {
-                    return {
-                        id,
-                        children: (childrenByParent[id] || []).map(buildNode)
-                    };
-                }
-                return rootIds.map(buildNode);
-            }
-
-            async layoutGraphWithHierarchy(graph) {
-                const hierarchyRoots = await this.buildHierarchy(graph);
-                const tree = d3.tree().nodeSize([70, 200]);
-                const positionedNodes = new Map();
-                hierarchyRoots.forEach((root, index) => {
-                    const rootHierarchy = d3.hierarchy(root, d => d.children);
-                    tree(rootHierarchy);
-                    const xOffset = index * 400;
-                    rootHierarchy.descendants().forEach(d => {
-                        positionedNodes.set(d.data.id, {
-                            x: d.y + xOffset,
-                            y: d.x
-                        });
-                    });
-                });
-                graph.nodes.forEach(node => {
-                    if (positionedNodes.has(node.id)) {
-                        const pos = positionedNodes.get(node.id);
-                        node.fx = pos.x;
-                        node.fy = pos.y;
-                    }
-                });
-                graph.nodes.forEach(node => {
-                    if (!node.x && !node.y) {
-                        const linked = graph.links.filter(l => l.source === node.id || l.target === node.id);
-                        const connected = linked.map(l =>
-                            l.source === node.id ? l.target : l.source
-                        ).filter(id => positionedNodes.has(id));
-
-                        if (connected.length > 0) {
-                            const avgX = d3.mean(connected.map(id => positionedNodes.get(id).x));
-                            const avgY = d3.mean(connected.map(id => positionedNodes.get(id).y));
-                            node.x = avgX + (Math.random() - 0.5) * 50;
-                            node.y = avgY + 100 + (Math.random() - 0.5) * 30;
-                        } else {
-                            node.x = Math.random() * 800;
-                            node.y = 800;
-                        }
-                    }
-                });
-            }
-
-            setupSimulation() {
-                this.graph.nodes.forEach(d => {
-                    d.x = Math.random() * this.width;
-                    d.y = Math.random() * this.height;
-                });
-
-                this.simulation = d3.forceSimulation(this.graph.nodes)
-                    .force("link", d3.forceLink(this.graph.links)
-                        .id(d => d.id)
-                        .distance(d => {
-                            const labelPadding = 20;
-                            const labelWidth = d._labelWidth || 0;
-                            return this.baseLinkDistance + labelWidth + labelPadding;
-                        })
-                        .strength(0.8)
-                    )
-                    .force("charge", d3.forceManyBody().strength(this.defaultCharge))
-                    .force("center", d3.forceCenter(this.width / 2, this.height / 2))
-                    .force("collision", d3.forceCollide().radius(d => d.collisionRadius + 10))
-                    .force("x", d3.forceX(this.width / 2).strength(0.02))
-                    .force("y", d3.forceY(this.height / 2).strength(0.02));
-
-                this.simulation.on('end', () => {
-                    this.graph.nodes.forEach(n => {
-                        if (n.fx !== undefined) delete n.fx;
-                        if (n.fy !== undefined) delete n.fy;
-                    });
-                });
-            }
-
-            truncateText(text) {
-                if (typeof text !== 'string' || text.length <= 25) {
-                    return { text: text, truncated: false };
-                }
-                return { text: text.substring(0, 10) + '…', truncated: true };
-            }
-
-            updatePositions() {
-                const getLinkKey = d => `${[d.source.id, d.target.id].sort().join('-')}-${d.name}`;
-                const linkCounts = new Map();
-                this.graph.links.forEach(l => {
-                    const key = getLinkKey(l);
-                    linkCounts.set(key, (linkCounts.get(key) || 0) + 1);
-                });
-
-                const pathData = d => {
-                    const key = getLinkKey(d);
-                    const count = linkCounts.get(key);
-                    const isCyclic = count > 1;
-
-                    const dx = d.target.x - d.source.x;
-                    const dy = d.target.y - d.source.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-
-                    if (dist === 0) {
-                        return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
-                    }
-
-                    const sourceRadius = d.source.collisionRadius || 0;
-                    const targetRadius = d.target.collisionRadius || 0;
-
-                    const sourceX = d.source.x + (dx / dist) * sourceRadius;
-                    const sourceY = d.source.y + (dy / dist) * sourceRadius;
-                    const targetX = d.target.x - (dx / dist) * targetRadius;
-                    const targetY = d.target.y - (dy / dist) * targetRadius;
-
-                    if (isCyclic) {
-                        const midX = (d.source.x + d.target.x) / 2;
-                        const midY = (d.source.y + d.target.y) / 2;
-                        
-                        const perpendicularX = -dy / dist;
-                        const perpendicularY = dx / dist;
-
-                        const curve = 50;
-                        const isReversed = d.isSymmetric;
-                        const curveFactor = isReversed ? -1 : 1;
-
-                        const controlX = midX + curveFactor * curve * perpendicularX;
-                        const controlY = midY + curveFactor * curve * perpendicularY;
-
-                        return `M${sourceX},${sourceY} Q${controlX},${controlY} ${targetX},${targetY}`;
-                    }
-                    return `M${sourceX},${sourceY} L${targetX},${targetY}`;
-                };
-
-                this.link.attr("d", pathData);
-                if (this.linkHover) {
-                    this.linkHover.attr("d", pathData);
-                }
-
-                this.nodeGroup
-                    .attr("transform", d => `translate(${d.x},${d.y})`)
-
-                const linkPaths = this.link.nodes();
-                this.linkLabel.each(function (d, i) {
-                    const linkPath = linkPaths[i];
-                    if (linkPath) {
-                        const pathLength = linkPath.getTotalLength();
-                        const midPoint = linkPath.getPointAtLength(pathLength / 2);
-                        const startPoint = linkPath.getPointAtLength(0);
-                        const endPoint = linkPath.getPointAtLength(pathLength);
-
-                        const angle = Math.atan2(endPoint.y - startPoint.y, endPoint.x - startPoint.x) * 180 / Math.PI;
-
-                        d3.select(this)
-                            .attr("x", midPoint.x)
-                            .attr("y", midPoint.y)
-                            .attr("dy", -5)
-                            .attr("transform", `rotate(${angle}, ${midPoint.x}, ${midPoint.y})`);
-                    }
-                });
             }
 
             renderGraph() {
-                const tempLinkText = this.svg.append("text").attr("font-size", "12px").attr("opacity", 0);
-                this.graph.links.forEach(link => {
-                    tempLinkText.text(link.name);
-                    const bbox = tempLinkText.node().getBBox();
-                    link._labelWidth = bbox.width;
-                });
-                tempLinkText.remove();
-
-                const degreeExtent = d3.extent(this.graph.nodes, d => d.degree);
-
-                const degreeBonusScale = d3.scaleSqrt()
-                    .domain(degreeExtent[0] > 0 ? degreeExtent : [0, 1])
-                    .range([0, 15]);
-
-                const tempNodeText = this.svg.append("text").attr("opacity", 0);
-                this.graph.nodes.forEach(d => {
-                    let nameToShow = d.name;
-                    if (d.rawData && d.rawData['rdfs:label']) {
-                        let labels = d.rawData['rdfs:label'];
-                        if (!Array.isArray(labels)) labels = [labels];
-                        const enLabel = labels.find(l => l['@language'] === 'en');
-                        nameToShow = enLabel ? enLabel['@value'] : (labels[0]['@value'] || labels[0] || nameToShow);
-                    }
-                    d.fullName = nameToShow;
-
-                    const textSize = (d.type === "Literal") ? 10 : (d.type === "class" || d.type === "Class") ? 11 : 12;
-                    tempNodeText.attr("font-size", textSize).attr("font-family", "Arial");
-
-                    let textToDisplay;
-                    if (typeof nameToShow !== 'string' || nameToShow.length <= 10) {
-                        textToDisplay = nameToShow;
-                        d.isTruncated = false;
-                    } else {
-                        textToDisplay = nameToShow.substring(0, 10) + '…';
-                        d.isTruncated = true;
-                    }
-                    d.displayName = textToDisplay;
-
-                    tempNodeText.text(textToDisplay);
-                    const textWidth = tempNodeText.node().getBBox().width;
-                    const textRadius = (textWidth / 2) + 8;
-
-                    const bonus = degreeBonusScale(d.degree);
-                    d.collisionRadius = textRadius + bonus;
-                });
-                tempNodeText.remove();
-
-
-                this.setupSimulation();
+                const self = this;
+                
+                // Initialize simulation first
+                this.simulation = d3.forceSimulation(this.graph.nodes)
+                    .force("link", d3.forceLink(this.graph.links).id(d => d.id).distance(160))
+                    .force("charge", d3.forceManyBody().strength(-1500))
+                    .force("center", d3.forceCenter(this.width / 2, this.height / 2))
+                    .force("collision", d3.forceCollide().radius(45))
+                    .on("tick", () => this.ticked());
 
                 const gZoom = this.svg.append("g").attr("class", "zoom-layer");
+                
+                this.zoomBehavior = d3.zoom()
+                    .scaleExtent([0.05, 10])
+                    .on("zoom", () => gZoom.attr("transform", d3.event.transform));
+                this.svg.call(this.zoomBehavior);
 
-                const zoom = d3.zoom()
-                    .scaleExtent([0.1, 5])
-                    .on("zoom", (event) => {
-                        gZoom.attr("transform", event.transform);
-                    });
+                const linkGroup = gZoom.append("g").attr("class", "links-layer");
+                const labelGroup = gZoom.append("g").attr("class", "labels-layer");
+                const nodeGroup = gZoom.append("g").attr("class", "nodes-layer");
 
-                this.svg.call(zoom);
-                this.svg.style("background-color", "white");
+                this.svg.append("defs").append("marker")
+                    .attr("id", "arrowhead").attr("viewBox", "0 -5 10 10")
+                    .attr("refX", 32).attr("markerWidth", 6).attr("markerHeight", 6)
+                    .attr("orient", "auto")
+                    .append("path").attr("d", "M0,-5L10,0L0,5");
 
-                this.link = gZoom.append("g")
-                    .attr("class", "links")
-                    .selectAll("path")
-                    .data(this.graph.links)
-                    .enter()
-                    .append("path")
-                    .attr("id", (d, i) => `linkPath${i}`)
-                    .attr("stroke-width", 3)
-                    .attr("stroke", "#666")
-                    .attr("fill", "none")
-                    .attr("stroke-dasharray", d => (d.name === 'rdfs:subClassOf' || d.name === 'rdfs:subPropertyOf') ? "5,5" : null)
-                    .attr("marker-end", d => (d.name === 'rdfs:subClassOf' || d.name === 'rdfs:subPropertyOf') ? "url(#arrowhead-unfilled)" : "url(#arrowhead)")
+                this.linkSelection = linkGroup.selectAll("path")
+                    .data(this.graph.links).enter().append("path")
+                    .attr("class", "edge-path")
+                    .attr("marker-end", "url(#arrowhead)");
 
-
-                const tooltip = d3.select(this.shadowRoot.querySelector(".kg-tooltip"));
-
-                this.linkHover = gZoom.append("g")
-                    .attr("class", "link-hover-paths")
-                    .selectAll("path")
-                    .data(this.graph.links)
-                    .enter()
-                    .append("path")
-                    .attr("stroke-width", 15)
-                    .attr("stroke", "transparent")
-                    .attr("fill", "none")
-                    .style("cursor", "pointer")
-                    .on("mouseover", function (event, d) {
-                        const htmlContent = `<strong>Predicate:</strong> ${d.name}`;
-                        tooltip.style("opacity", 1)
-                            .style("text-align", "center")
-                            .html(htmlContent);
-                    })
-                    .on("mousemove", function (event, d) {
-                        tooltip.style("left", (event.pageX + 15) + "px")
-                            .style("top", (event.pageY - 10) + "px");
-                    })
-                    .on("mouseout", function () {
-                        tooltip.style("opacity", 0);
-                    });
-
-                this.linkLabel = gZoom.append("g")
-                    .attr("class", "link-labels")
-                    .selectAll("text")
-                    .data(this.graph.links)
-                    .enter()
-                    .append("text")
-                    .attr("font-size", 12)
-                    .attr("fill", d => {
-                        if (d.propertyType === 'Datatype') return '#d62728';
-                        if (d.name.startsWith('rdfs:')) return '#636363';
-                        return 'black';
-                    })
-                    .attr("font-weight", "normal")
+                this.linkLabelSelection = labelGroup.selectAll("text")
+                    .data(this.graph.links).enter().append("text")
+                    .attr("class", "edge-label")
                     .attr("text-anchor", "middle")
-                    .text(d => d.name);
+                    .text(d => this.formatLabel(d.name));
+                
+                if (!this.showEdgeLabels) this.linkLabelSelection.style('display', 'none');
 
-                this.setShowEdgeLabels(document.getElementById('toggle-edge-labels').checked);
-
-                this.nodeGroup = gZoom.append("g")
-                    .attr("class", "nodes")
-                    .selectAll("g")
-                    .data(this.graph.nodes)
-                    .enter()
-                    .append("g")
-                    .style('cursor', 'grab')
+                this.nodeSelection = nodeGroup.selectAll("g")
+                    .data(this.graph.nodes).enter().append("g")
                     .call(d3.drag()
-                        .on("start", function (event, d) {
-                            if (d.fx !== null && d.fy !== null && d.fx !== undefined && d.fy !== undefined) {
-                                d._skipDrag = true; return;
-                            }
-                            d._skipDrag = false;
-                            if (!event.active) this.simulation.alphaTarget(0.3).restart();
-                            d.fx = d.x;
-                            d.fy = d.y;
-                        }.bind(this))
-                        .on("drag", function (event, d) {
-                            if (d._skipDrag) return;
-                            d.fx = event.x;
-                            d.fy = event.y;
+                        .on("start", function(d) {
+                            if (!d3.event.active) self.simulation.alphaTarget(0.3).restart();
+                            d.fx = d.x; d.fy = d.y;
                         })
-                        .on("end", function (event, d) {
-                            if (d._skipDrag) return;
-                            if (!event.active) this.simulation.alphaTarget(0);
-                            d.fx = null;
-                            d.fy = null;
-                        }.bind(this))
-                    )
-                    .on("mouseover", function (event, d) {
-                        const escape = (str) => String(str)
-                            .replace(/&/g, '&amp;')
-                            .replace(/</g, '&lt;')
-                            .replace(/>/g, '&gt;')
-                            .replace(/"/g, '&quot;')
-                            .replace(/'/g, '&#39;');
+                        .on("drag", function(d) { d.fx = d3.event.x; d.fy = d3.event.y; })
+                        .on("end", function(d) {
+                            if (!d3.event.active) self.simulation.alphaTarget(0);
+                            d.fx = null; d.fy = null;
+                        }));
 
-                        let htmlContent = [`<strong>${escape(d.fullName)}</strong>`];
-
-                        if (d.rawData) {
-                            Object.keys(d.rawData).forEach(key => {
-                                if (key.startsWith('@') || key === 'id') return;
-
-                                let values = d.rawData[key];
-                                if (!Array.isArray(values)) values = [values];
-
-                                values.forEach(valueObj => {
-                                    if (valueObj['@id'] === undefined) {
-                                        const text = valueObj['@value'] || valueObj;
-                                        const lang = valueObj['@language'] ? `@${valueObj['@language']}` : '';
-                                        const type = (valueObj['@type'] && valueObj['@type'].includes(':')) ? `^^${valueObj['@type'].split(':').pop()}` : '';
-
-                                        htmlContent.push(`<strong>${escape(key)}${lang}:</strong> ${escape(text)} ${type}`);
-                                    }
-                                });
-                            });
-                        }
-
-                        tooltip.style("opacity", 1)
-                            .style("text-align", "left")
-                            .html(htmlContent.join('<br>'));
-                    })
-                    .on("mousemove", function (event, d) {
-                        tooltip.style("left", (event.pageX + 15) + "px")
-                            .style("top", (event.pageY - 10) + "px");
-                    })
-                    .on("mouseout", function () {
-                        tooltip.style("opacity", 0);
-                    });
-                this.nodeGroup.each(function (d) {
-                    const group = d3.select(this);
-
-                    let fillColor = "#1f77b4";
-                    let textSize = 12;
-                    let textColor = "white";
-                    let rx = 4, ry = 4;
-                    let shape = "circle";
-                    if (d.type === "Literal") {
-                        fillColor = "orange";
-                        shape = "rect";
-                        textSize = 10;
-                    } else if (d.type === "Blank") {
-                        fillColor = "yellow";
-                        shape = "rect";
-                        textSize = 12;
-                    } else if (d.type === "class" || d.type === "Class" || d.type === "Property") {
-                        fillColor = "#1f77b4";
-                        shape = "circle";
-                        textSize = 11;
-                    }
-
-                    const radius = d.collisionRadius;
-
-                    if (shape === "rect") {
-                        const rect = group.append("rect");
-
-                        if (d.type === "Literal") {
-                            rect.attr("x", -radius)
-                                .attr("y", -radius * 0.6)
-                                .attr("width", radius * 2)
-                                .attr("height", radius * 1.2);
-
-                        } else if (d.type === "Property") {
-                            const size = radius * 1.7;
-                            rect.attr("x", -size / 2)
-                                .attr("y", -size / 2)
-                                .attr("width", size)
-                                .attr("height", size);
-                        } else {
-                            rect.attr("x", -radius)
-                                .attr("y", -radius * 0.75)
-                                .attr("width", radius * 2)
-                                .attr("height", radius * 1.5);
-                        }
-
-                        rect.attr("fill", fillColor)
-                            .attr("rx", rx)
-                            .attr("ry", ry);
-
-                        if (d.type === "Property") {
-                            rect.attr("transform", `rotate(45)`);
-                        }
+                this.nodeSelection.each(function(d) {
+                    const el = d3.select(this);
+                    const size = 20;
+                    if (d.type === 'Literal') {
+                        el.append("rect").attr("x", -size * 1.2).attr("y", -size * 0.7)
+                            .attr("width", size * 2.4).attr("height", size * 1.4).attr("rx", 4)
+                            .attr("fill", '#ff7f0e').attr("stroke", "#fff").attr("stroke-width", 1.5);
                     } else {
-                        group.append("circle")
-                            .attr("r", radius)
-                            .attr("fill", fillColor);
+                        el.append("circle").attr("r", size)
+                            .attr("fill", d.type === 'Blank' ? '#2ca02c' : '#1f77b4')
+                            .attr("stroke", "#fff").attr("stroke-width", 1.5);
                     }
-
-                    group.append("text")
-                        .text(d.displayName)
-                        .attr("font-size", textSize)
-                        .attr("font-family", "Arial")
-                        .attr("fill", textColor)
-                        .attr("text-anchor", "middle")
-                        .attr("dominant-baseline", "central");
                 });
 
-                this.simulation
-                    .nodes(this.graph.nodes)
-                    .on("tick", () => this.updatePositions());
+                this.nodeSelection.append("text").attr("class", "node-label")
+                    .attr("dy", 35).attr("text-anchor", "middle")
+                    .text(d => this.truncateLabel(this.formatLabel(d.id)));
+                
+                const tooltip = d3.select("#global-tooltip");
+                this.nodeSelection.on("mouseover", (d) => {
+                    const isLiteral = d.type === 'Literal';
+                    const title = isLiteral ? `"${self.formatLabel(d.id)}"` : self.formatLabel(d.id);
+                    let content = `<div class="tooltip-title">${title}</div>`;
+                    
+                    if (isLiteral) {
+                        content += `<div class="tooltip-row"><strong>Value</strong> <span>"${d.id}"</span></div>`;
+                        let typeVal = d.datatype ? self.formatLabel(d.datatype) : (isNaN(d.id) ? 'xsd:string' : 'xsd:decimal');
+                        content += `<div class="tooltip-row"><strong>Type</strong> <span>${typeVal}</span></div>`;
+                        if (d.language) {
+                            content += `<div class="tooltip-row"><strong>Lang</strong> <span>${d.language}</span></div>`;
+                        }
+                    } else if (d.type === 'Blank') {
+                        content += `<div class="tooltip-row"><strong>ID</strong> <span>${d.id}</span></div>`;
+                        content += `<div class="tooltip-row"><strong>Type</strong> <span>Blank Node</span></div>`;
+                    } else {
+                        // Resource / Class
+                        content += `<div class="tooltip-row"><strong>URI</strong> <span>${d.id}</span></div>`;
+                        content += `<div class="tooltip-row"><strong>Type</strong> <span>${d.type}</span></div>`;
+                    }
 
-                this.simulation.force("link").links(this.graph.links);
+                    tooltip.style("opacity", 1).html(content);
+                }).on("mousemove", () => {
+                    tooltip.style("left", (d3.event.pageX + 15) + "px").style("top", (d3.event.pageY - 10) + "px");
+                }).on("mouseout", () => tooltip.style("opacity", 0));
+
                 this.simulation.alpha(1).restart();
+            }
 
-                const bounds = gZoom.node().getBBox();
-                const fullWidth = this.width;
-                const fullHeight = this.height;
-                const width = bounds.width;
-                const height = bounds.height;
-                if (width > 0 && height > 0) {
-                    const midX = bounds.x + width / 2;
-                    const midY = bounds.y + height / 2;
-                    const scale = 0.85 / Math.max(width / fullWidth, height / fullHeight);
-                    const translate = [fullWidth / 2 - scale * midX, fullHeight / 2 - scale * midY];
+            ticked() {
+                const hasPos = d => d && typeof d.x === 'number' && typeof d.y === 'number';
 
-                    this.svg.transition()
-                        .duration(500)
-                        .call(
-                            zoom.transform,
-                            d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale)
-                        );
+                if (this.linkSelection) {
+                    this.linkSelection.attr("d", d => {
+                        if (!hasPos(d.source) || !hasPos(d.target)) return null;
+                        return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+                    });
+                }
+                
+                if (this.nodeSelection) {
+                    this.nodeSelection.attr("transform", d => {
+                        if (!hasPos(d)) return null;
+                        return `translate(${d.x},${d.y})`;
+                    });
+                }
+                
+                if (this.linkLabelSelection && this.showEdgeLabels) {
+                    this.linkLabelSelection
+                        .attr("x", d => (hasPos(d.source) && hasPos(d.target)) ? (d.source.x + d.target.x) / 2 : 0)
+                        .attr("y", d => (hasPos(d.source) && hasPos(d.target)) ? (d.source.y + d.target.y) / 2 : 0);
                 }
             }
 
-            setLegend() {
-                const legendGroup = this.svg.append("g")
-                    .attr("class", "legend-group")
-                    .attr("transform", `translate(${this.width - 200}, ${this.height - 150})`);
-                legendGroup.append("rect")
-                    .attr("width", 180)
-                    .attr("height", 135)
-                    .attr("fill", "rgba(255, 255, 255, 0.9)")
-                    .attr("stroke", "#ccc")
-                    .attr("rx", 5);
-
-                const legendItems = [
-                    { label: "Resources", shape: "circle", color: "#1f77b4" },
-                    { label: "Literal", shape: "rect", color: "orange" },
-                    { label: "SubClass Of Link", shape: "dotted-line", color: "#666" },
-                    { label: "Object Property Link", shape: "solid-line", color: "black" },
-                    { label: "Datatype Property Link", shape: "solid-line", color: "#d62728" }
-                ];
-
-                const itemGroup = legendGroup.selectAll(".legend-item")
-                    .data(legendItems)
-                    .enter()
-                    .append("g")
-                    .attr("class", "legend-item")
-                    .attr("transform", (d, i) => `translate(15, ${20 + i * 20})`);
-
-                itemGroup.each(function (d) {
-                    const group = d3.select(this);
-                    switch (d.shape) {
-                        case "circle":
-                            group.append("circle")
-                                .attr("cx", 0)
-                                .attr("cy", 0)
-                                .attr("r", 6)
-                                .attr("fill", d.color);
-                            break;
-                        case "diamond":
-                            group.append("rect")
-                                .attr("x", -5)
-                                .attr("y", -5)
-                                .attr("width", 10)
-                                .attr("height", 10)
-                                .attr("fill", d.color)
-                                .attr("transform", "rotate(45)");
-                            break;
-                        case "rect":
-                            group.append("rect")
-                                .attr("x", -5)
-                                .attr("y", -5)
-                                .attr("width", 10)
-                                .attr("height", 10)
-                                .attr("fill", d.color);
-                            break;
-                        case "dotted-line":
-                            group.append("line")
-                                .attr("x1", -6)
-                                .attr("y1", 0)
-                                .attr("x2", 6)
-                                .attr("y2", 0)
-                                .attr("stroke", d.color)
-                                .attr("stroke-width", 2)
-                                .attr("stroke-dasharray", "3,2");
-                            break;
-                        case "solid-line":
-                            group.append("line")
-                                .attr("x1", -6)
-                                .attr("y1", 0)
-                                .attr("x2", 6)
-                                .attr("y2", 0)
-                                .attr("stroke", d.color)
-                                .attr("stroke-width", 2);
-                            break;
-                    }
-                });
-
-                itemGroup.append("text")
-                    .attr("x", 20)
-                    .attr("y", 4)
-                    .attr("font-size", "12px")
-                    .attr("font-family", "Arial")
-                    .attr("fill", "#333")
-                    .text(d => d.label);
+            formatLabel(uri) {
+                if (!uri) return "";
+                if (uri.startsWith('_:')) return uri;
+                try {
+                    const parts = uri.includes('#') ? uri.split('#') : uri.split('/');
+                    const last = parts.pop();
+                    return last || uri;
+                } catch(e) { return uri; }
             }
-            setControls() {
-                const sliderGroup = this.svg.append("g").attr("class", "sliders");
 
-                const sliderWidth = 120;
-                const sliderX = 20;
-                let sliderY = this.height - 100;
+            truncateLabel(label) {
+                return label.length > 25 ? label.substring(0, 22) + '...' : label;
+            }
 
-                const createSlider = (label, min, max, initial, step, onChange) => {
-                    const group = sliderGroup.append("g")
-                        .attr("transform", `translate(${sliderX}, ${sliderY})`);
-                    group.append("text")
-                        .text(`${label}: ${initial}`)
-                        .attr("x", 0)
-                        .attr("y", -10)
-                        .attr("font-size", "10px")
-                        .attr("class", `label-${label}`);
-                    group.append("line")
-                        .attr("x1", 0)
-                        .attr("x2", sliderWidth)
-                        .attr("y1", 0)
-                        .attr("y2", 0)
-                        .attr("stroke", "#ccc")
-                        .attr("stroke-width", 2);
-                    const handle = group.append("circle")
-                        .attr("cx", ((initial - min) / (max - min)) * sliderWidth)
-                        .attr("cy", 0)
-                        .attr("r", 6)
-                        .attr("fill", "#888")
-                        .style("cursor", "pointer")
-                        .call(d3.drag().on("drag", (event) => {
-                            let x = Math.max(0, Math.min(sliderWidth, event.x));
-                            handle.attr("cx", x);
-                            const value = min + (x / sliderWidth) * (max - min);
-                            group.select(`text.label-${label}`)
-                                .text(`${label}: ${Math.round(value)}`);
-                            onChange(value);
-                        }));
-                    sliderY += 40;
-                };
-
-                createSlider("Charge", -2000, -10, this.defaultCharge, 1, val => {
-                    this.simulation.force("charge").strength(val);
-                    this.simulation.alpha(1).restart();
-                });
-
-                createSlider("Distance", 10, 300, this.baseLinkDistance, 1, val => {
-                    this.baseLinkDistance = val;
-                    this.simulation.alpha(1).restart();
-                });
-
-                const buttonGroup = sliderGroup.append("g")
-                    .attr("transform", `translate(${sliderX}, ${sliderY - 15})`)
-                    .style("cursor", "pointer")
-                    .on("click", () => {
-                        let _this = this;
-                        this.simulation.force("charge").strength(this.defaultCharge);
-                        this.baseLinkDistance = this.defaultDistance;
-                        this.simulation.alpha(1).restart();
-
-                        sliderGroup.select("text.label-Charge").text(`Charge: ${this.defaultCharge}`);
-                        sliderGroup.select("text.label-Distance").text(`Distance: ${this.defaultDistance}`);
-                        sliderGroup.selectAll("g").each(function () {
-                            const text = d3.select(this).select("text").text();
-                            const g = d3.select(this);
-                            if (text.startsWith("Charge")) {
-                                const newRange = -10 - (-2000);
-                                const newCx = ((_this.defaultCharge - (-2000)) / newRange) * sliderWidth;
-                                g.select("circle").attr("cx", newCx);
-                            } else if (text.startsWith("Distance")) {
-                                const newRange = 300 - 10;
-                                const newCx = ((_this.defaultDistance - 10) / newRange) * sliderWidth;
-                                g.select("circle").attr("cx", newCx);
-                            }
-                        })
-                    });
-
-                buttonGroup.append("rect")
-                    .attr("width", 60)
-                    .attr("height", 20)
-                    .attr("rx", 4)
-                    .attr("ry", 4)
-                    .attr("fill", "#eee")
-                    .attr("stroke", "#aaa");
-
-                buttonGroup.append("text")
-                    .text("Reset")
-                    .attr("x", 30)
-                    .attr("y", 14)
-                    .attr("text-anchor", "middle")
-                    .attr("font-size", "10px");
+            setTheme(isDark) {
+                this.isDarkMode = isDark;
+                // No need to manually update text fills anymore as we use CSS variables
             }
         }
+
         customElements.define('kg-graph', KGGraphVis);
 
-        // Theme management function callable from Java
-        window.applyTheme = function(isDark) {
-            const controlsPanel = document.getElementById('graph-controls');
-            
-            if (isDark) {
-                // Dark theme colors
-                if (controlsPanel) {
-                    controlsPanel.style.background = 'rgba(46, 52, 64, 0.95)';
-                    controlsPanel.style.color = '#d8dee9';
-                    controlsPanel.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
-                }
-                
-                // Update graph colors if it exists
-                const currentGraphElement = document.getElementById('myGraph');
-                if (currentGraphElement && currentGraphElement.shadowRoot) {
-                    const svg = currentGraphElement.shadowRoot.querySelector('svg');
-                    if (svg) {
-                        svg.style.borderColor = '#4c566a';
-                        // Update link colors
-                        d3.select(currentGraphElement.shadowRoot)
-                            .selectAll('.links path')
-                            .attr('stroke', '#88c0d0');
-                        // Update link label colors
-                        d3.select(currentGraphElement.shadowRoot)
-                            .selectAll('.link-labels text')
-                            .attr('fill', '#d8dee9');
-                        // Update control elements
-                        d3.select(currentGraphElement.shadowRoot)
-                            .selectAll('.sliders text')
-                            .attr('fill', '#d8dee9');
-                        d3.select(currentGraphElement.shadowRoot)
-                            .selectAll('.sliders line')
-                            .attr('stroke', '#4c566a');
-                        d3.select(currentGraphElement.shadowRoot)
-                            .selectAll('.sliders circle')
-                            .attr('fill', '#88c0d0');
-                        // Update reset button
-                        d3.select(currentGraphElement.shadowRoot)
-                            .select('.sliders g[style*="cursor: pointer"] rect')
-                            .attr('fill', '#3b4252')
-                            .attr('stroke', '#4c566a');
-                        d3.select(currentGraphElement.shadowRoot)
-                            .select('.sliders g[style*="cursor: pointer"] text')
-                            .attr('fill', '#d8dee9');
-                    }
-                }
-            } else {
-                // Light theme colors
-                if (controlsPanel) {
-                    controlsPanel.style.background = 'rgba(255, 255, 255, 0.95)';
-                    controlsPanel.style.color = '#333333';
-                    controlsPanel.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
-                }
-                
-                // Update graph colors if it exists
-                const currentGraphElement = document.getElementById('myGraph');
-                if (currentGraphElement && currentGraphElement.shadowRoot) {
-                    const svg = currentGraphElement.shadowRoot.querySelector('svg');
-                    if (svg) {
-                        svg.style.borderColor = '#ccc';
-                        // Update link colors
-                        d3.select(currentGraphElement.shadowRoot)
-                            .selectAll('.links path')
-                            .attr('stroke', '#999');
-                        // Update link label colors
-                        d3.select(currentGraphElement.shadowRoot)
-                            .selectAll('.link-labels text')
-                            .attr('fill', '#555');
-                        // Update control elements
-                        d3.select(currentGraphElement.shadowRoot)
-                            .selectAll('.sliders text')
-                            .attr('fill', '#333');
-                        d3.select(currentGraphElement.shadowRoot)
-                            .selectAll('.sliders line')
-                            .attr('stroke', '#ccc');
-                        d3.select(currentGraphElement.shadowRoot)
-                            .selectAll('.sliders circle')
-                            .attr('fill', '#888');
-                        // Update reset button
-                        d3.select(currentGraphElement.shadowRoot)
-                            .select('.sliders g[style*="cursor: pointer"] rect')
-                            .attr('fill', '#eee')
-                            .attr('stroke', '#aaa');
-                        d3.select(currentGraphElement.shadowRoot)
-                            .select('.sliders g[style*="cursor: pointer"] text')
-                            .attr('fill', '#333');
-                    }
-                }
-            }
-        };
+        window.setTheme = function(isDark, accentColor, themeName) {
+            var body = document.body;
+            var root = document.documentElement;
 
-        document.getElementById('toggle-edge-labels').addEventListener('change', function () {
-            const currentGraphElement = document.getElementById('myGraph');
-            if (currentGraphElement) {
-                currentGraphElement.setShowEdgeLabels(this.checked);
+            if (isDark) {
+                body.classList.add('dark-theme');
+            } else {
+                body.classList.remove('dark-theme');
             }
-        });
+
+            body.className = body.className.replace(/\btheme-\S+/g, '').trim();
+            if (themeName) {
+                body.classList.add('theme-' + themeName.toLowerCase());
+            }
+
+            if (accentColor) {
+                root.style.setProperty('--accent-color', accentColor);
+            }
+
+            const el = document.getElementById('myGraph');
+            if (el && el.setTheme) el.setTheme(isDark);
+        };
+        
+        // Backward compatibility if Java calls applyTheme
+        window.applyTheme = function(isDark) {
+            window.setTheme(isDark, null, null);
+        };
     </script>
 </body>
-
 </html>
