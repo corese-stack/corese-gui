@@ -1,27 +1,24 @@
 package fr.inria.corese.gui.core.manager;
 
-
-
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.kgram.core.Mappings;
-import fr.inria.corese.core.print.ResultFormat;
 import fr.inria.corese.core.query.QueryProcess;
 import fr.inria.corese.core.sparql.triple.parser.ASTQuery;
-import fr.inria.corese.core.sparql.triple.parser.Variable;
+import fr.inria.corese.gui.core.enums.SerializationFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Central manager for executing and caching SPARQL queries per UI tab over the Corese Graph.
  * Implements a thread-safe singleton that: - runs queries via QueryProcess and stores a
  * TabCacheEntry with either Mappings (SELECT/ASK) or a result Graph (CONSTRUCT/DESCRIBE); - formats
- * cached results using ResultFormat, enforcing mapping vs RDF format compatibility (custom CSV
- * supported for mappings); - converts external format names to Corese formats and logs operations;
- * - provides cache access and clearing by tab id. Typical flow: executeAndCacheQuery(query, tabId)
- * -> getFormattedCachedQuery(tabId, format) -> clearCacheForTab(tabId).
+ * cached results using ExportManager; - converts external format names to Corese formats and logs
+ * operations; - provides cache access and clearing by tab id. Typical flow:
+ * executeAndCacheQuery(query, tabId) -> getFormattedCachedQuery(tabId, format) ->
+ * clearCacheForTab(tabId).
  */
 public class QueryManager {
   private static QueryManager instance;
@@ -32,15 +29,6 @@ public class QueryManager {
   private final List<String> logEntries;
 
   private final Map<Integer, TabCacheEntry> queryResultCache = new HashMap<>();
-
-  private static final Set<ResultFormat.format> RDF_FORMATS =
-      Set.of(
-          ResultFormat.format.TURTLE_FORMAT,
-          ResultFormat.format.RDF_XML_FORMAT,
-          ResultFormat.format.JSONLD_FORMAT,
-          ResultFormat.format.NTRIPLES_FORMAT,
-          ResultFormat.format.NQUADS_FORMAT,
-          ResultFormat.format.TRIG_FORMAT);
 
   private QueryManager() {
     this.graphManager = GraphManager.getInstance();
@@ -61,8 +49,8 @@ public class QueryManager {
    * <p>Features: - Thread-safe singleton (getInstance) using GraphManager and QueryProcess to run
    * queries. - Per-tab caching of results as either Mappings (SELECT/ASK) or Graph
    * (CONSTRUCT/DESCRIBE), with query type derived from the AST. - Result formatting via
-   * ResultFormat with validation of mapping vs RDF formats; includes a custom CSV formatter for
-   * mappings. - Utilities to retrieve and clear cached results, plus lightweight logging.
+   * ExportManager with validation of mapping vs RDF formats. - Utilities to retrieve and clear
+   * cached results, plus lightweight logging.
    *
    * <p>Typical flow: executeAndCacheQuery(query, tabId) -> getFormattedCachedQuery(tabId, format)
    * -> clearCacheForTab(tabId).
@@ -97,108 +85,37 @@ public class QueryManager {
     queryResultCache.remove(tabId);
   }
 
-  public String getFormattedCachedQuery(Integer tabId, String format) {
+  public String getFormattedCachedQuery(Integer tabId, String formatString) {
     TabCacheEntry cachedEntry = getCachedResult(tabId);
     if (cachedEntry == null) return "";
 
     ASTQuery ast = cachedEntry.getAst();
     if (ast == null) return "Error: Query AST not found in cache.";
 
-    ResultFormat.format coreseFormat = getCoreseFormat(format);
-    if (coreseFormat == null) return "Unsupported format: " + format;
+    SerializationFormat format = SerializationFormat.fromString(formatString);
+    boolean isRdfFormat = isRdfFormat(format);
 
-    boolean isRdfFormat = RDF_FORMATS.contains(coreseFormat);
     if ((ast.isConstruct() || ast.isDescribe() || ast.isUpdate()) && !isRdfFormat) {
-      return String.format("Error: %s is not a valid RDF format for this query type.", format);
+      return String.format(
+          "Error: %s is not a valid RDF format for this query type.", formatString);
     }
     if ((ast.isSelect() || ast.isAsk()) && isRdfFormat) {
-      return String.format("Error: %s is not a valid mapping format for this query type.", format);
+      return String.format(
+          "Error: %s is not a valid mapping format for this query type.", formatString);
     }
 
     if (cachedEntry.getGraphResult() != null) {
-      return formatGraph(cachedEntry.getGraphResult(), coreseFormat);
+      return ExportManager.getInstance().formatGraph(cachedEntry.getGraphResult(), format);
     }
     if (cachedEntry.getMappingsResult() != null) {
-      return formatMappings(cachedEntry.getMappingsResult(), coreseFormat);
+      return ExportManager.getInstance().formatMappings(cachedEntry.getMappingsResult(), format);
     }
 
     return "";
   }
 
-  private ResultFormat.format getCoreseFormat(String formatName) {
-    return switch (formatName.toUpperCase().replace("-", "_").replace("/", "_")) {
-      case "XML" -> ResultFormat.format.XML_FORMAT;
-      case "JSON" -> ResultFormat.format.JSON_FORMAT;
-      case "CSV" -> ResultFormat.format.CSV_FORMAT;
-      case "TSV" -> ResultFormat.format.TSV_FORMAT;
-      case "MARKDOWN" -> ResultFormat.format.MARKDOWN_FORMAT;
-      case "TURTLE" -> ResultFormat.format.TURTLE_FORMAT;
-      case "RDF_XML" -> ResultFormat.format.RDF_XML_FORMAT;
-      case "JSON_LD" -> ResultFormat.format.JSONLD_FORMAT;
-      case "N_TRIPLES" -> ResultFormat.format.NTRIPLES_FORMAT;
-      case "N_QUADS" -> ResultFormat.format.NQUADS_FORMAT;
-      case "TRIG" -> ResultFormat.format.TRIG_FORMAT;
-      default -> null;
-    };
-  }
-
-  public String formatMappings(Mappings mappings, ResultFormat.format format) {
-    if (mappings == null) return "";
-    if (format == ResultFormat.format.CSV_FORMAT) {
-      return formatMappingsAsCSV(mappings);
-    }
-    if (mappings.isEmpty()) return "";
-    try {
-      return ResultFormat.create(mappings, format).toString();
-    } catch (Exception e) {
-      addLogEntry("Error formatting Mappings: " + e.getMessage());
-      return "Error: " + e.getMessage();
-    }
-  }
-
-  private String formatMappingsAsCSV(Mappings mappings) {
-    if (mappings == null || mappings.getAST() == null) {
-      return "";
-    }
-    StringBuilder csv = new StringBuilder();
-    List<Variable> variables = mappings.getAST().getSelect();
-
-    // Header
-    for (int i = 0; i < variables.size(); i++) {
-      csv.append(variables.get(i).getName().substring(1)); // remove leading '?'
-      if (i < variables.size() - 1) {
-        csv.append(',');
-      }
-    }
-    csv.append("\n");
-
-    // Rows
-    mappings.forEach(
-        mapping -> {
-          for (int i = 0; i < variables.size(); i++) {
-            Variable var = variables.get(i);
-            fr.inria.corese.core.kgram.api.core.Node node = mapping.getNode(var);
-            if (node != null) {
-              csv.append(node.getLabel());
-            }
-            if (i < variables.size() - 1) {
-              csv.append(',');
-            }
-          }
-          csv.append("\n");
-        });
-
-    return csv.toString();
-  }
-
-  public String formatGraph(Graph graph, ResultFormat.format format) {
-    if (graph == null || graph.size() == 0) return "";
-    try {
-      return ResultFormat.create(graph, format).toString();
-    } catch (Exception e) {
-      addLogEntry("Error formatting Graph: " + e.getMessage());
-      return "Error: " + e.getMessage();
-    }
+  private boolean isRdfFormat(SerializationFormat format) {
+    return Arrays.asList(SerializationFormat.rdfFormats()).contains(format);
   }
 
   private String determineQueryTypeFromAST(ASTQuery ast) {

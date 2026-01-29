@@ -1,14 +1,10 @@
 package fr.inria.corese.gui.utils;
 
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-
-
-
-
-
-
 import java.io.File;
 import java.nio.file.Files;
+import java.util.List;
+import java.util.function.Function;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.scene.control.Alert;
@@ -68,6 +64,70 @@ public final class ExportHelper {
       }
 
       writeFileAsync(file, contentToExport);
+    }
+  }
+
+  /**
+   * Prompts the user to save content, allowing selection from multiple supported formats.
+   *
+   * @param window The parent window for the dialog
+   * @param formats List of supported serialization formats
+   * @param contentProvider Function that generates the content string for a selected format
+   */
+  public static void exportResult(
+      Window window,
+      List<SerializationFormat> formats,
+      Function<SerializationFormat, String> contentProvider) {
+
+    if (formats == null || formats.isEmpty()) {
+      return;
+    }
+
+    FileChooser fileChooser = new FileChooser();
+    fileChooser.setTitle("Export Result");
+    fileChooser.setInitialFileName("export"); // No extension initially
+
+    // Add filters for each format
+    for (SerializationFormat format : formats) {
+      String ext = format.getExtension();
+      FileChooser.ExtensionFilter filter =
+          new FileChooser.ExtensionFilter(format.getLabel() + " (*" + ext + ")", "*" + ext);
+      fileChooser.getExtensionFilters().add(filter);
+    }
+
+    File file = fileChooser.showSaveDialog(window);
+
+    if (file != null) {
+      // Determine format from the selected filter or file extension
+      SerializationFormat selectedFormat = formats.get(0); // Default
+      FileChooser.ExtensionFilter selectedFilter = fileChooser.getSelectedExtensionFilter();
+
+      if (selectedFilter != null) {
+        for (SerializationFormat fmt : formats) {
+          if (selectedFilter.getDescription().contains(fmt.getLabel())) {
+            selectedFormat = fmt;
+            break;
+          }
+        }
+      } else {
+        // Fallback: check extension
+        String name = file.getName().toLowerCase();
+        for (SerializationFormat fmt : formats) {
+          if (name.endsWith(fmt.getExtension())) {
+            selectedFormat = fmt;
+            break;
+          }
+        }
+      }
+
+      // Enforce extension
+      if (!file.getName().toLowerCase().endsWith(selectedFormat.getExtension())) {
+        file = new File(file.getAbsolutePath() + selectedFormat.getExtension());
+      }
+
+      // Generate content using the provider
+      String content = contentProvider.apply(selectedFormat);
+      writeFileAsync(file, content);
     }
   }
 

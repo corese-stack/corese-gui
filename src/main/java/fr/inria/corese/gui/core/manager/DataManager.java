@@ -1,16 +1,8 @@
 package fr.inria.corese.gui.core.manager;
 
-import fr.inria.corese.gui.feature.filelist.FileListModel;
-
-
-
-
-
-
-
 import fr.inria.corese.core.load.Load;
-import fr.inria.corese.core.print.ResultFormat;
-
+import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.feature.filelist.FileListModel;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -96,7 +88,8 @@ public class DataManager {
     File graphFile = new File(targetFile.getParentFile(), baseName);
     try (FileOutputStream out = new FileOutputStream(graphFile)) {
       String turtleRepresentation =
-          queryManager.formatGraph(graphManager.getGraph(), ResultFormat.format.TURTLE_FORMAT);
+          ExportManager.getInstance()
+              .formatGraph(graphManager.getGraph(), SerializationFormat.TURTLE);
       out.write(turtleRepresentation.getBytes());
     }
     queryManager.addLogEntry("Graph saved to: " + graphFile.getAbsolutePath());

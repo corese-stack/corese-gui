@@ -1,15 +1,8 @@
 package fr.inria.corese.gui.core.factory.popup;
 
-import fr.inria.corese.gui.core.manager.QueryManager;
-
-
-
-
-
-
 import fr.inria.corese.core.Graph;
-import fr.inria.corese.core.print.ResultFormat;
-
+import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.core.manager.ExportManager;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -98,28 +91,20 @@ public class ExportFormatPopup {
 
   private static String formatGraph(Graph graph, String formatName) {
     if (graph == null) return "Error: Input graph is null.";
-    ResultFormat.format coreseFormat = getCoreseFormat(formatName);
-    return QueryManager.getInstance().formatGraph(graph, coreseFormat);
+    SerializationFormat format = SerializationFormat.fromString(formatName);
+    return ExportManager.getInstance().formatGraph(graph, format);
   }
 
-  private static ResultFormat.format getCoreseFormat(String formatName) {
-    return switch (formatName) {
-      case "RDF/XML" -> ResultFormat.format.RDF_XML_FORMAT;
-      case "JSON-LD" -> ResultFormat.format.JSONLD_FORMAT;
-      case "N-TRIPLES" -> ResultFormat.format.NTRIPLES_FORMAT;
-      case "N-QUADS" -> ResultFormat.format.NQUADS_FORMAT;
-      case "TRIG" -> ResultFormat.format.TRIG_FORMAT;
-      default -> ResultFormat.format.TURTLE_FORMAT;
-    };
-  }
-
-  private static void saveContentToFile(String content, String format, Stage owner) {
+  private static void saveContentToFile(String content, String formatName, Stage owner) {
     FileChooser fileChooser = new FileChooser();
     fileChooser.setTitle("Save As");
 
-    String extension = getExtensionForFormat(format);
+    SerializationFormat format = SerializationFormat.fromString(formatName);
+    String extension = format.getExtension();
+
     FileChooser.ExtensionFilter extFilter =
-        new FileChooser.ExtensionFilter(format + " file (*" + extension + ")", "*" + extension);
+        new FileChooser.ExtensionFilter(
+            format.getLabel() + " file (*" + extension + ")", "*" + extension);
     fileChooser.getExtensionFilters().add(extFilter);
     fileChooser.setSelectedExtensionFilter(extFilter);
 
@@ -138,16 +123,5 @@ public class ExportFormatPopup {
         alert.showAndWait();
       }
     }
-  }
-
-  private static String getExtensionForFormat(String format) {
-    return switch (format) {
-      case "RDF/XML" -> ".rdf";
-      case "JSON-LD" -> ".jsonld";
-      case "N-TRIPLES" -> ".nt";
-      case "N-QUADS" -> ".nq";
-      case "TRIG" -> ".trig";
-      default -> ".ttl";
-    };
   }
 }
