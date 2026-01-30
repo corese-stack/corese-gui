@@ -16,87 +16,87 @@ import javafx.scene.layout.VBox;
 
 /**
  * A generic, clean dialog layout for use with {@link ModalManager}.
- * <p>
- * Features:
+ *
+ * <p>Features:
+ *
  * <ul>
- *   <li>Title bar with close button</li>
- *   <li>Content area</li>
- *   <li>Action button bar (optional)</li>
+ *   <li>Title bar with close button
+ *   <li>Content area
+ *   <li>Action button bar (optional)
  * </ul>
  */
 public class GenericDialog extends VBox {
 
-    public GenericDialog(String title, Node content, Node... actions) {
-        getStyleClass().add(Styles.ELEVATED_1);
-        setStyle("-fx-background-color: -color-bg-default; -fx-background-radius: 10; -fx-min-width: 400px; -fx-max-width: 600px;");
-        setPadding(new Insets(20));
-        setSpacing(15);
-        setMaxHeight(Region.USE_PREF_SIZE); // Prevent vertical stretching
+  public GenericDialog(String title, Node content, Node... actions) {
+    getStyleClass().add(Styles.ELEVATED_1);
+    setStyle(
+        "-fx-background-color: -color-bg-default; -fx-background-radius: 10; -fx-min-width: 400px;"
+            + " -fx-max-width: 600px;");
+    setPadding(new Insets(20));
+    setSpacing(15);
+    setMaxHeight(Region.USE_PREF_SIZE); // Prevent vertical stretching
 
-        // Header
-        Label titleLabel = new Label(title);
-        titleLabel.getStyleClass().add(Styles.TITLE_4);
-        
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        
-        // Close button: Icon only
-        IconButtonWidget closeBtn = new IconButtonWidget(new ButtonConfig(ButtonIcon.CLEAR, "Close", ModalManager.getInstance()::hide));
-        // We can force it to be icon-only by ensuring the widget handles null text or by using a style
-        // If IconButtonWidget constructor takes text, we might need to modify it or just pass null.
-        // Assuming IconButtonWidget handles text+icon. If we want just icon, we might need to adjust ButtonConfig or widget.
-        // Let's pass null for text if supported, or empty string.
-        // ButtonConfig(icon, tooltip, action) -> wait, the constructor used previously was (icon, text, action)? 
-        // Let's check ButtonConfig.
-        
-        HBox header = new HBox(titleLabel, spacer, closeBtn);
-        header.setAlignment(Pos.CENTER_LEFT);
+    // Header
+    Label titleLabel = new Label(title);
+    titleLabel.getStyleClass().add(Styles.TITLE_4);
 
-        // Content
-        // Ensure content expands
-        if (content instanceof Region) {
-            ((Region) content).setMaxWidth(Double.MAX_VALUE);
-        }
+    Region spacer = new Region();
+    HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        // Actions
-        HBox actionBox = new HBox(10);
-        actionBox.setAlignment(Pos.CENTER_RIGHT);
-        if (actions != null) {
-            actionBox.getChildren().addAll(actions);
-        }
+    // Close button: Icon only
+    IconButtonWidget closeBtn =
+        new IconButtonWidget(
+            new ButtonConfig(ButtonIcon.CLOSE_WINDOW, "Close", ModalManager.getInstance()::hide));
 
-        getChildren().addAll(header, content);
-        
-        if (actions != null && actions.length > 0) {
-            getChildren().add(actionBox);
-        }
+    HBox header = new HBox(titleLabel, spacer, closeBtn);
+    header.setAlignment(Pos.CENTER_LEFT);
+
+    // Content
+    // Ensure content expands
+    if (content instanceof Region) {
+      ((Region) content).setMaxWidth(Double.MAX_VALUE);
     }
 
-    public static GenericDialog createError(String title, String message) {
-        Label msgLabel = new Label(message);
-        msgLabel.setWrapText(true);
-        
-        Button okBtn = new Button("OK");
-        okBtn.getStyleClass().add(Styles.ACCENT);
-        okBtn.setOnAction(e -> ModalManager.getInstance().hide());
-        
-        return new GenericDialog(title, msgLabel, okBtn);
+    // Actions
+    HBox actionBox = new HBox(10);
+    actionBox.setAlignment(Pos.CENTER_RIGHT);
+    if (actions != null) {
+      actionBox.getChildren().addAll(actions);
     }
 
-    public static GenericDialog createConfirm(String title, String message, Runnable onConfirm) {
-        Label msgLabel = new Label(message);
-        msgLabel.setWrapText(true);
-        
-        Button cancelBtn = new Button("Cancel");
-        cancelBtn.setOnAction(e -> ModalManager.getInstance().hide());
-        
-        Button confirmBtn = new Button("Confirm");
-        confirmBtn.getStyleClass().add(Styles.DANGER);
-        confirmBtn.setOnAction(e -> {
-            onConfirm.run();
-            ModalManager.getInstance().hide();
+    getChildren().addAll(header, content);
+
+    if (actions != null && actions.length > 0) {
+      getChildren().add(actionBox);
+    }
+  }
+
+  public static GenericDialog createError(String title, String message) {
+    Label msgLabel = new Label(message);
+    msgLabel.setWrapText(true);
+
+    Button okBtn = new Button("OK");
+    okBtn.getStyleClass().add(Styles.ACCENT);
+    okBtn.setOnAction(e -> ModalManager.getInstance().hide());
+
+    return new GenericDialog(title, msgLabel, okBtn);
+  }
+
+  public static GenericDialog createConfirm(String title, String message, Runnable onConfirm) {
+    Label msgLabel = new Label(message);
+    msgLabel.setWrapText(true);
+
+    Button cancelBtn = new Button("Cancel");
+    cancelBtn.setOnAction(e -> ModalManager.getInstance().hide());
+
+    Button confirmBtn = new Button("Confirm");
+    confirmBtn.getStyleClass().add(Styles.DANGER);
+    confirmBtn.setOnAction(
+        e -> {
+          onConfirm.run();
+          ModalManager.getInstance().hide();
         });
-        
-        return new GenericDialog(title, msgLabel, cancelBtn, confirmBtn);
-    }
+
+    return new GenericDialog(title, msgLabel, cancelBtn, confirmBtn);
+  }
 }

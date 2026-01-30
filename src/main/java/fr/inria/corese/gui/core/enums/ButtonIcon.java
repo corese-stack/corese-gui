@@ -96,6 +96,9 @@ public enum ButtonIcon {
   /** Icon for last page navigation. */
   LAST_PAGE(MaterialDesignC.CHEVRON_DOUBLE_RIGHT),
 
+  /** Close Window */
+  CLOSE_WINDOW(MaterialDesignW.WINDOW_CLOSE),
+
   // ===============================================================================
   // Enum Constants - Actions
   // ===============================================================================
