@@ -237,14 +237,61 @@
                 this.nodeSelection = null;
                 this.linkLabelSelection = null;
 
-                this.colors = {
-                    resource: '#1f77b4',
-                    literal: '#ff7f0e',
-                    blank: '#2ca02c',
-                    edge: '#999',
-                    textLight: '#333',
-                    textDark: '#eee'
+                this.graphColorMap = new Map();
+                this.defaultGraphColor = '#6B7280';
+            }
+            
+            /**
+             * Generate distinct colors for named graphs using HSL color space
+             * @param {string} graphId - Graph identifier
+             * @returns {string} Hex color code
+             */
+            getGraphColor(graphId) {
+                const gid = graphId || 'default';
+                
+                if (gid === 'default') {
+                    return this.defaultGraphColor;
+                }
+                
+                if (!this.graphColorMap.has(gid)) {
+                    const index = this.graphColorMap.size;
+                    const hue = (index * 137.508) % 360;
+                    const saturation = 35 + (index % 4) * 10;
+                    const lightness = 72 + (index % 3) * 6;
+                    const color = this.hslToHex(hue, saturation, lightness);
+                    this.graphColorMap.set(gid, color);
+                }
+                return this.graphColorMap.get(gid);
+            }
+
+            /**
+             * Convert HSL to hex color
+             */
+            hslToHex(h, s, l) {
+                s /= 100;
+                l /= 100;
+                const c = (1 - Math.abs(2 * l - 1)) * s;
+                const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+                const m = l - c / 2;
+                let r = 0, g = 0, b = 0;
+                if (h >= 0 && h < 60) { r = c; g = x; b = 0; }
+                else if (h >= 60 && h < 120) { r = x; g = c; b = 0; }
+                else if (h >= 120 && h < 180) { r = 0; g = c; b = x; }
+                else if (h >= 180 && h < 240) { r = 0; g = x; b = c; }
+                else if (h >= 240 && h < 300) { r = x; g = 0; b = c; }
+                else if (h >= 300 && h < 360) { r = c; g = 0; b = x; }
+                const toHex = val => {
+                    const hex = Math.round((val + m) * 255).toString(16);
+                    return hex.length === 1 ? '0' + hex : hex;
                 };
+                return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+            }
+
+            /**
+             * Sanitize a string to be used as a valid SVG ID
+             */
+            sanitizeId(str) {
+                return (str || 'default').replace(/[^a-zA-Z0-9-_]/g, '_');
             }
 
             reset() {
@@ -305,12 +352,7 @@
                             fill: var(--text-color, #333);
                         }
                         .edge-path {
-                            stroke: var(--gutter-text, #999);
-                            stroke-width: 1.5px;
                             fill: none;
-                        }
-                        #arrowhead path {
-                            fill: var(--gutter-text, #999);
                         }
                     </style>
                     <div class="container" id="main-container">
@@ -372,18 +414,49 @@
 
             async createGraph() {
                 let graph = { nodes: [], links: [] };
-                const addNode = (id, type, meta = {}) => {
+                this.graphColorMap = new Map();
+                
+                const addNode = (id, type, graphId, meta = {}, isSubject = false) => {
                     if (!id) return null;
                     let node = graph.nodes.find(n => n.id === id);
                     if (!node) {
-                        node = { id, name: id, type, ...meta };
+                        node = { 
+                            id, 
+                            name: id, 
+                            type, 
+                            graph: graphId || 'default',
+                            graphs: new Set([graphId || 'default']),
+                            ...meta 
+                        };
                         graph.nodes.push(node);
+                    } else {
+                        if (type === 'Blank' || type === 'Class') {
+                            node.type = type;
+                        }
+                        
+                        if (!node.graphs) node.graphs = new Set([node.graph]);
+                        node.graphs.add(graphId || 'default');
+                        
+                        if (isSubject && graphId && graphId !== 'default') {
+                            node.graph = graphId;
+                        } else if ((!node.graph || node.graph === 'default') && graphId && graphId !== 'default') {
+                            node.graph = graphId;
+                        }
+                        
+                        Object.assign(node, meta);
                     }
                     return node;
                 };
 
-                const processItem = (item) => {
+                const processItem = (item, currentGraph) => {
                     if (!item || typeof item !== 'object') return;
+                    
+                    if (item['@graph']) {
+                        const newGraph = item['@id'] || currentGraph;
+                        const contents = Array.isArray(item['@graph']) ? item['@graph'] : [item['@graph']];
+                        contents.forEach(child => processItem(child, newGraph));
+                        return;
+                    }
                     
                     const subj = item['@id'];
                     if (!subj) return;
@@ -396,10 +469,11 @@
                         subjType = 'Blank';
                     }
 
-                    addNode(subj, subjType);
+                    addNode(subj, subjType, currentGraph, {}, true);
 
                     Object.keys(item).forEach(pred => {
                         if (pred.startsWith('@')) return;
+                        
                         let objs = Array.isArray(item[pred]) ? item[pred] : [item[pred]];
                         objs.forEach(obj => {
                             let objId;
@@ -408,8 +482,8 @@
                             
                             if (typeof obj === 'object' && obj['@id']) {
                                 objId = obj['@id'];
-                                objType = 'Resource';
-                                processItem(obj); // Recurse for embedded objects
+                                objType = objId.startsWith('_:') ? 'Blank' : 'Resource';
+                                processItem(obj, currentGraph);
                             } else if (typeof obj === 'object' && obj['@value'] !== undefined) {
                                 objId = String(obj['@value']);
                                 if (obj['@type']) meta.datatype = obj['@type'];
@@ -419,16 +493,16 @@
                             }
                             
                             if (objId !== undefined && objId !== "undefined") {
-                                addNode(objId, objType, meta);
-                                graph.links.push({ source: subj, target: objId, name: pred });
+                                addNode(objId, objType, currentGraph, meta, false);
+                                graph.links.push({ source: subj, target: objId, name: pred, graph: currentGraph });
                             }
                         });
                     });
                 };
 
                 const root = this.jsonLDOntology;
-                const data = root['@graph'] ? root['@graph'] : (Array.isArray(root) ? root : [root]);
-                data.forEach(processItem);
+                const data = Array.isArray(root) ? root : [root];
+                data.forEach(d => processItem(d, 'default'));
                 
                 return graph;
             }
@@ -436,7 +510,6 @@
             renderGraph() {
                 const self = this;
                 
-                // Initialize simulation first
                 this.simulation = d3.forceSimulation(this.graph.nodes)
                     .force("link", d3.forceLink(this.graph.links).id(d => d.id).distance(160))
                     .force("charge", d3.forceManyBody().strength(-1500))
@@ -455,16 +528,73 @@
                 const labelGroup = gZoom.append("g").attr("class", "labels-layer");
                 const nodeGroup = gZoom.append("g").attr("class", "nodes-layer");
 
-                this.svg.append("defs").append("marker")
-                    .attr("id", "arrowhead").attr("viewBox", "0 -5 10 10")
-                    .attr("refX", 32).attr("markerWidth", 6).attr("markerHeight", 6)
-                    .attr("orient", "auto")
-                    .append("path").attr("d", "M0,-5L10,0L0,5");
+                const defs = this.svg.append("defs");
+                
+                const graphIds = [...new Set(this.graph.nodes.map(n => n.graph))];
+                graphIds.forEach(graphId => {
+                    const color = this.getGraphColor(graphId);
+                    defs.append("marker")
+                        .attr("id", `arrow-${this.sanitizeId(graphId)}`)
+                        .attr("viewBox", "0 -5 10 10")
+                        .attr("refX", 32)
+                        .attr("markerWidth", 6)
+                        .attr("markerHeight", 6)
+                        .attr("orient", "auto")
+                        .append("path")
+                        .attr("d", "M0,-5L10,0L0,5")
+                        .attr("fill", color);
+                });
+                
+                this.graph.links.forEach((link, i) => {
+                    const sourceNode = this.graph.nodes.find(n => n.id === link.source.id || n.id === link.source);
+                    const targetNode = this.graph.nodes.find(n => n.id === link.target.id || n.id === link.target);
+                    if (sourceNode && targetNode && sourceNode.graph !== targetNode.graph) {
+                        const gradId = `gradient-${i}`;
+                        const gradient = defs.append("linearGradient")
+                            .attr("id", gradId)
+                            .attr("gradientUnits", "userSpaceOnUse")
+                            .attr("x1", sourceNode.x || 0)
+                            .attr("y1", sourceNode.y || 0)
+                            .attr("x2", targetNode.x || 0)
+                            .attr("y2", targetNode.y || 0);
+                        
+                        gradient.append("stop")
+                            .attr("offset", "0%")
+                            .attr("stop-color", this.getGraphColor(sourceNode.graph));
+                        
+                        gradient.append("stop")
+                            .attr("offset", "100%")
+                            .attr("stop-color", this.getGraphColor(targetNode.graph));
+                        
+                        link.gradientId = gradId;
+                    }
+                });
 
                 this.linkSelection = linkGroup.selectAll("path")
                     .data(this.graph.links).enter().append("path")
                     .attr("class", "edge-path")
-                    .attr("marker-end", "url(#arrowhead)");
+                    .attr("stroke", d => {
+                        const sourceNode = this.graph.nodes.find(n => n.id === d.source.id || n.id === d.source);
+                        const targetNode = this.graph.nodes.find(n => n.id === d.target.id || n.id === d.target);
+                        if (sourceNode && targetNode) {
+                            if (sourceNode.graph === targetNode.graph) {
+                                // Same graph: use graph color
+                                return this.getGraphColor(sourceNode.graph);
+                            } else if (d.gradientId) {
+                                // Different graphs: use gradient
+                                return `url(#${d.gradientId})`;
+                            }
+                        }
+                        return '#999'; // Fallback
+                    })
+                    .attr("stroke-width", 2)
+                    .attr("marker-end", d => {
+                        const targetNode = this.graph.nodes.find(n => n.id === d.target.id || n.id === d.target);
+                        if (targetNode) {
+                            return `url(#arrow-${this.sanitizeId(targetNode.graph)})`;
+                        }
+                        return null;
+                    });
 
                 this.linkLabelSelection = labelGroup.selectAll("text")
                     .data(this.graph.links).enter().append("text")
@@ -490,14 +620,16 @@
                 this.nodeSelection.each(function(d) {
                     const el = d3.select(this);
                     const size = 20;
+                    const strokeColor = self.getGraphColor(d.graph);
+
                     if (d.type === 'Literal') {
                         el.append("rect").attr("x", -size * 1.2).attr("y", -size * 0.7)
                             .attr("width", size * 2.4).attr("height", size * 1.4).attr("rx", 4)
-                            .attr("fill", '#ff7f0e').attr("stroke", "#fff").attr("stroke-width", 1.5);
+                            .attr("fill", '#ff7f0e').attr("stroke", strokeColor).attr("stroke-width", 3);
                     } else {
                         el.append("circle").attr("r", size)
                             .attr("fill", d.type === 'Blank' ? '#2ca02c' : '#1f77b4')
-                            .attr("stroke", "#fff").attr("stroke-width", 1.5);
+                            .attr("stroke", strokeColor).attr("stroke-width", 3);
                     }
                 });
 
@@ -526,6 +658,16 @@
                         content += `<div class="tooltip-row"><strong>URI</strong> <span>${d.id}</span></div>`;
                         content += `<div class="tooltip-row"><strong>Type</strong> <span>${d.type}</span></div>`;
                     }
+                    
+                    // Show graph assignment(s)
+                    if (d.graphs && d.graphs.size > 1) {
+                        // Node appears in multiple graphs
+                        const graphList = Array.from(d.graphs).join(', ');
+                        content += `<div class="tooltip-row"><strong>Graphs</strong> <span>${graphList}</span></div>`;
+                        content += `<div class="tooltip-row"><strong>Primary</strong> <span>${d.graph || 'default'}</span></div>`;
+                    } else {
+                        content += `<div class="tooltip-row"><strong>Graph</strong> <span>${d.graph || 'default'}</span></div>`;
+                    }
 
                     tooltip.style("opacity", 1).html(content);
                 }).on("mousemove", () => {
@@ -537,11 +679,21 @@
 
             ticked() {
                 const hasPos = d => d && typeof d.x === 'number' && typeof d.y === 'number';
+                const self = this;
 
                 if (this.linkSelection) {
                     this.linkSelection.attr("d", d => {
                         if (!hasPos(d.source) || !hasPos(d.target)) return null;
                         return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+                    });
+                    
+                    // Update gradient positions for inter-graph links
+                    this.linkSelection.each(function(d) {
+                        if (d.gradientId && hasPos(d.source) && hasPos(d.target)) {
+                            const gradient = self.svg.select(`#${d.gradientId}`);
+                            gradient.attr("x1", d.source.x).attr("y1", d.source.y)
+                                    .attr("x2", d.target.x).attr("y2", d.target.y);
+                        }
                     });
                 }
                 
