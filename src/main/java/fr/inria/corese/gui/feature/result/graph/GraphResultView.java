@@ -118,12 +118,17 @@ public class GraphResultView extends AbstractView {
   }
 
   private void setupToolbar() {
+    // Initial buttons without copy/export (will be set by controller)
     List<ButtonConfig> buttons =
         List.of(
             new ButtonConfig(ButtonIcon.RELOAD, "Reset Layout", graphWidget::resetLayout),
             ButtonFactory.zoomIn(graphWidget::zoomIn),
             ButtonFactory.zoomOut(graphWidget::zoomOut));
 
+    toolbarWidget.setButtons(buttons);
+  }
+
+  public void setToolbarActions(List<ButtonConfig> buttons) {
     toolbarWidget.setButtons(buttons);
   }
 

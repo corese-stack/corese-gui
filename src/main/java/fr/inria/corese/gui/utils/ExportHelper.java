@@ -131,6 +131,35 @@ public final class ExportHelper {
     }
   }
 
+  /**
+   * Prompts the user to save SVG content to a file.
+   *
+   * @param window The parent window for the dialog
+   * @param svgContent The SVG content to save
+   */
+  public static void exportSvg(Window window, String svgContent) {
+    String contentToExport = (svgContent != null) ? svgContent : "";
+
+    FileChooser fileChooser = new FileChooser();
+    fileChooser.setTitle("Export Graph As SVG");
+    fileChooser.setInitialFileName("graph.svg");
+
+    FileChooser.ExtensionFilter extFilter =
+        new FileChooser.ExtensionFilter("SVG file (*.svg)", "*.svg");
+
+    fileChooser.getExtensionFilters().add(extFilter);
+    fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
+
+    File file = fileChooser.showSaveDialog(window);
+
+    if (file != null) {
+      if (!file.getName().toLowerCase().endsWith(".svg")) {
+        file = new File(file.getAbsolutePath() + ".svg");
+      }
+      writeFileAsync(file, contentToExport);
+    }
+  }
+
   private static void writeFileAsync(File file, String content) {
     Task<Void> task =
         new Task<>() {

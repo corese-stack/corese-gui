@@ -265,6 +265,55 @@ public class GraphDisplayWidget extends VBox {
     pendingJsonLdData = null;
     executeScriptSafe("if(document.getElementById('myGraph')) document.getElementById('myGraph').jsonld = null;");
   }
+
+  /**
+   * Retrieves the current SVG content from the graph visualization.
+   *
+   * @return The SVG content as a string, or null if not available
+   */
+  public String getSvgContent() {
+    if (!pageLoaded) {
+      logger.warn("Cannot get SVG: page not loaded");
+      return null;
+    }
+    try {
+      Object result = webEngine.executeScript(
+          "(function() {" +
+          "  var el = document.getElementById('myGraph');" +
+          "  if (!el || !el.shadowRoot) return null;" +
+          "  var svg = el.shadowRoot.querySelector('svg');" +
+          "  if (!svg) return null;" +
+          "  var clone = svg.cloneNode(true);" +
+          "  try {" +
+          "    var bbox = svg.getBBox();" +
+          "    var padding = 40;" +
+          "    var x = bbox.x - padding;" +
+          "    var y = bbox.y - padding;" +
+          "    var width = bbox.width + 2 * padding;" +
+          "    var height = bbox.height + 2 * padding;" +
+          "    clone.setAttribute('viewBox', x + ' ' + y + ' ' + width + ' ' + height);" +
+          "    clone.setAttribute('width', width);" +
+          "    clone.setAttribute('height', height);" +
+          "    var bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');" +
+          "    bg.setAttribute('x', x);" +
+          "    bg.setAttribute('y', y);" +
+          "    bg.setAttribute('width', width);" +
+          "    bg.setAttribute('height', height);" +
+          "    bg.setAttribute('fill', 'white');" +
+          "    clone.insertBefore(bg, clone.firstChild);" +
+          "  } catch(e) {" +
+          "    console.warn('Could not adjust SVG bounds:', e);" +
+          "  }" +
+          "  var serializer = new XMLSerializer();" +
+          "  return serializer.serializeToString(clone);" +
+          "})();"
+      );
+      return result != null ? result.toString() : null;
+    } catch (Exception e) {
+      logger.error("Error getting SVG content: {}", e.getMessage(), e);
+      return null;
+    }
+  }
   
   public class JavaBridge {
     public void log(String message) {
