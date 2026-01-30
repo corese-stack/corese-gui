@@ -21,11 +21,12 @@ public class CoreseGraphManager {
 
     private static CoreseGraphManager instance;
     private Graph graph;
-    private final QueryManager queryManager;
+    
+    // Lazy loaded to avoid circular dependency with QueryManager
+    private QueryManager queryManager; 
 
     private CoreseGraphManager() {
         this.graph = Graph.create();
-        this.queryManager = QueryManager.getInstance();
     }
 
     public static synchronized CoreseGraphManager getInstance() {
@@ -138,6 +139,9 @@ public class CoreseGraphManager {
     }
 
     private void log(String message) {
+        if (queryManager == null) {
+            queryManager = QueryManager.getInstance();
+        }
         if (queryManager != null) {
             queryManager.addLogEntry(message);
         }

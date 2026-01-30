@@ -3,7 +3,7 @@ package fr.inria.corese.gui.feature.result.table;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.view.AbstractView;
-import fr.inria.corese.gui.component.pagination.CustomPagination;
+import fr.inria.corese.gui.component.pagination.PaginationWidget;
 import java.util.List;
 import java.util.function.Consumer;
 import javafx.application.Platform;
@@ -44,7 +44,7 @@ public class TableResultView extends AbstractView {
   // ==============================================================================================
 
   private final TableView<String[]> tableView;
-  private final CustomPagination pagination;
+  private final PaginationWidget pagination;
   private final TextField rowsPerPageField;
   private final Label totalRowsLabel;
   private final ToolbarWidget toolbarWidget;
@@ -64,7 +64,7 @@ public class TableResultView extends AbstractView {
     this.tableView = new TableView<>();
     this.rowsPerPageField = new TextField();
     this.totalRowsLabel = new Label("total rows: 0");
-    this.pagination = new CustomPagination(1, pageChangeHandler);
+    this.pagination = new PaginationWidget(1, pageChangeHandler);
     this.toolbarWidget = new ToolbarWidget();
 
     setupLayout();

@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.feature.result;
 
-import fr.inria.corese.gui.component.pagination.CustomPagination;
+import fr.inria.corese.gui.component.pagination.PaginationWidget;
 
 
 
@@ -45,7 +45,7 @@ public class ResultsPaneController {
   private static final Logger logger = LoggerFactory.getLogger(ResultsPaneController.class);
   
   private final TableView<String[]> resultTable = new TableView<>();
-  private final CustomPagination customPagination;
+  private final PaginationWidget customPagination;
   private final TextField rowsPerPageField = new TextField("10");
   private final Label totalRowsLabel = new Label("total rows: 0");
   private final HBox controlsPane = new HBox(10);
@@ -60,7 +60,7 @@ public class ResultsPaneController {
   private final WebView graphView;
 
   public ResultsPaneController() {
-    customPagination = new CustomPagination(1, this::updateTableForPage);
+    customPagination = new PaginationWidget(1, this::updateTableForPage);
     customPagination.setVisible(false);
     customPagination.setManaged(false);
 
