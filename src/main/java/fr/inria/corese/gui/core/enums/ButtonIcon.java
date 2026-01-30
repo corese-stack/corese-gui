@@ -84,6 +84,18 @@ public enum ButtonIcon {
   /** Icon for viewing logs. */
   LOGS(MaterialDesignB.BOOK_OPEN_VARIANT),
 
+  /** Icon for first page navigation. */
+  FIRST_PAGE(MaterialDesignC.CHEVRON_DOUBLE_LEFT),
+
+  /** Icon for previous page navigation. */
+  PREVIOUS_PAGE(MaterialDesignC.CHEVRON_LEFT),
+
+  /** Icon for next page navigation. */
+  NEXT_PAGE(MaterialDesignC.CHEVRON_RIGHT),
+
+  /** Icon for last page navigation. */
+  LAST_PAGE(MaterialDesignC.CHEVRON_DOUBLE_RIGHT),
+
   // ===============================================================================
   // Enum Constants - Actions
   // ===============================================================================

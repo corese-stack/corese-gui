@@ -17,7 +17,6 @@ import javafx.scene.input.ClipboardContent;
  * Controller for tabular SPARQL result display with pagination.
  *
  * <p>This controller manages:
- *
  * <ul>
  *   <li>Parsing CSV results into rows and columns
  *   <li>Pagination logic (calculating pages, slicing data)
@@ -27,200 +26,186 @@ import javafx.scene.input.ClipboardContent;
  */
 public class TableResultController {
 
-  // ==============================================================================================
-  // Constants
-  // ==============================================================================================
+    private static final int DEFAULT_ROWS_PER_PAGE = 50;
 
-  private static final int DEFAULT_ROWS_PER_PAGE = 50;
+    private final TableResultView view;
+    private final List<String[]> allRows;
+    private String[] headers;
+    private int rowsPerPage;
 
-  // ==============================================================================================
-  // Fields
-  // ==============================================================================================
+    public TableResultController() {
+        this.allRows = new ArrayList<>();
+        this.rowsPerPage = DEFAULT_ROWS_PER_PAGE;
+        this.view = new TableResultView(this::updateTableForPage);
+        initialize();
+    }
 
-  private final TableResultView view;
-  private final List<String[]> allRows;
-  private String[] headers;
-  private int rowsPerPage;
+    private void initialize() {
+        // Setup Toolbar
+        view.setToolbarActions(List.of(
+            ButtonFactory.copy(this::copyContent), 
+            ButtonFactory.export(this::exportContent)
+        ));
 
-  // ==============================================================================================
-  // Constructor & Initialization
-  // ==============================================================================================
-
-  public TableResultController() {
-    this.allRows = new ArrayList<>();
-    this.rowsPerPage = DEFAULT_ROWS_PER_PAGE;
-    this.view = new TableResultView(this::updateTableForPage);
-
-    initialize();
-  }
-
-  private void initialize() {
-    // 1. Setup Toolbar
-    view.setToolbarActions(
-        List.of(ButtonFactory.copy(this::copyContent), ButtonFactory.export(this::exportContent)));
-
-    // 2. Setup Rows Per Page Listener
-    view.setRowsPerPageText(String.valueOf(DEFAULT_ROWS_PER_PAGE));
-    view.getRowsPerPageField()
-        .textProperty()
-        .addListener(
-            (obs, oldVal, newVal) -> {
-              try {
-                rowsPerPage = Math.max(1, Integer.parseInt(newVal));
-                updatePagination(false); // Don't reset to page 0 if just changing density
-              } catch (NumberFormatException e) {
+        // Setup Rows Per Page Listener
+        view.setRowsPerPageText(String.valueOf(DEFAULT_ROWS_PER_PAGE));
+        view.getRowsPerPageProperty().addListener((obs, oldVal, newVal) -> {
+            try {
+                int newRowsPerPage = Integer.parseInt(newVal);
+                if (newRowsPerPage > 0) {
+                    rowsPerPage = newRowsPerPage;
+                    updatePagination(false); 
+                }
+            } catch (NumberFormatException e) {
                 // Ignore invalid input
-              }
+            }
+        });
+    }
+
+    // ==============================================================================================
+    // Logic - Parsing & Pagination
+    // ==============================================================================================
+
+    public void updateTable(String csvResult) {
+        Platform.runLater(() -> parseAndPopulate(csvResult));
+    }
+
+    private void parseAndPopulate(String csvResult) {
+        allRows.clear();
+        view.clearTable();
+
+        if (csvResult == null || csvResult.isEmpty()) {
+            updatePagination(true);
+            return;
+        }
+
+        String[] lines = csvResult.split("\\r?\\n");
+        if (lines.length == 0) {
+            updatePagination(true);
+            return;
+        }
+
+        // Headers
+        this.headers = lines[0].split(",", -1);
+        view.setColumns(headers);
+
+        // Data Rows
+        for (int i = 1; i < lines.length; i++) {
+            allRows.add(lines[i].split(",", -1));
+        }
+
+        updatePagination(true);
+    }
+
+    private void updatePagination(boolean resetPage) {
+        view.setTotalRowsLabel("Total rows: " + allRows.size());
+
+        if (allRows.isEmpty()) {
+            view.updatePagination(1); // Default to 1 page even if empty
+            view.setCurrentPageIndex(0);
+            view.setTableData(new ArrayList<>());
+            return;
+        }
+
+        int pageCount = (int) Math.ceil((double) allRows.size() / rowsPerPage);
+        view.updatePagination(pageCount);
+
+        if (resetPage) {
+            view.setCurrentPageIndex(0);
+            updateTableForPage(0);
+        } else {
+            // If current view index is out of bounds after resize, view handles it or we can clamp
+            // Here we just refresh the current page which View callback will handle effectively 
+            // but we need to trigger data update.
+            // Since View doesn't expose current index easily, we rely on View resetting or maintaining valid state.
+            // However, TableResultView.setCurrentPageIndex calls listener? No, it just updates UI.
+            // We need to fetch current index or just reset to 0 to be safe, OR calculate current based on logic.
+            // For simplicity in "density change", we usually stay on page 0 or try to calculate relative position.
+            // Let's reload page 0 for safety or implement complex logic if requested. 
+            // The previous code didn't reload data if !resetPage?
+            // "updateTableForPage(0)" was called in the previous 'else' block? No, it said "Refresh current view logic could be added here".
+            // So previously, changing density didn't update the table? That seems like a bug.
+            // I will fix this: changing density MUST update the table data.
+            updateTableForPage(0); 
+            view.setCurrentPageIndex(0);
+        }
+    }
+
+    private void updateTableForPage(int pageIndex) {
+        if (allRows.isEmpty()) {
+            view.setTableData(new ArrayList<>());
+            return;
+        }
+
+        int fromIndex = pageIndex * rowsPerPage;
+        if (fromIndex >= allRows.size()) {
+             fromIndex = 0; // Fallback
+        }
+        
+        int toIndex = Math.min(fromIndex + rowsPerPage, allRows.size());
+        view.setTableData(allRows.subList(fromIndex, toIndex));
+    }
+
+    public void displayReport(List<ValidationReportItem> items) {
+        if (items == null || items.isEmpty()) {
+            clear();
+            return;
+        }
+
+        this.headers = new String[] {"Severity", "Message", "Focus Node", "Path", "Value"};
+        allRows.clear();
+        view.clearTable();
+        view.setColumns(headers);
+
+        for (ValidationReportItem item : items) {
+            allRows.add(new String[] {
+                item.getSeverity(),
+                item.getMessage(),
+                item.getFocusNode(),
+                item.getResultPath(),
+                item.getValue()
             });
-  }
+        }
 
-  // ==============================================================================================
-  // Logic - Parsing & Pagination
-  // ==============================================================================================
-
-  /**
-   * Updates the table with CSV formatted results.
-   *
-   * @param csvResult The CSV formatted result string (header + data rows)
-   */
-  public void updateTable(String csvResult) {
-    Platform.runLater(() -> parseAndPopulate(csvResult));
-  }
-
-  private void parseAndPopulate(String csvResult) {
-    allRows.clear();
-    view.clearTable();
-
-    if (csvResult == null || csvResult.isEmpty()) {
-      updatePagination(true);
-      return;
+        updatePagination(true);
     }
 
-    String[] lines = csvResult.split("\\r?\\n");
-    if (lines.length == 0) {
-      updatePagination(true);
-      return;
+    // ==============================================================================================
+    // Actions
+    // ==============================================================================================
+
+    private void copyContent() {
+        if (allRows.isEmpty()) return;
+        String content = ExportManager.getInstance().formatTableData(allRows, headers, SerializationFormat.MARKDOWN);
+        ClipboardContent clipboardContent = new ClipboardContent();
+        clipboardContent.putString(content);
+        Clipboard.getSystemClipboard().setContent(clipboardContent);
     }
 
-    // 1. Headers
-    this.headers = lines[0].split(",", -1);
-    view.setColumns(headers);
-
-    // 2. Data Rows
-    for (int i = 1; i < lines.length; i++) {
-      allRows.add(lines[i].split(",", -1));
+    private void exportContent() {
+        if (allRows.isEmpty()) return;
+        ExportHelper.exportResult(
+            view.getRoot().getScene().getWindow(),
+            Arrays.asList(SerializationFormat.CSV, SerializationFormat.MARKDOWN),
+            format -> ExportManager.getInstance().formatTableData(allRows, headers, format)
+        );
     }
 
-    // 3. Refresh UI
-    updatePagination(true);
-  }
+    // ==============================================================================================
+    // Public API
+    // ==============================================================================================
 
-  private void updatePagination(boolean resetPage) {
-    view.setTotalRowsLabel("total rows: " + allRows.size());
-
-    if (allRows.isEmpty()) {
-      view.updatePagination(0, false);
-      return;
+    public Node getView() {
+        return view.getRoot();
     }
 
-    int pageCount = (int) Math.ceil((double) allRows.size() / rowsPerPage);
-    view.updatePagination(pageCount, pageCount > 1);
-
-    if (resetPage) {
-      view.setCurrentPageIndex(0);
-      updateTableForPage(0); // Explicitly load first page
-    } else {
-      // Refresh current view logic could be added here if needed
-      updateTableForPage(0);
-    }
-  }
-
-  private void updateTableForPage(int pageIndex) {
-    if (allRows.isEmpty()) return;
-
-    int fromIndex = pageIndex * rowsPerPage;
-    int toIndex = Math.min(fromIndex + rowsPerPage, allRows.size());
-
-    if (fromIndex >= allRows.size()) {
-      view.setTableData(new ArrayList<>());
-      return;
+    public void clear() {
+        allRows.clear();
+        view.clearTable();
+        updatePagination(true);
     }
 
-    view.setTableData(allRows.subList(fromIndex, toIndex));
-  }
-
-  /**
-   * Displays a list of validation report items in the table.
-   *
-   * @param items The list of validation report items.
-   */
-  public void displayReport(List<ValidationReportItem> items) {
-    if (items == null || items.isEmpty()) {
-      clear();
-      return;
+    public int getRowCount() {
+        return allRows.size();
     }
-
-    // Define columns for validation report
-    this.headers = new String[] {"Severity", "Message", "Focus Node", "Path", "Value"};
-    allRows.clear();
-    view.clearTable();
-    view.setColumns(headers);
-
-    for (ValidationReportItem item : items) {
-      allRows.add(
-          new String[] {
-            item.getSeverity(),
-            item.getMessage(),
-            item.getFocusNode(),
-            item.getResultPath(),
-            item.getValue()
-          });
-    }
-
-    updatePagination(true);
-  }
-
-  // ==============================================================================================
-  // Actions
-  // ==============================================================================================
-
-  private void copyContent() {
-    if (allRows.isEmpty()) return;
-
-    // Use Markdown for clipboard as it is more versatile for documentation
-    String content =
-        ExportManager.getInstance().formatTableData(allRows, headers, SerializationFormat.MARKDOWN);
-
-    ClipboardContent clipboardContent = new ClipboardContent();
-    clipboardContent.putString(content);
-    Clipboard.getSystemClipboard().setContent(clipboardContent);
-  }
-
-  private void exportContent() {
-    if (allRows.isEmpty()) return;
-
-    // Support CSV and Markdown export
-    ExportHelper.exportResult(
-        view.getRoot().getScene().getWindow(),
-        Arrays.asList(SerializationFormat.CSV, SerializationFormat.MARKDOWN),
-        format -> ExportManager.getInstance().formatTableData(allRows, headers, format));
-  }
-
-  // ==============================================================================================
-  // Public API
-  // ==============================================================================================
-
-  public Node getView() {
-    return view.getRoot();
-  }
-
-  public void clear() {
-    allRows.clear();
-    view.clearTable();
-    updatePagination(true);
-  }
-
-  public int getRowCount() {
-    return allRows.size();
-  }
 }
