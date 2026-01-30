@@ -5,7 +5,6 @@ import fr.inria.corese.gui.utils.CssUtils;
 import fr.inria.corese.gui.utils.ThemeManager;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.function.Consumer;
 import javafx.application.Platform;
 import javafx.concurrent.Worker;
 import javafx.scene.layout.Priority;
@@ -25,7 +24,7 @@ import org.slf4j.LoggerFactory;
  *
  * <ul>
  *   <li>WebView-based graph rendering using D3.js and kg-graph web component
- *   <li>TTL (Turtle) data injection and visualization
+ *   <li>JSON-LD data injection and visualization
  *   <li>Interactive graph manipulation (zoom, reset)
  *   <li>Automatic theme synchronization
  *   <li>Lazy loading - waits for scene attachment before initialization
@@ -35,7 +34,7 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * GraphDisplayWidget widget = new GraphDisplayWidget();
- * widget.displayGraph(ttlData);
+ * widget.displayGraph(jsonLdData);
  * widget.resetLayout();
  * }</pre>
  */
@@ -57,8 +56,7 @@ public class GraphDisplayWidget extends VBox {
   private final JavaBridge bridge = new JavaBridge();
 
   private boolean pageLoaded = false;
-  private String pendingTtlData = null;
-  private Consumer<String> onLegendUpdate;
+  private String pendingJsonLdData = null;
 
   // ==============================================================================================
   // Constructor
@@ -137,9 +135,9 @@ public class GraphDisplayWidget extends VBox {
 
       webEngine.executeScript("if(window.setupBridge) window.setupBridge();");
 
-      if (pendingTtlData != null) {
-        displayGraph(pendingTtlData);
-        pendingTtlData = null;
+      if (pendingJsonLdData != null) {
+        displayGraph(pendingJsonLdData);
+        pendingJsonLdData = null;
       }
     } catch (Exception e) {
       logger.error("Error during graph page initialization", e);
@@ -151,34 +149,25 @@ public class GraphDisplayWidget extends VBox {
   // ==============================================================================================
 
   /**
-   * Displays an RDF graph from TTL (Turtle) formatted data.
+   * Displays an RDF graph from JSON-LD formatted data.
    *
-   * @param ttlData The RDF data in Turtle format (null or empty clears the view)
+   * @param jsonLdData The RDF data in JSON-LD format (null or empty clears the view)
    */
-  public void displayGraph(String ttlData) {
-    if (ttlData == null || ttlData.isBlank()) {
+  public void displayGraph(String jsonLdData) {
+    if (jsonLdData == null || jsonLdData.isBlank()) {
       clear();
       return;
     }
 
     if (!pageLoaded) {
-      pendingTtlData = ttlData;
+      pendingJsonLdData = jsonLdData;
       if (webEngine.getLoadWorker().getState() != Worker.State.RUNNING) {
         loadGraphPage();
       }
       return;
     }
 
-    Platform.runLater(() -> injectGraphData(ttlData));
-  }
-
-  /**
-   * Sets a callback to be invoked when the graph visualization updates its named graph legend.
-   * 
-   * @param callback A consumer that receives the legend data as a JSON string.
-   */
-  public void setOnLegendUpdate(Consumer<String> callback) {
-    this.onLegendUpdate = callback;
+    Platform.runLater(() -> injectGraphData(jsonLdData));
   }
 
   private void loadGraphPage() {
@@ -190,7 +179,7 @@ public class GraphDisplayWidget extends VBox {
     }
   }
 
-  private void injectGraphData(String ttlData) {
+  private void injectGraphData(String jsonLdData) {
     // Double-check page is still loaded and is the correct page
     if (!pageLoaded) {
       return;
@@ -201,16 +190,16 @@ public class GraphDisplayWidget extends VBox {
       return;
     }
     
-    // Use Base64 encoding to avoid escaping issues with TTL data
-    String base64Ttl = Base64.getEncoder().encodeToString(ttlData.getBytes(StandardCharsets.UTF_8));
+    // Use Base64 encoding to avoid escaping issues with JSON data
+    String base64Json = Base64.getEncoder().encodeToString(jsonLdData.getBytes(StandardCharsets.UTF_8));
 
     String script =
         "(function() {"
             + "  try {"
             + "    var el = document.getElementById('myGraph');"
             + "    if (!el) return;"
-            + "    var decoded = decodeURIComponent(escape(window.atob('" + base64Ttl + "')));"
-            + "    el.ttl = decoded;"
+            + "    var decoded = decodeURIComponent(escape(window.atob('" + base64Json + "')));"
+            + "    el.jsonld = decoded;"
             + "  } catch(e) { console.error('Graph injection error:', e); }"
             + "})();";
 
@@ -273,7 +262,8 @@ public class GraphDisplayWidget extends VBox {
   }
 
   public void clear() {
-    pendingTtlData = null;
+    pendingJsonLdData = null;
+    executeScriptSafe("if(document.getElementById('myGraph')) document.getElementById('myGraph').jsonld = null;");
   }
   
   public class JavaBridge {
@@ -283,12 +273,6 @@ public class GraphDisplayWidget extends VBox {
 
     public void error(String message) {
       logger.error("[JS] {}", message);
-    }
-
-    public void updateLegend(String jsonLegendData) {
-      if (onLegendUpdate != null) {
-        Platform.runLater(() -> onLegendUpdate.accept(jsonLegendData));
-      }
     }
   }
 }

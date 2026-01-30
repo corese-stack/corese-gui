@@ -186,8 +186,9 @@ public class QueryViewController {
             });
 
         resultController.getView().selectGraphTab();
+        String jsonLdResult = stateManager.getFormattedCachedQuery(queryTabId, "JSON-LD");
+        resultController.displayGraph(jsonLdResult);
         String turtleResult = stateManager.getFormattedCachedQuery(queryTabId, "TURTLE");
-        resultController.displayGraph(turtleResult);
         resultController.updateText(turtleResult);
         break;
       default:

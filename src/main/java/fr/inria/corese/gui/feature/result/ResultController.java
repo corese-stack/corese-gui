@@ -181,9 +181,9 @@ public class ResultController {
   // Facade API - Graph Controller Delegation
   // ==============================================================================================
 
-  public void displayGraph(String ttlData) {
+  public void displayGraph(String jsonLdData) {
       if (graphController != null) {
-          graphController.displayGraph(ttlData);
+          graphController.displayGraph(jsonLdData);
       }
   }
 

@@ -15,12 +15,12 @@ public class GraphResultController {
   }
 
   /**
-   * Displays an RDF graph from TTL data.
+   * Displays an RDF graph from JSON-LD data.
    *
-   * @param ttlData The RDF data in Turtle format
+   * @param jsonLdData The RDF data in JSON-LD format
    */
-  public void displayGraph(String ttlData) {
-    view.getGraphWidget().displayGraph(ttlData);
+  public void displayGraph(String jsonLdData) {
+    view.getGraphWidget().displayGraph(jsonLdData);
   }
 
   /**

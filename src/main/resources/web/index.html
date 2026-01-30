@@ -7,7 +7,6 @@
     <title>Knowledge Graph Visualization</title>
     <!-- Use local libraries -->
     <script src="lib/d3.min.js"></script>
-    <script src="lib/ttl2jsonld.js"></script>
     <style>
         /* --- THEME VARIABLES (Default / Cupertino Light) --- */
         :root {
@@ -266,15 +265,15 @@
                 }
             }
 
-            set ttl(ttl) {
+            set jsonld(jsonld) {
                 const data = this.internalData.get(this) || {};
-                data.ttl = ttl;
+                data.jsonld = jsonld;
                 this.internalData.set(this, data);
                 this.drawChart()
             }
 
-            get ttl() {
-                return this.internalData.get(this)?.ttl;
+            get jsonld() {
+                return this.internalData.get(this)?.jsonld;
             }
 
             async connectedCallback() {
@@ -351,14 +350,10 @@
                 this.svg = d3.select(chartSvg);
                 this.svg.selectAll("*").remove();
 
-                if (!this.ttl) return;
-                if (typeof ttl2jsonld === 'undefined') {
-                    console.error("ttl2jsonld library not found");
-                    return;
-                }
+                if (!this.jsonld) return;
 
                 try {
-                    this.jsonLDOntology = ttl2jsonld.parse(this.ttl);
+                    this.jsonLDOntology = JSON.parse(this.jsonld);
                     const graph = await this.createGraph();
                     this.graph = graph;
                     
