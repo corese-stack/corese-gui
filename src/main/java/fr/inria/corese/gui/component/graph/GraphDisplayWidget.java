@@ -5,6 +5,7 @@ import fr.inria.corese.gui.utils.CssUtils;
 import fr.inria.corese.gui.utils.ThemeManager;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.function.Consumer;
 import javafx.application.Platform;
 import javafx.concurrent.Worker;
 import javafx.scene.layout.Priority;
@@ -57,6 +58,7 @@ public class GraphDisplayWidget extends VBox {
 
   private boolean pageLoaded = false;
   private String pendingTtlData = null;
+  private Consumer<String> onLegendUpdate;
 
   // ==============================================================================================
   // Constructor
@@ -170,6 +172,15 @@ public class GraphDisplayWidget extends VBox {
     Platform.runLater(() -> injectGraphData(ttlData));
   }
 
+  /**
+   * Sets a callback to be invoked when the graph visualization updates its named graph legend.
+   * 
+   * @param callback A consumer that receives the legend data as a JSON string.
+   */
+  public void setOnLegendUpdate(Consumer<String> callback) {
+    this.onLegendUpdate = callback;
+  }
+
   private void loadGraphPage() {
     try {
       String htmlPath = getClass().getResource(GRAPH_HTML_PATH).toExternalForm();
@@ -272,6 +283,12 @@ public class GraphDisplayWidget extends VBox {
 
     public void error(String message) {
       logger.error("[JS] {}", message);
+    }
+
+    public void updateLegend(String jsonLegendData) {
+      if (onLegendUpdate != null) {
+        Platform.runLater(() -> onLegendUpdate.accept(jsonLegendData));
+      }
     }
   }
 }
