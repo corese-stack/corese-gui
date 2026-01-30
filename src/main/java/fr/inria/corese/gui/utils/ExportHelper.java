@@ -1,5 +1,6 @@
 package fr.inria.corese.gui.utils;
 
+import fr.inria.corese.gui.component.notification.NotificationManager;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import java.io.File;
 import java.nio.file.Files;
@@ -7,7 +8,6 @@ import java.util.List;
 import java.util.function.Function;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
-import javafx.scene.control.Alert;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
 
@@ -142,36 +142,20 @@ public final class ExportHelper {
 
           @Override
           protected void succeeded() {
-            Platform.runLater(
-                () -> {
-                  Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                  alert.setTitle("Export Successful");
-                  alert.setHeaderText(null);
-                  alert.setContentText("File saved successfully to:\n" + file.getAbsolutePath());
-                  alert.showAndWait();
-                });
+            Platform.runLater(() -> NotificationManager.getInstance().showSuccess("File saved successfully"));
           }
 
           @Override
           protected void failed() {
             Platform.runLater(
                 () ->
-                    showError(
-                        "Export Failed",
-                        "An error occurred while saving:\n" + getException().getMessage()));
+                    NotificationManager.getInstance().showError(
+                        "Export Failed: " + getException().getMessage()));
           }
         };
 
     Thread thread = new Thread(task);
     thread.setDaemon(true);
     thread.start();
-  }
-
-  private static void showError(String title, String message) {
-    Alert alert = new Alert(Alert.AlertType.ERROR);
-    alert.setTitle(title);
-    alert.setHeaderText(null);
-    alert.setContentText(message);
-    alert.showAndWait();
   }
 }

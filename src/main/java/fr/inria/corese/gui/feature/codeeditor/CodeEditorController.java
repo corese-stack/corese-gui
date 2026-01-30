@@ -3,12 +3,12 @@ package fr.inria.corese.gui.feature.codeeditor;
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.api.Loader;
 import fr.inria.corese.core.load.Load;
+import fr.inria.corese.gui.component.notification.NotificationManager;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
+import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.core.factory.ButtonFactory;
-import fr.inria.corese.gui.core.factory.popup.DocumentationPopup;
-import fr.inria.corese.gui.core.factory.popup.ExportFormatPopup;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileWriter;
@@ -20,10 +20,8 @@ import java.util.List;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.stage.FileChooser;
-import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -290,8 +288,9 @@ public class CodeEditorController {
       try {
         String content = Files.readString(file.toPath());
         model.setContent(content);
+        NotificationManager.getInstance().showSuccess("File imported: " + file.getName());
       } catch (Exception e) {
-        showError("Error Importing File", "Could not import the file: " + e.getMessage());
+        NotificationManager.getInstance().showError("Could not import file: " + e.getMessage());
       }
     }
   }
@@ -317,7 +316,8 @@ public class CodeEditorController {
       return;
     }
 
-    ExportFormatPopup.show((Stage) view.getRoot().getScene().getWindow(), graphToExport);
+    // Export popup removed
+    DialogHelper.showError("Not Implemented", "Export functionality is temporarily disabled during refactoring.");
   }
 
   private void onClearButtonClick() {
@@ -337,7 +337,8 @@ public class CodeEditorController {
   }
 
   private void onDocumentationButtonClick() {
-    new DocumentationPopup().displayPopup();
+    // Documentation popup removed
+    DialogHelper.showError("Not Implemented", "Documentation is temporarily unavailable.");
   }
 
   private void zoomIn() {
@@ -349,11 +350,7 @@ public class CodeEditorController {
   }
 
   private void showError(String title, String content) {
-    Alert alert = new Alert(Alert.AlertType.ERROR);
-    alert.setTitle(title);
-    alert.setHeaderText(null);
-    alert.setContentText(content);
-    alert.showAndWait();
+    DialogHelper.showError(title, content);
   }
 
   // --- End Button Actions ---

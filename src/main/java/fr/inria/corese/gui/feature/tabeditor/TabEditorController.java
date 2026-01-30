@@ -4,6 +4,7 @@ import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 
 import fr.inria.corese.gui.component.button.FloatingButtonWidget;
+import fr.inria.corese.gui.component.notification.NotificationManager;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.core.manager.FileLoaderService;
@@ -605,6 +606,7 @@ public class TabEditorController {
         event -> {
           unlockTabUI(tab);
           updateTabContent(tab, task.getValue());
+          NotificationManager.getInstance().showSuccess("File loaded: " + file.getName());
         });
 
     task.setOnFailed(

@@ -6,7 +6,7 @@ import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.manager.QueryManager;
-import fr.inria.corese.gui.core.factory.popup.TemplatePopup;
+import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.feature.codeeditor.CodeEditorController;
 import fr.inria.corese.gui.feature.tabeditor.TabEditorConfig;
 import fr.inria.corese.gui.feature.tabeditor.TabEditorController;
@@ -23,10 +23,8 @@ import java.util.List;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Tab;
 import javafx.stage.FileChooser;
-import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,11 +49,7 @@ public class QueryViewController {
         view.createEmptyState(
             () -> tabEditorController.createNewTab("untitled", ""),
             this::onOpenFilesButtonClick,
-            () -> {
-              Stage stage = (Stage) view.getRoot().getScene().getWindow();
-              TemplatePopup.show(
-                  stage, query -> tabEditorController.createNewTab("untitled", query));
-            });
+            null); // Template action removed
 
     // Build configuration with Builder pattern
     TabEditorConfig config =
@@ -77,14 +71,7 @@ public class QueryViewController {
             .withMenuItems(
                 List.of(
                     new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
-                    new TabEditorConfig.MenuItem("Open File", this::onOpenFilesButtonClick),
-                    new TabEditorConfig.MenuItem(
-                        "Templates",
-                        () -> {
-                          Stage stage = (Stage) view.getRoot().getScene().getWindow();
-                          TemplatePopup.show(
-                              stage, query -> tabEditorController.createNewTab("untitled", query));
-                        })))
+                    new TabEditorConfig.MenuItem("Open File", this::onOpenFilesButtonClick)))
             .withPreloadFirstTab()
             .build();
 
@@ -271,11 +258,7 @@ public class QueryViewController {
   }
 
   private void showError(String title, String message) {
-    Alert alert = new Alert(Alert.AlertType.ERROR);
-    alert.setTitle(title);
-    alert.setHeaderText(null);
-    alert.setContentText(message);
-    alert.showAndWait();
+    DialogHelper.showError(title, message);
   }
 
   public void openQueryFile(File file) {

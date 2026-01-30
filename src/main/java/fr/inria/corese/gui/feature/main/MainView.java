@@ -1,88 +1,71 @@
 package fr.inria.corese.gui.feature.main;
 
+import atlantafx.base.controls.ModalPane;
+import fr.inria.corese.gui.component.modal.ModalManager;
+import fr.inria.corese.gui.component.notification.NotificationManager;
 import fr.inria.corese.gui.core.view.AbstractView;
-
-
-
-
-
-
+import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
 /**
  * MainView defines the primary layout of the application's user interface.
  *
  * <p>Structure:
- *
  * <ul>
- *   <li>A {@link BorderPane} as the root layout.
- *   <li>A sidebar ({@link VBox}) on the left, used for navigation.
- *   <li>A central {@link BorderPane} to display the main content area.
+ *   <li>A {@link StackPane} as the root layout.</li>
+ *   <li>A {@link BorderPane} containing the Navigation Sidebar and Content Area (Base Layer).</li>
+ *   <li>A {@link ModalPane} for global dialogs (Overlay Layer).</li>
+ *   <li>A {@link VBox} for notifications (Topmost Layer).</li>
  * </ul>
- *
- * <p>This class defines only the layout and presentation containers. The {@link
- * fr.inria.corese.gui.feature.main.MainController} manages all interactions and view updates.
- *
- * <pre>
- * +------------------------------------------------+
- * |  BorderPane (Root)                             |
- * |  +---------------+--------------------------+  |
- * |  |  VBox         |  BorderPane              |  |
- * |  | (Navigation)  |  (Content Area)          |  |
- * |  +---------------+--------------------------+  |
- * +------------------------------------------------+
- * </pre>
  */
 public final class MainView extends AbstractView {
 
-  // ===== Constants =====
-
-  /** Path to the stylesheet specific to this view. */
   private static final String STYLESHEET_PATH = "/styles/main-view.css";
 
-  // ===== Fields =====
-
-  /** Sidebar container for navigation components. */
+  // Layout Containers
   private final VBox navigationContainer = new VBox();
-
-  /** Central content area where views are dynamically displayed. */
   private final BorderPane contentArea = new BorderPane();
+  private final VBox notificationContainer = new VBox(10);
+  private final ModalPane modalPane = new ModalPane();
 
-  // ===== Constructor =====
-
-  /** Creates the main view and initializes its layout structure. */
   public MainView() {
-    super(new BorderPane(), STYLESHEET_PATH);
+    super(new StackPane(), STYLESHEET_PATH);
     initializeLayout();
   }
 
-  // ===== Initialization =====
-
-  /** Sets up the root layout hierarchy and default structure. */
   private void initializeLayout() {
-    BorderPane rootPane = (BorderPane) getRoot();
+    StackPane root = (StackPane) getRoot();
+    
+    // 1. Main Layout (Sidebar + Content)
+    BorderPane mainLayout = new BorderPane();
+    mainLayout.setLeft(navigationContainer);
+    mainLayout.setCenter(contentArea);
 
-    // Place subcontainers in the main layout
-    rootPane.setLeft(navigationContainer);
-    rootPane.setCenter(contentArea);
+    // 2. Notification Layer
+    notificationContainer.setAlignment(Pos.BOTTOM_RIGHT);
+    notificationContainer.setPickOnBounds(false); // Allow clicks through transparent areas
+    notificationContainer.setStyle("-fx-padding: 20px;");
+    
+    // 3. Assemble Root Stack
+    // Order matters: Bottom -> Top
+    root.getChildren().addAll(mainLayout, modalPane, notificationContainer);
+    
+    StackPane.setAlignment(notificationContainer, Pos.BOTTOM_RIGHT);
+
+    // 4. Initialize Global Managers
+    ModalManager.getInstance().setModalPane(modalPane);
+    NotificationManager.getInstance().setContainer(notificationContainer);
   }
 
-  // ===== Public API =====
-
-  /**
-   * Sets the navigation sidebar using a root component from a controller.
-   *
-   * @param navigationRoot the root node of the navigation component
-   */
   public void setNavigationRoot(Parent navigationRoot) {
     navigationContainer.getChildren().setAll(navigationRoot);
     VBox.setVgrow(navigationRoot, Priority.ALWAYS);
   }
 
-  /** Replaces the central content area with the given content view. */
   public void setContent(AbstractView contentView) {
     contentArea.setCenter(contentView.getRoot());
   }

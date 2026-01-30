@@ -5,13 +5,6 @@ import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.utils.TabPaneUtils;
 import fr.inria.corese.gui.utils.ThemeManager;
 
-
-
-
-
-
-
-import atlantafx.base.controls.ModalPane;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -58,21 +51,6 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
  *   <li>Theme-aware modification indicators
  *   <li>Split menu button for multiple tab creation options
  * </ul>
- *
- * <pre>
- * +------------------------------------------------+
- * |  HBox (Tab Header)                             |
- * |  +----------------+  +----------------------+  |
- * |  |  TabPane       |  |  SplitMenuButton     |  |
- * |  | (Tabs)        |  |  (Add Tab Button)     |  |
- * |  +----------------+  +----------------------+  |
- * +------------------------------------------------+
- * |  StackPane (Content Container)                 |
- * |  +------------------------------------------+  |
- * |  |  Node (Tab Content)                      |  |
- * |  +------------------------------------------+  |
- * +------------------------------------------------+
- * </pre>
  */
 public class TabEditorView extends AbstractView {
 
@@ -114,7 +92,6 @@ public class TabEditorView extends AbstractView {
   private final SplitMenuButton addTabButton;
   private final StackPane contentContainer;
   private final VBox mainContent;
-  private final ModalPane modalPane;
 
   // ==============================================================================================
   // Constructor
@@ -131,7 +108,6 @@ public class TabEditorView extends AbstractView {
     this.addTabButton = createAddTabButton();
     this.contentContainer = new StackPane();
     this.mainContent = new VBox();
-    this.modalPane = new ModalPane();
 
     initializeLayout();
     setupListeners();
@@ -174,7 +150,7 @@ public class TabEditorView extends AbstractView {
     VBox.setVgrow(contentContainer, Priority.ALWAYS);
 
     StackPane rootStack = (StackPane) getRoot();
-    rootStack.getChildren().addAll(mainContent, modalPane);
+    rootStack.getChildren().addAll(mainContent);
 
     contentContainer.setId(TAB_CONTENT_WRAPPER_ID);
   }
@@ -450,7 +426,7 @@ public class TabEditorView extends AbstractView {
    * @param message The error message
    */
   public void showError(String title, String message) {
-    DialogHelper.showError(modalPane, title, message);
+    DialogHelper.showError(title, message);
   }
 
   /**
@@ -461,7 +437,7 @@ public class TabEditorView extends AbstractView {
    * @param details The detailed error message (e.g., stack trace)
    */
   public void showError(String title, String message, String details) {
-    DialogHelper.showError(modalPane, title, message, details);
+    DialogHelper.showError(title, message, details);
   }
 
   /**
@@ -472,7 +448,7 @@ public class TabEditorView extends AbstractView {
    */
   public void showUnsavedChangesDialog(
       String fileName, Consumer<DialogHelper.UnsavedChangesResult> callback) {
-    DialogHelper.showUnsavedChangesDialog(modalPane, fileName, callback);
+    DialogHelper.showUnsavedChangesDialog(fileName, callback);
   }
 
   // ==============================================================================================

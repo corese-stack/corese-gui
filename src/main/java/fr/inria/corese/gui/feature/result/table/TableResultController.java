@@ -1,5 +1,6 @@
 package fr.inria.corese.gui.feature.result.table;
 
+import fr.inria.corese.gui.component.notification.NotificationManager;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.factory.ButtonFactory;
 import fr.inria.corese.gui.core.manager.ExportManager;
@@ -183,6 +184,7 @@ public class TableResultController {
         ClipboardContent clipboardContent = new ClipboardContent();
         clipboardContent.putString(content);
         Clipboard.getSystemClipboard().setContent(clipboardContent);
+        NotificationManager.getInstance().showSuccess("Result copied to clipboard");
     }
 
     private void exportContent() {

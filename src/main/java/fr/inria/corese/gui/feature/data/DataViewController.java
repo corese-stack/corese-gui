@@ -1,9 +1,9 @@
 package fr.inria.corese.gui.feature.data;
 
+import fr.inria.corese.gui.component.notification.NotificationManager;
 import fr.inria.corese.gui.core.manager.CoreseGraphManager;
 import java.io.File;
 import java.util.List;
-import javafx.scene.control.Alert;
 import javafx.stage.FileChooser;
 
 /**
@@ -36,24 +36,20 @@ public class DataViewController {
         List<File> files = fileChooser.showOpenMultipleDialog(view.getRoot().getScene().getWindow());
 
         if (files != null && !files.isEmpty()) {
-            StringBuilder message = new StringBuilder();
-            boolean errorOccurred = false;
+            int successCount = 0;
 
             for (File file : files) {
                 try {
                     graphManager.loadFromFile(file);
-                    message.append("Loaded: ").append(file.getName()).append("\n");
+                    successCount++;
                 } catch (Exception ex) {
-                    errorOccurred = true;
-                    message.append("Error loading ").append(file.getName()).append(": ").append(ex.getMessage()).append("\n");
+                    NotificationManager.getInstance().showError("Error loading " + file.getName() + ": " + ex.getMessage());
                 }
             }
 
-            Alert alert = new Alert(errorOccurred ? Alert.AlertType.WARNING : Alert.AlertType.INFORMATION);
-            alert.setTitle("Load Result");
-            alert.setHeaderText(null);
-            alert.setContentText(message.toString());
-            alert.showAndWait();
+            if (successCount > 0) {
+                NotificationManager.getInstance().showSuccess("Loaded " + successCount + " file(s).");
+            }
         }
     }
 }
