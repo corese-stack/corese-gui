@@ -28,6 +28,9 @@ public class TableResultView extends AbstractView {
     private final TableView<String[]> tableView;
     private final TablePaginationBar paginationBar;
     private final ToolbarWidget toolbarWidget;
+    
+    private int currentPageIndex = 0;
+    private int rowsPerPage = 50;
 
     /**
      * Constructs a new TableResultView.
@@ -42,6 +45,7 @@ public class TableResultView extends AbstractView {
         this.toolbarWidget = new ToolbarWidget();
 
         setupLayout();
+        setupListeners();
     }
 
     private void setupLayout() {
@@ -55,6 +59,16 @@ public class TableResultView extends AbstractView {
         paginationBar.setManaged(true);
     }
 
+    private void setupListeners() {
+        paginationBar.rowsPerPageTextProperty().addListener((obs, oldVal, newVal) -> {
+            try {
+                this.rowsPerPage = Integer.parseInt(newVal);
+            } catch (NumberFormatException e) {
+                // Keep existing value
+            }
+        });
+    }
+
     // ==============================================================================================
     // Public API - Data & Table
     // ==============================================================================================
@@ -62,8 +76,32 @@ public class TableResultView extends AbstractView {
     public void setColumns(String[] headers) {
         Platform.runLater(() -> {
             tableView.getColumns().clear();
+            tableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+            
+            // 1. Add Row Number Column (#)
+            TableColumn<String[], String> indexColumn = new TableColumn<>("#");
+            indexColumn.setCellFactory(col -> new javafx.scene.control.TableCell<>() {
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || getTableRow() == null) {
+                        setText(null);
+                    } else {
+                        int absoluteIndex = (currentPageIndex * rowsPerPage) + getTableRow().getIndex() + 1;
+                        setText(String.valueOf(absoluteIndex));
+                    }
+                }
+            });
+            // Fix index column width
+            indexColumn.setPrefWidth(50);
+            indexColumn.setMinWidth(50);
+            indexColumn.setMaxWidth(50);
+            indexColumn.setResizable(false);
+            tableView.getColumns().add(indexColumn);
+
             if (headers == null) return;
 
+            // 2. Add Data Columns
             for (int col = 0; col < headers.length; col++) {
                 final int colIndex = col;
                 TableColumn<String[], String> column = new TableColumn<>(headers[col].trim());
@@ -73,8 +111,14 @@ public class TableResultView extends AbstractView {
                     return new SimpleStringProperty(value);
                 });
                 
-                // Distribute width evenly initially
-                column.prefWidthProperty().bind(tableView.widthProperty().divide(Math.max(1, headers.length)));
+                // Distribute width evenly among data columns, accounting for the index column and scrollbar margin
+                column.prefWidthProperty().bind(
+                    tableView.widthProperty()
+                        .subtract(indexColumn.widthProperty())
+                        .subtract(20) // Safety margin for vertical scrollbar
+                        .divide(Math.max(1, headers.length))
+                );
+                
                 tableView.getColumns().add(column);
             }
         });
@@ -105,6 +149,11 @@ public class TableResultView extends AbstractView {
     }
 
     public void setRowsPerPageText(String text) {
+        try {
+            this.rowsPerPage = Integer.parseInt(text);
+        } catch (NumberFormatException e) {
+            // Keep existing value
+        }
         Platform.runLater(() -> paginationBar.setRowsPerPage(text));
     }
 
@@ -117,6 +166,7 @@ public class TableResultView extends AbstractView {
     }
 
     public void setCurrentPageIndex(int index) {
+        this.currentPageIndex = index;
         Platform.runLater(() -> paginationBar.setCurrentPageIndex(index));
     }
 

@@ -132,6 +132,9 @@ public class TableResultController {
     }
 
     private void updateTableForPage(int pageIndex) {
+        // Ensure the view knows the current page for absolute row numbering calculation (# column)
+        view.setCurrentPageIndex(pageIndex);
+
         if (allRows.isEmpty()) {
             view.setTableData(new ArrayList<>());
             return;
