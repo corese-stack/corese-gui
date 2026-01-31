@@ -1,0 +1,165 @@
+/* =================================================================
+ * CORESE KNOWLEDGE GRAPH - THEME STYLES
+ * =================================================================
+ * Theme configuration and global styling for the knowledge graph viewer
+ * Supports multiple theme variants (Cupertino, Primer, Nord) in light/dark modes
+ * ================================================================= */
+
+/* =================================================================
+ * CSS VARIABLES - LIGHT THEMES
+ * ================================================================= */
+
+/* Default Light Theme (Cupertino) */
+:root {
+    --bg-color: #ffffff;
+    --text-color: #24292e;
+    --gutter-bg: #f8f9fa;
+    --gutter-text: #adb5bd;
+    --status-bar-bg: #f3f3f3;
+    --status-bar-border: #e1e4e8;
+    --status-bar-text: #586069;
+    --selection-bg: #b3d7ff;
+    --accent-color: #0078D4;
+}
+
+/* Primer Light Theme */
+body.theme-primer {
+    --bg-color: #ffffff;
+    --text-color: #24292f;
+    --gutter-bg: #f6f8fa;
+    --gutter-text: #6e7781;
+    --status-bar-bg: #ffffff;
+    --status-bar-border: #d0d7de;
+    --status-bar-text: #57606a;
+    --selection-bg: #b3d7ff;
+}
+
+/* Nord Light Theme */
+body.theme-nord {
+    --bg-color: #ffffff;
+    --text-color: #2e3440;
+    --gutter-bg: #eceff4;
+    --gutter-text: #4c566a;
+    --status-bar-bg: #eceff4;
+    --status-bar-border: #d8dee9;
+    --status-bar-text: #4c566a;
+    --selection-bg: #88c0d040;
+}
+
+/* =================================================================
+ * CSS VARIABLES - DARK THEMES
+ * ================================================================= */
+
+/* Default Dark Theme (Cupertino) */
+body.dark-theme {
+    --bg-color: #1e1e1e;
+    --text-color: #d4d4d4;
+    --gutter-bg: #252526;
+    --gutter-text: #858585;
+    --status-bar-bg: #2d2d2d;
+    --status-bar-border: #3e3e42;
+    --status-bar-text: #cccccc;
+    --selection-bg: #264f78;
+}
+
+/* Primer Dark Theme */
+body.theme-primer.dark-theme {
+    --bg-color: #010409;
+    --text-color: #c9d1d9;
+    --gutter-bg: #0d1117;
+    --gutter-text: #8b949e;
+    --status-bar-bg: #0d1117;
+    --status-bar-border: #30363d;
+    --status-bar-text: #8b949e;
+    --selection-bg: #1f6feb40;
+}
+
+/* Nord Dark Theme */
+body.theme-nord.dark-theme {
+    --bg-color: #242933;
+    --text-color: #d8dee9;
+    --gutter-bg: #2e3440;
+    --gutter-text: #616e88;
+    --status-bar-bg: #2e3440;
+    --status-bar-border: #434c5e;
+    --status-bar-text: #d8dee9;
+    --selection-bg: #434c5e;
+}
+
+/* =================================================================
+ * GLOBAL LAYOUT
+ * ================================================================= */
+
+html,
+body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+#container {
+    width: 100vw;
+    height: 100vh;
+    box-sizing: border-box;
+}
+
+kg-graph {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* =================================================================
+ * TOOLTIP STYLES
+ * ================================================================= */
+
+.kg-tooltip {
+    position: absolute;
+    padding: 12px 16px;
+    background: var(--bg-color, #ffffff);
+    color: var(--text-color, #333);
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 1000;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    max-width: 450px;
+    line-height: 1.5;
+    border: 1px solid var(--status-bar-border, #e1e4e8);
+}
+
+.tooltip-title {
+    font-weight: bold;
+    color: var(--accent-color, #0078D4);
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--status-bar-border, #e1e4e8);
+    padding-bottom: 6px;
+    font-size: 14px;
+}
+
+.tooltip-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.tooltip-row strong {
+    color: var(--gutter-text, #adb5bd);
+    min-width: 50px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tooltip-row span {
+    word-break: break-all;
+    color: var(--text-color, #333);
+}

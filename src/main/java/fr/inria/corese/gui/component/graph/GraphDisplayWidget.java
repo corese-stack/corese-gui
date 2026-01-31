@@ -45,7 +45,7 @@ public class GraphDisplayWidget extends VBox {
   // ==============================================================================================
 
   private static final Logger logger = LoggerFactory.getLogger(GraphDisplayWidget.class);
-  private static final String GRAPH_HTML_PATH = "/web/index.html";
+  private static final String GRAPH_HTML_PATH = "/web/graph-viewer.html";
 
   // ==============================================================================================
   // Fields

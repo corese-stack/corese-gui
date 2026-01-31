@@ -1,0 +1,725 @@
+/* =================================================================
+ * CORESE KNOWLEDGE GRAPH - VISUALIZATION COMPONENT
+ * =================================================================
+ * Custom web component for rendering RDF/JSON-LD knowledge graphs
+ * Uses D3.js for force-directed graph layout and visualization
+ * Supports multiple named graphs with color coding
+ * ================================================================= */
+
+"use strict";
+
+class KGGraphVis extends HTMLElement {
+    constructor() {
+        super();
+        this.attachShadow({ mode: "open" });
+
+        // D3 references
+        this.svg = null;
+        this.simulation = null;
+        this.zoomBehavior = null;
+        this.linkSelection = null;
+        this.nodeSelection = null;
+        this.linkLabelSelection = null;
+
+        // Component state
+        this.internalData = new WeakMap();
+        this.internalData.set(this, {});
+        this.resizeObserver = null;
+        this.showEdgeLabels = true;
+
+        // Graph coloring
+        this.graphColorMap = new Map();
+        this.defaultGraphColor = '#6B7280';
+    }
+
+    /* -------------------------------------------------------------
+     * PUBLIC API METHODS
+     * ------------------------------------------------------------- */
+
+    /**
+     * Toggle visibility of edge labels
+     * @param {boolean} show - Whether to show edge labels
+     */
+    setShowEdgeLabels(show) {
+        this.showEdgeLabels = show;
+        if (this.linkLabelSelection) {
+            this.linkLabelSelection.style('display', show ? null : 'none');
+        }
+    }
+
+    /**
+     * Reset simulation with new alpha
+     */
+    reset() {
+        if (this.simulation) {
+            this.simulation.alpha(1).restart();
+        }
+    }
+
+    /**
+     * Zoom in by 30%
+     */
+    zoomIn() {
+        if (this.svg && this.zoomBehavior) {
+            this.svg.transition().duration(300).call(this.zoomBehavior.scaleBy, 1.3);
+        }
+    }
+
+    /**
+     * Zoom out by 30%
+     */
+    zoomOut() {
+        if (this.svg && this.zoomBehavior) {
+            this.svg.transition().duration(300).call(this.zoomBehavior.scaleBy, 1 / 1.3);
+        }
+    }
+
+    /**
+     * Update theme (kept for compatibility, styles use CSS variables)
+     * @param {boolean} isDark - Whether dark mode is active
+     */
+    setTheme(isDark) {
+        // Styles automatically update via CSS variables
+    }
+
+    /* -------------------------------------------------------------
+     * PROPERTY ACCESSORS
+     * ------------------------------------------------------------- */
+
+    set jsonld(jsonld) {
+        const data = this.internalData.get(this) || {};
+        data.jsonld = jsonld;
+        this.internalData.set(this, data);
+        this.drawChart();
+    }
+
+    get jsonld() {
+        return this.internalData.get(this)?.jsonld;
+    }
+
+    /* -------------------------------------------------------------
+     * LIFECYCLE METHODS
+     * ------------------------------------------------------------- */
+
+    async connectedCallback() {
+        this.render();
+        this.observeResize();
+        await this.updateSize();
+    }
+
+    disconnectedCallback() {
+        if (this.resizeObserver) this.resizeObserver.disconnect();
+        if (this.simulation) this.simulation.stop();
+    }
+
+    /* -------------------------------------------------------------
+     * COLOR MANAGEMENT
+     * ------------------------------------------------------------- */
+
+    /**
+     * Generate distinct colors for named graphs using golden angle
+     * @param {string} graphId - Graph identifier
+     * @returns {string} Hex color code
+     */
+    getGraphColor(graphId) {
+        const gid = graphId || 'default';
+
+        if (gid === 'default') {
+            return this.defaultGraphColor;
+        }
+
+        if (!this.graphColorMap.has(gid)) {
+            const index = this.graphColorMap.size;
+            // Use golden angle for better color distribution
+            const hue = (index * 137.508) % 360;
+            const saturation = 35 + (index % 4) * 10;
+            const lightness = 72 + (index % 3) * 6;
+            const color = this.hslToHex(hue, saturation, lightness);
+            this.graphColorMap.set(gid, color);
+        }
+        return this.graphColorMap.get(gid);
+    }
+
+    /**
+     * Convert HSL color values to hex format
+     * @param {number} h - Hue (0-360)
+     * @param {number} s - Saturation (0-100)
+     * @param {number} l - Lightness (0-100)
+     * @returns {string} Hex color code
+     */
+    hslToHex(h, s, l) {
+        s /= 100;
+        l /= 100;
+        const c = (1 - Math.abs(2 * l - 1)) * s;
+        const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+        const m = l - c / 2;
+        let r = 0, g = 0, b = 0;
+
+        if (h >= 0 && h < 60) { r = c; g = x; b = 0; }
+        else if (h >= 60 && h < 120) { r = x; g = c; b = 0; }
+        else if (h >= 120 && h < 180) { r = 0; g = c; b = x; }
+        else if (h >= 180 && h < 240) { r = 0; g = x; b = c; }
+        else if (h >= 240 && h < 300) { r = x; g = 0; b = c; }
+        else if (h >= 300 && h < 360) { r = c; g = 0; b = x; }
+
+        const toHex = val => {
+            const hex = Math.round((val + m) * 255).toString(16);
+            return hex.length === 1 ? '0' + hex : hex;
+        };
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+    }
+
+    /**
+     * Sanitize string for use as SVG ID
+     * @param {string} str - Input string
+     * @returns {string} Sanitized string
+     */
+    sanitizeId(str) {
+        return (str || 'default').replace(/[^a-zA-Z0-9-_]/g, '_');
+    }
+
+    /* -------------------------------------------------------------
+     * RENDERING METHODS
+     * ------------------------------------------------------------- */
+
+    /**
+     * Render Shadow DOM structure with styles
+     */
+    render() {
+        this.shadowRoot.innerHTML = `
+            <style>
+                :host { 
+                    display: block; 
+                    width: 100%; 
+                    height: 100%; 
+                    user-select: none; 
+                    -webkit-user-select: none; 
+                }
+                .container { 
+                    width: 100%; 
+                    height: 100%; 
+                    box-sizing: border-box; 
+                }
+                svg { 
+                    width: 100%; 
+                    height: 100%; 
+                    display: block; 
+                    cursor: grab; 
+                    user-select: none; 
+                }
+                svg:active { 
+                    cursor: grabbing; 
+                }
+                .node-label {
+                    pointer-events: none; 
+                    font-family: 'Segoe UI', system-ui, sans-serif;
+                    font-size: 13px; 
+                    font-weight: 600;
+                    fill: var(--text-color, #333);
+                }
+                .edge-label { 
+                    font-size: 11px; 
+                    pointer-events: none; 
+                    fill: var(--text-color, #333);
+                }
+                .edge-path {
+                    fill: none;
+                }
+            </style>
+            <div class="container" id="main-container">
+                <svg id="chart-container"></svg>
+            </div>
+        `;
+    }
+
+    /**
+     * Setup resize observer to handle container size changes
+     */
+    observeResize() {
+        this.resizeObserver = new ResizeObserver(async () => {
+            await this.updateSize();
+            if (this.svg) {
+                this.svg.attr('width', this.width).attr('height', this.height);
+                if (this.simulation) {
+                    this.simulation.force("center", d3.forceCenter(this.width / 2, this.height / 2));
+                    this.simulation.alphaTarget(0.05).restart();
+                    setTimeout(() => this.simulation.alphaTarget(0), 500);
+                }
+            }
+        });
+        this.resizeObserver.observe(this);
+    }
+
+    /**
+     * Update component dimensions from bounding rect
+     */
+    async updateSize() {
+        const rect = this.getBoundingClientRect();
+        this.width = rect.width || 800;
+        this.height = rect.height || 600;
+    }
+
+    /* -------------------------------------------------------------
+     * GRAPH CREATION AND RENDERING
+     * ------------------------------------------------------------- */
+
+    /**
+     * Main drawing entry point
+     * Parses JSON-LD and renders the graph
+     */
+    async drawChart() {
+        if (!this.width || !this.height) await this.updateSize();
+        if (this.simulation) this.simulation.stop();
+
+        const chartSvg = this.shadowRoot.querySelector("#chart-container");
+        if (!chartSvg) return;
+
+        this.svg = d3.select(chartSvg);
+        this.svg.selectAll("*").remove();
+
+        if (!this.jsonld) return;
+
+        try {
+            this.jsonLDOntology = JSON.parse(this.jsonld);
+            const graph = await this.createGraph();
+            this.graph = graph;
+
+            // Initialize node positions randomly around center
+            this.graph.nodes.forEach(node => {
+                node.x = this.width / 2 + (Math.random() - 0.5) * 400;
+                node.y = this.height / 2 + (Math.random() - 0.5) * 400;
+                node.vx = 0;
+                node.vy = 0;
+            });
+
+            this.renderGraph();
+        } catch (e) {
+            console.error("Graph drawing error:", e);
+        }
+    }
+
+    /**
+     * Parse JSON-LD into graph structure (nodes and links)
+     * Handles named graphs, blank nodes, and literals
+     * @returns {Object} Graph object with nodes and links arrays
+     */
+    async createGraph() {
+        let graph = { nodes: [], links: [] };
+        this.graphColorMap = new Map();
+
+        /**
+         * Add or update a node in the graph
+         * @param {string} id - Node identifier
+         * @param {string} type - Node type (Resource, Blank, Literal, Class)
+         * @param {string} graphId - Named graph identifier
+         * @param {Object} meta - Additional node metadata
+         * @param {boolean} isSubject - Whether node is defined as RDF subject
+         */
+        const addNode = (id, type, graphId, meta = {}, isSubject = false) => {
+            if (!id) return null;
+
+            let node = graph.nodes.find(n => n.id === id);
+            if (!node) {
+                // Create new node
+                node = {
+                    id,
+                    name: id,
+                    type,
+                    graph: graphId || 'default',
+                    graphs: new Set([graphId || 'default']),
+                    isDefinedAsSubject: isSubject,
+                    definitionGraph: isSubject ? (graphId || 'default') : null,
+                    ...meta
+                };
+                graph.nodes.push(node);
+            } else {
+                // Update existing node
+                if (type === 'Blank' || type === 'Class') {
+                    node.type = type;
+                }
+
+                if (!node.graphs) node.graphs = new Set([node.graph]);
+                node.graphs.add(graphId || 'default');
+
+                // Priority to the graph where the node is DEFINED as a subject (with properties)
+                // rather than the graph where it is simply referenced as an object
+                if (isSubject && graphId && graphId !== 'default') {
+                    // If the node has not yet been defined as a subject, this graph becomes its primary graph
+                    if (!node.isDefinedAsSubject) {
+                        node.graph = graphId;
+                        node.isDefinedAsSubject = true;
+                        node.definitionGraph = graphId;
+                    }
+                    // If already defined as a subject, keep the first definition graph
+                } else if ((!node.graph || node.graph === 'default') && graphId && graphId !== 'default') {
+                    // Only if no graph assigned yet and not defined as subject elsewhere
+                    if (!node.isDefinedAsSubject) {
+                        node.graph = graphId;
+                    }
+                }
+
+                Object.assign(node, meta);
+            }
+            return node;
+        };
+
+        /**
+         * Recursively process JSON-LD items
+         * @param {Object} item - JSON-LD object to process
+         * @param {string} currentGraph - Current named graph context
+         */
+        const processItem = (item, currentGraph) => {
+            if (!item || typeof item !== 'object') return;
+
+            // Handle named graphs
+            if (item['@graph']) {
+                const newGraph = item['@id'] || currentGraph;
+                const contents = Array.isArray(item['@graph']) ? item['@graph'] : [item['@graph']];
+                contents.forEach(child => processItem(child, newGraph));
+                return;
+            }
+
+            const subj = item['@id'];
+            if (!subj) return;
+
+            // Determine subject type
+            let subjType = 'Resource';
+            if (item['@type']) {
+                const types = Array.isArray(item['@type']) ? item['@type'] : [item['@type']];
+                if (types.some(t => t.includes('Class'))) subjType = 'Class';
+            } else if (subj.startsWith('_:')) {
+                subjType = 'Blank';
+            }
+
+            addNode(subj, subjType, currentGraph, {}, true);
+
+            // Process predicates and objects
+            Object.keys(item).forEach(pred => {
+                if (pred.startsWith('@')) return;
+
+                let objs = Array.isArray(item[pred]) ? item[pred] : [item[pred]];
+                objs.forEach(obj => {
+                    let objId;
+                    let objType = 'Literal';
+                    let meta = {};
+
+                    if (typeof obj === 'object' && obj['@id']) {
+                        objId = obj['@id'];
+                        objType = objId.startsWith('_:') ? 'Blank' : 'Resource';
+                        processItem(obj, currentGraph);
+                    } else if (typeof obj === 'object' && obj['@value'] !== undefined) {
+                        objId = String(obj['@value']);
+                        if (obj['@type']) meta.datatype = obj['@type'];
+                        if (obj['@language']) meta.language = obj['@language'];
+                    } else {
+                        objId = String(obj);
+                    }
+
+                    if (objId !== undefined && objId !== "undefined") {
+                        addNode(objId, objType, currentGraph, meta, false);
+                        graph.links.push({
+                            source: subj,
+                            target: objId,
+                            name: pred,
+                            graph: currentGraph
+                        });
+                    }
+                });
+            });
+        };
+
+        // Process root JSON-LD
+        const root = this.jsonLDOntology;
+        const data = Array.isArray(root) ? root : [root];
+        data.forEach(d => processItem(d, 'default'));
+
+        return graph;
+    }
+
+    /**
+     * Render the graph using D3 force simulation
+     * Creates SVG elements, markers, and interaction handlers
+     */
+    renderGraph() {
+        const self = this;
+
+        // Initialize force simulation
+        this.simulation = d3.forceSimulation(this.graph.nodes)
+            .force("link", d3.forceLink(this.graph.links).id(d => d.id).distance(160))
+            .force("charge", d3.forceManyBody().strength(-1500))
+            .force("center", d3.forceCenter(this.width / 2, this.height / 2))
+            .force("collision", d3.forceCollide().radius(45))
+            .on("tick", () => this.ticked());
+
+        // Create zoom layer
+        const gZoom = this.svg.append("g").attr("class", "zoom-layer");
+
+        // Setup zoom behavior
+        this.zoomBehavior = d3.zoom()
+            .scaleExtent([0.05, 10])
+            .on("zoom", () => gZoom.attr("transform", d3.event.transform));
+        this.svg.call(this.zoomBehavior);
+
+        // Create rendering layers (order matters for z-index)
+        const linkGroup = gZoom.append("g").attr("class", "links-layer");
+        const labelGroup = gZoom.append("g").attr("class", "labels-layer");
+        const nodeGroup = gZoom.append("g").attr("class", "nodes-layer");
+
+        // Create SVG definitions for markers and gradients
+        const defs = this.svg.append("defs");
+
+        // Create arrow markers for each graph (colored by graph)
+        const graphIds = [...new Set(this.graph.nodes.map(n => n.graph))];
+        graphIds.forEach(graphId => {
+            const color = this.getGraphColor(graphId);
+            defs.append("marker")
+                .attr("id", `arrow-${this.sanitizeId(graphId)}`)
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 32)
+                .attr("markerWidth", 6)
+                .attr("markerHeight", 6)
+                .attr("orient", "auto")
+                .append("path")
+                .attr("d", "M0,-5L10,0L0,5")
+                .attr("fill", color);
+        });
+
+        // Create gradients for inter-graph links
+        this.graph.links.forEach((link, i) => {
+            const sourceNode = this.graph.nodes.find(n => n.id === link.source.id || n.id === link.source);
+            const targetNode = this.graph.nodes.find(n => n.id === link.target.id || n.id === link.target);
+            if (sourceNode && targetNode && sourceNode.graph !== targetNode.graph) {
+                const gradId = `gradient-${i}`;
+                const gradient = defs.append("linearGradient")
+                    .attr("id", gradId)
+                    .attr("gradientUnits", "userSpaceOnUse")
+                    .attr("x1", sourceNode.x || 0)
+                    .attr("y1", sourceNode.y || 0)
+                    .attr("x2", targetNode.x || 0)
+                    .attr("y2", targetNode.y || 0);
+
+                gradient.append("stop")
+                    .attr("offset", "0%")
+                    .attr("stop-color", this.getGraphColor(sourceNode.graph));
+
+                gradient.append("stop")
+                    .attr("offset", "100%")
+                    .attr("stop-color", this.getGraphColor(targetNode.graph));
+
+                link.gradientId = gradId;
+            }
+        });
+
+        // Render links (edges)
+        this.linkSelection = linkGroup.selectAll("path")
+            .data(this.graph.links).enter().append("path")
+            .attr("class", "edge-path")
+            .attr("stroke", d => {
+                const sourceNode = this.graph.nodes.find(n => n.id === d.source.id || n.id === d.source);
+                const targetNode = this.graph.nodes.find(n => n.id === d.target.id || n.id === d.target);
+                if (sourceNode && targetNode) {
+                    if (sourceNode.graph === targetNode.graph) {
+                        return this.getGraphColor(sourceNode.graph);
+                    } else if (d.gradientId) {
+                        return `url(#${d.gradientId})`;
+                    }
+                }
+                return '#999';
+            })
+            .attr("stroke-width", 2)
+            .attr("marker-end", d => {
+                const targetNode = this.graph.nodes.find(n => n.id === d.target.id || n.id === d.target);
+                if (targetNode) {
+                    return `url(#arrow-${this.sanitizeId(targetNode.graph)})`;
+                }
+                return null;
+            });
+
+        // Render edge labels
+        this.linkLabelSelection = labelGroup.selectAll("text")
+            .data(this.graph.links).enter().append("text")
+            .attr("class", "edge-label")
+            .attr("text-anchor", "middle")
+            .text(d => this.formatLabel(d.name));
+
+        if (!this.showEdgeLabels) {
+            this.linkLabelSelection.style('display', 'none');
+        }
+
+        // Render nodes with drag behavior
+        this.nodeSelection = nodeGroup.selectAll("g")
+            .data(this.graph.nodes).enter().append("g")
+            .call(d3.drag()
+                .on("start", function (d) {
+                    if (!d3.event.active) self.simulation.alphaTarget(0.3).restart();
+                    d.fx = d.x;
+                    d.fy = d.y;
+                })
+                .on("drag", function (d) {
+                    d.fx = d3.event.x;
+                    d.fy = d3.event.y;
+                })
+                .on("end", function (d) {
+                    if (!d3.event.active) self.simulation.alphaTarget(0);
+                    d.fx = null;
+                    d.fy = null;
+                }));
+
+        // Add node shapes (circles or rectangles based on type)
+        this.nodeSelection.each(function (d) {
+            const el = d3.select(this);
+            const size = 20;
+            const strokeColor = self.getGraphColor(d.graph);
+
+            if (d.type === 'Literal') {
+                // Literals are rectangles
+                el.append("rect")
+                    .attr("x", -size * 1.2)
+                    .attr("y", -size * 0.7)
+                    .attr("width", size * 2.4)
+                    .attr("height", size * 1.4)
+                    .attr("rx", 4)
+                    .attr("fill", '#ff7f0e')
+                    .attr("stroke", strokeColor)
+                    .attr("stroke-width", 3);
+            } else {
+                // Resources and blank nodes are circles
+                el.append("circle")
+                    .attr("r", size)
+                    .attr("fill", d.type === 'Blank' ? '#2ca02c' : '#1f77b4')
+                    .attr("stroke", strokeColor)
+                    .attr("stroke-width", 3);
+            }
+        });
+
+        // Add node labels
+        this.nodeSelection.append("text")
+            .attr("class", "node-label")
+            .attr("dy", 35)
+            .attr("text-anchor", "middle")
+            .text(d => this.truncateLabel(this.formatLabel(d.id)));
+
+        // Setup tooltip interactions
+        const tooltip = d3.select("#global-tooltip");
+        this.nodeSelection
+            .on("mouseover", (d) => {
+                const isLiteral = d.type === 'Literal';
+                const title = isLiteral ? `"${self.formatLabel(d.id)}"` : self.formatLabel(d.id);
+                let content = `<div class="tooltip-title">${title}</div>`;
+
+                if (isLiteral) {
+                    content += `<div class="tooltip-row"><strong>Value</strong> <span>"${d.id}"</span></div>`;
+                    let typeVal = d.datatype ? self.formatLabel(d.datatype) : (isNaN(d.id) ? 'xsd:string' : 'xsd:decimal');
+                    content += `<div class="tooltip-row"><strong>Type</strong> <span>${typeVal}</span></div>`;
+                    if (d.language) {
+                        content += `<div class="tooltip-row"><strong>Lang</strong> <span>${d.language}</span></div>`;
+                    }
+                } else if (d.type === 'Blank') {
+                    content += `<div class="tooltip-row"><strong>ID</strong> <span>${d.id}</span></div>`;
+                    content += `<div class="tooltip-row"><strong>Type</strong> <span>Blank Node</span></div>`;
+                } else {
+                    content += `<div class="tooltip-row"><strong>URI</strong> <span>${d.id}</span></div>`;
+                    content += `<div class="tooltip-row"><strong>Type</strong> <span>${d.type}</span></div>`;
+                }
+
+                // Show graph assignments
+                if (d.graphs && d.graphs.size > 1) {
+                    const graphList = Array.from(d.graphs).join(', ');
+                    content += `<div class="tooltip-row"><strong>Graphs</strong> <span>${graphList}</span></div>`;
+                    content += `<div class="tooltip-row"><strong>Primary</strong> <span>${d.graph || 'default'}</span></div>`;
+                } else {
+                    content += `<div class="tooltip-row"><strong>Graph</strong> <span>${d.graph || 'default'}</span></div>`;
+                }
+
+                tooltip.style("opacity", 1).html(content);
+            })
+            .on("mousemove", () => {
+                tooltip
+                    .style("left", (d3.event.pageX + 15) + "px")
+                    .style("top", (d3.event.pageY - 10) + "px");
+            })
+            .on("mouseout", () => {
+                tooltip.style("opacity", 0);
+            });
+
+        // Start simulation
+        this.simulation.alpha(1).restart();
+    }
+
+    /**
+     * Called on each simulation tick
+     * Updates positions of nodes, links, and labels
+     */
+    ticked() {
+        const hasPos = d => d && typeof d.x === 'number' && typeof d.y === 'number';
+        const self = this;
+
+        // Update link paths
+        if (this.linkSelection) {
+            this.linkSelection.attr("d", d => {
+                if (!hasPos(d.source) || !hasPos(d.target)) return null;
+                return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+            });
+
+            // Update gradient positions for inter-graph links
+            this.linkSelection.each(function (d) {
+                if (d.gradientId && hasPos(d.source) && hasPos(d.target)) {
+                    const gradient = self.svg.select(`#${d.gradientId}`);
+                    gradient
+                        .attr("x1", d.source.x)
+                        .attr("y1", d.source.y)
+                        .attr("x2", d.target.x)
+                        .attr("y2", d.target.y);
+                }
+            });
+        }
+
+        // Update node positions
+        if (this.nodeSelection) {
+            this.nodeSelection.attr("transform", d => {
+                if (!hasPos(d)) return null;
+                return `translate(${d.x},${d.y})`;
+            });
+        }
+
+        // Update edge label positions
+        if (this.linkLabelSelection && this.showEdgeLabels) {
+            this.linkLabelSelection
+                .attr("x", d => (hasPos(d.source) && hasPos(d.target)) ? (d.source.x + d.target.x) / 2 : 0)
+                .attr("y", d => (hasPos(d.source) && hasPos(d.target)) ? (d.source.y + d.target.y) / 2 : 0);
+        }
+    }
+
+    /* -------------------------------------------------------------
+     * UTILITY METHODS
+     * ------------------------------------------------------------- */
+
+    /**
+     * Extract readable label from URI
+     * @param {string} uri - Full URI or blank node ID
+     * @returns {string} Shortened label
+     */
+    formatLabel(uri) {
+        if (!uri) return "";
+        if (uri.startsWith('_:')) return uri;
+        try {
+            const parts = uri.includes('#') ? uri.split('#') : uri.split('/');
+            const last = parts.pop();
+            return last || uri;
+        } catch (e) {
+            return uri;
+        }
+    }
+
+    /**
+     * Truncate long labels with ellipsis
+     * @param {string} label - Label to truncate
+     * @returns {string} Truncated label
+     */
+    truncateLabel(label) {
+        return label.length > 25 ? label.substring(0, 22) + '...' : label;
+    }
+}
+
+// Register custom element
+customElements.define('kg-graph', KGGraphVis);
