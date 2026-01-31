@@ -439,18 +439,18 @@
                         if (!node.graphs) node.graphs = new Set([node.graph]);
                         node.graphs.add(graphId || 'default');
                         
-                        // Priorité au graphe où le nœud est DÉFINI comme sujet (avec des propriétés)
-                        // plutôt qu'au graphe où il est simplement référencé comme objet
+                        // Priority to the graph where the node is DEFINED as a subject (with properties)
+                        // rather than the graph where it is simply referenced as an object
                         if (isSubject && graphId && graphId !== 'default') {
-                            // Si le nœud n'a pas encore été défini comme sujet, ce graphe devient son graphe principal
+                            // If the node has not yet been defined as a subject, this graph becomes its primary graph
                             if (!node.isDefinedAsSubject) {
                                 node.graph = graphId;
                                 node.isDefinedAsSubject = true;
                                 node.definitionGraph = graphId;
                             }
-                            // Si déjà défini comme sujet, on garde le premier graphe de définition
+                            // If already defined as a subject, keep the first definition graph
                         } else if ((!node.graph || node.graph === 'default') && graphId && graphId !== 'default') {
-                            // Seulement si pas encore de graphe assigné et pas défini comme sujet ailleurs
+                            // Only if no graph assigned yet and not defined as subject elsewhere
                             if (!node.isDefinedAsSubject) {
                                 node.graph = graphId;
                             }
