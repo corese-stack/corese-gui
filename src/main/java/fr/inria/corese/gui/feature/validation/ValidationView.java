@@ -32,7 +32,7 @@ public class ValidationView extends AbstractView {
   // Fields
   // ==============================================================================================
 
-  private static final String STYLESHEET_PATH = "/styles/validation-view.css";
+  private static final String STYLESHEET_PATH = "/css/validation-view.css";
 
   private final BorderPane mainContent;
 

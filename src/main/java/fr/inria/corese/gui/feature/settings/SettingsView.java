@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 public final class SettingsView extends AbstractView {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SettingsView.class);
-  private static final String STYLESHEET_PATH = "/styles/settings-view.css";
+  private static final String STYLESHEET_PATH = "/css/settings-view.css";
 
   // ===== UI Components =====
   private ToggleSwitch systemThemeSwitch;

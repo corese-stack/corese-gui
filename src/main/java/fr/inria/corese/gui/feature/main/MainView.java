@@ -24,7 +24,7 @@ import javafx.scene.layout.VBox;
  */
 public final class MainView extends AbstractView {
 
-  private static final String STYLESHEET_PATH = "/styles/main-view.css";
+  private static final String STYLESHEET_PATH = "/css/main-view.css";
 
   // Layout Containers
   private final VBox navigationContainer = new VBox();

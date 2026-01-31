@@ -13,7 +13,7 @@ import javafx.scene.paint.Color;
  * <p>This class provides centralized methods to apply:
  *
  * <ul>
- *   <li>The base stylesheet (e.g., "/styles/base.css")
+ *   <li>The base stylesheet (e.g., "/css/base.css")
  *   <li>Scene-level styles
  *   <li>Per-view styles
  * </ul>

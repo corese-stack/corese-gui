@@ -11,7 +11,7 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 public class QueryView extends AbstractView {
 
     public QueryView() {
-        super(new BorderPane(), "/styles/split-editor-view.css");
+        super(new BorderPane(), "/css/split-editor-view.css");
     }
 
     public void setMainContent(Node node) {

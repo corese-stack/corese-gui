@@ -53,7 +53,7 @@ public class TablePaginationBar extends HBox {
         this.setAlignment(Pos.CENTER);
         this.setSpacing(SPACING);
         this.getStyleClass().add(STYLE_CLASS_FOOTER);
-        this.getStylesheets().add(getClass().getResource("/styles/table-result.css").toExternalForm());
+        this.getStylesheets().add(getClass().getResource("/css/table-result.css").toExternalForm());
 
         // Left Section: Configuration
         Label rowsLabel = new Label("Rows/page:");

@@ -20,7 +20,7 @@ import javafx.scene.Parent;
  * <pre>{@code
  * public final class MyView extends AbstractView {
  *     public MyView() {
- *         super(new BorderPane(), "/styles/my-view.css");
+ *         super(new BorderPane(), "/css/my-view.css");
  *         initializeLayout();
  *     }
  *

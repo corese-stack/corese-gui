@@ -55,7 +55,7 @@ public final class NavigationBarView extends AbstractView {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NavigationBarView.class);
 
-  private static final String STYLESHEET_PATH = "/styles/navigation-bar.css";
+  private static final String STYLESHEET_PATH = "/css/navigation-bar.css";
 
   // ==== State ====
   private boolean collapsed = false;

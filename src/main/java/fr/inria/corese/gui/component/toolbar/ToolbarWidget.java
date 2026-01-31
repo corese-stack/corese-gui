@@ -22,7 +22,7 @@ public class ToolbarWidget extends VBox {
   // Constants
   // ==============================================================================================
 
-  private static final String STYLESHEET = "/styles/toolbar.css";
+  private static final String STYLESHEET = "/css/toolbar.css";
   private static final String STYLE_CLASS = "app-toolbar";
 
   // ==============================================================================================

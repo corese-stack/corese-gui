@@ -38,8 +38,8 @@ public class TextResultView extends AbstractView {
   // Constants
   // ==============================================================================================
 
-  private static final String STYLESHEET_PATH = "/styles/text-result.css";
-  private static final String COMMON_STYLESHEET_PATH = "/styles/common.css";
+  private static final String STYLESHEET_PATH = "/css/text-result.css";
+  private static final String COMMON_STYLESHEET_PATH = "/css/common.css";
 
   // Layout
   private static final double SELECTOR_TOP_MARGIN = 15.0;

@@ -59,7 +59,7 @@ public class TabEditorView extends AbstractView {
   // ==============================================================================================
 
   // Style
-  private static final String STYLESHEET = "/styles/tab-editor.css";
+  private static final String STYLESHEET = "/css/tab-editor.css";
 
   // Ids
   private static final String TAB_CONTENT_WRAPPER_ID = "tab-content-wrapper";

@@ -21,7 +21,7 @@ public class EmptyStateWidget extends VBox {
   // Fields
   // ==============================================================================================
 
-  private static final String STYLESHEET = "/styles/empty-state-widget.css";
+  private static final String STYLESHEET = "/css/empty-state-widget.css";
   private static final String STYLE_CLASS_VIEW = "empty-state-widget";
   private static final String STYLE_CLASS_ICON = "empty-state-icon";
   private static final String STYLE_CLASS_TITLE = "empty-state-title";

@@ -29,7 +29,7 @@ import javafx.util.Duration;
  */
 public class GraphResultView extends AbstractView {
 
-  private static final String COMMON_STYLESHEET_PATH = "/styles/common.css";
+  private static final String COMMON_STYLESHEET_PATH = "/css/common.css";
   
   // Animation constants
   private static final double OPACITY_IDLE = 0.7;
