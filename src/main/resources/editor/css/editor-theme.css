@@ -1,0 +1,293 @@
+/* =================================================================
+ * CORESE CODE EDITOR - THEME STYLES
+ * =================================================================
+ * Theme configuration and styling for the CodeMirror-based code editor
+ * Supports multiple theme variants (Cupertino, Primer, Nord) in light/dark modes
+ * ================================================================= */
+
+/* =================================================================
+ * CSS VARIABLES - LIGHT THEMES
+ * ================================================================= */
+
+/* Default Light Theme (Cupertino) */
+:root {
+    --bg-color: #ffffff;
+    --text-color: #24292e;
+    --gutter-bg: #f8f9fa;
+    --gutter-text: #adb5bd;
+    --status-bar-bg: #f3f3f3;
+    --status-bar-border: #e1e4e8;
+    --status-bar-text: #586069;
+    --caret-color: #24292e;
+    --selection-bg: #b3d7ff;
+    --accent-color: #0078D4;
+    --active-line-bg: #f1f8ff;
+
+    /* Syntax Highlighting */
+    --syntax-keyword: #7f0055;
+    --syntax-atom: #219;
+    --syntax-number: #164;
+    --syntax-def: #00f;
+    --syntax-variable: #000;
+    --syntax-variable-2: #05a;
+    --syntax-variable-3: #085;
+    --syntax-property: #000;
+    --syntax-operator: #000;
+    --syntax-comment: #a50;
+    --syntax-string: #a11;
+    --syntax-meta: #555;
+    --syntax-qualifier: #555;
+    --syntax-builtin: #30a;
+    --syntax-bracket: #997;
+    --syntax-tag: #170;
+    --syntax-attribute: #00c;
+    --syntax-link: #00c;
+    --syntax-error: #f00;
+}
+
+/* Primer Light Theme */
+body.theme-primer {
+    --bg-color: #ffffff;
+    --text-color: #24292f;
+    --gutter-bg: #f6f8fa;
+    --gutter-text: #6e7781;
+    --status-bar-bg: #ffffff;
+    --status-bar-border: #d0d7de;
+    --status-bar-text: #57606a;
+    --caret-color: #24292f;
+    --selection-bg: #b3d7ff;
+    --active-line-bg: #f6f8fa;
+}
+
+/* Nord Light Theme */
+body.theme-nord {
+    --bg-color: #ffffff;
+    --text-color: #2e3440;
+    --gutter-bg: #eceff4;
+    --gutter-text: #4c566a;
+    --status-bar-bg: #eceff4;
+    --status-bar-border: #d8dee9;
+    --status-bar-text: #4c566a;
+    --caret-color: #2e3440;
+    --selection-bg: #88c0d040;
+    --active-line-bg: #f7f9fb;
+
+    /* Nord Syntax Light Adjustments */
+    --syntax-keyword: #81a1c1;
+    --syntax-atom: #b48ead;
+    --syntax-number: #b48ead;
+    --syntax-def: #88c0d0;
+    --syntax-variable: #2e3440;
+    --syntax-string: #a3be8c;
+    --syntax-comment: #4c566a;
+}
+
+/* =================================================================
+ * CSS VARIABLES - DARK THEMES
+ * ================================================================= */
+
+/* Default Dark Theme (Cupertino) */
+body.dark-theme {
+    --bg-color: #1e1e1e;
+    --text-color: #d4d4d4;
+    --gutter-bg: #252526;
+    --gutter-text: #858585;
+    --status-bar-bg: #2d2d2d;
+    --status-bar-border: #3e3e42;
+    --status-bar-text: #cccccc;
+    --caret-color: #d4d4d4;
+    --selection-bg: #264f78;
+    --active-line-bg: #2c2c2c;
+
+    /* Syntax Highlighting - Dark Defaults */
+    --syntax-keyword: #c586c0;
+    --syntax-atom: #569cd6;
+    --syntax-number: #b5cea8;
+    --syntax-def: #4ec9b0;
+    --syntax-variable: #9cdcfe;
+    --syntax-variable-2: #4fc1ff;
+    --syntax-variable-3: #4fc1ff;
+    --syntax-property: #9cdcfe;
+    --syntax-operator: #d4d4d4;
+    --syntax-comment: #6a9955;
+    --syntax-string: #ce9178;
+    --syntax-meta: #d4d4d4;
+    --syntax-qualifier: #d4d4d4;
+    --syntax-builtin: #4ec9b0;
+    --syntax-bracket: #d4d4d4;
+    --syntax-tag: #569cd6;
+    --syntax-attribute: #9cdcfe;
+    --syntax-link: #3794ff;
+    --syntax-error: #f48771;
+}
+
+/* Primer Dark Theme */
+body.theme-primer.dark-theme {
+    --bg-color: #010409;
+    --text-color: #c9d1d9;
+    --gutter-bg: #0d1117;
+    --gutter-text: #8b949e;
+    --status-bar-bg: #0d1117;
+    --status-bar-border: #30363d;
+    --status-bar-text: #8b949e;
+    --caret-color: #c9d1d9;
+    --selection-bg: #1f6feb40;
+    --active-line-bg: #161b22;
+
+    /* Primer Dark Syntax */
+    --syntax-keyword: #ff7b72;
+    --syntax-atom: #79c0ff;
+    --syntax-number: #79c0ff;
+    --syntax-def: #d2a8ff;
+    --syntax-variable: #ffa657;
+    --syntax-string: #a5d6ff;
+    --syntax-comment: #8b949e;
+}
+
+/* Nord Dark Theme */
+body.theme-nord.dark-theme {
+    --bg-color: #242933;
+    --text-color: #d8dee9;
+    --gutter-bg: #2e3440;
+    --gutter-text: #616e88;
+    --status-bar-bg: #2e3440;
+    --status-bar-border: #434c5e;
+    --status-bar-text: #d8dee9;
+    --caret-color: #d8dee9;
+    --selection-bg: #434c5e;
+    --active-line-bg: #3b4252;
+
+    /* Nord Dark Syntax */
+    --syntax-keyword: #81a1c1;
+    --syntax-atom: #b48ead;
+    --syntax-number: #b48ead;
+    --syntax-def: #88c0d0;
+    --syntax-variable: #d8dee9;
+    --syntax-string: #a3be8c;
+    --syntax-comment: #616e88;
+}
+
+/* =================================================================
+ * GLOBAL LAYOUT
+ * ================================================================= */
+
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.editor-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.editor-wrapper {
+    flex: 1;
+    overflow: hidden;
+}
+
+/* =================================================================
+ * CODEMIRROR CUSTOMIZATION
+ * ================================================================= */
+
+.CodeMirror {
+    height: 100%;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.CodeMirror-gutters {
+    background-color: var(--gutter-bg);
+    border-right: 1px solid var(--status-bar-border);
+    color: var(--gutter-text);
+}
+
+.CodeMirror-linenumber {
+    color: var(--gutter-text);
+}
+
+.CodeMirror-cursor {
+    border-left: 2px solid var(--caret-color) !important;
+}
+
+.CodeMirror-selected {
+    background-color: var(--selection-bg) !important;
+}
+
+.CodeMirror-focused .CodeMirror-selected {
+    background-color: var(--selection-bg) !important;
+}
+
+.CodeMirror-activeline-background {
+    background: var(--active-line-bg);
+}
+
+/* =================================================================
+ * SYNTAX HIGHLIGHTING
+ * ================================================================= */
+
+.cm-keyword { color: var(--syntax-keyword) !important; }
+.cm-atom { color: var(--syntax-atom) !important; }
+.cm-number { color: var(--syntax-number) !important; }
+.cm-def { color: var(--syntax-def) !important; }
+.cm-variable { color: var(--syntax-variable) !important; }
+.cm-variable-2 { color: var(--syntax-variable-2) !important; }
+.cm-variable-3 { color: var(--syntax-variable-3) !important; }
+.cm-property { color: var(--syntax-property) !important; }
+.cm-operator { color: var(--syntax-operator) !important; }
+.cm-comment { color: var(--syntax-comment) !important; }
+.cm-string { color: var(--syntax-string) !important; }
+.cm-string-2 { color: var(--syntax-string) !important; }
+.cm-meta { color: var(--syntax-meta) !important; }
+.cm-qualifier { color: var(--syntax-qualifier) !important; }
+.cm-builtin { color: var(--syntax-builtin) !important; }
+.cm-bracket { color: var(--syntax-bracket) !important; }
+.cm-tag { color: var(--syntax-tag) !important; }
+.cm-attribute { color: var(--syntax-attribute) !important; }
+.cm-link { color: var(--syntax-link) !important; }
+.cm-error { color: var(--syntax-error) !important; }
+
+/* =================================================================
+ * STATUS BAR
+ * ================================================================= */
+
+.status-bar {
+    height: 26px;
+    background-color: var(--status-bar-bg);
+    border-top: 1px solid var(--status-bar-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px;
+    font-size: 11px;
+    color: var(--status-bar-text);
+    user-select: none;
+    z-index: 10;
+}
+
+.status-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.status-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.status-separator {
+    margin: 0 5px;
+    color: var(--status-bar-border);
+}

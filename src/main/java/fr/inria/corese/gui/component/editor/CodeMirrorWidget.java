@@ -32,7 +32,7 @@ public class CodeMirrorWidget extends VBox {
   private static final Logger logger = LoggerFactory.getLogger(CodeMirrorWidget.class);
 
   // Constants
-  private static final String DEFAULT_EDITOR_HTML_PATH = "/fr/inria/corese/gui/web/editor.html";
+  private static final String DEFAULT_EDITOR_HTML_PATH = "/editor/code-editor.html";
   private static final String DEFAULT_MODE = "text/plain";
 
   // Zoom Constants

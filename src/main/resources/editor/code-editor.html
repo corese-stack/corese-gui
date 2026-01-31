@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Corese Code Editor</title>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="lib/codemirror/codemirror.min.css">
+    <link rel="stylesheet" href="lib/codemirror/addon/hint/show-hint.min.css">
+    <link rel="stylesheet" href="css/editor-theme.css">
+</head>
+
+<body>
+    <div class="editor-container">
+        <div class="editor-wrapper">
+            <textarea id="editor" autocomplete="off" spellcheck="false"></textarea>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-bar-left">
+                <div id="mode-display" style="font-weight: bold;" title="Plain Text">Plain Text</div>
+            </div>
+
+            <div class="status-bar-right">
+                <span id="cursor-position">Ln 1, Col 1</span>
+                <span id="selection-count"></span>
+                <span class="status-separator">|</span>
+                <span>Spaces: 4</span>
+                <span class="status-separator">|</span>
+                <span>UTF-8</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- CodeMirror Core -->
+    <script src="lib/codemirror/codemirror.min.js"></script>
+
+    <!-- Language Modes -->
+    <script src="lib/codemirror/mode/sparql/sparql.min.js"></script>
+    <script src="lib/codemirror/mode/turtle/turtle.min.js"></script>
+    <script src="lib/codemirror/mode/xml/xml.min.js"></script>
+    <script src="lib/codemirror/mode/javascript/javascript.min.js"></script>
+
+    <!-- Editor Addons -->
+    <script src="lib/codemirror/addon/edit/matchbrackets.min.js"></script>
+    <script src="lib/codemirror/addon/edit/closebrackets.min.js"></script>
+    <script src="lib/codemirror/addon/comment/comment.min.js"></script>
+    <script src="lib/codemirror/addon/hint/show-hint.min.js"></script>
+
+    <!-- Application Logic -->
+    <script src="js/editor-app.js"></script>
+</body>
+
+</html>
