@@ -1,8 +1,8 @@
 /* =================================================================
  * CORESE CODE EDITOR - APPLICATION SCRIPT
  * =================================================================
- * Main application logic for the CodeMirror-based editor
- * Handles initialization, theming, and Java bridge communication
+ * Main application logic for the CodeMirror-based editor.
+ * Handles initialization, theming, and Java bridge communication.
  * ================================================================= */
 
 "use strict";
@@ -13,22 +13,28 @@
 
 globalThis.onerror = function (msg, url, line, col, error) {
     if (globalThis.bridge) {
-        globalThis.bridge.log("JS ERROR: " + msg + " (Line: " + line + ")");
+        globalThis.bridge.log(`JS ERROR: ${msg} (Line: ${line})`);
     }
 };
 
-var oldLog = console.log;
-console.log = function (msg) {
-    if (globalThis.bridge) globalThis.bridge.log(msg);
-    oldLog.apply(console, arguments);
+const originalLog = console.log;
+console.log = function (...args) {
+    if (globalThis.bridge) {
+        // Convert args to string for bridge logging
+        const message = args.map(arg => 
+            (typeof arg === 'object') ? JSON.stringify(arg) : String(arg)
+        ).join(' ');
+        globalThis.bridge.log(message);
+    }
+    originalLog.apply(console, args);
 };
 
 /* =================================================================
  * EDITOR INITIALIZATION
  * ================================================================= */
 
-var editorArea = document.getElementById('editor');
-var cm = CodeMirror.fromTextArea(editorArea, {
+const editorArea = document.getElementById('editor');
+const cm = CodeMirror.fromTextArea(editorArea, {
     lineNumbers: true,
     mode: "text/plain",
     matchBrackets: true,
@@ -52,15 +58,15 @@ var cm = CodeMirror.fromTextArea(editorArea, {
  * Update status bar with cursor position and selection info
  */
 function updateStatusBar() {
-    var pos = cm.getCursor();
-    var line = pos.line + 1;
-    var col = pos.ch + 1;
+    const pos = cm.getCursor();
+    const line = pos.line + 1;
+    const col = pos.ch + 1;
 
-    document.getElementById('cursor-position').textContent = 'Ln ' + line + ', Col ' + col;
+    document.getElementById('cursor-position').textContent = `Ln ${line}, Col ${col}`;
 
-    var selection = cm.getSelection();
-    var selLength = selection.length;
-    document.getElementById('selection-count').textContent = selLength > 0 ? '(' + selLength + ' selected)' : '';
+    const selection = cm.getSelection();
+    const selLength = selection.length;
+    document.getElementById('selection-count').textContent = selLength > 0 ? `(${selLength} selected)` : '';
 }
 
 cm.on("change", function (instance, changeObj) {
@@ -71,9 +77,7 @@ cm.on("change", function (instance, changeObj) {
     updateStatusBar();
 });
 
-cm.on("cursorActivity", function () {
-    updateStatusBar();
-});
+cm.on("cursorActivity", () => updateStatusBar());
 
 /* =================================================================
  * PUBLIC API - EXPOSED TO JAVA
@@ -112,11 +116,13 @@ globalThis.setReadOnly = function (isReadOnly) {
  * @param {string} modeName - Language mode identifier
  */
 globalThis.setMode = function (modeName) {
-    var mime = "text/plain";
-    var displayName = "Plain Text";
-    var tooltip = "";
+    let mime = "text/plain";
+    let displayName = "Plain Text";
+    let tooltip = "";
 
-    switch (modeName.toLowerCase()) {
+    const mode = (modeName || "").toLowerCase();
+
+    switch (mode) {
         case "turtle":
         case "ttl":
         case "n3":
@@ -127,29 +133,43 @@ globalThis.setMode = function (modeName) {
             displayName = "Turtle";
             tooltip = "Trig, Turtle, N-Triples, N-Quads, N3";
             break;
+            
         case "sparql":
         case "rq":
+        case "query":
+        case "update":
             mime = "application/sparql-query";
             displayName = "SPARQL";
             break;
+            
         case "xml":
         case "rdf":
         case "owl":
             mime = "application/xml";
             displayName = "XML/RDF";
             break;
+            
         case "json":
         case "jsonld":
         case "json-ld":
             mime = "application/ld+json";
             displayName = "JSON-LD";
             break;
+            
+        case "js":
+        case "javascript":
+            mime = "text/javascript";
+            displayName = "JavaScript";
+            break;
     }
 
     cm.setOption("mode", mime);
-    var modeDisplay = document.getElementById('mode-display');
-    modeDisplay.textContent = displayName;
-    modeDisplay.title = tooltip;
+    
+    const modeDisplay = document.getElementById('mode-display');
+    if (modeDisplay) {
+        modeDisplay.textContent = displayName;
+        modeDisplay.title = tooltip;
+    }
 };
 
 /**
@@ -159,8 +179,8 @@ globalThis.setMode = function (modeName) {
  * @param {string} themeName - Theme name (primer, nord, etc.)
  */
 globalThis.setTheme = function (isDark, accentColor, themeName) {
-    var root = document.documentElement;
-    var body = document.body;
+    const root = document.documentElement;
+    const body = document.body;
 
     // Set Dark/Light Mode
     if (isDark) {
@@ -170,19 +190,20 @@ globalThis.setTheme = function (isDark, accentColor, themeName) {
     }
 
     // Set Theme Family (primer, nord, cupertino)
+    // Remove existing theme classes
     body.className = body.className.replace(/\btheme-\S+/g, '').trim();
     if (themeName) {
-        body.classList.add('theme-' + themeName.toLowerCase());
+        body.classList.add(`theme-${themeName.toLowerCase()}`);
     }
 
     if (accentColor) {
         root.style.setProperty('--accent-color', accentColor);
         if (!isDark) {
             // Lighter selection for light mode
-            root.style.setProperty('--selection-bg', accentColor + '40');
+            root.style.setProperty('--selection-bg', `${accentColor}40`);
         } else {
             // Slightly more opaque for dark mode visibility
-            root.style.setProperty('--selection-bg', accentColor + '60');
+            root.style.setProperty('--selection-bg', `${accentColor}60`);
         }
     }
 };

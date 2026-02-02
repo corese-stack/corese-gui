@@ -20,200 +20,163 @@ import javafx.scene.layout.StackPane;
 import javafx.util.Duration;
 
 /**
- * View for displaying text-based results with format selection.
+ * View for displaying text-based results (Turtle, JSON-LD, XML, etc.).
  *
- * <p>This view provides:
- *
+ * <p>Features:
  * <ul>
- *   <li>A CodeMirror editor for displaying formatted text results
- *   <li>A floating format selector in the top-right corner
- *   <li>A dedicated sidebar for actions (Copy, Export)
+ *   <li><b>Code Editor:</b> Uses {@link CodeMirrorWidget} for syntax highlighting and read-only display.
+ *   <li><b>Format Selector:</b> A floating dropdown to switch between serialization formats.
+ *   <li><b>Toolbar:</b> Sidebar for common actions (Copy, Export, Zoom).
  * </ul>
  *
- * <p><b>Design:</b> Clean separation of UI structure from controller logic.
+ * <p>Design Note: The format selector overlays the editor content in the top-right corner to save space,
+ * fading out when not in use.
  */
 public class TextResultView extends AbstractView {
 
-  // ==============================================================================================
-  // Constants
-  // ==============================================================================================
+    // ==============================================================================================
+    // Constants
+    // ==============================================================================================
 
-  private static final String STYLESHEET_PATH = "/css/text-result.css";
-  private static final String COMMON_STYLESHEET_PATH = "/css/common.css";
+    private static final String STYLESHEET_PATH = "/css/text-result.css";
+    private static final String COMMON_STYLESHEET_PATH = "/css/common.css";
+    
+    private static final String STYLE_CLASS_FLOATING_PANEL = "floating-panel";
+    private static final String STYLE_CLASS_FORMAT_BOX = "format-selector-box";
+    private static final String STYLE_CLASS_CENTER_STACK = "result-center-stack";
 
-  // Layout
-  private static final double SELECTOR_TOP_MARGIN = 15.0;
-  private static final double SELECTOR_RIGHT_MARGIN = 20.0;
+    private static final double SELECTOR_TOP_MARGIN = 15.0;
+    private static final double SELECTOR_RIGHT_MARGIN = 20.0;
+    private static final double OPACITY_IDLE = 0.4;
+    private static final double OPACITY_HOVER = 1.0;
+    private static final int FADE_DURATION_MS = 200;
 
-  // Animation
-  private static final double OPACITY_IDLE = 0.4;
-  private static final double OPACITY_HOVER = 1.0;
-  private static final int FADE_DURATION_MS = 200;
+    // ==============================================================================================
+    // UI Components
+    // ==============================================================================================
 
-  // ==============================================================================================
-  // UI Components
-  // ==============================================================================================
+    private final Label formatLabel;
+    private final ChoiceBox<SerializationFormat> formatChoiceBox;
+    private final CodeMirrorWidget editorWidget;
+    private final ToolbarWidget toolbarWidget;
 
-  private final Label formatLabel;
-  private final ChoiceBox<SerializationFormat> formatChoiceBox;
-  private final CodeMirrorWidget editorWidget;
-  private final ToolbarWidget toolbarWidget;
+    // ==============================================================================================
+    // Constructor
+    // ==============================================================================================
 
-  // ==============================================================================================
-  // Constructor
-  // ==============================================================================================
+    public TextResultView() {
+        super(new BorderPane(), STYLESHEET_PATH);
 
-  public TextResultView() {
-    super(new BorderPane(), STYLESHEET_PATH);
+        // Apply common styles (required for floating panel look)
+        CssUtils.applyViewStyles(getRoot(), COMMON_STYLESHEET_PATH);
 
-    // Load common styles (for floating panels)
-    CssUtils.applyViewStyles(getRoot(), COMMON_STYLESHEET_PATH);
+        this.formatLabel = new Label("Format:");
+        this.formatChoiceBox = new ChoiceBox<>();
+        this.editorWidget = new CodeMirrorWidget(true); // true = Read-only
+        this.toolbarWidget = new ToolbarWidget();
 
-    // Initialize components
-    this.formatLabel = new Label("Format:");
-    this.formatChoiceBox = new ChoiceBox<>();
-    this.editorWidget = new CodeMirrorWidget(true); // Read-only mode
-    this.toolbarWidget = new ToolbarWidget();
+        setupLayout();
+    }
 
-    // Setup Layout
-    setupLayout();
-  }
+    // ==============================================================================================
+    // Layout
+    // ==============================================================================================
 
-  // ==============================================================================================
-  // Layout & Initialization
-  // ==============================================================================================
+    private void setupLayout() {
+        // 1. Format Selector (Floating Box)
+        HBox formatBox = new HBox(formatLabel, formatChoiceBox);
+        formatBox.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        formatBox.getStyleClass().addAll(STYLE_CLASS_FLOATING_PANEL, STYLE_CLASS_FORMAT_BOX);
+        
+        // Setup fade animation for the floating box
+        formatBox.setOpacity(OPACITY_IDLE);
+        setupHoverAnimation(formatBox);
 
-  private void setupLayout() {
-    // Format selector container (Floating)
-    HBox formatBox = new HBox(formatLabel, formatChoiceBox);
-    formatBox.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        // 2. Center Stack (Editor + Floating Selector)
+        StackPane centerStack = new StackPane(editorWidget, formatBox);
+        centerStack.getStyleClass().add(STYLE_CLASS_CENTER_STACK);
+        
+        // Position the floating box
+        StackPane.setMargin(formatBox, new Insets(SELECTOR_TOP_MARGIN, SELECTOR_RIGHT_MARGIN, 0, 0));
 
-    // Apply common style for floating look + specific style for layout
-    formatBox.getStyleClass().addAll("floating-panel", "format-selector-box");
+        // 3. Main Layout
+        BorderPane root = (BorderPane) getRoot();
+        root.setCenter(centerStack);
+        root.setRight(toolbarWidget);
+    }
 
-    // Animation setup for the floating box
-    formatBox.setOpacity(OPACITY_IDLE);
-    setupHoverAnimation(formatBox);
+    private void setupHoverAnimation(Node node) {
+        FadeTransition fade = new FadeTransition(Duration.millis(FADE_DURATION_MS), node);
 
-    // Center area: Editor + Floating Selector stacked
-    StackPane centerStack = new StackPane(editorWidget, formatBox);
-    centerStack.getStyleClass().add("result-center-stack");
-
-    // Constraints for floating box position
-    StackPane.setMargin(formatBox, new Insets(SELECTOR_TOP_MARGIN, SELECTOR_RIGHT_MARGIN, 0, 0));
-
-    // Main Layout
-    BorderPane root = (BorderPane) getRoot();
-    root.setCenter(centerStack);
-    root.setRight(toolbarWidget);
-  }
-
-  /**
-   * Configures the fade transition for the format selector box.
-   *
-   * @param node The node to animate
-   */
-  private void setupHoverAnimation(Node node) {
-    FadeTransition fade = new FadeTransition(Duration.millis(FADE_DURATION_MS), node);
-
-    node.setOnMouseEntered(
-        e -> {
-          fade.stop();
-          fade.setFromValue(node.getOpacity());
-          fade.setToValue(OPACITY_HOVER);
-          fade.play();
+        node.setOnMouseEntered(e -> {
+            fade.stop();
+            fade.setFromValue(node.getOpacity());
+            fade.setToValue(OPACITY_HOVER);
+            fade.play();
         });
 
-    node.setOnMouseExited(
-        e -> {
-          fade.stop();
-          fade.setFromValue(node.getOpacity());
-          fade.setToValue(OPACITY_IDLE);
-          fade.play();
+        node.setOnMouseExited(e -> {
+            fade.stop();
+            fade.setFromValue(node.getOpacity());
+            fade.setToValue(OPACITY_IDLE);
+            fade.play();
         });
-  }
+    }
 
-  // ==============================================================================================
-  // Public API - Content & State
-  // ==============================================================================================
+    // ==============================================================================================
+    // Public API - Data
+    // ==============================================================================================
 
-  /**
-   * Retrieves the currently selected serialization format.
-   *
-   * @return The selected format, or null
-   */
-  public SerializationFormat getFormat() {
-    return formatChoiceBox.getValue();
-  }
+    /**
+     * Gets the currently selected format.
+     */
+    public SerializationFormat getFormat() {
+        return formatChoiceBox.getValue();
+    }
 
-  /**
-   * Retrieves the current content of the text editor.
-   *
-   * @return The text content
-   */
-  public String getContent() {
-    return editorWidget.getContent();
-  }
+    /**
+     * Gets the editor text content.
+     */
+    public String getContent() {
+        return editorWidget.getContent();
+    }
 
-  /**
-   * Sets the content of the text editor.
-   *
-   * @param content The text to display
-   */
-  public void setContent(String content) {
-    editorWidget.setContent(content);
-  }
+    /**
+     * Sets the editor text content.
+     */
+    public void setContent(String content) {
+        editorWidget.setContent(content);
+    }
 
-  /**
-   * Sets the syntax highlighting mode using a strongly-typed format.
-   *
-   * @param format The serialization format
-   */
-  public void setMode(SerializationFormat format) {
-    editorWidget.setMode(format);
-  }
+    /**
+     * Updates the editor's syntax highlighting mode.
+     */
+    public void setMode(SerializationFormat format) {
+        editorWidget.setMode(format);
+    }
 
-  /** Zooms in the text editor content. */
-  public void zoomIn() {
-    editorWidget.zoomIn();
-  }
+    public void zoomIn() {
+        editorWidget.zoomIn();
+    }
 
-  /** Zooms out the text editor content. */
-  public void zoomOut() {
-    editorWidget.zoomOut();
-  }
+    public void zoomOut() {
+        editorWidget.zoomOut();
+    }
 
-  // ==============================================================================================
-  // Public API - Configuration (Demeter's Law)
-  // ==============================================================================================
+    // ==============================================================================================
+    // Public API - Configuration
+    // ==============================================================================================
 
-  /**
-   * Configures the toolbar buttons.
-   *
-   * @param buttons List of button configurations
-   */
-  public void setToolbarActions(List<ButtonConfig> buttons) {
-    toolbarWidget.setButtons(buttons);
-  }
+    public void setToolbarActions(List<ButtonConfig> buttons) {
+        toolbarWidget.setButtons(buttons);
+    }
 
-  /**
-   * Configures the format choice box with the specified formats.
-   *
-   * @param formats Array of formats to display
-   * @param defaultFormat The default selected format
-   */
-  public void configureFormatSelector(
-      SerializationFormat[] formats, SerializationFormat defaultFormat) {
-    formatChoiceBox.getItems().setAll(formats);
-    formatChoiceBox.setValue(defaultFormat);
-  }
+    public void configureFormatSelector(SerializationFormat[] formats, SerializationFormat defaultFormat) {
+        formatChoiceBox.getItems().setAll(formats);
+        formatChoiceBox.setValue(defaultFormat);
+    }
 
-  /**
-   * Sets the format change listener.
-   *
-   * @param listener The listener to invoke when format changes
-   */
-  public void setOnFormatChanged(ChangeListener<SerializationFormat> listener) {
-    formatChoiceBox.getSelectionModel().selectedItemProperty().addListener(listener);
-  }
+    public void setOnFormatChanged(ChangeListener<SerializationFormat> listener) {
+        formatChoiceBox.getSelectionModel().selectedItemProperty().addListener(listener);
+    }
 }
