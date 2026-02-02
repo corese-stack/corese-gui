@@ -5,8 +5,8 @@ import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.component.pagination.TablePaginationBar;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
-import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.scene.control.TableColumn;
@@ -16,14 +16,20 @@ import javafx.scene.layout.BorderPane;
 /**
  * View for displaying tabular SPARQL results with pagination.
  *
- * <p>This view provides:
+ * <p>This view comprises:
  * <ul>
- *   <li>A TableView for displaying rows of data
- *   <li>A comprehensive pagination bar (Rows/page, Navigation, Total)
- *   <li>A dedicated sidebar for actions (Copy, Export)
+ *   <li>A {@link TableView} for displaying data rows.
+ *   <li>A {@link TablePaginationBar} for navigation and configuration.
+ *   <li>A {@link ToolbarWidget} for actions.
  * </ul>
+ * 
+ * <p>Note: Methods in this class assume they are called on the JavaFX Application Thread.
  */
 public class TableResultView extends AbstractView {
+
+    private static final String STYLESHEET = "/css/table-result.css";
+    private static final int INDEX_COLUMN_WIDTH = 50;
+    private static final int SCROLLBAR_MARGIN = 20;
 
     private final TableView<String[]> tableView;
     private final TablePaginationBar paginationBar;
@@ -35,10 +41,10 @@ public class TableResultView extends AbstractView {
     /**
      * Constructs a new TableResultView.
      *
-     * @param pageChangeHandler Callback for when the page index changes
+     * @param pageChangeHandler Callback for when the page index changes via the pagination bar.
      */
     public TableResultView(Consumer<Integer> pageChangeHandler) {
-        super(new BorderPane(), null); // Stylesheet handled by components
+        super(new BorderPane(), STYLESHEET);
 
         this.tableView = new TableView<>();
         this.paginationBar = new TablePaginationBar(pageChangeHandler);
@@ -54,17 +60,18 @@ public class TableResultView extends AbstractView {
         root.setBottom(paginationBar);
         root.setRight(toolbarWidget);
         
-        // Pagination is always visible to allow configuration (rows per page)
+        // Ensure pagination is visible
         paginationBar.setVisible(true);
         paginationBar.setManaged(true);
     }
 
     private void setupListeners() {
+        // Sync local rowsPerPage with pagination bar input
         paginationBar.rowsPerPageTextProperty().addListener((obs, oldVal, newVal) -> {
             try {
                 this.rowsPerPage = Integer.parseInt(newVal);
             } catch (NumberFormatException e) {
-                // Keep existing value
+                // Ignore invalid format, keep existing value
             }
         });
     }
@@ -73,71 +80,87 @@ public class TableResultView extends AbstractView {
     // Public API - Data & Table
     // ==============================================================================================
 
+    /**
+     * Configures the table columns based on the provided headers.
+     * Automatically adds a row index column as the first column.
+     *
+     * @param headers The column headers.
+     */
     public void setColumns(String[] headers) {
-        Platform.runLater(() -> {
-            tableView.getColumns().clear();
-            tableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+        tableView.getColumns().clear();
+        tableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+        
+        // 1. Add Row Number Column (#)
+        createIndexColumn();
+
+        if (headers == null) return;
+
+        // 2. Add Data Columns
+        double totalWidthFactor = Math.max(1, headers.length);
+        
+        for (int col = 0; col < headers.length; col++) {
+            final int colIndex = col;
+            TableColumn<String[], String> column = new TableColumn<>(headers[col].trim());
             
-            // 1. Add Row Number Column (#)
-            TableColumn<String[], String> indexColumn = new TableColumn<>("#");
-            indexColumn.setCellFactory(col -> new javafx.scene.control.TableCell<>() {
-                @Override
-                protected void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (empty || getTableRow() == null) {
-                        setText(null);
-                    } else {
-                        int absoluteIndex = (currentPageIndex * rowsPerPage) + getTableRow().getIndex() + 1;
-                        setText(String.valueOf(absoluteIndex));
-                    }
-                }
+            column.setCellValueFactory(cellData -> {
+                String[] row = cellData.getValue();
+                String value = (row != null && colIndex < row.length) ? row[colIndex] : "";
+                return new SimpleStringProperty(value);
             });
-            // Fix index column width
-            indexColumn.setPrefWidth(50);
-            indexColumn.setMinWidth(50);
-            indexColumn.setMaxWidth(50);
-            indexColumn.setResizable(false);
-            tableView.getColumns().add(indexColumn);
-
-            if (headers == null) return;
-
-            // 2. Add Data Columns
-            for (int col = 0; col < headers.length; col++) {
-                final int colIndex = col;
-                TableColumn<String[], String> column = new TableColumn<>(headers[col].trim());
-                column.setCellValueFactory(cellData -> {
-                    String[] row = cellData.getValue();
-                    String value = (row != null && colIndex < row.length) ? row[colIndex] : "";
-                    return new SimpleStringProperty(value);
-                });
-                
-                // Distribute width evenly among data columns, accounting for the index column and scrollbar margin
-                column.prefWidthProperty().bind(
-                    tableView.widthProperty()
-                        .subtract(indexColumn.widthProperty())
-                        .subtract(20) // Safety margin for vertical scrollbar
-                        .divide(Math.max(1, headers.length))
-                );
-                
-                tableView.getColumns().add(column);
-            }
-        });
+            
+            // Distribute width evenly among data columns
+            // Formula: (TableWidth - IndexColumnWidth - ScrollbarMargin) / NumberOfColumns
+            column.prefWidthProperty().bind(
+                tableView.widthProperty()
+                    .subtract(INDEX_COLUMN_WIDTH)
+                    .subtract(SCROLLBAR_MARGIN)
+                    .divide(totalWidthFactor)
+            );
+            
+            tableView.getColumns().add(column);
+        }
     }
 
+    private void createIndexColumn() {
+        TableColumn<String[], String> indexColumn = new TableColumn<>("#");
+        indexColumn.setCellFactory(col -> new javafx.scene.control.TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || getTableRow() == null) {
+                    setText(null);
+                } else {
+                    int absoluteIndex = (currentPageIndex * rowsPerPage) + getTableRow().getIndex() + 1;
+                    setText(String.valueOf(absoluteIndex));
+                }
+            }
+        });
+        
+        indexColumn.setPrefWidth(INDEX_COLUMN_WIDTH);
+        indexColumn.setMinWidth(INDEX_COLUMN_WIDTH);
+        indexColumn.setMaxWidth(INDEX_COLUMN_WIDTH);
+        indexColumn.setResizable(false);
+        tableView.getColumns().add(indexColumn);
+    }
+
+    /**
+     * Updates the data displayed in the table.
+     *
+     * @param rows The list of rows to display.
+     */
     public void setTableData(List<String[]> rows) {
-        Platform.runLater(() -> {
-            tableView.getItems().clear();
-            if (rows != null) {
-                tableView.getItems().setAll(rows);
-            }
-        });
+        tableView.getItems().clear();
+        if (rows != null) {
+            tableView.getItems().setAll(rows);
+        }
     }
 
+    /**
+     * Clears all data and columns from the table.
+     */
     public void clearTable() {
-        Platform.runLater(() -> {
-            tableView.getItems().clear();
-            tableView.getColumns().clear();
-        });
+        tableView.getItems().clear();
+        tableView.getColumns().clear();
     }
 
     // ==============================================================================================
@@ -145,7 +168,7 @@ public class TableResultView extends AbstractView {
     // ==============================================================================================
 
     public void setTotalRowsLabel(String text) {
-        Platform.runLater(() -> paginationBar.setTotalRows(text));
+        paginationBar.setTotalRows(text);
     }
 
     public void setRowsPerPageText(String text) {
@@ -154,7 +177,7 @@ public class TableResultView extends AbstractView {
         } catch (NumberFormatException e) {
             // Keep existing value
         }
-        Platform.runLater(() -> paginationBar.setRowsPerPage(text));
+        paginationBar.setRowsPerPage(text);
     }
 
     public StringProperty getRowsPerPageProperty() {
@@ -162,12 +185,12 @@ public class TableResultView extends AbstractView {
     }
 
     public void updatePagination(int pageCount) {
-        Platform.runLater(() -> paginationBar.setPageCount(pageCount));
+        paginationBar.setPageCount(pageCount);
     }
 
     public void setCurrentPageIndex(int index) {
         this.currentPageIndex = index;
-        Platform.runLater(() -> paginationBar.setCurrentPageIndex(index));
+        paginationBar.setCurrentPageIndex(index);
     }
 
     public void setToolbarActions(List<ButtonConfig> buttons) {
