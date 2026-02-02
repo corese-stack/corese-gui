@@ -1,15 +1,7 @@
 package fr.inria.corese.gui.feature.codeeditor;
 
-import fr.inria.corese.gui.core.model.QueryResult;
-
-
-
-
-
-
 import java.io.File;
 import java.util.Stack;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
@@ -17,29 +9,58 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
+/**
+ * Model for the Code Editor.
+ *
+ * <p>Manages:
+ *
+ * <ul>
+ *   <li>The text content of the editor.
+ *   <li>The associated file path (if any).
+ *   <li>The "modified" state (dirty flag).
+ *   <li>A basic Undo/Redo history (snapshot-based).
+ * </ul>
+ */
 public class CodeEditorModel {
+
   private final StringProperty content = new SimpleStringProperty("");
   private final StringProperty filePath = new SimpleStringProperty(null);
   private final BooleanProperty modified = new SimpleBooleanProperty(false);
   private final ReadOnlyStringWrapper displayName = new ReadOnlyStringWrapper("Untitled");
+
+  // Simple snapshot-based undo/redo history
   private final Stack<String> undoStack = new Stack<>();
   private final Stack<String> redoStack = new Stack<>();
   private boolean isUndoingOrRedoing = false;
   private String currentSavedContent = "";
-  private QueryResult lastQueryResult;
 
   public CodeEditorModel() {
+    setupListeners();
+  }
+
+  private void setupListeners() {
     filePath.addListener((obs, o, n) -> updateDisplayName());
-    modified.addListener((obs, o, n) -> updateDisplayName());
+
     content.addListener(
         (obs, oldVal, newVal) -> {
           if (newVal != null) {
-            setModified(!newVal.equals(currentSavedContent));
-            if (!isUndoingOrRedoing) recordChange(oldVal);
+            // Check dirty state
+            boolean isDirty = !newVal.equals(currentSavedContent);
+            setModified(isDirty);
+
+            // Record history if not currently performing undo/redo
+            if (!isUndoingOrRedoing) {
+              recordChange(oldVal);
+            }
           }
         });
+
     updateDisplayName();
   }
+
+  // ==============================================================================================
+  // History (Undo/Redo)
+  // ==============================================================================================
 
   private void recordChange(String oldContent) {
     if (oldContent != null) {
@@ -51,18 +72,24 @@ public class CodeEditorModel {
   public void undo() {
     if (canUndo()) {
       isUndoingOrRedoing = true;
-      redoStack.push(getContent());
-      setContent(undoStack.pop());
-      isUndoingOrRedoing = false;
+      try {
+        redoStack.push(getContent());
+        setContent(undoStack.pop());
+      } finally {
+        isUndoingOrRedoing = false;
+      }
     }
   }
 
   public void redo() {
     if (canRedo()) {
       isUndoingOrRedoing = true;
-      undoStack.push(getContent());
-      setContent(redoStack.pop());
-      isUndoingOrRedoing = false;
+      try {
+        undoStack.push(getContent());
+        setContent(redoStack.pop());
+      } finally {
+        isUndoingOrRedoing = false;
+      }
     }
   }
 
@@ -74,18 +101,32 @@ public class CodeEditorModel {
     return !redoStack.isEmpty();
   }
 
+  // ==============================================================================================
+  // File & State Management
+  // ==============================================================================================
+
   private void updateDisplayName() {
     String name = "Untitled";
-    if (filePath.get() != null) name = new File(filePath.get()).getName();
+    String path = filePath.get();
+    if (path != null && !path.isBlank()) {
+      name = new File(path).getName();
+    }
     displayName.set(name);
   }
 
   public void markAsSaved() {
     this.currentSavedContent = getContent();
     setModified(false);
+    // Note: We clear history on save to avoid complexity with "dirty" state tracking relative to
+    // history.
+    // A more advanced implementation would track the "saved" index in the stack.
     undoStack.clear();
     redoStack.clear();
   }
+
+  // ==============================================================================================
+  // Getters & Setters
+  // ==============================================================================================
 
   public StringProperty contentProperty() {
     return content;
@@ -129,13 +170,5 @@ public class CodeEditorModel {
 
   public String getDisplayName() {
     return displayName.get();
-  }
-
-  public QueryResult getLastQueryResult() {
-    return lastQueryResult;
-  }
-
-  public void setLastQueryResult(QueryResult result) {
-    this.lastQueryResult = result;
   }
 }

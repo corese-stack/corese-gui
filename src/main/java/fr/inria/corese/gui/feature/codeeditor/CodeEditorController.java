@@ -26,8 +26,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Controller for the code editor component. Manages the editor model, view, and the associated
- * toolbar.
+ * Controller for the Code Editor component.
+ *
+ * <p>Manages:
+ *
+ * <ul>
+ *   <li>The editor life-cycle and state (via {@link CodeEditorModel}).
+ *   <li>Toolbar actions (Open, Save, Undo, Redo, etc.).
+ *   <li>File I/O operations.
+ *   <li>Syntax highlighting detection.
+ * </ul>
  */
 public class CodeEditorController {
   private static final Logger logger = LoggerFactory.getLogger(CodeEditorController.class);
@@ -36,133 +44,69 @@ public class CodeEditorController {
   private final CodeEditorModel model;
   private final List<String> allowedExtensions;
 
+  /**
+   * Creates a new CodeEditorController.
+   *
+   * @param buttons Configuration for toolbar buttons.
+   * @param initialContent Initial text content.
+   * @param allowedExtensions List of allowed file extensions (e.g. ".ttl", ".rq"). If empty, all
+   *     supported types are allowed.
+   */
   public CodeEditorController(
       List<ButtonConfig> buttons, String initialContent, List<String> allowedExtensions) {
     this.allowedExtensions = allowedExtensions != null ? allowedExtensions : List.of();
-
     this.view = new CodeEditorView();
     this.model = new CodeEditorModel();
 
-    // Enrich buttons with default actions and initialize toolbar
-    if (buttons != null && !buttons.isEmpty()) {
-      List<ButtonConfig> enrichedButtons =
-          new ArrayList<>(enrichButtonsWithDefaultActions(buttons));
-
-      // Always append Zoom controls
-      enrichedButtons.add(ButtonFactory.zoomIn(this::zoomIn));
-      enrichedButtons.add(ButtonFactory.zoomOut(this::zoomOut));
-
-      view.getToolbarWidget().setButtons(enrichedButtons);
-    } else {
-      // Fallback if no buttons provided (default minimal toolbar)
-      view.getToolbarWidget()
-          .setButtons(
-              List.of(ButtonFactory.zoomIn(this::zoomIn), ButtonFactory.zoomOut(this::zoomOut)));
-    }
-
-    // Bind the toolbar buttons state to the editor state
-    bindToolbarToEditor();
+    initializeToolbar(buttons);
+    bindToolbarToModel();
 
     model.setContent(initialContent);
-    Platform.runLater(this::initializeEditor);
+    Platform.runLater(this::initializeEditorBehavior);
   }
 
-  // Constructor overloading for backward compatibility
   public CodeEditorController(List<ButtonConfig> buttons, String initialContent) {
     this(buttons, initialContent, List.of());
   }
 
-  /**
-   * Enriches the provided button configurations with default actions if they are missing.
-   *
-   * @param buttons The list of button configurations.
-   * @return A new list of button configurations with actions populated.
-   */
-  private List<ButtonConfig> enrichButtonsWithDefaultActions(List<ButtonConfig> buttons) {
-    return buttons.stream()
-        .map(
-            config -> {
-              if (config.getAction() != null) {
-                return config;
-              }
-              Runnable action = getDefaultAction(config.getIcon());
-              if (action != null) {
-                return new ButtonConfig(config.getIcon(), config.getTooltip(), action);
-              }
-              return config;
-            })
-        .toList();
-  }
+  // ==============================================================================================
+  // Initialization
+  // ==============================================================================================
 
-  /** Returns the default action for a given button type. */
-  private Runnable getDefaultAction(ButtonIcon type) {
-    if (type == null) {
-      return null;
-    }
-    return switch (type) {
-      case SAVE -> this::saveFile;
-      case OPEN_FILE -> this::onOpenFilesButtonClick;
-      case EXPORT -> this::onExportButtonClick;
-      case IMPORT -> this::onImportButtonClick;
-      case CLEAR -> this::onClearButtonClick;
-      case UNDO -> this::onUndoButtonClick;
-      case REDO -> this::onRedoButtonClick;
-      case DOCUMENTATION -> this::onDocumentationButtonClick;
-      case ZOOM_IN -> this::zoomIn;
-      case ZOOM_OUT -> this::zoomOut;
-      default -> null;
-    };
-  }
+  private void initializeToolbar(List<ButtonConfig> buttons) {
+    List<ButtonConfig> config = new ArrayList<>();
 
-  // ... (Existing methods like bindToolbarToEditor, initializeEditor, etc. remain unchanged)
-
-  /** Binds the toolbar buttons' enabled/disabled state to the code editor's state. */
-  private void bindToolbarToEditor() {
-    ToolbarWidget toolbar = view.getToolbarWidget();
-
-    // Define when the editor is considered empty
-    BooleanBinding isEmpty =
-        Bindings.createBooleanBinding(
-            () -> {
-              String content = model.getContent();
-              return content == null || content.trim().isEmpty();
-            },
-            model.contentProperty());
-
-    // Bind SAVE: Disabled if NOT (modified AND not empty)
-    Button saveButton = toolbar.getButton(ButtonIcon.SAVE);
-    if (saveButton != null) {
-      saveButton.disableProperty().bind(model.modifiedProperty().not().or(isEmpty));
+    // 1. Process provided buttons (enrich with default actions if missing)
+    if (buttons != null) {
+      for (ButtonConfig btn : buttons) {
+        if (btn.getAction() == null) {
+          Runnable defaultAction = getDefaultAction(btn.getIcon());
+          if (defaultAction != null) {
+            config.add(new ButtonConfig(btn.getIcon(), btn.getTooltip(), defaultAction));
+          } else {
+            config.add(btn);
+          }
+        } else {
+          config.add(btn);
+        }
+      }
     }
 
-    // Bind CLEAR: Disabled if empty
-    Button clearButton = toolbar.getButton(ButtonIcon.CLEAR);
-    if (clearButton != null) {
-      clearButton.disableProperty().bind(isEmpty);
-    }
+    // 2. Add Zoom controls if not present (logic could be refined, but safe to append)
+    // Check if zoom buttons are already added to avoid duplicates if user provided them?
+    // For simplicity, we append them as standard tools.
+    config.add(ButtonFactory.zoomIn(this::zoomIn));
+    config.add(ButtonFactory.zoomOut(this::zoomOut));
 
-    // Bind EXPORT: Disabled if empty
-    Button exportButton = toolbar.getButton(ButtonIcon.EXPORT);
-    if (exportButton != null) {
-      exportButton.disableProperty().bind(isEmpty);
-    }
-
-    // Bind UNDO/REDO: Listen to changes
-    model.contentProperty().addListener((obs, old, newV) -> updateUndoRedoState());
-    updateUndoRedoState();
+    view.getToolbarWidget().setButtons(config);
   }
 
-  private void updateUndoRedoState() {
-    ToolbarWidget toolbar = view.getToolbarWidget();
-    toolbar.setButtonDisabled(ButtonIcon.UNDO, !model.canUndo());
-    toolbar.setButtonDisabled(ButtonIcon.REDO, !model.canRedo());
-  }
-
-  private void initializeEditor() {
+  private void initializeEditorBehavior() {
+    // Two-way binding for content
     view.getCodeMirrorView().contentProperty().bindBidirectional(model.contentProperty());
 
+    // Mode detection triggers
     model.filePathProperty().addListener((obs, oldVal, newVal) -> detectAndSetMode());
-
     model
         .contentProperty()
         .addListener(
@@ -172,173 +116,311 @@ public class CodeEditorController {
               }
             });
 
-    Platform.runLater(this::detectAndSetMode);
+    detectAndSetMode();
   }
 
+  private void bindToolbarToModel() {
+    ToolbarWidget toolbar = view.getToolbarWidget();
+
+    BooleanBinding isEmpty =
+        Bindings.createBooleanBinding(
+            () -> {
+              String s = model.getContent();
+              return s == null || s.trim().isEmpty();
+            },
+            model.contentProperty());
+
+    // Bind Save
+    Button saveBtn = toolbar.getButton(ButtonIcon.SAVE);
+    if (saveBtn != null) {
+      // Enable save if modified OR if file is new (never saved) and has content?
+      // Logic: Disable if NOT (modified AND not empty) -> Enable if modified AND not empty.
+      // Simplified: Enable if modified.
+      saveBtn.disableProperty().bind(model.modifiedProperty().not().or(isEmpty));
+    }
+
+    // Bind Clear/Export
+    toolbar.setButtonDisabled(ButtonIcon.CLEAR, isEmpty.get());
+    toolbar.setButtonDisabled(ButtonIcon.EXPORT, isEmpty.get());
+
+    // Listen to isEmpty for dynamic updates
+    isEmpty.addListener(
+        (obs, old, empty) -> {
+          toolbar.setButtonDisabled(ButtonIcon.CLEAR, empty);
+          toolbar.setButtonDisabled(ButtonIcon.EXPORT, empty);
+        });
+
+    // Bind Undo/Redo
+    model.contentProperty().addListener((obs, o, n) -> updateUndoRedoState());
+    updateUndoRedoState();
+  }
+
+  private void updateUndoRedoState() {
+    ToolbarWidget toolbar = view.getToolbarWidget();
+    toolbar.setButtonDisabled(ButtonIcon.UNDO, !model.canUndo());
+    toolbar.setButtonDisabled(ButtonIcon.REDO, !model.canRedo());
+  }
+
+  // ==============================================================================================
+  // Mode Detection
+  // ==============================================================================================
+
   private void detectAndSetMode() {
+    String mode = "text/plain";
     String path = model.getFilePath();
     String content = model.getContent();
-    String mode = "text/plain";
 
     if (path != null) {
-      String lowerPath = path.toLowerCase();
-      if (lowerPath.endsWith(".ttl") || lowerPath.endsWith(".n3") || lowerPath.endsWith(".nt")) {
-        mode = "turtle";
-      } else if (lowerPath.endsWith(".rq") || lowerPath.endsWith(".sparql")) {
-        mode = "sparql";
-      } else if (lowerPath.endsWith(".rdf")
-          || lowerPath.endsWith(".owl")
-          || lowerPath.endsWith(".xml")) {
-        mode = "xml";
-      } else if (lowerPath.endsWith(".json") || lowerPath.endsWith(".jsonld")) {
-        mode = "json";
-      } else if (lowerPath.endsWith(".trig")) {
-        mode = "trig";
-      } else if (lowerPath.endsWith(".js")) {
-        mode = "javascript";
-      }
+      mode = detectModeFromExtension(path);
     } else if (content != null) {
-      String trimmed = content.trim();
-      String lower = content.toLowerCase();
-
-      if (isModeAllowed("sparql")
-          && (lower.contains("select ")
-              || lower.contains("construct ")
-              || lower.contains("ask ")
-              || lower.contains("describe ")
-              || lower.startsWith("prefix ")
-              || lower.contains("\nprefix "))) {
-        mode = "sparql";
-      } else if ((isModeAllowed("turtle") || isModeAllowed("trig"))
-          && (lower.contains("@prefix")
-              || lower.contains("@base")
-              || lower.contains(" a ")
-              || trimmed.endsWith("."))) {
-        mode = isModeAllowed("trig") ? "trig" : "turtle";
-      } else if (isModeAllowed("json") && (trimmed.startsWith("{") || trimmed.startsWith("["))) {
-        mode = "json";
-      } else if (isModeAllowed("xml") && trimmed.startsWith("<")) {
-        mode = "xml";
-      }
+      mode = detectModeFromContent(content);
     }
 
     view.getCodeMirrorView().setMode(mode);
   }
 
-  private boolean isModeAllowed(String mode) {
-    if (allowedExtensions.isEmpty()) return true;
+  private String detectModeFromExtension(String path) {
+    String lower = path.toLowerCase();
+    if (endsWithAny(lower, ".ttl", ".n3", ".nt")) return "turtle";
+    if (endsWithAny(lower, ".rq", ".sparql")) return "sparql";
+    if (endsWithAny(lower, ".rdf", ".owl", ".xml")) return "xml";
+    if (endsWithAny(lower, ".json", ".jsonld")) return "json";
+    if (endsWithAny(lower, ".trig")) return "trig";
+    if (endsWithAny(lower, ".js")) return "javascript";
+    return "text/plain";
+  }
 
-    for (String ext : allowedExtensions) {
-      switch (mode) {
-        case "sparql":
-          if (ext.equals(".rq") || ext.equals(".sparql")) return true;
-          break;
-        case "turtle":
-          if (ext.equals(".ttl") || ext.equals(".n3") || ext.equals(".nt")) return true;
-          break;
-        case "trig":
-          if (ext.equals(".trig")) return true;
-          break;
-        case "xml":
-          if (ext.equals(".xml") || ext.equals(".rdf") || ext.equals(".owl")) return true;
-          break;
-        case "json":
-          if (ext.equals(".json") || ext.equals(".jsonld")) return true;
-          break;
-        case "javascript":
-          if (ext.equals(".js")) return true;
-          break;
-      }
+  private String detectModeFromContent(String content) {
+    String lower = content.toLowerCase();
+    String trimmed = content.trim();
+
+    // SPARQL
+    if (isModeAllowed("sparql")
+        && (lower.contains("select ")
+            || lower.contains("construct ")
+            || lower.contains("ask ")
+            || lower.contains("describe ")
+            || lower.startsWith("prefix ")
+            || lower.contains("\nprefix "))) {
+      return "sparql";
+    }
+
+    // Turtle / Trig
+    if ((isModeAllowed("turtle") || isModeAllowed("trig"))
+        && (lower.contains("@prefix")
+            || lower.contains("@base")
+            || lower.contains(" a ")
+            || trimmed.endsWith("."))) {
+      return isModeAllowed("trig") ? "trig" : "turtle";
+    }
+
+    // JSON
+    if (isModeAllowed("json") && (trimmed.startsWith("{") || trimmed.startsWith("["))) {
+      return "json";
+    }
+
+    // XML
+    if (isModeAllowed("xml") && trimmed.startsWith("<")) {
+      return "xml";
+    }
+
+    return "text/plain";
+  }
+
+  private boolean endsWithAny(String str, String... suffixes) {
+    for (String s : suffixes) {
+      if (str.endsWith(s)) return true;
     }
     return false;
   }
 
-  // --- Button Actions ---
+  private boolean isModeAllowed(String mode) {
+    // If no restriction, everything is allowed
+    if (allowedExtensions.isEmpty()) return true;
 
-  private void onOpenFilesButtonClick() {
-    FileChooser fileChooser = new FileChooser();
-    fileChooser.setTitle("Open File");
-    fileChooser
+    // Simplified mapping logic
+    return switch (mode) {
+      case "sparql" -> containsAnyAllowed(".rq", ".sparql");
+      case "turtle" -> containsAnyAllowed(".ttl", ".n3", ".nt");
+      case "trig" -> containsAnyAllowed(".trig");
+      case "xml" -> containsAnyAllowed(".xml", ".rdf", ".owl");
+      case "json" -> containsAnyAllowed(".json", ".jsonld");
+      case "javascript" -> containsAnyAllowed(".js");
+      default -> true;
+    };
+  }
+
+  private boolean containsAnyAllowed(String... exts) {
+    for (String ext : exts) {
+      if (allowedExtensions.contains(ext)) return true;
+    }
+    return false;
+  }
+
+  // ==============================================================================================
+  // Actions
+  // ==============================================================================================
+
+  private Runnable getDefaultAction(ButtonIcon type) {
+    if (type == null) return null;
+    return switch (type) {
+      case SAVE -> this::saveFile;
+      case OPEN_FILE -> this::openFile;
+      case EXPORT -> this::exportContent;
+      case IMPORT -> this::importFile;
+      case CLEAR -> this::clearContent;
+      case UNDO -> this::undo;
+      case REDO -> this::redo;
+      case ZOOM_IN -> this::zoomIn;
+      case ZOOM_OUT -> this::zoomOut;
+      default -> null; // Other actions (like Documentation) handled externally or not implemented
+    };
+  }
+
+  private void openFile() {
+    FileChooser chooser = new FileChooser();
+    chooser.setTitle("Open File");
+
+    // Add filters
+    chooser
         .getExtensionFilters()
-        .addAll(
+        .add(
             new FileChooser.ExtensionFilter(
-                "RDF and SPARQL Files", "*.ttl", "*.rdf", "*.n3", "*.rq"),
-            new FileChooser.ExtensionFilter("All Files", "*.*"));
+                "RDF and SPARQL",
+                "*.ttl",
+                "*.rdf",
+                "*.n3",
+                "*.rq",
+                "*.sparql",
+                "*.jsonld",
+                "*.trig"));
+    chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
 
-    File file = fileChooser.showOpenDialog(view.getRoot().getScene().getWindow());
+    File file = chooser.showOpenDialog(view.getRoot().getScene().getWindow());
     if (file != null) {
       try {
         String content = Files.readString(file.toPath());
         model.setContent(content);
         model.setFilePath(file.getAbsolutePath());
         model.markAsSaved();
-      } catch (Exception e) {
-        showError("Error Opening File", "Could not open the file: " + e.getMessage());
+      } catch (IOException e) {
+        logger.error("Failed to open file", e);
+        DialogHelper.showError("Error Opening File", e.getMessage());
       }
     }
   }
 
-  private void onImportButtonClick() {
-    FileChooser fileChooser = new FileChooser();
-    fileChooser.setTitle("Import File");
-    fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
+  private void importFile() {
+    FileChooser chooser = new FileChooser();
+    chooser.setTitle("Import File");
+    chooser
+        .getExtensionFilters()
+        .add(new FileChooser.ExtensionFilter("Text Files", "*.txt", "*.md", "*.*"));
 
-    File file = fileChooser.showOpenDialog(view.getRoot().getScene().getWindow());
+    File file = chooser.showOpenDialog(view.getRoot().getScene().getWindow());
     if (file != null) {
       try {
         String content = Files.readString(file.toPath());
+        // Append or Replace? Standard import usually replaces content in editors unless "Insert"
         model.setContent(content);
-        NotificationManager.getInstance().showSuccess("File imported: " + file.getName());
-      } catch (Exception e) {
-        NotificationManager.getInstance().showError("Could not import file: " + e.getMessage());
+        NotificationManager.getInstance().showSuccess("Imported: " + file.getName());
+      } catch (IOException e) {
+        logger.error("Failed to import file", e);
+        NotificationManager.getInstance().showError("Import failed: " + e.getMessage());
       }
     }
   }
 
-  private void onExportButtonClick() {
+  public void saveFile() {
+    if (model.getFilePath() == null) {
+      saveFileAs();
+    } else {
+      File file = new File(model.getFilePath());
+      writeToFile(file);
+    }
+  }
+
+  public void saveFileAs() {
+    FileChooser chooser = new FileChooser();
+    chooser.setTitle("Save File As");
+
+    // Common Filters
+    FileChooser.ExtensionFilter ttl = new FileChooser.ExtensionFilter("Turtle (*.ttl)", "*.ttl");
+    FileChooser.ExtensionFilter rq = new FileChooser.ExtensionFilter("SPARQL (*.rq)", "*.rq");
+    FileChooser.ExtensionFilter rdf = new FileChooser.ExtensionFilter("RDF/XML (*.rdf)", "*.rdf");
+    FileChooser.ExtensionFilter jsonld =
+        new FileChooser.ExtensionFilter("JSON-LD (*.jsonld)", "*.jsonld");
+    FileChooser.ExtensionFilter all = new FileChooser.ExtensionFilter("All Files", "*.*");
+
+    chooser.getExtensionFilters().addAll(ttl, rq, rdf, jsonld, all);
+
+    // Select default filter based on content mode if possible
+    // (Simple heuristic: default to TTL)
+    chooser.setSelectedExtensionFilter(ttl);
+
+    File file = chooser.showSaveDialog(view.getRoot().getScene().getWindow());
+    if (file != null) {
+      // Enforce extension if selected filter implies one
+      file = enforceExtension(file, chooser.getSelectedExtensionFilter());
+      writeToFile(file);
+    }
+  }
+
+  private File enforceExtension(File file, FileChooser.ExtensionFilter filter) {
+    if (filter != null && filter.getExtensions().size() > 0) {
+      String ext = filter.getExtensions().get(0).replace("*", ""); // e.g. ".ttl"
+      if (!file.getName().toLowerCase().endsWith(ext)) {
+        return new File(file.getAbsolutePath() + ext);
+      }
+    }
+    return file;
+  }
+
+  private void writeToFile(File file) {
+    try (FileWriter writer = new FileWriter(file)) {
+      writer.write(model.getContent());
+      model.setFilePath(file.getAbsolutePath());
+      model.markAsSaved();
+      NotificationManager.getInstance().showSuccess("Saved: " + file.getName());
+    } catch (IOException e) {
+      logger.error("Save failed", e);
+      DialogHelper.showError("Save Error", "Could not save file: " + e.getMessage());
+    }
+  }
+
+  private void exportContent() {
     String content = model.getContent();
-    if (content == null || content.trim().isEmpty()) {
-      showError("Export Error", "The editor is empty. There is nothing to export.");
+    if (content == null || content.isBlank()) {
+      NotificationManager.getInstance().showWarning("Nothing to export");
       return;
     }
 
-    Graph graphToExport = Graph.create();
+    // Validate before export logic (simulating validation check)
     try {
-      Load.create(graphToExport)
+      Graph g = Graph.create();
+      Load.create(g)
           .parse(
               new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8)),
               Loader.format.TURTLE_FORMAT);
+      // If parse succeeds, proceed to export (stub for now)
+      DialogHelper.showInformation(
+          "Export", "Content is valid RDF. Export implementation pending.");
     } catch (Exception e) {
-      showError(
-          "Parsing Error",
-          "Could not parse the content. Please ensure it is valid RDF syntax.\n\n"
-              + e.getMessage());
-      return;
+      DialogHelper.showError(
+          "Validation Error", "Content is not valid RDF/Turtle:\n" + e.getMessage());
     }
-
-    // Export popup removed
-    DialogHelper.showError("Not Implemented", "Export functionality is temporarily disabled during refactoring.");
   }
 
-  private void onClearButtonClick() {
+  private void clearContent() {
     model.setContent("");
   }
 
-  private void onUndoButtonClick() {
-    if (model.canUndo()) {
-      model.undo();
-    }
+  private void undo() {
+    model.undo();
   }
 
-  private void onRedoButtonClick() {
-    if (model.canRedo()) {
-      model.redo();
-    }
-  }
-
-  private void onDocumentationButtonClick() {
-    // Documentation popup removed
-    DialogHelper.showError("Not Implemented", "Documentation is temporarily unavailable.");
+  private void redo() {
+    model.redo();
   }
 
   private void zoomIn() {
@@ -349,138 +431,53 @@ public class CodeEditorController {
     view.zoomOut();
   }
 
-  private void showError(String title, String content) {
-    DialogHelper.showError(title, content);
-  }
+  // ==============================================================================================
+  // Public API
+  // ==============================================================================================
 
-  // --- End Button Actions ---
-
-  public void saveFile() {
-    String path = model.getFilePath();
-    if (path == null) {
-      saveFileAs();
-    } else {
-      File file = new File(path);
-      if (!file.exists()) {
-        File parentDir = file.getParentFile();
-        if (parentDir == null || !parentDir.exists()) {
-          logger.warn("Cannot save file: parent directory no longer exists: {}", path);
-          saveFileAs();
-          return;
-        }
-      }
-      writeToFile(file);
-    }
-  }
-
-  public void saveFileAs() {
-    FileChooser fileChooser = new FileChooser();
-    fileChooser.setTitle("Save File As");
-
-    FileChooser.ExtensionFilter ttlFilter =
-        new FileChooser.ExtensionFilter("Turtle files (*.ttl)", "*.ttl");
-    FileChooser.ExtensionFilter rqFilter =
-        new FileChooser.ExtensionFilter("SPARQL Query files (*.rq)", "*.rq");
-    FileChooser.ExtensionFilter rdfFilter =
-        new FileChooser.ExtensionFilter("RDF/XML files (*.rdf)", "*.rdf");
-    FileChooser.ExtensionFilter trigFilter =
-        new FileChooser.ExtensionFilter("TriG files (*.trig)", "*.trig");
-    FileChooser.ExtensionFilter jsonldFilter =
-        new FileChooser.ExtensionFilter("JSON-LD files (*.jsonld)", "*.jsonld");
-    FileChooser.ExtensionFilter shaclFilter =
-        new FileChooser.ExtensionFilter("SHACL files (*.shacl)", "*.shacl");
-    FileChooser.ExtensionFilter allFilter =
-        new FileChooser.ExtensionFilter("All Files", "*.*", "*.*");
-
-    if (allowedExtensions.isEmpty()) {
-      fileChooser
-          .getExtensionFilters()
-          .addAll(ttlFilter, rqFilter, rdfFilter, trigFilter, jsonldFilter, shaclFilter, allFilter);
-      fileChooser.setSelectedExtensionFilter(ttlFilter);
-    } else {
-      boolean added = false;
-      if (isAllowed(".ttl") || isAllowed(".n3") || isAllowed(".nt")) {
-        fileChooser.getExtensionFilters().add(ttlFilter);
-        added = true;
-      }
-      if (isAllowed(".rq") || isAllowed(".sparql")) {
-        fileChooser.getExtensionFilters().add(rqFilter);
-        added = true;
-      }
-      if (isAllowed(".rdf") || isAllowed(".owl") || isAllowed(".xml")) {
-        fileChooser.getExtensionFilters().add(rdfFilter);
-        added = true;
-      }
-      if (isAllowed(".trig")) {
-        fileChooser.getExtensionFilters().add(trigFilter);
-        added = true;
-      }
-      if (isAllowed(".jsonld") || isAllowed(".json")) {
-        fileChooser.getExtensionFilters().add(jsonldFilter);
-        added = true;
-      }
-      if (isAllowed(".shacl")) {
-        fileChooser.getExtensionFilters().add(shaclFilter);
-        added = true;
-      }
-
-      if (!added) {
-        fileChooser.getExtensionFilters().add(allFilter);
-      }
-    }
-
-    File file = fileChooser.showSaveDialog(view.getRoot().getScene().getWindow());
-
-    if (file != null) {
-      FileChooser.ExtensionFilter selectedFilter = fileChooser.getSelectedExtensionFilter();
-      if (selectedFilter != null && selectedFilter != allFilter) {
-        String extension = selectedFilter.getExtensions().get(0).substring(1);
-        if (!file.getName().toLowerCase().endsWith(extension)) {
-          file = new File(file.getAbsolutePath() + extension);
-        }
-      }
-      writeToFile(file);
-    }
-  }
-
-  private boolean isAllowed(String ext) {
-    if (allowedExtensions.isEmpty()) return true;
-    for (String allowed : allowedExtensions) {
-      if (allowed.equalsIgnoreCase(ext)) return true;
-    }
-    return false;
-  }
-
-  private void writeToFile(File file) {
-    File parentDir = file.getParentFile();
-    if (parentDir != null && !parentDir.exists()) {
-      logger.error(
-          "Cannot save file: parent directory does not exist: {}", parentDir.getAbsolutePath());
-      return;
-    }
-
-    try (FileWriter writer = new FileWriter(file)) {
-      writer.write(model.getContent());
-      model.setFilePath(file.getAbsolutePath());
-      model.markAsSaved();
-    } catch (IOException e) {
-      logger.error("Error saving file: {}", file.getAbsolutePath(), e);
-    }
-  }
-
-  public void dispose() {
-    view.getCodeMirrorView().contentProperty().unbindBidirectional(model.contentProperty());
-  }
-
+  /**
+   * Gets the editor model. Note: Exposed to allow data binding and state management by parent
+   * controllers.
+   *
+   * @return The model.
+   */
   public CodeEditorModel getModel() {
     return model;
   }
 
-  public javafx.scene.Node getViewRoot() {
-    return view.getRoot();
+  /**
+   * Gets the current text content.
+   *
+   * @return The text content.
+   */
+  public String getContent() {
+    return model.getContent();
   }
 
-  public CodeEditorView getView() {
-    return view;
+  /**
+   * Sets the current text content.
+   *
+   * @param content The new content.
+   */
+  public void setContent(String content) {
+    model.setContent(content);
+  }
+
+  /**
+   * Disables or enables the editor view.
+   *
+   * @param disable True to disable, false to enable.
+   */
+  public void setDisable(boolean disable) {
+    view.getRoot().setDisable(disable);
+  }
+
+  /** Cleans up resources. */
+  public void dispose() {
+    view.getCodeMirrorView().contentProperty().unbindBidirectional(model.contentProperty());
+  }
+
+  public javafx.scene.Node getViewRoot() {
+    return view.getRoot();
   }
 }

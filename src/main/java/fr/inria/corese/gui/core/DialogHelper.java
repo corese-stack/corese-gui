@@ -54,6 +54,18 @@ public class DialogHelper {
     });
   }
 
+  /**
+   * Shows an information dialog.
+   *
+   * @param title The dialog title
+   * @param message The message to display
+   */
+  public static void showInformation(String title, String message) {
+    Platform.runLater(() -> {
+      ModalManager.getInstance().show(GenericDialog.createInfo(title, message));
+    });
+  }
+
   // ===============================================================================
   // Public Methods - Unsaved Changes Dialog
   // ===============================================================================

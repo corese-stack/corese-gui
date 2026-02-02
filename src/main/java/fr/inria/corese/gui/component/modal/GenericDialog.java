@@ -99,4 +99,15 @@ public class GenericDialog extends VBox {
 
     return new GenericDialog(title, msgLabel, cancelBtn, confirmBtn);
   }
+
+  public static GenericDialog createInfo(String title, String message) {
+    Label msgLabel = new Label(message);
+    msgLabel.setWrapText(true);
+
+    Button okBtn = new Button("OK");
+    okBtn.getStyleClass().add(Styles.ACCENT);
+    okBtn.setOnAction(e -> ModalManager.getInstance().hide());
+
+    return new GenericDialog(title, msgLabel, okBtn);
+  }
 }

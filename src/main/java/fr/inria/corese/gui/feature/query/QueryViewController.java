@@ -1,23 +1,15 @@
 package fr.inria.corese.gui.feature.query;
 
+import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
-
 import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.manager.QueryManager;
-import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.feature.codeeditor.CodeEditorController;
+import fr.inria.corese.gui.feature.result.ResultController;
 import fr.inria.corese.gui.feature.tabeditor.TabEditorConfig;
 import fr.inria.corese.gui.feature.tabeditor.TabEditorController;
-import fr.inria.corese.gui.feature.result.ResultController;
-
-
-
-
-
-
-
 import java.io.File;
 import java.util.List;
 import javafx.application.Platform;
@@ -211,7 +203,7 @@ public class QueryViewController {
       return;
     }
 
-    final String queryContent = codeEditorController.getView().getText();
+    final String queryContent = codeEditorController.getContent();
     final Integer tabId = selectedTab.hashCode();
 
     resultController.clearResults();

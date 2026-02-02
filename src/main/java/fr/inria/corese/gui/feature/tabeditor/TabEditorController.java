@@ -1,22 +1,12 @@
 package fr.inria.corese.gui.feature.tabeditor;
 
-import fr.inria.corese.gui.core.config.ButtonConfig;
-import fr.inria.corese.gui.core.config.ResultViewConfig;
 
 import fr.inria.corese.gui.component.button.FloatingButtonWidget;
 import fr.inria.corese.gui.component.notification.NotificationManager;
-import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.core.manager.FileLoaderService;
 import fr.inria.corese.gui.feature.codeeditor.CodeEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
-
-
-
-
-
-
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -24,8 +14,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 import javafx.application.Platform;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.collections.ListChangeListener;
@@ -37,6 +25,8 @@ import javafx.scene.Parent;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.layout.StackPane;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Controller for the tabbed editor interface.
@@ -101,10 +91,10 @@ public class TabEditorController {
 
   /**
    * Shared thread pool for asynchronous file loading operations.
-   * 
-   * <p>Uses a cached thread pool to efficiently handle multiple concurrent file loads
-   * without creating excessive threads. Threads are reused and automatically cleaned up
-   * when idle, preventing resource exhaustion when opening many files.
+   *
+   * <p>Uses a cached thread pool to efficiently handle multiple concurrent file loads without
+   * creating excessive threads. Threads are reused and automatically cleaned up when idle,
+   * preventing resource exhaustion when opening many files.
    */
   private final ExecutorService fileLoadExecutor;
 
@@ -112,8 +102,8 @@ public class TabEditorController {
    * Preloaded tab that is ready for instant use.
    *
    * <p>This tab is created during initialization if {@link TabEditorConfig#shouldPreloadFirstTab()}
-   * is enabled. It remains in memory but invisible until the user creates a new empty tab,
-   * at which point this preloaded instance is reused for instant display.
+   * is enabled. It remains in memory but invisible until the user creates a new empty tab, at which
+   * point this preloaded instance is reused for instant display.
    *
    * <p>After being used once, this field is set to null and all subsequent tabs are created
    * on-demand.
@@ -141,12 +131,14 @@ public class TabEditorController {
     this.config = config;
     this.view = new TabEditorView();
     this.resultControllerFactory = config.createResultControllerFactory();
-    this.fileLoadExecutor = Executors.newCachedThreadPool(r -> {
-      Thread t = new Thread(r);
-      t.setDaemon(true);
-      t.setName("file-loader-" + t.threadId());
-      return t;
-    });
+    this.fileLoadExecutor =
+        Executors.newCachedThreadPool(
+            r -> {
+              Thread t = new Thread(r);
+              t.setDaemon(true);
+              t.setName("file-loader-" + t.threadId());
+              return t;
+            });
 
     initialize();
   }
@@ -379,7 +371,7 @@ public class TabEditorController {
 
   public String getEditorContent(Tab tab) {
     TabContext context = TabContext.get(tab);
-    return context != null ? context.getEditorController().getView().getText() : null;
+    return context != null ? context.getEditorController().getContent() : null;
   }
 
   public String getFilePathForTab(Tab tab) {
@@ -417,11 +409,11 @@ public class TabEditorController {
 
   /**
    * Shuts down this controller and releases all resources.
-   * 
-   * <p>This method should be called when the TabEditorController is no longer needed,
-   * typically when the application is closing. It performs an orderly shutdown of the
-   * file loading thread pool, allowing currently running tasks to complete.
-   * 
+   *
+   * <p>This method should be called when the TabEditorController is no longer needed, typically
+   * when the application is closing. It performs an orderly shutdown of the file loading thread
+   * pool, allowing currently running tasks to complete.
+   *
    * <p><b>Important:</b> After calling this method, no new files should be opened.
    */
   public void shutdown() {
@@ -453,16 +445,17 @@ public class TabEditorController {
    * Creates a tab with full context attached but does not add it to the view.
    *
    * <p>This is the core tab assembly method that creates all components and wires them together:
+   *
    * <ul>
-   *   <li>Creates editor and result controllers</li>
-   *   <li>Assembles the UI layout</li>
-   *   <li>Creates the tab with its content</li>
-   *   <li>Attaches the TabContext</li>
-   *   <li>Binds properties and file associations</li>
+   *   <li>Creates editor and result controllers
+   *   <li>Assembles the UI layout
+   *   <li>Creates the tab with its content
+   *   <li>Attaches the TabContext
+   *   <li>Binds properties and file associations
    * </ul>
    *
-   * <p>This method is used for preloading tabs without displaying them, allowing instant
-   * display when needed later.
+   * <p>This method is used for preloading tabs without displaying them, allowing instant display
+   * when needed later.
    *
    * @param title Tab title
    * @param content Initial content
@@ -613,10 +606,10 @@ public class TabEditorController {
         event -> {
           Throwable ex = task.getException();
           String errorMsg = ex != null ? ex.getMessage() : "Unknown error";
-          
+
           // Log full exception for debugging
           logger.error("Failed to load file: {}", file.getAbsolutePath(), ex);
-          
+
           // Show user-friendly error message
           view.showError("File Error", "Could not read file: " + errorMsg);
           Platform.runLater(() -> closeTabImmediately(tab));
@@ -629,14 +622,14 @@ public class TabEditorController {
   private void lockTabUI(Tab tab) {
     TabContext context = TabContext.get(tab);
     if (context != null) {
-      context.getEditorController().getView().getRoot().setDisable(true);
+      context.getEditorController().setDisable(true);
     }
   }
 
   private void unlockTabUI(Tab tab) {
     TabContext context = TabContext.get(tab);
     if (context != null) {
-      context.getEditorController().getView().getRoot().setDisable(false);
+      context.getEditorController().setDisable(false);
     }
   }
 
@@ -655,16 +648,17 @@ public class TabEditorController {
 
   /**
    * Closes a tab immediately without confirmation.
-   * 
+   *
    * <p>Performs thorough cleanup to prevent memory leaks:
+   *
    * <ul>
-   *   <li>Unbinds all JavaFX property bindings</li>
-   *   <li>Calls dispose() on TabContext, which in turn disposes CodeEditorController
-   *       (unbinding CodeMirror content and cleaning up listeners)</li>
-   *   <li>Clears all references</li>
-   *   <li>Removes tab from view</li>
+   *   <li>Unbinds all JavaFX property bindings
+   *   <li>Calls dispose() on TabContext, which in turn disposes CodeEditorController (unbinding
+   *       CodeMirror content and cleaning up listeners)
+   *   <li>Clears all references
+   *   <li>Removes tab from view
    * </ul>
-   * 
+   *
    * @param tab The tab to close
    */
   private void closeTabImmediately(Tab tab) {
