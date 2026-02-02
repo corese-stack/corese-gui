@@ -350,7 +350,12 @@ class KGGraphVis extends HTMLElement {
                 subjType = 'Blank';
             }
 
-            addNode(subj, subjType, currentGraph, {}, true);
+            // Determine if this is a substantial definition (has properties or type)
+            // vs just a reference (only @id). This prevents references from hijacking the primary graph.
+            const hasProperties = Object.keys(item).some(k => !k.startsWith('@'));
+            const isSubstantial = hasProperties || !!item['@type'];
+
+            addNode(subj, subjType, currentGraph, {}, isSubstantial);
 
             Object.keys(item).forEach(pred => {
                 if (pred.startsWith('@')) return;
