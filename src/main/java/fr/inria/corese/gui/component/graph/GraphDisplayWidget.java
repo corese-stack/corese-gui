@@ -315,11 +315,25 @@ public class GraphDisplayWidget extends VBox {
     }
   }
   
+  /**
+   * Bridge class for communication from JavaScript to Java.
+   * Exposed as 'window.bridge' in the WebView environment.
+   */
   public class JavaBridge {
+    /**
+     * Logs an information message from JavaScript.
+     *
+     * @param message The message to log.
+     */
     public void log(String message) {
       logger.info("[JS] {}", message);
     }
 
+    /**
+     * Logs an error message from JavaScript.
+     *
+     * @param message The error message to log.
+     */
     public void error(String message) {
       logger.error("[JS] {}", message);
     }

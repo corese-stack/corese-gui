@@ -1,13 +1,17 @@
 /* =================================================================
  * CORESE KNOWLEDGE GRAPH - VISUALIZATION COMPONENT
  * =================================================================
- * Custom web component for rendering RDF/JSON-LD knowledge graphs
- * Uses D3.js for force-directed graph layout and visualization
- * Supports multiple named graphs with color coding
+ * Custom web component for rendering RDF/JSON-LD knowledge graphs.
+ * Uses D3.js for force-directed graph layout and visualization.
+ * Supports multiple named graphs with color coding.
  * ================================================================= */
 
 "use strict";
 
+/**
+ * Web Component for visualizing a Knowledge Graph.
+ * Usage: <kg-graph></kg-graph>
+ */
 class KGGraphVis extends HTMLElement {
     constructor() {
         super();
@@ -26,6 +30,8 @@ class KGGraphVis extends HTMLElement {
         this.internalData.set(this, {});
         this.resizeObserver = null;
         this.showEdgeLabels = true;
+        this.width = 800;
+        this.height = 600;
 
         // Graph coloring
         this.graphColorMap = new Map();
@@ -37,8 +43,8 @@ class KGGraphVis extends HTMLElement {
      * ------------------------------------------------------------- */
 
     /**
-     * Toggle visibility of edge labels
-     * @param {boolean} show - Whether to show edge labels
+     * Toggle visibility of edge labels.
+     * @param {boolean} show - Whether to show edge labels.
      */
     setShowEdgeLabels(show) {
         this.showEdgeLabels = show;
@@ -48,7 +54,7 @@ class KGGraphVis extends HTMLElement {
     }
 
     /**
-     * Reset simulation with new alpha
+     * Reset simulation with new alpha (re-heats the simulation).
      */
     reset() {
         if (this.simulation) {
@@ -57,7 +63,7 @@ class KGGraphVis extends HTMLElement {
     }
 
     /**
-     * Zoom in by 30%
+     * Zoom in by 30%.
      */
     zoomIn() {
         if (this.svg && this.zoomBehavior) {
@@ -66,7 +72,7 @@ class KGGraphVis extends HTMLElement {
     }
 
     /**
-     * Zoom out by 30%
+     * Zoom out by 30%.
      */
     zoomOut() {
         if (this.svg && this.zoomBehavior) {
@@ -75,17 +81,22 @@ class KGGraphVis extends HTMLElement {
     }
 
     /**
-     * Update theme (kept for compatibility, styles use CSS variables)
-     * @param {boolean} isDark - Whether dark mode is active
+     * Update theme.
+     * Styles are handled via CSS variables, so this is mainly a hook if JS logic is needed.
+     * @param {boolean} isDark - Whether dark mode is active.
      */
     setTheme(isDark) {
-        // Styles automatically update via CSS variables
+        // Future theme logic can go here
     }
 
     /* -------------------------------------------------------------
      * PROPERTY ACCESSORS
      * ------------------------------------------------------------- */
 
+    /**
+     * Sets the JSON-LD data to display.
+     * @param {string} jsonld - The JSON-LD string.
+     */
     set jsonld(jsonld) {
         const data = this.internalData.get(this) || {};
         data.jsonld = jsonld;
@@ -93,6 +104,10 @@ class KGGraphVis extends HTMLElement {
         this.drawChart();
     }
 
+    /**
+     * Gets the current JSON-LD data.
+     * @returns {string} The JSON-LD string.
+     */
     get jsonld() {
         return this.internalData.get(this)?.jsonld;
     }
@@ -117,9 +132,9 @@ class KGGraphVis extends HTMLElement {
      * ------------------------------------------------------------- */
 
     /**
-     * Generate distinct colors for named graphs using golden angle
-     * @param {string} graphId - Graph identifier
-     * @returns {string} Hex color code
+     * Generate distinct colors for named graphs using the golden angle.
+     * @param {string} graphId - Graph identifier.
+     * @returns {string} Hex color code.
      */
     getGraphColor(graphId) {
         const gid = graphId || 'default';
@@ -130,7 +145,7 @@ class KGGraphVis extends HTMLElement {
 
         if (!this.graphColorMap.has(gid)) {
             const index = this.graphColorMap.size;
-            // Use golden angle for better color distribution
+            // Use golden angle approx (137.5) for optimal color distribution
             const hue = (index * 137.508) % 360;
             const saturation = 35 + (index % 4) * 10;
             const lightness = 72 + (index % 3) * 6;
@@ -141,11 +156,11 @@ class KGGraphVis extends HTMLElement {
     }
 
     /**
-     * Convert HSL color values to hex format
-     * @param {number} h - Hue (0-360)
-     * @param {number} s - Saturation (0-100)
-     * @param {number} l - Lightness (0-100)
-     * @returns {string} Hex color code
+     * Convert HSL color values to hex format.
+     * @param {number} h - Hue (0-360).
+     * @param {number} s - Saturation (0-100).
+     * @param {number} l - Lightness (0-100).
+     * @returns {string} Hex color code.
      */
     hslToHex(h, s, l) {
         s /= 100;
@@ -170,9 +185,9 @@ class KGGraphVis extends HTMLElement {
     }
 
     /**
-     * Sanitize string for use as SVG ID
-     * @param {string} str - Input string
-     * @returns {string} Sanitized string
+     * Sanitize string for use as SVG ID.
+     * @param {string} str - Input string.
+     * @returns {string} Sanitized string.
      */
     sanitizeId(str) {
         return (str || 'default').replace(/[^a-zA-Z0-9-_]/g, '_');
@@ -183,7 +198,7 @@ class KGGraphVis extends HTMLElement {
      * ------------------------------------------------------------- */
 
     /**
-     * Render Shadow DOM structure with styles
+     * Render Shadow DOM structure with styles.
      */
     render() {
         this.shadowRoot.innerHTML = `
@@ -233,7 +248,7 @@ class KGGraphVis extends HTMLElement {
     }
 
     /**
-     * Setup resize observer to handle container size changes
+     * Setup resize observer to handle container size changes.
      */
     observeResize() {
         this.resizeObserver = new ResizeObserver(async () => {
@@ -251,7 +266,7 @@ class KGGraphVis extends HTMLElement {
     }
 
     /**
-     * Update component dimensions from bounding rect
+     * Update component dimensions from bounding rect.
      */
     async updateSize() {
         const rect = this.getBoundingClientRect();
@@ -260,61 +275,17 @@ class KGGraphVis extends HTMLElement {
     }
 
     /* -------------------------------------------------------------
-     * GRAPH CREATION AND RENDERING
+     * GRAPH PROCESSING
      * ------------------------------------------------------------- */
 
     /**
-     * Main drawing entry point
-     * Parses JSON-LD and renders the graph
-     */
-    async drawChart() {
-        if (!this.width || !this.height) await this.updateSize();
-        if (this.simulation) this.simulation.stop();
-
-        const chartSvg = this.shadowRoot.querySelector("#chart-container");
-        if (!chartSvg) return;
-
-        this.svg = d3.select(chartSvg);
-        this.svg.selectAll("*").remove();
-
-        if (!this.jsonld) return;
-
-        try {
-            this.jsonLDOntology = JSON.parse(this.jsonld);
-            const graph = await this.createGraph();
-            this.graph = graph;
-
-            // Initialize node positions randomly around center
-            this.graph.nodes.forEach(node => {
-                node.x = this.width / 2 + (Math.random() - 0.5) * 400;
-                node.y = this.height / 2 + (Math.random() - 0.5) * 400;
-                node.vx = 0;
-                node.vy = 0;
-            });
-
-            this.renderGraph();
-        } catch (e) {
-            console.error("Graph drawing error:", e);
-        }
-    }
-
-    /**
-     * Parse JSON-LD into graph structure (nodes and links)
-     * Handles named graphs, blank nodes, and literals
-     * @returns {Object} Graph object with nodes and links arrays
+     * Parse JSON-LD into graph structure (nodes and links).
+     * @returns {Object} Graph object with nodes and links arrays.
      */
     async createGraph() {
-        let graph = { nodes: [], links: [] };
+        const graph = { nodes: [], links: [] };
         this.graphColorMap = new Map();
 
-        /**
-         * Add or update a node in the graph
-         * @param {string} id - Node identifier
-         * @param {string} type - Node type (Resource, Blank, Literal, Class)
-         * @param {string} graphId - Named graph identifier
-         * @param {Object} meta - Additional node metadata
-         * @param {boolean} isSubject - Whether node is defined as RDF subject
-         */
         const addNode = (id, type, graphId, meta = {}, isSubject = false) => {
             if (!id) return null;
 
@@ -341,37 +312,26 @@ class KGGraphVis extends HTMLElement {
                 if (!node.graphs) node.graphs = new Set([node.graph]);
                 node.graphs.add(graphId || 'default');
 
-                // Priority to the graph where the node is DEFINED as a subject (with properties)
-                // rather than the graph where it is simply referenced as an object
+                // Determine primary graph based on subject definition
                 if (isSubject && graphId && graphId !== 'default') {
-                    // If the node has not yet been defined as a subject, this graph becomes its primary graph
                     if (!node.isDefinedAsSubject) {
                         node.graph = graphId;
                         node.isDefinedAsSubject = true;
                         node.definitionGraph = graphId;
                     }
-                    // If already defined as a subject, keep the first definition graph
                 } else if ((!node.graph || node.graph === 'default') && graphId && graphId !== 'default') {
-                    // Only if no graph assigned yet and not defined as subject elsewhere
                     if (!node.isDefinedAsSubject) {
                         node.graph = graphId;
                     }
                 }
-
                 Object.assign(node, meta);
             }
             return node;
         };
 
-        /**
-         * Recursively process JSON-LD items
-         * @param {Object} item - JSON-LD object to process
-         * @param {string} currentGraph - Current named graph context
-         */
         const processItem = (item, currentGraph) => {
             if (!item || typeof item !== 'object') return;
 
-            // Handle named graphs
             if (item['@graph']) {
                 const newGraph = item['@id'] || currentGraph;
                 const contents = Array.isArray(item['@graph']) ? item['@graph'] : [item['@graph']];
@@ -382,7 +342,6 @@ class KGGraphVis extends HTMLElement {
             const subj = item['@id'];
             if (!subj) return;
 
-            // Determine subject type
             let subjType = 'Resource';
             if (item['@type']) {
                 const types = Array.isArray(item['@type']) ? item['@type'] : [item['@type']];
@@ -393,11 +352,10 @@ class KGGraphVis extends HTMLElement {
 
             addNode(subj, subjType, currentGraph, {}, true);
 
-            // Process predicates and objects
             Object.keys(item).forEach(pred => {
                 if (pred.startsWith('@')) return;
 
-                let objs = Array.isArray(item[pred]) ? item[pred] : [item[pred]];
+                const objs = Array.isArray(item[pred]) ? item[pred] : [item[pred]];
                 objs.forEach(obj => {
                     let objId;
                     let objType = 'Literal';
@@ -436,14 +394,52 @@ class KGGraphVis extends HTMLElement {
         return graph;
     }
 
+    /* -------------------------------------------------------------
+     * MAIN DRAWING
+     * ------------------------------------------------------------- */
+
     /**
-     * Render the graph using D3 force simulation
-     * Creates SVG elements, markers, and interaction handlers
+     * Main drawing entry point.
+     * Parses JSON-LD, initializes simulation, and renders SVG elements.
+     */
+    async drawChart() {
+        if (!this.width || !this.height) await this.updateSize();
+        if (this.simulation) this.simulation.stop();
+
+        const chartSvg = this.shadowRoot.querySelector("#chart-container");
+        if (!chartSvg) return;
+
+        this.svg = d3.select(chartSvg);
+        this.svg.selectAll("*").remove();
+
+        if (!this.jsonld) return;
+
+        try {
+            this.jsonLDOntology = JSON.parse(this.jsonld);
+            const graph = await this.createGraph();
+            this.graph = graph;
+
+            // Initialize node positions
+            this.graph.nodes.forEach(node => {
+                node.x = this.width / 2 + (Math.random() - 0.5) * 400;
+                node.y = this.height / 2 + (Math.random() - 0.5) * 400;
+                node.vx = 0;
+                node.vy = 0;
+            });
+
+            this.renderGraph();
+        } catch (e) {
+            console.error("Graph drawing error:", e);
+        }
+    }
+
+    /**
+     * Configures D3 forces, zoom, and appends visual elements.
      */
     renderGraph() {
         const self = this;
 
-        // Initialize force simulation
+        // Force Simulation Configuration
         this.simulation = d3.forceSimulation(this.graph.nodes)
             .force("link", d3.forceLink(this.graph.links).id(d => d.id).distance(160))
             .force("charge", d3.forceManyBody().strength(-1500))
@@ -451,24 +447,24 @@ class KGGraphVis extends HTMLElement {
             .force("collision", d3.forceCollide().radius(45))
             .on("tick", () => this.ticked());
 
-        // Create zoom layer
+        // Zoom Layer
         const gZoom = this.svg.append("g").attr("class", "zoom-layer");
 
-        // Setup zoom behavior
+        // Zoom Behavior
         this.zoomBehavior = d3.zoom()
             .scaleExtent([0.05, 10])
             .on("zoom", () => gZoom.attr("transform", d3.event.transform));
         this.svg.call(this.zoomBehavior);
 
-        // Create rendering layers (order matters for z-index)
+        // Layers
         const linkGroup = gZoom.append("g").attr("class", "links-layer");
         const labelGroup = gZoom.append("g").attr("class", "labels-layer");
         const nodeGroup = gZoom.append("g").attr("class", "nodes-layer");
 
-        // Create SVG definitions for markers and gradients
+        // SVG Definitions (Markers, Gradients)
         const defs = this.svg.append("defs");
 
-        // Create arrow markers for each graph (colored by graph)
+        // Create Markers
         const graphIds = [...new Set(this.graph.nodes.map(n => n.graph))];
         graphIds.forEach(graphId => {
             const color = this.getGraphColor(graphId);
@@ -484,10 +480,15 @@ class KGGraphVis extends HTMLElement {
                 .attr("fill", color);
         });
 
-        // Create gradients for inter-graph links
+        // Create Gradients
         this.graph.links.forEach((link, i) => {
-            const sourceNode = this.graph.nodes.find(n => n.id === link.source.id || n.id === link.source);
-            const targetNode = this.graph.nodes.find(n => n.id === link.target.id || n.id === link.target);
+            // Helper to find node (D3 replaces IDs with objects, but initially they are IDs)
+            const getSrc = (l) => l.source.id || l.source;
+            const getTgt = (l) => l.target.id || l.target;
+
+            const sourceNode = this.graph.nodes.find(n => n.id === getSrc(link));
+            const targetNode = this.graph.nodes.find(n => n.id === getTgt(link));
+
             if (sourceNode && targetNode && sourceNode.graph !== targetNode.graph) {
                 const gradId = `gradient-${i}`;
                 const gradient = defs.append("linearGradient")
@@ -510,16 +511,19 @@ class KGGraphVis extends HTMLElement {
             }
         });
 
-        // Render links (edges)
+        // Draw Links
         this.linkSelection = linkGroup.selectAll("path")
             .data(this.graph.links).enter().append("path")
             .attr("class", "edge-path")
             .attr("stroke", d => {
-                const sourceNode = this.graph.nodes.find(n => n.id === d.source.id || n.id === d.source);
-                const targetNode = this.graph.nodes.find(n => n.id === d.target.id || n.id === d.target);
-                if (sourceNode && targetNode) {
-                    if (sourceNode.graph === targetNode.graph) {
-                        return this.getGraphColor(sourceNode.graph);
+                const getSrc = (l) => l.source.id || l.source;
+                const getTgt = (l) => l.target.id || l.target;
+                const sNode = this.graph.nodes.find(n => n.id === getSrc(d));
+                const tNode = this.graph.nodes.find(n => n.id === getTgt(d));
+
+                if (sNode && tNode) {
+                    if (sNode.graph === tNode.graph) {
+                        return this.getGraphColor(sNode.graph);
                     } else if (d.gradientId) {
                         return `url(#${d.gradientId})`;
                     }
@@ -528,14 +532,15 @@ class KGGraphVis extends HTMLElement {
             })
             .attr("stroke-width", 2)
             .attr("marker-end", d => {
-                const targetNode = this.graph.nodes.find(n => n.id === d.target.id || n.id === d.target);
-                if (targetNode) {
-                    return `url(#arrow-${this.sanitizeId(targetNode.graph)})`;
+                const getTgt = (l) => l.target.id || l.target;
+                const tNode = this.graph.nodes.find(n => n.id === getTgt(d));
+                if (tNode) {
+                    return `url(#arrow-${this.sanitizeId(tNode.graph)})`;
                 }
                 return null;
             });
 
-        // Render edge labels
+        // Draw Edge Labels
         this.linkLabelSelection = labelGroup.selectAll("text")
             .data(this.graph.links).enter().append("text")
             .attr("class", "edge-label")
@@ -546,7 +551,7 @@ class KGGraphVis extends HTMLElement {
             this.linkLabelSelection.style('display', 'none');
         }
 
-        // Render nodes with drag behavior
+        // Draw Nodes with Drag Behavior
         this.nodeSelection = nodeGroup.selectAll("g")
             .data(this.graph.nodes).enter().append("g")
             .call(d3.drag()
@@ -565,14 +570,13 @@ class KGGraphVis extends HTMLElement {
                     d.fy = null;
                 }));
 
-        // Add node shapes (circles or rectangles based on type)
+        // Node Shapes
         this.nodeSelection.each(function (d) {
             const el = d3.select(this);
             const size = 20;
             const strokeColor = self.getGraphColor(d.graph);
 
             if (d.type === 'Literal') {
-                // Literals are rectangles
                 el.append("rect")
                     .attr("x", -size * 1.2)
                     .attr("y", -size * 0.7)
@@ -583,7 +587,6 @@ class KGGraphVis extends HTMLElement {
                     .attr("stroke", strokeColor)
                     .attr("stroke-width", 3);
             } else {
-                // Resources and blank nodes are circles
                 el.append("circle")
                     .attr("r", size)
                     .attr("fill", d.type === 'Blank' ? '#2ca02c' : '#1f77b4')
@@ -592,14 +595,15 @@ class KGGraphVis extends HTMLElement {
             }
         });
 
-        // Add node labels
+        // Node Labels
         this.nodeSelection.append("text")
             .attr("class", "node-label")
             .attr("dy", 35)
             .attr("text-anchor", "middle")
             .text(d => this.truncateLabel(this.formatLabel(d.id)));
 
-        // Setup tooltip interactions
+        // Tooltip Interaction
+        // Note: #global-tooltip is outside shadow DOM
         const tooltip = d3.select("#global-tooltip");
         this.nodeSelection
             .on("mouseover", (d) => {
@@ -622,7 +626,6 @@ class KGGraphVis extends HTMLElement {
                     content += `<div class="tooltip-row"><strong>Type</strong> <span>${d.type}</span></div>`;
                 }
 
-                // Show graph assignments
                 if (d.graphs && d.graphs.size > 1) {
                     const graphList = Array.from(d.graphs).join(', ');
                     content += `<div class="tooltip-row"><strong>Graphs</strong> <span>${graphList}</span></div>`;
@@ -634,6 +637,7 @@ class KGGraphVis extends HTMLElement {
                 tooltip.style("opacity", 1).html(content);
             })
             .on("mousemove", () => {
+                // Adjust position relative to viewport
                 tooltip
                     .style("left", (d3.event.pageX + 15) + "px")
                     .style("top", (d3.event.pageY - 10) + "px");
@@ -642,39 +646,41 @@ class KGGraphVis extends HTMLElement {
                 tooltip.style("opacity", 0);
             });
 
-        // Start simulation
+        // Start!
         this.simulation.alpha(1).restart();
     }
 
     /**
-     * Called on each simulation tick
-     * Updates positions of nodes, links, and labels
+     * Animation tick function.
+     * Updates SVG element positions based on simulation data.
      */
     ticked() {
         const hasPos = d => d && typeof d.x === 'number' && typeof d.y === 'number';
         const self = this;
 
-        // Update link paths
+        // Update Links
         if (this.linkSelection) {
             this.linkSelection.attr("d", d => {
                 if (!hasPos(d.source) || !hasPos(d.target)) return null;
                 return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
             });
 
-            // Update gradient positions for inter-graph links
+            // Update Gradients
             this.linkSelection.each(function (d) {
                 if (d.gradientId && hasPos(d.source) && hasPos(d.target)) {
                     const gradient = self.svg.select(`#${d.gradientId}`);
-                    gradient
-                        .attr("x1", d.source.x)
-                        .attr("y1", d.source.y)
-                        .attr("x2", d.target.x)
-                        .attr("y2", d.target.y);
+                    if (!gradient.empty()) {
+                        gradient
+                            .attr("x1", d.source.x)
+                            .attr("y1", d.source.y)
+                            .attr("x2", d.target.x)
+                            .attr("y2", d.target.y);
+                    }
                 }
             });
         }
 
-        // Update node positions
+        // Update Nodes
         if (this.nodeSelection) {
             this.nodeSelection.attr("transform", d => {
                 if (!hasPos(d)) return null;
@@ -682,7 +688,7 @@ class KGGraphVis extends HTMLElement {
             });
         }
 
-        // Update edge label positions
+        // Update Labels
         if (this.linkLabelSelection && this.showEdgeLabels) {
             this.linkLabelSelection
                 .attr("x", d => (hasPos(d.source) && hasPos(d.target)) ? (d.source.x + d.target.x) / 2 : 0)
@@ -691,13 +697,13 @@ class KGGraphVis extends HTMLElement {
     }
 
     /* -------------------------------------------------------------
-     * UTILITY METHODS
+     * HELPERS
      * ------------------------------------------------------------- */
 
     /**
-     * Extract readable label from URI
-     * @param {string} uri - Full URI or blank node ID
-     * @returns {string} Shortened label
+     * Formats a URI into a readable label.
+     * @param {string} uri - The URI.
+     * @returns {string} Short label.
      */
     formatLabel(uri) {
         if (!uri) return "";
@@ -712,14 +718,14 @@ class KGGraphVis extends HTMLElement {
     }
 
     /**
-     * Truncate long labels with ellipsis
-     * @param {string} label - Label to truncate
-     * @returns {string} Truncated label
+     * Truncates a label if it's too long.
+     * @param {string} label - The label.
+     * @returns {string} Truncated label.
      */
     truncateLabel(label) {
         return label.length > 25 ? label.substring(0, 22) + '...' : label;
     }
 }
 
-// Register custom element
+// Register Custom Element
 customElements.define('kg-graph', KGGraphVis);

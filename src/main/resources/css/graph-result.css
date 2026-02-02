@@ -1,0 +1,35 @@
+/* =================================================================
+ * Graph Result View Styles
+ * ================================================================= */
+
+.result-center-stack {
+    -fx-alignment: top-left;
+}
+
+/* Legend Panel */
+.legend-panel {
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);
+    -fx-padding: 8px;
+}
+
+.legend-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-size: 10px;
+    -fx-padding: 0 0 2 0;
+}
+
+.legend-item {
+    -fx-alignment: center-left;
+    -fx-spacing: 10;
+}
+
+.legend-item-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-fg-default;
+}

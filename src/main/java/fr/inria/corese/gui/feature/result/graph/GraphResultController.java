@@ -10,18 +10,29 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 
 /**
- * Controller for graph visualization.
- * Delegates rendering to GraphResultView and GraphDisplayWidget.
+ * Controller for the Graph Visualization feature.
+ * <p>
+ * This class coordinates the interaction between the graph data (JSON-LD) and the
+ * {@link GraphResultView}. It manages the toolbar actions (Copy, Export, Zoom, Reset)
+ * and delegates the actual graph rendering to the view's widget.
+ * </p>
  */
 public class GraphResultController {
 
   private final GraphResultView view;
 
+  /**
+   * Constructs a new GraphResultController.
+   * Initializes the view and configures the toolbar buttons.
+   */
   public GraphResultController() {
     this.view = new GraphResultView();
     initialize();
   }
 
+  /**
+   * Initializes the controller by setting up the toolbar actions on the view.
+   */
   private void initialize() {
     view.setToolbarActions(
         List.of(
@@ -32,6 +43,10 @@ public class GraphResultController {
             new ButtonConfig(ButtonIcon.ZOOM_OUT, "Zoom Out", view.getGraphWidget()::zoomOut)));
   }
 
+  /**
+   * Captures the current graph as an SVG string and copies it to the system clipboard.
+   * Shows a notification upon success or failure.
+   */
   private void copySvg() {
     String svg = view.getGraphWidget().getSvgContent();
     if (svg != null && !svg.isEmpty()) {
@@ -44,6 +59,10 @@ public class GraphResultController {
     }
   }
 
+  /**
+   * Triggers the export process to save the current graph as an SVG file.
+   * Delegates the file handling to {@link ExportHelper}.
+   */
   private void exportSvg() {
     String svg = view.getGraphWidget().getSvgContent();
     if (svg != null && !svg.isEmpty()) {
@@ -54,25 +73,26 @@ public class GraphResultController {
   }
 
   /**
-   * Displays an RDF graph from JSON-LD data.
+   * Displays an RDF graph using the provided JSON-LD data.
    *
-   * @param jsonLdData The RDF data in JSON-LD format
+   * @param jsonLdData The RDF data to visualize, formatted as a JSON-LD string.
+   *                   Must be a valid JSON-LD structure compatible with the graph visualizer.
    */
   public void displayGraph(String jsonLdData) {
     view.getGraphWidget().displayGraph(jsonLdData);
   }
 
   /**
-   * Clears the graph view.
+   * Clears the current graph visualization, removing all nodes and links from the view.
    */
   public void clear() {
     view.getGraphWidget().clear();
   }
 
   /**
-   * Returns the root view node.
+   * Retrieves the root node of the view managed by this controller.
    *
-   * @return The view root
+   * @return The root {@link Node} of the {@link GraphResultView}.
    */
   public Node getView() {
     return view.getRoot();
