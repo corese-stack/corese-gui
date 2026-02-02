@@ -2,7 +2,23 @@
 
 /* Tab header spacing */
 .tab-header {
-    -fx-spacing: 4;
+    -fx-spacing: 0;
+}
+
+/* Tab separator - applies to individual tabs within TabPane */
+.tab-pane > .tab-header-area > .headers-region > .tab {
+    -fx-border-width: 0 1 0 0;
+    -fx-border-color: linear-gradient(
+        to bottom, 
+        transparent 25%, 
+        -color-border-default 25%, 
+        -color-border-default 75%, 
+        transparent 75%
+    );
+}
+
+.tab-pane > .tab-header-area > .headers-region > .tab:last-child {
+    -fx-border-width: 0;
 }
 
 /* Add tab button styling */
