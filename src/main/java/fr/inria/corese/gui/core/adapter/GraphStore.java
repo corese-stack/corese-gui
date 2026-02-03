@@ -7,25 +7,36 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Corese graph store.
+ * Singleton manager for the Corese RDF graph store.
  *
- * <p>Responsibilities:
+ * <p>This class provides:
  * <ul>
- *   <li>Maintain the singleton Corese Graph instance.</li>
- *   <li>Load RDF data from files.</li>
+ *   <li>Access to the singleton Corese {@link Graph} instance
+ *   <li>RDF file loading with automatic format detection
+ *   <li>Graph state queries (data presence checks)
  * </ul>
+ *
+ * <p>Thread-safe implementation using synchronized methods.
+ *
+ * @see Graph
+ * @see Load
  */
 public class GraphStore {
 
   private static final Logger logger = LoggerFactory.getLogger(GraphStore.class);
 
   private static GraphStore instance;
-  private Graph graph;
+  private final Graph graph;
 
   private GraphStore() {
     this.graph = Graph.create();
   }
 
+  /**
+   * Returns the singleton instance of GraphStore.
+   *
+   * @return the singleton GraphStore instance
+   */
   public static synchronized GraphStore getInstance() {
     if (instance == null) {
       instance = new GraphStore();
@@ -34,46 +45,76 @@ public class GraphStore {
   }
 
   // ============================================================================================
-  // Graph Lifecycle
+  // Graph Access
   // ============================================================================================
 
-  synchronized Graph getGraph() {
+  /**
+   * Returns the underlying Corese Graph instance.
+   *
+   * <p>This method is used by other adapter services (QueryService, ShaclService)
+   * to access the graph for operations.
+   *
+   * @return the Corese Graph
+   */
+  public synchronized Graph getGraph() {
     return graph;
   }
 
-  private synchronized int getTripletCount() {
-    return (graph != null) ? graph.size() : 0;
-  }
-
+  /**
+   * Checks whether the graph contains any RDF triples.
+   *
+   * @return {@code true} if the graph contains at least one triple, {@code false} otherwise
+   */
   public synchronized boolean hasData() {
-    return getTripletCount() > 0;
+    return graph != null && graph.size() > 0;
   }
 
   // ============================================================================================
-  // Loading
+  // RDF Loading
   // ============================================================================================
 
+  /**
+   * Loads RDF data from a file into the graph.
+   *
+   * <p>The RDF format is automatically detected based on the file extension:
+   * <ul>
+   *   <li>.ttl → Turtle</li>
+   *   <li>.rdf, .xml → RDF/XML</li>
+   *   <li>.jsonld → JSON-LD</li>
+   *   <li>.nt → N-Triples</li>
+   *   <li>.nq → N-Quads</li>
+   *   <li>.trig → TriG</li>
+   *   <li>default → Turtle</li>
+   * </ul>
+   *
+   * @param file the RDF file to load
+   * @throws IllegalArgumentException if the file is null or does not exist
+   * @throws Exception if an error occurs during parsing
+   */
   public synchronized void loadFile(File file) throws Exception {
     if (file == null || !file.exists()) {
       throw new IllegalArgumentException("File does not exist: " + file);
     }
-    try {
-      Load loader = Load.create(graph);
-      Load.format format = detectFormatFromFileName(file.getName());
-      loader.parse(file.getAbsolutePath(), format);
-      logger.info("Loaded file: {}", file.getAbsolutePath());
-    } catch (Exception e) {
-      logger.error("Error loading file {}: {}", file.getName(), e.getMessage());
-      throw e;
-    }
+
+    Load loader = Load.create(graph);
+    Load.format format = detectFormatFromFileName(file.getName());
+    loader.parse(file.getAbsolutePath(), format);
+    logger.info("Successfully loaded RDF file: {} (format: {})", file.getAbsolutePath(), format);
   }
 
   // ============================================================================================
-  // Utils
+  // Private Helpers
   // ============================================================================================
 
+  /**
+   * Detects the RDF format from a file name based on its extension.
+   *
+   * @param fileName the name of the file
+   * @return the detected RDF format, defaulting to Turtle if unknown
+   */
   private Load.format detectFormatFromFileName(String fileName) {
     String lowerName = fileName.toLowerCase();
+
     if (lowerName.endsWith(".ttl")) {
       return Load.format.TURTLE_FORMAT;
     } else if (lowerName.endsWith(".rdf") || lowerName.endsWith(".xml")) {
@@ -87,8 +128,7 @@ public class GraphStore {
     } else if (lowerName.endsWith(".trig")) {
       return Load.format.TRIG_FORMAT;
     }
-    return Load.format.TURTLE_FORMAT; // Default
-  }
 
-  // Logging is handled directly by this store.
+    return Load.format.TURTLE_FORMAT;
+  }
 }
