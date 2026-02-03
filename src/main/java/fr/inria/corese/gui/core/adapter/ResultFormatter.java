@@ -131,6 +131,8 @@ public class ResultFormatter {
             case N_TRIPLES -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.NTRIPLES_FORMAT;
             case N_QUADS -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.NQUADS_FORMAT;
             case TRIG -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.TRIG_FORMAT;
+            case RDFC10 -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.RDFC10_FORMAT;
+            case RDFC10_SHA384 -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.RDFC10_SHA384_FORMAT;
             case MARKDOWN -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.MARKDOWN_FORMAT;
             // These formats are for code editing, not result serialization
             case SPARQL_QUERY, SPARQL_UPDATE, JAVASCRIPT, TEXT -> null;

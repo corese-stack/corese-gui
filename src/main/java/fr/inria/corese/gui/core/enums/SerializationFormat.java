@@ -3,14 +3,18 @@ package fr.inria.corese.gui.core.enums;
 /**
  * Enumeration of RDF and SPARQL result serialization formats.
  *
- * <p>This enum centralizes all supported output formats for RDF graphs and SPARQL query results,
- * providing consistent format labels and file extensions across the application.
+ * <p>
+ * This enum centralizes all supported output formats for RDF graphs and SPARQL
+ * query results,
+ * providing consistent format labels and file extensions across the
+ * application.
  *
- * <p><b>Usage example:</b>
+ * <p>
+ * <b>Usage example:</b>
  *
  * <pre>{@code
  * SerializationFormat format = SerializationFormat.TURTLE;
- * String label = format.getLabel();        // "Turtle"
+ * String label = format.getLabel(); // "Turtle"
  * String extension = format.getExtension(); // ".ttl"
  * }</pre>
  */
@@ -22,6 +26,8 @@ public enum SerializationFormat {
   N_TRIPLES("N-Triples", ".nt"),
   N_QUADS("N-Quads", ".nq"),
   TRIG("TriG", ".trig"),
+  RDFC10("RDFC-1.0", ".nq"),
+  RDFC10_SHA384("RDFC-1.0 (SHA-384)", ".nq"),
 
   // SPARQL Result Formats
   CSV("CSV", ".csv"),
@@ -83,7 +89,7 @@ public enum SerializationFormat {
    */
   public String getCodeMirrorMode() {
     return switch (this) {
-      case TURTLE, TRIG, N_TRIPLES, N_QUADS -> "turtle";
+      case TURTLE, TRIG, N_TRIPLES, N_QUADS, RDFC10, RDFC10_SHA384 -> "turtle";
       case RDF_XML, XML -> "xml";
       case JSON_LD, JSON -> "json";
       case CSV, TSV, MARKDOWN, TEXT -> "text/plain";
@@ -95,7 +101,8 @@ public enum SerializationFormat {
   /**
    * Finds a serialization format by its file extension.
    *
-   * @param extension The file extension (e.g., ".ttl", "rq") - case insensitive, with or without dot
+   * @param extension The file extension (e.g., ".ttl", "rq") - case insensitive,
+   *                  with or without dot
    * @return The matching SerializationFormat, or null if not found
    */
   public static SerializationFormat forExtension(String extension) {
@@ -124,7 +131,9 @@ public enum SerializationFormat {
   /**
    * Parses a format string to the corresponding enum value.
    *
-   * <p>Supports both label matching ("Turtle") and uppercase name matching ("TURTLE").
+   * <p>
+   * Supports both label matching ("Turtle") and uppercase name matching
+   * ("TURTLE").
    *
    * @param formatString The format string to parse
    * @return The corresponding SerializationFormat, or TURTLE as default
@@ -156,7 +165,7 @@ public enum SerializationFormat {
    * @return Array of RDF formats
    */
   public static SerializationFormat[] rdfFormats() {
-    return new SerializationFormat[] {TURTLE, RDF_XML, JSON_LD, N_TRIPLES, N_QUADS, TRIG};
+    return new SerializationFormat[] { TURTLE, RDF_XML, JSON_LD, N_TRIPLES, N_QUADS, TRIG, RDFC10, RDFC10_SHA384 };
   }
 
   /**
@@ -165,6 +174,6 @@ public enum SerializationFormat {
    * @return Array of SPARQL result formats
    */
   public static SerializationFormat[] sparqlResultFormats() {
-    return new SerializationFormat[] {CSV, TSV, JSON, XML, MARKDOWN};
+    return new SerializationFormat[] { CSV, TSV, JSON, XML, MARKDOWN };
   }
 }
