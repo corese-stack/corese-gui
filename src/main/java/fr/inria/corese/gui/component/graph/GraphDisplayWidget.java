@@ -20,17 +20,19 @@ import org.slf4j.LoggerFactory;
 /**
  * A reusable JavaFX widget for visualizing RDF graphs.
  *
- * <p>This widget provides:
+ * <p>
+ * This widget provides:
  *
  * <ul>
- *   <li>WebView-based graph rendering using D3.js and kg-graph web component
- *   <li>JSON-LD data injection and visualization
- *   <li>Interactive graph manipulation (zoom, reset)
- *   <li>Automatic theme synchronization
- *   <li>Lazy loading - waits for scene attachment before initialization
+ * <li>WebView-based graph rendering using D3.js and kg-graph web component
+ * <li>JSON-LD data injection and visualization
+ * <li>Interactive graph manipulation (zoom, reset)
+ * <li>Automatic theme synchronization
+ * <li>Lazy loading - waits for scene attachment before initialization
  * </ul>
  *
- * <p><b>Usage example:</b>
+ * <p>
+ * <b>Usage example:</b>
  *
  * <pre>{@code
  * GraphDisplayWidget widget = new GraphDisplayWidget();
@@ -62,14 +64,17 @@ public class GraphDisplayWidget extends VBox {
   // Constructor
   // ==============================================================================================
 
-  /** Constructs a new GraphDisplayWidget. The HTML page is loaded when attached to a scene. */
+  /**
+   * Constructs a new GraphDisplayWidget. The HTML page is loaded when attached to
+   * a scene.
+   */
   public GraphDisplayWidget() {
     this.webView = new WebView();
     this.webEngine = webView.getEngine();
-    
+
     initializeLayout();
     initializeListeners();
-    
+
     // Wait for the widget to be attached to a scene before loading
     sceneProperty().addListener((obs, oldScene, newScene) -> {
       Worker.State currentState = webEngine.getLoadWorker().getState();
@@ -100,7 +105,7 @@ public class GraphDisplayWidget extends VBox {
   private void initializeListeners() {
     // Capture JavaScript alerts for debugging
     webEngine.setOnAlert(event -> logger.info("[JS Alert] {}", event.getData()));
-    
+
     webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
       if (newState == Worker.State.RUNNING || newState == Worker.State.SCHEDULED) {
         pageLoaded = false;
@@ -111,7 +116,7 @@ public class GraphDisplayWidget extends VBox {
         pageLoaded = false;
       }
     });
-    
+
     webEngine.getLoadWorker().exceptionProperty().addListener((obs, old, newEx) -> {
       if (newEx != null) {
         logger.error("WebView load error", newEx);
@@ -120,13 +125,16 @@ public class GraphDisplayWidget extends VBox {
 
     ThemeManager.getInstance().themeProperty().addListener(
         (obs, old, newVal) -> Platform.runLater(this::updateTheme));
-        
+
     ThemeManager.getInstance().accentColorProperty().addListener(
         (obs, old, newVal) -> Platform.runLater(this::updateTheme));
   }
 
+  @SuppressWarnings("removal")
   private void onPageLoaded() {
     try {
+      // Inject Java Bridge into JavaScript
+      // Using deprecated JSObject as there's no official alternative yet
       JSObject window = (JSObject) webEngine.executeScript("window");
       window.setMember("bridge", bridge);
 
@@ -151,7 +159,8 @@ public class GraphDisplayWidget extends VBox {
   /**
    * Displays an RDF graph from JSON-LD formatted data.
    *
-   * @param jsonLdData The RDF data in JSON-LD format (null or empty clears the view)
+   * @param jsonLdData The RDF data in JSON-LD format (null or empty clears the
+   *                   view)
    */
   public void displayGraph(String jsonLdData) {
     if (jsonLdData == null || jsonLdData.isBlank()) {
@@ -184,30 +193,25 @@ public class GraphDisplayWidget extends VBox {
     if (!pageLoaded) {
       return;
     }
-    
+
     String currentLocation = webEngine.getLocation();
     if (currentLocation == null || currentLocation.contains("about:blank")) {
       return;
     }
-    
+
     // Use Base64 encoding to avoid escaping issues with JSON data
     String base64Json = Base64.getEncoder().encodeToString(jsonLdData.getBytes(StandardCharsets.UTF_8));
 
-    String script =
-        "(function() {"
-            + "  try {"
-            + "    var el = document.getElementById('myGraph');"
-            + "    if (!el) return;"
-            + "    var decoded = decodeURIComponent(escape(window.atob('" + base64Json + "')));"
-            + "    el.jsonld = decoded;"
-            + "  } catch(e) { console.error('Graph injection error:', e); }"
-            + "})();";
+    String script = "(function() {"
+        + "  try {"
+        + "    var el = document.getElementById('myGraph');"
+        + "    if (!el) return;"
+        + "    var decoded = decodeURIComponent(escape(window.atob('" + base64Json + "')));"
+        + "    el.jsonld = decoded;"
+        + "  } catch(e) { console.error('Graph injection error:', e); }"
+        + "})();";
 
     executeScriptSafe(script);
-  }
-
-  public void setShowEdgeLabels(boolean show) {
-    executeScriptSafe("document.getElementById('myGraph').setShowEdgeLabels(" + show + ");");
   }
 
   /** Resets the graph layout to its initial state. */
@@ -226,8 +230,9 @@ public class GraphDisplayWidget extends VBox {
   }
 
   private void updateTheme() {
-    if (!pageLoaded) return;
-    
+    if (!pageLoaded)
+      return;
+
     ThemeManager tm = ThemeManager.getInstance();
     boolean isDark = false;
     String themeName = "default";
@@ -243,10 +248,9 @@ public class GraphDisplayWidget extends VBox {
     Color accent = tm.getAccentColor();
     String hexAccent = CssUtils.toHex(accent);
 
-    String script =
-        String.format(
-            "if(window.setTheme) window.setTheme(%b, '%s', '%s');", isDark, hexAccent, themeName);
-    
+    String script = String.format(
+        "if(window.setTheme) window.setTheme(%b, '%s', '%s');", isDark, hexAccent, themeName);
+
     executeScriptSafe(script);
   }
 
@@ -279,42 +283,41 @@ public class GraphDisplayWidget extends VBox {
     try {
       Object result = webEngine.executeScript(
           "(function() {" +
-          "  var el = document.getElementById('myGraph');" +
-          "  if (!el || !el.shadowRoot) return null;" +
-          "  var svg = el.shadowRoot.querySelector('svg');" +
-          "  if (!svg) return null;" +
-          "  var clone = svg.cloneNode(true);" +
-          "  try {" +
-          "    var bbox = svg.getBBox();" +
-          "    var padding = 40;" +
-          "    var x = bbox.x - padding;" +
-          "    var y = bbox.y - padding;" +
-          "    var width = bbox.width + 2 * padding;" +
-          "    var height = bbox.height + 2 * padding;" +
-          "    clone.setAttribute('viewBox', x + ' ' + y + ' ' + width + ' ' + height);" +
-          "    clone.setAttribute('width', width);" +
-          "    clone.setAttribute('height', height);" +
-          "    var bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');" +
-          "    bg.setAttribute('x', x);" +
-          "    bg.setAttribute('y', y);" +
-          "    bg.setAttribute('width', width);" +
-          "    bg.setAttribute('height', height);" +
-          "    bg.setAttribute('fill', 'white');" +
-          "    clone.insertBefore(bg, clone.firstChild);" +
-          "  } catch(e) {" +
-          "    console.warn('Could not adjust SVG bounds:', e);" +
-          "  }" +
-          "  var serializer = new XMLSerializer();" +
-          "  return serializer.serializeToString(clone);" +
-          "})();"
-      );
+              "  var el = document.getElementById('myGraph');" +
+              "  if (!el || !el.shadowRoot) return null;" +
+              "  var svg = el.shadowRoot.querySelector('svg');" +
+              "  if (!svg) return null;" +
+              "  var clone = svg.cloneNode(true);" +
+              "  try {" +
+              "    var bbox = svg.getBBox();" +
+              "    var padding = 40;" +
+              "    var x = bbox.x - padding;" +
+              "    var y = bbox.y - padding;" +
+              "    var width = bbox.width + 2 * padding;" +
+              "    var height = bbox.height + 2 * padding;" +
+              "    clone.setAttribute('viewBox', x + ' ' + y + ' ' + width + ' ' + height);" +
+              "    clone.setAttribute('width', width);" +
+              "    clone.setAttribute('height', height);" +
+              "    var bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');" +
+              "    bg.setAttribute('x', x);" +
+              "    bg.setAttribute('y', y);" +
+              "    bg.setAttribute('width', width);" +
+              "    bg.setAttribute('height', height);" +
+              "    bg.setAttribute('fill', 'white');" +
+              "    clone.insertBefore(bg, clone.firstChild);" +
+              "  } catch(e) {" +
+              "    console.warn('Could not adjust SVG bounds:', e);" +
+              "  }" +
+              "  var serializer = new XMLSerializer();" +
+              "  return serializer.serializeToString(clone);" +
+              "})();");
       return result != null ? result.toString() : null;
     } catch (Exception e) {
       logger.error("Error getting SVG content: {}", e.getMessage(), e);
       return null;
     }
   }
-  
+
   /**
    * Bridge class for communication from JavaScript to Java.
    * Exposed as 'window.bridge' in the WebView environment.

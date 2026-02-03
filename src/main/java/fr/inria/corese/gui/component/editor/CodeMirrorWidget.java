@@ -7,7 +7,9 @@ import fr.inria.corese.gui.utils.ThemeManager;
 import java.net.URL;
 import javafx.application.Platform;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.concurrent.Worker;
@@ -18,6 +20,8 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
+import netscape.javascript.JSObject;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +39,7 @@ public class CodeMirrorWidget extends VBox {
 
   // Constants
   private static final String DEFAULT_EDITOR_HTML_PATH = "/editor/code-editor.html";
-  private static final String DEFAULT_MODE = "text/plain";
+  private static final SerializationFormat DEFAULT_MODE = SerializationFormat.TEXT;
 
   // Zoom Constants
   private static final double MIN_ZOOM = 0.5;
@@ -49,7 +53,7 @@ public class CodeMirrorWidget extends VBox {
 
   // Properties
   private final StringProperty contentProperty = new SimpleStringProperty("");
-  private final StringProperty modeProperty = new SimpleStringProperty(DEFAULT_MODE);
+  private final ObjectProperty<SerializationFormat> modeProperty = new SimpleObjectProperty<>(DEFAULT_MODE);
   private final DoubleProperty zoomProperty = new SimpleDoubleProperty(DEFAULT_ZOOM);
 
   // Bridge
@@ -191,8 +195,7 @@ public class CodeMirrorWidget extends VBox {
     try {
       // Inject Java Bridge into JavaScript
       // Using deprecated JSObject as there's no official alternative yet
-      netscape.javascript.JSObject window = 
-          (netscape.javascript.JSObject) webEngine.executeScript("window");
+      JSObject window = (JSObject) webEngine.executeScript("window");
       window.setMember("bridge", bridge);
       initialized = true;
 
@@ -249,7 +252,7 @@ public class CodeMirrorWidget extends VBox {
     // Basic escaping strategy (No external dependencies)
     String escapedContent = content
         .replace("\\", "\\\\") // Escape backslashes first!
-        .replace("'", "\\'") // Escape single quotes
+        .replace("'", "'\\") // Escape single quotes
         .replace("\n", "\\n") // Escape newlines
         .replace("\r", "\\r"); // Escape carriage returns
 
@@ -260,7 +263,8 @@ public class CodeMirrorWidget extends VBox {
     executeScriptSafe(script);
   }
 
-  private void applyMode(String mode) {
+  private void applyMode(SerializationFormat format) {
+    String mode = format != null ? format.getCodeMirrorMode() : "text/plain";
     String script = String.format("if(window.setMode) window.setMode('%s');", mode);
     executeScriptSafe(script);
   }
@@ -313,22 +317,14 @@ public class CodeMirrorWidget extends VBox {
    * @param format The serialization format to set the mode for
    */
   public void setMode(SerializationFormat format) {
-    if (format != null) {
-      Platform.runLater(() -> modeProperty.set(format.getCodeMirrorMode()));
-    }
+    modeProperty.set(format);
   }
 
   /**
-   * Gets the current editor mode.
+   * Gets the content property of the editor.
    * 
-   * @return The current mode of the editor
+   * @return The content property
    */
-  public StringProperty modeProperty() {
-    return modeProperty;
-  }
-
-
-
   public StringProperty contentProperty() {
     return contentProperty;
   }
@@ -345,17 +341,9 @@ public class CodeMirrorWidget extends VBox {
     setZoom(zoomProperty.get() - ZOOM_STEP);
   }
 
-  public void resetZoom() {
-    setZoom(DEFAULT_ZOOM);
-  }
-
-  public void setZoom(double value) {
+  private void setZoom(double value) {
     double clamped = Math.clamp(value, MIN_ZOOM, MAX_ZOOM);
     zoomProperty.set(clamped);
-  }
-
-  public DoubleProperty zoomProperty() {
-    return zoomProperty;
   }
 
   // ==============================================================================================

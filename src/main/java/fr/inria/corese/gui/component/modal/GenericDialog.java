@@ -17,12 +17,13 @@ import javafx.scene.layout.VBox;
 /**
  * A generic, clean dialog layout for use with {@link ModalManager}.
  *
- * <p>Features:
+ * <p>
+ * Features:
  *
  * <ul>
- *   <li>Title bar with close button
- *   <li>Content area
- *   <li>Action button bar (optional)
+ * <li>Title bar with close button
+ * <li>Content area
+ * <li>Action button bar (optional)
  * </ul>
  */
 public class GenericDialog extends VBox {
@@ -44,9 +45,8 @@ public class GenericDialog extends VBox {
     HBox.setHgrow(spacer, Priority.ALWAYS);
 
     // Close button: Icon only
-    IconButtonWidget closeBtn =
-        new IconButtonWidget(
-            new ButtonConfig(ButtonIcon.CLOSE_WINDOW, "Close", ModalManager.getInstance()::hide));
+    IconButtonWidget closeBtn = new IconButtonWidget(
+        new ButtonConfig(ButtonIcon.CLOSE_WINDOW, "Close", ModalManager.getInstance()::hide));
 
     HBox header = new HBox(titleLabel, spacer, closeBtn);
     header.setAlignment(Pos.CENTER_LEFT);

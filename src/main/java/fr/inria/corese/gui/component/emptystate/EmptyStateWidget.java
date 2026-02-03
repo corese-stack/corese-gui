@@ -12,7 +12,9 @@ import org.kordamp.ikonli.javafx.FontIcon;
 /**
  * A generic reusable widget for displaying an empty or initial state in the UI.
  *
- * <p>This widget typically displays a large centered icon, a descriptive message, and optional
+ * <p>
+ * This widget typically displays a large centered icon, a descriptive message,
+ * and optional
  * action buttons (e.g., "Create New", "Load File").
  */
 public class EmptyStateWidget extends VBox {
@@ -41,10 +43,10 @@ public class EmptyStateWidget extends VBox {
   /**
    * Constructs a new EmptyStateWidget.
    *
-   * @param icon The icon to display (from Ikonli).
-   * @param title The main title text (large, bold).
+   * @param icon        The icon to display (from Ikonli).
+   * @param title       The main title text (large, bold).
    * @param description The secondary description text (smaller).
-   * @param buttons Optional action buttons to display below the message.
+   * @param buttons     Optional action buttons to display below the message.
    */
   public EmptyStateWidget(Ikon icon, String title, String description, Node... buttons) {
     this.iconView = new FontIcon(icon);
@@ -69,8 +71,8 @@ public class EmptyStateWidget extends VBox {
   /**
    * Helper to create a standard button for the empty state view.
    *
-   * @param text The button text.
-   * @param icon The button icon (can be null).
+   * @param text   The button text.
+   * @param icon   The button icon (can be null).
    * @param action The action to run on click.
    * @return A configured Button.
    */

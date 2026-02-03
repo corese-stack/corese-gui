@@ -196,10 +196,6 @@ public class ResultController {
       }
   }
 
-  public void clearAll() {
-    clearResults();
-  }
-
   public void clearResults() {
     if (textController != null) textController.clearContent();
     if (tableController != null) tableController.clear();
