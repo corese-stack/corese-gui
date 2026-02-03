@@ -3,7 +3,7 @@ package fr.inria.corese.gui.feature.result.table;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.view.AbstractView;
-import fr.inria.corese.gui.component.pagination.TablePaginationBar;
+import fr.inria.corese.gui.component.pagination.TablePaginationWidget;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -19,7 +19,7 @@ import javafx.scene.layout.BorderPane;
  * <p>This view comprises:
  * <ul>
  *   <li>A {@link TableView} for displaying data rows.
- *   <li>A {@link TablePaginationBar} for navigation and configuration.
+ *   <li>A {@link TablePaginationWidget} for navigation and configuration.
  *   <li>A {@link ToolbarWidget} for actions.
  * </ul>
  * 
@@ -32,7 +32,7 @@ public class TableResultView extends AbstractView {
     private static final int SCROLLBAR_MARGIN = 20;
 
     private final TableView<String[]> tableView;
-    private final TablePaginationBar paginationBar;
+    private final TablePaginationWidget paginationBar;
     private final ToolbarWidget toolbarWidget;
     
     private int currentPageIndex = 0;
@@ -47,7 +47,7 @@ public class TableResultView extends AbstractView {
         super(new BorderPane(), STYLESHEET);
 
         this.tableView = new TableView<>();
-        this.paginationBar = new TablePaginationBar(pageChangeHandler);
+        this.paginationBar = new TablePaginationWidget(pageChangeHandler);
         this.toolbarWidget = new ToolbarWidget();
 
         setupLayout();
