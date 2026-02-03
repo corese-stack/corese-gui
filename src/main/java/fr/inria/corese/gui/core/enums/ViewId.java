@@ -10,14 +10,7 @@ import fr.inria.corese.gui.feature.settings.SettingsModel;
 import fr.inria.corese.gui.feature.settings.SettingsView;
 import fr.inria.corese.gui.feature.validation.ValidationController;
 import fr.inria.corese.gui.feature.validation.ValidationView;
-
-
-
-
-
-
 import java.util.function.Supplier;
-
 
 /**
  * Enumerates all available views in the Corese-GUI application.
@@ -49,37 +42,48 @@ import java.util.function.Supplier;
  */
 public enum ViewId {
 
-    // ====== Defined Application Views ==========================================
+  // ====== Defined Application Views ==========================================
 
   /** View displaying dataset loading and management features. */
-  DATA("data-view", null, () -> {
-    DataView view = new DataView();
-    new DataViewController(view);
-    return view;
-  }),
+  DATA(
+      "data-view",
+      null,
+      () -> {
+        DataView view = new DataView();
+        new DataViewController(view);
+        return view;
+      }),
 
   /** View for writing and executing SPARQL queries. */
-
-  QUERY("query-view", null, () -> {
-    QueryView view = new QueryView();
-    new QueryViewController(view);
-    return view;
-  }),
+  QUERY(
+      "query-view",
+      null,
+      () -> {
+        QueryView view = new QueryView();
+        new QueryViewController(view);
+        return view;
+      }),
 
   /** View for validating RDF data (e.g., SHACL). */
-  VALIDATION("validation-view", null, () -> {
-    ValidationView view = new ValidationView();
-    new ValidationController(view);
-    return view;
-  }),
+  VALIDATION(
+      "validation-view",
+      null,
+      () -> {
+        ValidationView view = new ValidationView();
+        new ValidationController(view);
+        return view;
+      }),
 
   /** Application configuration and preferences view. */
-  SETTINGS("settings-view", null, () -> {
-    SettingsModel model = new SettingsModel();
-    SettingsView view = new SettingsView();
-    new SettingsController(model, view);
-    return view;
-  });
+  SETTINGS(
+      "settings-view",
+      null,
+      () -> {
+        SettingsModel model = new SettingsModel();
+        SettingsView view = new SettingsView();
+        new SettingsController(model, view);
+        return view;
+      });
 
   // ===========================================================================
   // Fields

@@ -1,13 +1,5 @@
 package fr.inria.corese.gui.core.config;
 
-import fr.inria.corese.gui.feature.result.ResultController;
-import fr.inria.corese.gui.feature.result.ResultView;
-
-
-
-
-
-
 
 import java.util.EnumSet;
 import java.util.Set;
@@ -15,8 +7,8 @@ import java.util.Set;
 /**
  * Configuration for which tabs should be displayed in the ResultView.
  *
- * <p>This class provides a declarative way to specify which result tabs are available,
- * making ResultController truly generic and context-agnostic.
+ * <p>This class provides a declarative way to specify which result tabs are available, making
+ * ResultController truly generic and context-agnostic.
  *
  * <p><b>Usage examples:</b>
  *
@@ -111,11 +103,7 @@ public class ResultViewConfig {
    * @return Configuration with all tabs
    */
   public static ResultViewConfig allTabs() {
-    return builder()
-        .withTextTab()
-        .withTableTab()
-        .withGraphTab()
-        .build();
+    return builder().withTextTab().withTableTab().withGraphTab().build();
   }
 
   /** Builder for ResultViewConfig. */
