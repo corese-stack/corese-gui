@@ -36,6 +36,14 @@ class KGGraphVis extends HTMLElement {
         // Graph coloring
         this.graphColorMap = new Map();
         this.defaultGraphColor = '#6B7280';
+
+        // Performance optimization
+        this.MAX_NODES = 1000;  // Maximum nodes to display
+        this.MAX_LINKS = 2000;  // Maximum links to display
+        this.TICK_THROTTLE = 16; // ~60fps throttle for ticked()
+        this.lastTickTime = 0;
+        this.simulationStopped = false;
+        this.AUTO_STOP_ALPHA = 0.005; // Alpha threshold for auto-stabilize (very low)
     }
 
     /* -------------------------------------------------------------
@@ -58,7 +66,8 @@ class KGGraphVis extends HTMLElement {
      */
     reset() {
         if (this.simulation) {
-            this.simulation.alpha(1).restart();
+            this.simulationStopped = false;
+            this.simulation.alphaTarget(0).alpha(1).restart();
         }
     }
 
@@ -396,7 +405,49 @@ class KGGraphVis extends HTMLElement {
         const data = Array.isArray(root) ? root : [root];
         data.forEach(d => processItem(d, 'default'));
 
+        // Performance optimization: Sample large graphs
+        if (graph.nodes.length > this.MAX_NODES) {
+            console.warn(`Graph has ${graph.nodes.length} nodes. Sampling to ${this.MAX_NODES} for performance.`);
+            graph = this.sampleGraph(graph);
+        }
+
         return graph;
+    }
+
+    /**
+     * Sample a large graph to a manageable size while preserving structure.
+     * Uses degree-based importance sampling.
+     * @param {Object} graph - The full graph.
+     * @returns {Object} Sampled graph.
+     */
+    sampleGraph(graph) {
+        // Calculate node degrees (importance)
+        const nodeDegree = new Map();
+        graph.nodes.forEach(n => nodeDegree.set(n.id, 0));
+        graph.links.forEach(l => {
+            const src = typeof l.source === 'object' ? l.source.id : l.source;
+            const tgt = typeof l.target === 'object' ? l.target.id : l.target;
+            nodeDegree.set(src, (nodeDegree.get(src) || 0) + 1);
+            nodeDegree.set(tgt, (nodeDegree.get(tgt) || 0) + 1);
+        });
+
+        // Sort by degree and take top nodes
+        const sortedNodes = [...graph.nodes].sort((a, b) => 
+            (nodeDegree.get(b.id) || 0) - (nodeDegree.get(a.id) || 0)
+        );
+        const selectedNodes = new Set(sortedNodes.slice(0, this.MAX_NODES).map(n => n.id));
+
+        // Filter links to only include selected nodes
+        const sampledLinks = graph.links.filter(l => {
+            const src = typeof l.source === 'object' ? l.source.id : l.source;
+            const tgt = typeof l.target === 'object' ? l.target.id : l.target;
+            return selectedNodes.has(src) && selectedNodes.has(tgt);
+        }).slice(0, this.MAX_LINKS);
+
+        return {
+            nodes: sortedNodes.slice(0, this.MAX_NODES),
+            links: sampledLinks
+        };
     }
 
     /* -------------------------------------------------------------
@@ -444,13 +495,29 @@ class KGGraphVis extends HTMLElement {
     renderGraph() {
         const self = this;
 
-        // Force Simulation Configuration
+        // Force Simulation Configuration with adaptive strength for large graphs
+        const nodeCount = this.graph.nodes.length;
+        const isLargeGraph = nodeCount > 200;
+        
+        // Adjust forces based on graph size
+        const chargeStrength = isLargeGraph ? -800 : -1500;
+        const linkDistance = isLargeGraph ? 100 : 160;
+        const collisionRadius = isLargeGraph ? 30 : 45;
+        
         this.simulation = d3.forceSimulation(this.graph.nodes)
-            .force("link", d3.forceLink(this.graph.links).id(d => d.id).distance(160))
-            .force("charge", d3.forceManyBody().strength(-1500))
+            .force("link", d3.forceLink(this.graph.links).id(d => d.id).distance(linkDistance))
+            .force("charge", d3.forceManyBody().strength(chargeStrength))
             .force("center", d3.forceCenter(this.width / 2, this.height / 2))
-            .force("collision", d3.forceCollide().radius(45))
-            .on("tick", () => this.ticked());
+            .force("collision", d3.forceCollide().radius(collisionRadius))
+            .alphaDecay(isLargeGraph ? 0.05 : 0.0228) // Faster convergence for large graphs
+            .velocityDecay(isLargeGraph ? 0.5 : 0.4) // More damping for large graphs
+            .on("tick", () => this.tickedThrottled())
+            .on("end", () => {
+                this.simulationStopped = true;
+                console.log('Simulation stopped naturally');
+            });
+        
+        this.simulationStopped = false;
 
         // Zoom Layer
         const gZoom = this.svg.append("g").attr("class", "zoom-layer");
@@ -545,7 +612,13 @@ class KGGraphVis extends HTMLElement {
                 return null;
             });
 
-        // Draw Edge Labels
+        // Draw Edge Labels (disable for large graphs for performance)
+        const autoDisableLabels = this.graph.nodes.length > 300;
+        if (autoDisableLabels && this.showEdgeLabels) {
+            console.log('Auto-disabling edge labels for large graph performance');
+            this.showEdgeLabels = false;
+        }
+        
         this.linkLabelSelection = labelGroup.selectAll("text")
             .data(this.graph.links).enter().append("text")
             .attr("class", "edge-label")
@@ -561,7 +634,10 @@ class KGGraphVis extends HTMLElement {
             .data(this.graph.nodes).enter().append("g")
             .call(d3.drag()
                 .on("start", function (d) {
-                    if (!d3.event.active) self.simulation.alphaTarget(0.3).restart();
+                    if (!d3.event.active) {
+                        self.simulationStopped = false; // Re-enable ticking when dragging
+                        self.simulation.alphaTarget(0.3).restart();
+                    }
                     d.fx = d.x;
                     d.fy = d.y;
                 })
@@ -570,7 +646,9 @@ class KGGraphVis extends HTMLElement {
                     d.fy = d3.event.y;
                 })
                 .on("end", function (d) {
-                    if (!d3.event.active) self.simulation.alphaTarget(0);
+                    if (!d3.event.active) {
+                        self.simulation.alphaTarget(0);
+                    }
                     d.fx = null;
                     d.fy = null;
                 }));
@@ -677,6 +755,26 @@ class KGGraphVis extends HTMLElement {
     }
 
     /**
+     * Throttled tick function to limit redraws for performance.
+     */
+    tickedThrottled() {
+        const now = performance.now();
+        if (now - this.lastTickTime < this.TICK_THROTTLE) {
+            return; // Skip this tick
+        }
+        this.lastTickTime = now;
+
+        // Auto-stabilize simulation when converged to save CPU (but keep it alive)
+        if (this.simulation && this.simulation.alpha() < this.AUTO_STOP_ALPHA && !this.simulationStopped) {
+            console.log('Simulation stabilized, reducing CPU usage');
+            this.simulation.alphaTarget(0); // Set target to 0 but don't stop
+            this.simulationStopped = true;
+        }
+
+        this.ticked();
+    }
+
+    /**
      * Animation tick function.
      * Updates SVG element positions based on simulation data.
      */
@@ -691,19 +789,23 @@ class KGGraphVis extends HTMLElement {
                 return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
             });
 
-            // Update Gradients
-            this.linkSelection.each(function (d) {
-                if (d.gradientId && hasPos(d.source) && hasPos(d.target)) {
-                    const gradient = self.svg.select(`#${d.gradientId}`);
-                    if (!gradient.empty()) {
-                        gradient
-                            .attr("x1", d.source.x)
-                            .attr("y1", d.source.y)
-                            .attr("x2", d.target.x)
-                            .attr("y2", d.target.y);
+            // Update Gradients (throttled for performance)
+            // Only update every 3rd tick for large graphs
+            const shouldUpdateGradients = this.graph.nodes.length < 200 || (this.lastTickTime % 48) < this.TICK_THROTTLE;
+            if (shouldUpdateGradients) {
+                this.linkSelection.each(function (d) {
+                    if (d.gradientId && hasPos(d.source) && hasPos(d.target)) {
+                        const gradient = self.svg.select(`#${d.gradientId}`);
+                        if (!gradient.empty()) {
+                            gradient
+                                .attr("x1", d.source.x)
+                                .attr("y1", d.source.y)
+                                .attr("x2", d.target.x)
+                                .attr("y2", d.target.y);
+                        }
                     }
-                }
-            });
+                });
+            }
         }
 
         // Update Nodes
