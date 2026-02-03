@@ -692,9 +692,10 @@ class KGGraphVis extends HTMLElement {
         let tooltipMoveTimer = null;
         const throttleTooltip = (callback, delay = 16) => { // ~60fps
             return function(...args) {
+                const event = d3.event; // Capture event
                 if (!tooltipMoveTimer) {
                     tooltipMoveTimer = setTimeout(() => {
-                        callback.apply(this, args);
+                        callback.apply(this, [event, ...args]); // Pass event to callback
                         tooltipMoveTimer = null;
                     }, delay);
                 }
@@ -733,12 +734,11 @@ class KGGraphVis extends HTMLElement {
                 tooltip.style("opacity", 1).html(content);
                 
                 // Attach mousemove only when hovering over node
-                d3.select(this).on("mousemove", throttleTooltip(function() {
-                    const evt = d3.event || window.event;
-                    if (evt && evt.pageX !== undefined && evt.pageY !== undefined) {
+                d3.select(this).on("mousemove", throttleTooltip((event) => {
+                    if (event && event.pageX !== undefined && event.pageY !== undefined) {
                         tooltip
-                            .style("left", (evt.pageX + 15) + "px")
-                            .style("top", (evt.pageY - 10) + "px");
+                            .style("left", (event.pageX + 15) + "px")
+                            .style("top", (event.pageY - 10) + "px");
                     }
                 }));
             })
