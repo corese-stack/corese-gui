@@ -3,7 +3,7 @@ package fr.inria.corese.gui.feature.result.table;
 import fr.inria.corese.gui.component.notification.NotificationManager;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.factory.ButtonFactory;
-import fr.inria.corese.gui.core.manager.ExportManager;
+import fr.inria.corese.gui.core.adapter.ResultFormatter;
 import fr.inria.corese.gui.core.model.ValidationReportItem;
 import fr.inria.corese.gui.utils.ExportHelper;
 import java.util.ArrayList;
@@ -212,7 +212,7 @@ public class TableResultController {
     private void copyContent() {
         if (allRows.isEmpty()) return;
         
-        String content = ExportManager.getInstance().formatTableData(allRows, headers, SerializationFormat.MARKDOWN);
+        String content = ResultFormatter.getInstance().formatTable(allRows, headers, SerializationFormat.MARKDOWN);
         ClipboardContent clipboardContent = new ClipboardContent();
         clipboardContent.putString(content);
         Clipboard.getSystemClipboard().setContent(clipboardContent);
@@ -226,7 +226,7 @@ public class TableResultController {
         ExportHelper.exportResult(
             view.getRoot().getScene().getWindow(),
             Arrays.asList(SerializationFormat.CSV, SerializationFormat.MARKDOWN),
-            format -> ExportManager.getInstance().formatTableData(allRows, headers, format)
+            format -> ResultFormatter.getInstance().formatTable(allRows, headers, format)
         );
     }
 

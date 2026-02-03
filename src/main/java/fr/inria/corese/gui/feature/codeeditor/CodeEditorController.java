@@ -6,7 +6,7 @@ import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.core.factory.ButtonFactory;
-import fr.inria.corese.gui.core.manager.RdfSyntaxManager;
+import fr.inria.corese.gui.core.adapter.RdfSyntaxService;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -392,8 +392,8 @@ public class CodeEditorController {
     }
 
     // Validate before export logic (simulating validation check)
-    RdfSyntaxManager.SyntaxCheckResult result =
-        RdfSyntaxManager.getInstance().validateTurtle(content);
+    RdfSyntaxService.SyntaxCheckResult result =
+        RdfSyntaxService.getInstance().validateTurtle(content);
     if (result.isValid()) {
       // If parse succeeds, proceed to export (stub for now)
       DialogHelper.showInformation(

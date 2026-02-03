@@ -1,8 +1,9 @@
 package fr.inria.corese.gui.feature.validation;
 
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-import fr.inria.corese.gui.core.manager.CoreseGraphManager;
-import fr.inria.corese.gui.core.manager.ShaclManager;
+import fr.inria.corese.gui.core.adapter.GraphStore;
+import fr.inria.corese.gui.core.adapter.ShaclService;
+import fr.inria.corese.gui.core.model.ValidationResult;
 import fr.inria.corese.gui.core.model.ValidationReportItem;
 import java.util.List;
 
@@ -25,8 +26,8 @@ public class ValidationModel {
      *
      * @return true if data is loaded, false otherwise.
      */
-    public boolean isDataLoaded() {
-        return CoreseGraphManager.getInstance().isDataLoaded();
+    public boolean hasData() {
+        return GraphStore.getInstance().hasData();
     }
 
     /**
@@ -37,9 +38,9 @@ public class ValidationModel {
      */
     public ValidationResult validate(String shapesContent) {
         if (this.lastResult != null) {
-            ShaclManager.getInstance().releaseReport(this.lastResult.getReportId());
+            ShaclService.getInstance().releaseReport(this.lastResult.getReportId());
         }
-        this.lastResult = ShaclManager.getInstance().validate(shapesContent);
+        this.lastResult = ShaclService.getInstance().validateShapes(shapesContent);
         return this.lastResult;
     }
 
@@ -53,7 +54,7 @@ public class ValidationModel {
         if (lastResult == null || lastResult.getReportId() == null) {
             return null;
         }
-        return ShaclManager.getInstance().formatReport(
+        return ShaclService.getInstance().formatReport(
             lastResult.getReportId(),
             SerializationFormat.fromString(format)
         );
@@ -68,7 +69,7 @@ public class ValidationModel {
         if (lastResult == null || lastResult.getReportId() == null) {
             return List.of();
         }
-        return ShaclManager.getInstance().extractReportItems(lastResult.getReportId());
+        return ShaclService.getInstance().extractReportItems(lastResult.getReportId());
     }
 
     /**
@@ -83,7 +84,7 @@ public class ValidationModel {
     /** Releases cached validation report resources. */
     public void dispose() {
         if (lastResult != null) {
-            ShaclManager.getInstance().releaseReport(lastResult.getReportId());
+            ShaclService.getInstance().releaseReport(lastResult.getReportId());
             lastResult = null;
         }
     }

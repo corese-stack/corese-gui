@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.core.manager;
+package fr.inria.corese.gui.core.adapter;
 
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.kgram.core.Mappings;
@@ -7,7 +7,7 @@ import fr.inria.corese.core.query.QueryProcess;
 import fr.inria.corese.core.shacl.Shacl;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.model.ValidationReportItem;
-import fr.inria.corese.gui.feature.validation.ValidationResult;
+import fr.inria.corese.gui.core.model.ValidationResult;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -19,21 +19,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Manager for SHACL validation operations.
+ * Service for SHACL validation operations.
  * Handles the interaction with Corese SHACL validator and result formatting.
  */
-public class ShaclManager {
-  private static final Logger logger = LoggerFactory.getLogger(ShaclManager.class);
+public class ShaclService {
+  private static final Logger logger = LoggerFactory.getLogger(ShaclService.class);
 
-  private static ShaclManager instance;
+  private static ShaclService instance;
 
   private final Map<String, Graph> reportCache = new ConcurrentHashMap<>();
 
-  private ShaclManager() {}
+  private ShaclService() {}
 
-  public static synchronized ShaclManager getInstance() {
+  public static synchronized ShaclService getInstance() {
     if (instance == null) {
-      instance = new ShaclManager();
+      instance = new ShaclService();
     }
     return instance;
   }
@@ -44,14 +44,14 @@ public class ShaclManager {
    * @param shapesContent The SHACL shapes in Turtle format.
    * @return The result of the validation.
    */
-  public ValidationResult validate(String shapesContent) {
+  public ValidationResult validateShapes(String shapesContent) {
     try {
       if (shapesContent == null || shapesContent.isBlank()) {
         return new ValidationResult(false, null, "Validation Error: Shapes content is empty.");
       }
 
-      // Get the data graph from the manager
-      Graph dataGraph = CoreseGraphManager.getInstance().getGraph();
+      // Get the data graph from the store
+      Graph dataGraph = GraphStore.getInstance().getGraph();
 
       Graph shapeGraph = Graph.create();
       Load.create(shapeGraph)
@@ -89,7 +89,7 @@ public class ShaclManager {
     if (format == null) {
       return "Error: Unsupported format for report export.";
     }
-    return ExportManager.getInstance().formatGraph(reportGraph, format);
+    return ResultFormatter.getInstance().formatGraph(reportGraph, format);
   }
 
   /**

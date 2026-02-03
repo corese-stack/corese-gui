@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.feature.validation;
+package fr.inria.corese.gui.core.model;
 
 /**
  * Represents the result of a SHACL validation execution.

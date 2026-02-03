@@ -6,7 +6,7 @@ import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.core.enums.QueryType;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-import fr.inria.corese.gui.core.manager.QueryManager;
+import fr.inria.corese.gui.core.adapter.QueryService;
 import fr.inria.corese.gui.core.model.QueryResultRef;
 import fr.inria.corese.gui.feature.codeeditor.CodeEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
@@ -28,14 +28,14 @@ import org.slf4j.LoggerFactory;
  * Controller for the Query feature.
  *
  * <p>Orchestrates the query editing and execution workflow. It embeds a {@link TabEditorController}
- * for the editor interface and manages the interaction with the {@link QueryManager} for execution.
+ * for the editor interface and manages the interaction with the {@link QueryService} for execution.
  */
 public class QueryViewController {
 
     private static final Logger logger = LoggerFactory.getLogger(QueryViewController.class);
 
     private final QueryView view;
-    private final QueryManager stateManager = QueryManager.getInstance();
+    private final QueryService queryService = QueryService.getInstance();
     private TabEditorController tabEditorController;
     private final Map<Tab, QueryResultRef> tabResults = new HashMap<>();
 
@@ -102,7 +102,7 @@ public class QueryViewController {
                     for (Tab removedTab : c.getRemoved()) {
                         QueryResultRef ref = tabResults.remove(removedTab);
                         if (ref != null) {
-                            stateManager.releaseResult(ref.getId());
+                            queryService.releaseResult(ref.getId());
                         }
                     }
                 }
@@ -128,7 +128,7 @@ public class QueryViewController {
         final String queryContent = codeEditor.getContent();
         QueryResultRef previousRef = tabResults.remove(selectedTab);
         if (previousRef != null) {
-            stateManager.releaseResult(previousRef.getId());
+            queryService.releaseResult(previousRef.getId());
         }
 
         // Prepare UI
@@ -138,7 +138,7 @@ public class QueryViewController {
         // Execute in background
         new Thread(() -> {
             try {
-                QueryResultRef resultRef = stateManager.execute(queryContent);
+                QueryResultRef resultRef = queryService.executeQuery(queryContent);
 
                 Platform.runLater(() -> {
                     tabEditorController.setExecutionState(false);
@@ -188,14 +188,14 @@ public class QueryViewController {
         controller.configureTextFormats(SerializationFormat.sparqlResultFormats(), SerializationFormat.XML);
 
         controller.setOnFormatChanged(format -> {
-            String formattedResult = stateManager.formatResult(resultId, format.getLabel());
+            String formattedResult = queryService.formatResult(resultId, format.getLabel());
             controller.updateText(formattedResult);
         });
 
         // Default view: Table
         controller.selectTableTab();
-        controller.updateTableView(stateManager.formatResult(resultId, "CSV"));
-        controller.updateText(stateManager.formatResult(resultId, "XML"));
+        controller.updateTableView(queryService.formatResult(resultId, "CSV"));
+        controller.updateText(queryService.formatResult(resultId, "XML"));
     }
 
     private void configureForGraphResult(ResultController controller, QueryResultRef resultRef) {
@@ -204,14 +204,14 @@ public class QueryViewController {
         controller.configureTextFormats(SerializationFormat.rdfFormats(), SerializationFormat.TURTLE);
 
         controller.setOnFormatChanged(format -> {
-            String formattedResult = stateManager.formatResult(resultId, format.getLabel());
+            String formattedResult = queryService.formatResult(resultId, format.getLabel());
             controller.updateText(formattedResult);
         });
 
         // Default view: Graph
         controller.selectGraphTab();
-        controller.displayGraph(stateManager.formatResult(resultId, "JSON-LD"));
-        controller.updateText(stateManager.formatResult(resultId, "TURTLE"));
+        controller.displayGraph(queryService.formatResult(resultId, "JSON-LD"));
+        controller.updateText(queryService.formatResult(resultId, "TURTLE"));
     }
 
     // ==============================================================================================

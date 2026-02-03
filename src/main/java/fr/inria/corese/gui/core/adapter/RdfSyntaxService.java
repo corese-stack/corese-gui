@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.core.manager;
+package fr.inria.corese.gui.core.adapter;
 
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.load.Load;
@@ -6,19 +6,19 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Manager for RDF syntax validation.
+ * Service for RDF syntax validation.
  *
  * <p>Encapsulates corese-core parsing to keep GUI code independent from corese-core types.
  */
-public class RdfSyntaxManager {
+public class RdfSyntaxService {
 
-  private static RdfSyntaxManager instance;
+  private static RdfSyntaxService instance;
 
-  private RdfSyntaxManager() {}
+  private RdfSyntaxService() {}
 
-  public static synchronized RdfSyntaxManager getInstance() {
+  public static synchronized RdfSyntaxService getInstance() {
     if (instance == null) {
-      instance = new RdfSyntaxManager();
+      instance = new RdfSyntaxService();
     }
     return instance;
   }

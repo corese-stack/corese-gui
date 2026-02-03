@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.core.manager;
+package fr.inria.corese.gui.core.adapter;
 
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.kgram.core.Mappings;
@@ -15,29 +15,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Central manager for executing and caching SPARQL queries over the Corese Graph.
+ * Service for executing and caching SPARQL queries over the Corese Graph.
  *
  * <p>Implements a thread-safe singleton that: - runs queries via QueryProcess and stores a
  * QueryCacheEntry with either Mappings (SELECT/ASK) or a result Graph (CONSTRUCT/DESCRIBE); -
- * formats cached results using ExportManager; - converts external format names to Corese formats
+ * formats cached results using ResultFormatter; - converts external format names to Corese formats
  * and logs operations; - exposes results via opaque ids so the GUI never sees corese-core types.
  */
-public class QueryManager {
-  private static final Logger logger = LoggerFactory.getLogger(QueryManager.class);
+public class QueryService {
+  private static final Logger logger = LoggerFactory.getLogger(QueryService.class);
 
-  private static QueryManager instance;
+  private static QueryService instance;
 
-  private final CoreseGraphManager graphManager;
+  private final GraphStore graphStore;
 
   private final Map<String, QueryCacheEntry> queryResultCache = new ConcurrentHashMap<>();
 
-  private QueryManager() {
-    this.graphManager = CoreseGraphManager.getInstance();
+  private QueryService() {
+    this.graphStore = GraphStore.getInstance();
   }
 
-  public static synchronized QueryManager getInstance() {
+  public static synchronized QueryService getInstance() {
     if (instance == null) {
-      instance = new QueryManager();
+      instance = new QueryService();
     }
     return instance;
   }
@@ -47,9 +47,9 @@ public class QueryManager {
    *
    * <p>Returns a lightweight handle that the GUI can store without exposing corese-core types.
    */
-  public QueryResultRef execute(String query) throws Exception {
+  public QueryResultRef executeQuery(String query) throws Exception {
     try {
-      QueryProcess queryProcess = QueryProcess.create(graphManager.getGraph());
+      QueryProcess queryProcess = QueryProcess.create(graphStore.getGraph());
       Mappings mappings = queryProcess.query(query);
       ASTQuery ast = mappings.getAST();
       QueryType queryType = determineQueryTypeFromAST(ast);
@@ -92,10 +92,10 @@ public class QueryManager {
     }
 
     if (cachedEntry.getGraphResult() != null) {
-      return ExportManager.getInstance().formatGraph(cachedEntry.getGraphResult(), format);
+      return ResultFormatter.getInstance().formatGraph(cachedEntry.getGraphResult(), format);
     }
     if (cachedEntry.getMappingsResult() != null) {
-      return ExportManager.getInstance().formatMappings(cachedEntry.getMappingsResult(), format);
+      return ResultFormatter.getInstance().formatMappings(cachedEntry.getMappingsResult(), format);
     }
 
     return "";
@@ -115,7 +115,7 @@ public class QueryManager {
     return QueryType.UNKNOWN;
   }
 
-  public static class QueryCacheEntry {
+  private static class QueryCacheEntry {
     private final QueryType queryType;
     private final Mappings mappingsResult;
     private final Graph graphResult;

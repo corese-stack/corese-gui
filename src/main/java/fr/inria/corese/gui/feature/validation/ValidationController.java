@@ -3,6 +3,7 @@ package fr.inria.corese.gui.feature.validation;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
+import fr.inria.corese.gui.core.model.ValidationResult;
 import fr.inria.corese.gui.feature.result.ResultController;
 import fr.inria.corese.gui.feature.tabeditor.TabEditorConfig;
 import fr.inria.corese.gui.feature.tabeditor.TabEditorController;
@@ -123,7 +124,7 @@ public class ValidationController {
         ValidationModel model = tabModels.computeIfAbsent(selectedTab, k -> new ValidationModel());
 
         // Pre-check: Ensure data is loaded
-        if (!model.isDataLoaded()) {
+        if (!model.hasData()) {
             tabEditorController.hideResultPane();
             tabEditorController.showError(
                 "No Data Loaded",
@@ -196,7 +197,7 @@ public class ValidationController {
 
             tabEditorController.showResultPane();
 
-            // Configure tabs: Validation results have text and visual
+            // Configure tabs: Validation results have text and table
             resultController.configureTabsForResult(
                 true, // text: enabled (TURTLE/RDF/XML report)
                 true, // table: enabled (validation report table)
@@ -220,7 +221,7 @@ public class ValidationController {
                 }
             });
 
-            // Pass the report items for visualization
+            // Pass the report items for table display
             resultController.displayReportItems(model.getValidationReportItems());
         }
     }

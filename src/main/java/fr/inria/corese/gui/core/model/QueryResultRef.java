@@ -3,7 +3,7 @@ package fr.inria.corese.gui.core.model;
 import fr.inria.corese.gui.core.enums.QueryType;
 
 /**
- * Lightweight handle for a cached query result inside QueryManager.
+ * Lightweight handle for a cached query result inside QueryService.
  */
 public class QueryResultRef {
   private final String id;
