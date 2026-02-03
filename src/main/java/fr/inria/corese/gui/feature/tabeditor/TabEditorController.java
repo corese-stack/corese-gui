@@ -3,7 +3,7 @@ package fr.inria.corese.gui.feature.tabeditor;
 
 import fr.inria.corese.gui.component.button.FloatingButtonWidget;
 import fr.inria.corese.gui.component.notification.NotificationManager;
-import fr.inria.corese.gui.core.DialogHelper;
+import fr.inria.corese.gui.core.dialog.DialogService;
 import fr.inria.corese.gui.core.manager.FileLoaderService;
 import fr.inria.corese.gui.feature.codeeditor.CodeEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
@@ -270,16 +270,16 @@ public class TabEditorController {
         controller.getModel().getDisplayName(),
         result -> {
           switch (result) {
-            case DialogHelper.UnsavedChangesResult.SAVE:
+            case DialogService.UnsavedChangesResult.SAVE:
               controller.saveFile();
               if (!controller.getModel().isModified()) {
                 closeTabImmediately(tab);
               }
               break;
-            case DialogHelper.UnsavedChangesResult.DONT_SAVE:
+            case DialogService.UnsavedChangesResult.DONT_SAVE:
               closeTabImmediately(tab);
               break;
-            case DialogHelper.UnsavedChangesResult.CANCEL:
+            case DialogService.UnsavedChangesResult.CANCEL:
               // Do nothing
               break;
           }

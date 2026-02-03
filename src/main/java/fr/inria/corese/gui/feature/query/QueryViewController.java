@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.feature.query;
 
-import fr.inria.corese.gui.core.DialogHelper;
+import fr.inria.corese.gui.core.dialog.DialogService;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
@@ -151,7 +151,7 @@ public class QueryViewController {
             } catch (Exception e) {
                 Platform.runLater(() -> {
                     tabEditorController.setExecutionState(false);
-                    DialogHelper.showError("Query Execution Error", e.getMessage());
+                    DialogService.getInstance().showError("Query Execution Error", e.getMessage());
                 });
                 logger.error("Error executing query", e);
             }

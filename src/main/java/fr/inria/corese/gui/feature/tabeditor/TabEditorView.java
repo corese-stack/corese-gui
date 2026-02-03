@@ -1,7 +1,7 @@
 package fr.inria.corese.gui.feature.tabeditor;
 
 import fr.inria.corese.gui.core.view.AbstractView;
-import fr.inria.corese.gui.core.DialogHelper;
+import fr.inria.corese.gui.core.dialog.DialogService;
 import fr.inria.corese.gui.utils.TabPaneUtils;
 import fr.inria.corese.gui.utils.ThemeManager;
 
@@ -306,15 +306,15 @@ public class TabEditorView extends AbstractView {
     // ==============================================================================================
 
     public void showError(String title, String message) {
-        DialogHelper.showError(title, message);
+        DialogService.getInstance().showError(title, message);
     }
 
     public void showError(String title, String message, String details) {
-        DialogHelper.showError(title, message, details);
+        DialogService.getInstance().showError(title, message, details);
     }
 
-    public void showUnsavedChangesDialog(String fileName, Consumer<DialogHelper.UnsavedChangesResult> callback) {
-        DialogHelper.showUnsavedChangesDialog(fileName, callback);
+    public void showUnsavedChangesDialog(String fileName, Consumer<DialogService.UnsavedChangesResult> callback) {
+        DialogService.getInstance().showUnsavedChangesDialog(fileName, callback);
     }
 
     // ==============================================================================================

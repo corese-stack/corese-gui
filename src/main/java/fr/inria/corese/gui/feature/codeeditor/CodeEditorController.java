@@ -2,7 +2,7 @@ package fr.inria.corese.gui.feature.codeeditor;
 
 import fr.inria.corese.gui.component.notification.NotificationManager;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
-import fr.inria.corese.gui.core.DialogHelper;
+import fr.inria.corese.gui.core.dialog.DialogService;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.core.factory.ButtonFactory;
@@ -306,7 +306,7 @@ public class CodeEditorController {
         model.markAsSaved();
       } catch (IOException e) {
         logger.error("Failed to open file", e);
-        DialogHelper.showError("Error Opening File", e.getMessage());
+        DialogService.getInstance().showError("Error Opening File", e.getMessage());
       }
     }
   }
@@ -385,7 +385,7 @@ public class CodeEditorController {
       NotificationManager.getInstance().showSuccess("Saved: " + file.getName());
     } catch (IOException e) {
       logger.error("Save failed", e);
-      DialogHelper.showError("Save Error", "Could not save file: " + e.getMessage());
+      DialogService.getInstance().showError("Save Error", "Could not save file: " + e.getMessage());
     }
   }
 
@@ -401,10 +401,10 @@ public class CodeEditorController {
         RdfSyntaxService.getInstance().checkTurtle(content);
     if (result.valid()) {
       // If parse succeeds, proceed to export (stub for now)
-      DialogHelper.showInformation(
+      DialogService.getInstance().showInformation(
           "Export", "Content is valid RDF. Export implementation pending.");
     } else {
-      DialogHelper.showError(
+      DialogService.getInstance().showError(
           "Validation Error",
           "Content is not valid RDF/Turtle:\n" + result.message());
     }
