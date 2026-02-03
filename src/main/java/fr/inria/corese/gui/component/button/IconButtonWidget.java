@@ -8,12 +8,18 @@ import org.kordamp.ikonli.javafx.FontIcon;
 /**
  * A standard icon button component (Widget).
  *
- * <p>This widget renders an icon button with optional tooltip and action. It is based on the {@link
+ * <p>
+ * This widget renders an icon button with optional tooltip and action. It is
+ * based on the {@link
  * ButtonConfig} configuration.
  */
 public class IconButtonWidget extends Button {
 
   private static final int ICON_SIZE = 25;
+
+  // ==============================================================================================
+  // Constructor
+  // ==============================================================================================
 
   /**
    * Creates an icon button from a configuration object.
@@ -29,6 +35,10 @@ public class IconButtonWidget extends Button {
     configureTooltip(config);
     configureAction(config);
   }
+
+  // ==============================================================================================
+  // Initialization Methods
+  // ==============================================================================================
 
   private void configureIcon(ButtonConfig config) {
     FontIcon fontIcon = new FontIcon(config.getIcon().getIkon());

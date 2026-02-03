@@ -18,15 +18,17 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
-import netscape.javascript.JSObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * A JavaFX wrapper around a simple web-based text editor using WebView.
  *
- * <p>This widget provides a clean, minimal text editor powered by CodeMirror inside a WebView. It
- * handles bidirectional communication between Java and JavaScript for content, mode, and theme.
+ * <p>
+ * This widget provides a clean, minimal text editor powered by CodeMirror
+ * inside a WebView. It
+ * handles bidirectional communication between Java and JavaScript for content,
+ * mode, and theme.
  */
 public class CodeMirrorWidget extends VBox {
   private static final Logger logger = LoggerFactory.getLogger(CodeMirrorWidget.class);
@@ -81,7 +83,7 @@ public class CodeMirrorWidget extends VBox {
    * Creates a new editor with a custom resource path.
    *
    * @param editorHtmlPath path to the HTML editor resource
-   * @param readOnly true for read-only mode, false for editable
+   * @param readOnly       true for read-only mode, false for editable
    */
   public CodeMirrorWidget(String editorHtmlPath, boolean readOnly) {
     this.editorHtmlPath = editorHtmlPath;
@@ -153,13 +155,15 @@ public class CodeMirrorWidget extends VBox {
         .addListener((obs, old, newVal) -> Platform.runLater(this::updateTheme));
 
     // Mouse Scroll Zoom (Ctrl + Scroll)
-    // We attach the filter to 'this' (VBox) to intercept events before they reach the WebView
+    // We attach the filter to 'this' (VBox) to intercept events before they reach
+    // the WebView
     this.addEventFilter(
         ScrollEvent.SCROLL,
         event -> {
           if (event.isControlDown()) {
             // Adjust zoom based on scroll direction
-            // DeltaY is usually positive for scrolling up (zoom in) and negative for down (zoom
+            // DeltaY is usually positive for scrolling up (zoom in) and negative for down
+            // (zoom
             // out)
             double delta = event.getDeltaY();
             if (delta > 0) {
@@ -182,10 +186,13 @@ public class CodeMirrorWidget extends VBox {
     webEngine.load(url.toExternalForm());
   }
 
+  @SuppressWarnings("removal")
   private void onPageLoaded() {
     try {
       // Inject Java Bridge into JavaScript
-      JSObject window = (JSObject) webEngine.executeScript("window");
+      // Using deprecated JSObject as there's no official alternative yet
+      netscape.javascript.JSObject window = 
+          (netscape.javascript.JSObject) webEngine.executeScript("window");
       window.setMember("bridge", bridge);
       initialized = true;
 
@@ -215,7 +222,8 @@ public class CodeMirrorWidget extends VBox {
   // ==============================================================================================
 
   private void updateTheme() {
-    if (!initialized) return;
+    if (!initialized)
+      return;
 
     ThemeManager tm = ThemeManager.getInstance();
     boolean isDark = false;
@@ -232,26 +240,23 @@ public class CodeMirrorWidget extends VBox {
     Color accent = tm.getAccentColor();
     String hexAccent = CssUtils.toHex(accent);
 
-    String script =
-        String.format(
-            "if(window.setTheme) window.setTheme(%b, '%s', '%s');", isDark, hexAccent, themeName);
+    String script = String.format(
+        "if(window.setTheme) window.setTheme(%b, '%s', '%s');", isDark, hexAccent, themeName);
     executeScriptSafe(script);
   }
 
   private void updateEditorContent(String content) {
     // Basic escaping strategy (No external dependencies)
-    String escapedContent =
-        content
-            .replace("\\", "\\\\") // Escape backslashes first!
-            .replace("'", "\\'") // Escape single quotes
-            .replace("\n", "\\n") // Escape newlines
-            .replace("\r", "\\r"); // Escape carriage returns
+    String escapedContent = content
+        .replace("\\", "\\\\") // Escape backslashes first!
+        .replace("'", "\\'") // Escape single quotes
+        .replace("\n", "\\n") // Escape newlines
+        .replace("\r", "\\r"); // Escape carriage returns
 
     // Call the JS function defined in editor.html
-    String script =
-        "if (typeof window.setContent === 'function') { window.setContent('"
-            + escapedContent
-            + "'); }";
+    String script = "if (typeof window.setContent === 'function') { window.setContent('"
+        + escapedContent
+        + "'); }";
     executeScriptSafe(script);
   }
 
@@ -275,21 +280,34 @@ public class CodeMirrorWidget extends VBox {
   // Public API
   // ==============================================================================================
 
-  /** Sets the content of the editor. */
+  /**
+   * Sets the editor content.
+   * 
+   * @param content The new content to set
+   */
   public void setContent(String content) {
     contentProperty.set(content);
   }
 
-  /** Sets the syntax highlighting mode using a serialization format. */
+  /**
+   * Sets the editor mode based on the given serialization format.
+   * 
+   * @param format The serialization format to set the mode for
+   */
   public void setMode(SerializationFormat format) {
     if (format != null) {
       setMode(format.getCodeMirrorMode());
     }
   }
 
-  /** Sets the syntax highlighting mode (MIME type or CodeMirror mode name). */
+  /**
+   * Sets the editor mode directly.
+   * 
+   * @param mode The CodeMirror mode string
+   */
   public void setMode(String mode) {
-    if (mode == null || mode.isEmpty()) return;
+    if (mode == null || mode.isEmpty())
+      return;
     Platform.runLater(() -> modeProperty.set(mode));
   }
 
@@ -297,13 +315,12 @@ public class CodeMirrorWidget extends VBox {
     return modeProperty;
   }
 
-  /** Gets the current content of the editor. */
   public String getContent() {
-    if (!initialized) return contentProperty.get();
+    if (!initialized)
+      return contentProperty.get();
     try {
-      Object result =
-          webEngine.executeScript(
-              "typeof window.getContent === 'function' ? window.getContent() : ''");
+      Object result = webEngine.executeScript(
+          "typeof window.getContent === 'function' ? window.getContent() : ''");
       return result != null ? result.toString() : "";
     } catch (Exception e) {
       logger.error("Error retrieving content", e);
@@ -332,7 +349,7 @@ public class CodeMirrorWidget extends VBox {
   }
 
   public void setZoom(double value) {
-    double clamped = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
+    double clamped = Math.clamp(value, MIN_ZOOM, MAX_ZOOM);
     zoomProperty.set(clamped);
   }
 

@@ -3,12 +3,8 @@ package fr.inria.corese.gui.feature.tabeditor;
 import fr.inria.corese.gui.component.button.FloatingButtonWidget;
 import fr.inria.corese.gui.feature.codeeditor.CodeEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
-
-
-
-
-
-
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.control.Tab;
 
 /**
@@ -54,6 +50,9 @@ public class TabContext {
 
   /** Floating execution button for this tab. May be null if no execution configured. */
   private final FloatingButtonWidget executionButton;
+
+  /** Property indicating if an execution is currently running for this tab. */
+  private final BooleanProperty executionRunning = new SimpleBooleanProperty(false);
 
   // ===============================================================================
   // Constructor
@@ -154,6 +153,24 @@ public class TabContext {
    */
   public boolean hasExecutionButton() {
     return executionButton != null;
+  }
+
+  /**
+   * Returns the execution running property.
+   *
+   * @return the property
+   */
+  public BooleanProperty executionRunningProperty() {
+    return executionRunning;
+  }
+
+  /**
+   * Checks if execution is running.
+   *
+   * @return true if running
+   */
+  public boolean isExecutionRunning() {
+    return executionRunning.get();
   }
 
   // ===============================================================================

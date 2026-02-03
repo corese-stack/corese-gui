@@ -319,8 +319,8 @@ public class TabEditorController {
     Tab selectedTab = view.getSelectedTab();
     if (selectedTab != null) {
       TabContext context = TabContext.get(selectedTab);
-      if (context != null && context.hasExecutionButton()) {
-        context.getExecutionButton().setLoading(loading);
+      if (context != null) {
+        context.executionRunningProperty().set(loading);
       }
     }
   }
@@ -551,16 +551,6 @@ public class TabEditorController {
           }
         });
 
-    // Bind disabled state
-    BooleanBinding isEmpty =
-        Bindings.createBooleanBinding(
-            () -> {
-              String c = editorController.getModel().getContent();
-              return c == null || c.trim().isEmpty();
-            },
-            editorController.getModel().contentProperty());
-    runButton.disableProperty().bind(isEmpty.or(runButton.loadingProperty()));
-
     return runButton;
   }
 
@@ -581,6 +571,27 @@ public class TabEditorController {
           event.consume();
           requestCloseTab(tab);
         });
+
+    // Bind execution button properties
+    TabContext context = TabContext.get(tab);
+    if (context != null && context.hasExecutionButton()) {
+      BooleanBinding isEmpty =
+          Bindings.createBooleanBinding(
+              () -> {
+                String c = editorController.getModel().getContent();
+                return c == null || c.trim().isEmpty();
+              },
+              editorController.getModel().contentProperty());
+
+      // Bind loading state (visual animation)
+      context.getExecutionButton().loadingProperty().bind(context.executionRunningProperty());
+
+      // Bind disabled state (interaction)
+      context
+          .getExecutionButton()
+          .disableProperty()
+          .bind(isEmpty.or(context.executionRunningProperty()));
+    }
   }
 
   private void bindFileToEditor(CodeEditorController editorController, String filePath) {

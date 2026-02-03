@@ -128,10 +128,17 @@ public class TextResultView extends AbstractView {
     // ==============================================================================================
 
     /**
-     * Gets the currently selected format.
+     * Gets the currently selected serialization format.
      */
     public SerializationFormat getFormat() {
         return formatChoiceBox.getValue();
+    }
+
+    /**
+     * Sets the editor mode based on the given serialization format.
+     */
+    public void setMode(SerializationFormat format) {
+        editorWidget.setMode(format);
     }
 
     /**
@@ -148,12 +155,6 @@ public class TextResultView extends AbstractView {
         editorWidget.setContent(content);
     }
 
-    /**
-     * Updates the editor's syntax highlighting mode.
-     */
-    public void setMode(SerializationFormat format) {
-        editorWidget.setMode(format);
-    }
 
     public void zoomIn() {
         editorWidget.zoomIn();
