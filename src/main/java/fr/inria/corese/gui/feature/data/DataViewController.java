@@ -1,7 +1,7 @@
 package fr.inria.corese.gui.feature.data;
 
 import fr.inria.corese.gui.component.notification.NotificationManager;
-import fr.inria.corese.gui.core.adapter.GraphStore;
+import fr.inria.corese.gui.core.adapter.RdfDataService;
 import java.io.File;
 import java.util.List;
 import javafx.stage.FileChooser;
@@ -13,11 +13,11 @@ import javafx.stage.FileChooser;
 public class DataViewController {
 
     private final DataView view;
-    private final GraphStore graphStore;
+    private final RdfDataService rdfDataService;
 
     public DataViewController(DataView view) {
         this.view = view;
-        this.graphStore = GraphStore.getInstance();
+        this.rdfDataService = RdfDataService.getInstance();
         initialize();
     }
 
@@ -40,7 +40,7 @@ public class DataViewController {
 
             for (File file : files) {
                 try {
-                    graphStore.loadFile(file);
+                    rdfDataService.loadFile(file);
                     successCount++;
                 } catch (Exception ex) {
                     NotificationManager.getInstance().showError("Error loading " + file.getName() + ": " + ex.getMessage());

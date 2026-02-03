@@ -188,14 +188,17 @@ public class QueryViewController {
         controller.configureTextFormats(SerializationFormat.sparqlResultFormats(), SerializationFormat.XML);
 
         controller.setOnFormatChanged(format -> {
-            String formattedResult = queryService.formatResult(resultId, format.getLabel());
+            String formattedResult = queryService.formatResult(resultId, format);
             controller.updateText(formattedResult);
         });
+        
+        // Provide formatting capability to the table controller (for Export/Copy)
+        controller.setFormatProvider(format -> queryService.formatResult(resultId, format));
 
         // Default view: Table
         controller.selectTableTab();
-        controller.updateTableView(queryService.formatResult(resultId, "CSV"));
-        controller.updateText(queryService.formatResult(resultId, "XML"));
+        controller.updateTableView(queryService.formatResult(resultId, SerializationFormat.CSV));
+        controller.updateText(queryService.formatResult(resultId, SerializationFormat.XML));
     }
 
     private void configureForGraphResult(ResultController controller, QueryResultRef resultRef) {
@@ -204,14 +207,14 @@ public class QueryViewController {
         controller.configureTextFormats(SerializationFormat.rdfFormats(), SerializationFormat.TURTLE);
 
         controller.setOnFormatChanged(format -> {
-            String formattedResult = queryService.formatResult(resultId, format.getLabel());
+            String formattedResult = queryService.formatResult(resultId, format);
             controller.updateText(formattedResult);
         });
 
         // Default view: Graph
         controller.selectGraphTab();
-        controller.displayGraph(queryService.formatResult(resultId, "JSON-LD"));
-        controller.updateText(queryService.formatResult(resultId, "TURTLE"));
+        controller.displayGraph(queryService.formatResult(resultId, SerializationFormat.JSON_LD));
+        controller.updateText(queryService.formatResult(resultId, SerializationFormat.TURTLE));
     }
 
     // ==============================================================================================

@@ -7,251 +7,130 @@ import fr.inria.corese.core.sparql.triple.parser.ASTQuery;
 import fr.inria.corese.gui.core.enums.QueryType;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.model.QueryResultRef;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
- * Singleton service for executing and managing SPARQL queries.
+ * Service for executing SPARQL queries against the shared Corese graph.
  *
- * <p>This service:
+ * <p>This service manages the lifecycle of query execution and result caching.
+ * It provides:
  * <ul>
- *   <li>Executes SPARQL queries (SELECT, ASK, CONSTRUCT, DESCRIBE, UPDATE) on the Corese graph
- *   <li>Caches query results internally with unique identifiers
- *   <li>Formats cached results in various serialization formats
- *   <li>Provides opaque result references to GUI layer (no corese-core type exposure)
+ *   <li>Execution of SELECT, ASK, CONSTRUCT, DESCRIBE, and UPDATE queries.</li>
+ *   <li>Automatic detection of query types.</li>
+ *   <li>Caching of results to support pagination, formatting, and export without re-execution.</li>
+ *   <li>Access to formatted results via opaque result IDs.</li>
  * </ul>
- *
- * <p>Thread-safe implementation with concurrent cache management.
- *
- * @see QueryResultRef
- * @see ResultFormatter
  */
 public class QueryService {
 
-  private static final Logger logger = LoggerFactory.getLogger(QueryService.class);
+    private static final Logger logger = LoggerFactory.getLogger(QueryService.class);
+    private static final QueryService INSTANCE = new QueryService();
 
-  private static QueryService instance;
+    private final Map<String, CacheEntry> resultCache;
 
-  private final GraphStore graphStore;
-  private final Map<String, QueryCacheEntry> queryResultCache;
-
-  private QueryService() {
-    this.graphStore = GraphStore.getInstance();
-    this.queryResultCache = new ConcurrentHashMap<>();
-  }
-
-  /**
-   * Returns the singleton instance of QueryService.
-   *
-   * @return the singleton QueryService instance
-   */
-  public static synchronized QueryService getInstance() {
-    if (instance == null) {
-      instance = new QueryService();
-    }
-    return instance;
-  }
-
-  // ============================================================================================
-  // Query Execution
-  // ============================================================================================
-
-  /**
-   * Executes a SPARQL query and caches the result.
-   *
-   * <p>The query is executed against the current graph store. Results are cached
-   * internally and a lightweight reference is returned to avoid exposing corese-core types.
-   *
-   * @param query the SPARQL query string
-   * @return a {@link QueryResultRef} containing the result ID and query type
-   * @throws IllegalArgumentException if the query is null or blank
-   * @throws Exception if query execution fails
-   */
-  public QueryResultRef executeQuery(String query) throws Exception {
-    if (query == null || query.isBlank()) {
-      throw new IllegalArgumentException("Query cannot be null or blank");
+    private QueryService() {
+        this.resultCache = new ConcurrentHashMap<>();
     }
 
-    QueryProcess queryProcess = QueryProcess.create(graphStore.getGraph());
-    Mappings mappings = queryProcess.query(query);
-    ASTQuery ast = mappings.getAST();
-    QueryType queryType = determineQueryType(ast);
-
-    QueryCacheEntry cacheEntry = createCacheEntry(queryType, mappings);
-    String resultId = UUID.randomUUID().toString();
-    queryResultCache.put(resultId, cacheEntry);
-
-    logger.info("Query executed successfully (type: {}, result ID: {})", queryType, resultId);
-    return new QueryResultRef(resultId, queryType);
-  }
-
-  // ============================================================================================
-  // Result Formatting
-  // ============================================================================================
-
-  /**
-   * Formats a cached query result in the specified serialization format.
-   *
-   * <p>Validates that the format is compatible with the query type:
-   * <ul>
-   *   <li>CONSTRUCT/DESCRIBE/UPDATE require RDF formats (Turtle, RDF/XML, JSON-LD, etc.)
-   *   <li>SELECT/ASK require mapping formats (XML, JSON, CSV, TSV, Markdown)
-   * </ul>
-   *
-   * @param resultId the result identifier from {@link #executeQuery(String)}
-   * @param formatString the target format as a string
-   * @return the formatted result, or an error message if validation fails
-   */
-  public String formatResult(String resultId, String formatString) {
-    QueryCacheEntry cachedEntry = queryResultCache.get(resultId);
-    if (cachedEntry == null) {
-      return "Error: Result not found for ID: " + resultId;
+    public static QueryService getInstance() {
+        return INSTANCE;
     }
 
-    SerializationFormat format = SerializationFormat.fromString(formatString);
-    if (format == null) {
-      return "Error: Unknown serialization format: " + formatString;
-    }
-
-    // Validate format compatibility with query type
-    String validationError = validateFormatCompatibility(cachedEntry.getQueryType(), format);
-    if (validationError != null) {
-      return validationError;
-    }
-
-    // Delegate formatting to ResultFormatter
-    if (cachedEntry.getGraphResult() != null) {
-      return ResultFormatter.getInstance().formatGraph(cachedEntry.getGraphResult(), format);
-    }
-    if (cachedEntry.getMappingsResult() != null) {
-      return ResultFormatter.getInstance().formatMappings(cachedEntry.getMappingsResult(), format);
-    }
-
-    return "Error: No result data available";
-  }
-
-  /**
-   * Releases a cached query result to free memory.
-   *
-   * <p>Should be called when the result is no longer needed by the GUI.
-   *
-   * @param resultId the result identifier to release
-   */
-  public void releaseResult(String resultId) {
-    if (resultId != null) {
-      queryResultCache.remove(resultId);
-      logger.debug("Released cached result: {}", resultId);
-    }
-  }
-
-  // ============================================================================================
-  // Private Helpers
-  // ============================================================================================
-
-  /**
-   * Creates a cache entry based on query type and result.
-   */
-  private QueryCacheEntry createCacheEntry(QueryType queryType, Mappings mappings) {
-    if (queryType == QueryType.CONSTRUCT || queryType == QueryType.DESCRIBE) {
-      Graph resultGraph = (Graph) mappings.getGraph();
-      return new QueryCacheEntry(queryType, resultGraph);
-    } else {
-      return new QueryCacheEntry(queryType, mappings);
-    }
-  }
-
-  /**
-   * Determines the query type from the AST.
-   */
-  private QueryType determineQueryType(ASTQuery ast) {
-    if (ast == null) {
-      return QueryType.UNKNOWN;
-    }
-    if (ast.isUpdate()) {
-      return QueryType.UPDATE;
-    }
-    if (ast.isSelect()) {
-      return QueryType.SELECT;
-    }
-    if (ast.isConstruct()) {
-      return QueryType.CONSTRUCT;
-    }
-    if (ast.isAsk()) {
-      return QueryType.ASK;
-    }
-    if (ast.isDescribe()) {
-      return QueryType.DESCRIBE;
-    }
-    return QueryType.UNKNOWN;
-  }
-
-  /**
-   * Validates that the serialization format is compatible with the query type.
-   *
-   * @return error message if incompatible, null if valid
-   */
-  private String validateFormatCompatibility(QueryType queryType, SerializationFormat format) {
-    boolean isRdfFormat = Arrays.asList(SerializationFormat.rdfFormats()).contains(format);
-
-    if ((queryType == QueryType.CONSTRUCT || queryType == QueryType.DESCRIBE || queryType == QueryType.UPDATE)
-        && !isRdfFormat) {
-      return String.format("Error: %s is not a valid RDF format for query type %s", format, queryType);
-    }
-
-    if ((queryType == QueryType.SELECT || queryType == QueryType.ASK) && isRdfFormat) {
-      return String.format("Error: %s is not a valid mapping format for query type %s", format, queryType);
-    }
-
-    return null;
-  }
-
-  // ============================================================================================
-  // Inner Classes
-  // ============================================================================================
-
-  /**
-   * Internal cache entry for storing query results.
-   *
-   * <p>Stores either Mappings (for SELECT/ASK) or a Graph (for CONSTRUCT/DESCRIBE).
-   */
-  private static final class QueryCacheEntry {
-
-    private final QueryType queryType;
-    private final Mappings mappingsResult;
-    private final Graph graphResult;
+    // ============================================================================================
+    // Public API
+    // ============================================================================================
 
     /**
-     * Constructor for mapping results (SELECT/ASK).
+     * Executes a SPARQL query.
+     *
+     * @param queryString The SPARQL query string.
+     * @return A {@link QueryResultRef} containing the result ID and detected query type.
+     * @throws Exception If the query is invalid or execution fails.
      */
-    QueryCacheEntry(QueryType queryType, Mappings mappings) {
-      this.queryType = queryType;
-      this.mappingsResult = mappings;
-      this.graphResult = null;
+    public QueryResultRef executeQuery(String queryString) throws Exception {
+        if (queryString == null || queryString.isBlank()) {
+            throw new IllegalArgumentException("Query string cannot be empty.");
+        }
+
+        logger.debug("Executing query...");
+        Graph graph = GraphStore.getInstance().getGraph();
+        QueryProcess exec = QueryProcess.create(graph);
+        
+        Mappings mappings = exec.query(queryString);
+        ASTQuery ast = mappings.getAST();
+        
+        QueryType type = detectType(ast);
+        String id = UUID.randomUUID().toString();
+        
+        Graph resultGraph = null;
+        if (type == QueryType.CONSTRUCT || type == QueryType.DESCRIBE) {
+            Object g = mappings.getGraph();
+            if (g instanceof Graph) {
+                resultGraph = (Graph) g;
+            }
+        }
+        
+        CacheEntry entry = new CacheEntry(type, mappings, resultGraph);
+        resultCache.put(id, entry);
+        
+        logger.info("Query executed. Type: {}, ID: {}, Results: {}", type, id, mappings.size());
+        return new QueryResultRef(id, type);
     }
 
     /**
-     * Constructor for graph results (CONSTRUCT/DESCRIBE).
+     * Formats the result associated with the given ID.
+     *
+     * @param resultId The ID of the cached result.
+     * @param format   The desired serialization format.
+     * @return The formatted result string, or an error message.
      */
-    QueryCacheEntry(QueryType queryType, Graph graph) {
-      this.queryType = queryType;
-      this.mappingsResult = null;
-      this.graphResult = graph;
+    public String formatResult(String resultId, SerializationFormat format) {
+        CacheEntry entry = resultCache.get(resultId);
+        if (entry == null) {
+            return "Error: Result expired or not found (ID: " + resultId + ")";
+        }
+
+        if (entry.type == QueryType.CONSTRUCT || entry.type == QueryType.DESCRIBE) {
+            if (entry.graph == null) return "Error: No graph result available.";
+            return ResultFormatter.getInstance().formatGraph(entry.graph, format);
+        } else {
+            return ResultFormatter.getInstance().formatMappings(entry.mappings, format);
+        }
     }
 
-    QueryType getQueryType() {
-      return queryType;
+    /**
+     * Releases a cached result to free memory.
+     *
+     * @param resultId The ID of the result to release.
+     */
+    public void releaseResult(String resultId) {
+        if (resultId != null) {
+            resultCache.remove(resultId);
+            logger.debug("Released result ID: {}", resultId);
+        }
     }
 
-    Mappings getMappingsResult() {
-      return mappingsResult;
+    // ============================================================================================
+    // Internal Helpers
+    // ============================================================================================
+
+    private QueryType detectType(ASTQuery ast) {
+        if (ast == null) return QueryType.UNKNOWN;
+        if (ast.isSelect()) return QueryType.SELECT;
+        if (ast.isAsk()) return QueryType.ASK;
+        if (ast.isConstruct()) return QueryType.CONSTRUCT;
+        if (ast.isDescribe()) return QueryType.DESCRIBE;
+        if (ast.isUpdate()) return QueryType.UPDATE;
+        return QueryType.UNKNOWN;
     }
 
-    Graph getGraphResult() {
-      return graphResult;
-    }
-  }
+    /**
+     * Internal cache holder.
+     */
+    private record CacheEntry(QueryType type, Mappings mappings, Graph graph) {}
 }

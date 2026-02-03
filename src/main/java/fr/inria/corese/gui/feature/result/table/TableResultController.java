@@ -3,13 +3,12 @@ package fr.inria.corese.gui.feature.result.table;
 import fr.inria.corese.gui.component.notification.NotificationManager;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.factory.ButtonFactory;
-import fr.inria.corese.gui.core.adapter.ResultFormatter;
-import fr.inria.corese.gui.core.model.ValidationReportItem;
 import fr.inria.corese.gui.utils.ExportHelper;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.input.Clipboard;
@@ -18,12 +17,12 @@ import javafx.scene.input.ClipboardContent;
 /**
  * Controller for the tabular result view.
  *
- * <p>This class manages the interaction between the data model (SPARQL results in CSV format
- * or Validation Reports) and the {@link TableResultView}. It handles:
+ * <p>This class manages the interaction between the data model (SPARQL results in CSV format)
+ * and the {@link TableResultView}. It handles:
  * <ul>
  *   <li>Parsing raw result data (CSV) into a structured format.
  *   <li>Pagination logic (calculating pages and slicing data).
- *   <li>Handling user actions like "Copy" and "Export".
+ *   <li>Handling user actions like "Copy" and "Export" via a provided format service.
  * </ul>
  */
 public class TableResultController {
@@ -32,8 +31,10 @@ public class TableResultController {
 
     private final TableResultView view;
     private final List<String[]> allRows;
-    private String[] headers;
     private int rowsPerPage;
+    
+    // Function to request formatted content from the backend (e.g. QueryService)
+    private Function<SerializationFormat, String> formatProvider;
 
     /**
      * Creates a new TableResultController.
@@ -57,6 +58,16 @@ public class TableResultController {
         view.getRowsPerPageProperty().addListener((obs, oldVal, newVal) -> handleRowsPerPageChange(newVal));
     }
 
+    /**
+     * Sets the provider for formatting results.
+     * Used for Copy and Export actions to retrieve the full result in desired formats.
+     *
+     * @param formatProvider A function that takes a format and returns the result string.
+     */
+    public void setFormatProvider(Function<SerializationFormat, String> formatProvider) {
+        this.formatProvider = formatProvider;
+    }
+
     // ==============================================================================================
     // Logic - Data Processing
     // ==============================================================================================
@@ -69,39 +80,6 @@ public class TableResultController {
      */
     public void updateTable(String csvResult) {
         Platform.runLater(() -> parseAndPopulate(csvResult));
-    }
-
-    /**
-     * Displays a validation report in the table.
-     * Can be called from any thread.
-     *
-     * @param items The list of validation report items.
-     */
-    public void displayReport(List<ValidationReportItem> items) {
-        Platform.runLater(() -> {
-            allRows.clear();
-            view.clearTable();
-
-            if (items == null || items.isEmpty()) {
-                updatePagination(true);
-                return;
-            }
-
-            this.headers = new String[] {"Severity", "Message", "Focus Node", "Path", "Value"};
-            view.setColumns(headers);
-
-            for (ValidationReportItem item : items) {
-                allRows.add(new String[] {
-                    item.getSeverity(),
-                    item.getMessage(),
-                    item.getFocusNode(),
-                    item.getResultPath(),
-                    item.getValue()
-                });
-            }
-
-            updatePagination(true);
-        });
     }
 
     private void parseAndPopulate(String csvResult) {
@@ -121,10 +99,7 @@ public class TableResultController {
         }
 
         // First line is headers
-        // Note: usage of String.split(",") is basic and assumes no commas in values.
-        // For standard SPARQL CSV results from Corese, this is generally acceptable
-        // but replacing with a proper CSV parser is recommended if complex data is expected.
-        this.headers = lines[0].split(",", -1);
+        String[] headers = lines[0].split(",", -1);
         view.setColumns(headers);
 
         // Subsequent lines are data
@@ -140,8 +115,6 @@ public class TableResultController {
     // ==============================================================================================
 
     private void handlePageChange(int newPageIndex) {
-        // View calls this when user clicks pagination buttons.
-        // We just need to update the data displayed.
         updateTableForPage(newPageIndex);
     }
 
@@ -150,8 +123,6 @@ public class TableResultController {
             int newRowsPerPage = Integer.parseInt(newValue);
             if (newRowsPerPage > 0) {
                 this.rowsPerPage = newRowsPerPage;
-                // Recalculate pagination without resetting to page 0 if possible,
-                // but simpler to reset to ensure consistency.
                 updatePagination(true);
             }
         } catch (NumberFormatException e) {
@@ -176,11 +147,6 @@ public class TableResultController {
             view.setCurrentPageIndex(0);
             updateTableForPage(0);
         } else {
-            // If we are just resizing pages, we try to stay on a valid page.
-            // But since the view's current index might be out of sync or invalid for new page count:
-            // For now, simpler to reset to page 0 to avoid index out of bounds confusion.
-            // Ideally, we would calculate: newPageIndex = (oldPageIndex * oldRowsPerPage) / newRowsPerPage
-            // But without tracking old state explicitly, reset is safer.
             view.setCurrentPageIndex(0);
             updateTableForPage(0);
         }
@@ -193,14 +159,12 @@ public class TableResultController {
         }
 
         int fromIndex = pageIndex * rowsPerPage;
-        // Clamp fromIndex
         if (fromIndex >= allRows.size()) {
              fromIndex = 0; 
         }
         
         int toIndex = Math.min(fromIndex + rowsPerPage, allRows.size());
         
-        // Notify view of the current page index for correct row numbering
         view.setCurrentPageIndex(pageIndex);
         view.setTableData(allRows.subList(fromIndex, toIndex));
     }
@@ -212,21 +176,37 @@ public class TableResultController {
     private void copyContent() {
         if (allRows.isEmpty()) return;
         
-        String content = ResultFormatter.getInstance().formatTable(allRows, headers, SerializationFormat.MARKDOWN);
+        if (formatProvider == null) {
+            NotificationManager.getInstance().showError("Copy failed: No data provider available.");
+            return;
+        }
+
+        // Use Corese's Markdown export by default for copy
+        String content = formatProvider.apply(SerializationFormat.MARKDOWN);
+        if (content == null || content.startsWith("Error")) {
+             NotificationManager.getInstance().showError("Copy failed: " + content);
+             return;
+        }
+
         ClipboardContent clipboardContent = new ClipboardContent();
         clipboardContent.putString(content);
         Clipboard.getSystemClipboard().setContent(clipboardContent);
         
-        NotificationManager.getInstance().showSuccess("Result copied to clipboard");
+        NotificationManager.getInstance().showSuccess("Result copied to clipboard (Markdown)");
     }
 
     private void exportContent() {
         if (allRows.isEmpty()) return;
         
+        if (formatProvider == null) {
+             NotificationManager.getInstance().showError("Export failed: No data provider available.");
+             return;
+        }
+        
         ExportHelper.exportResult(
             view.getRoot().getScene().getWindow(),
-            Arrays.asList(SerializationFormat.CSV, SerializationFormat.MARKDOWN),
-            format -> ResultFormatter.getInstance().formatTable(allRows, headers, format)
+            Arrays.asList(SerializationFormat.CSV, SerializationFormat.MARKDOWN, SerializationFormat.JSON, SerializationFormat.XML, SerializationFormat.TSV),
+            formatProvider
         );
     }
 

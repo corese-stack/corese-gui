@@ -82,7 +82,7 @@ public class ValidationController {
             )
             .withResultView(
                 view.getResultToolbarButtons(),
-                ResultViewConfig.builder().withTextTab().withTableTab().build()
+                ResultViewConfig.builder().withTextTab().build()
             )
             .withEmptyState(emptyState)
             .withAllowedExtensions(List.of(
@@ -197,10 +197,10 @@ public class ValidationController {
 
             tabEditorController.showResultPane();
 
-            // Configure tabs: Validation results have text and table
+            // Configure tabs: Validation results have text only
             resultController.configureTabsForResult(
                 true, // text: enabled (TURTLE/RDF/XML report)
-                true, // table: enabled (validation report table)
+                false, // table: disabled
                 false // graph: disabled (not used for validation)
             );
 
@@ -220,9 +220,6 @@ public class ValidationController {
                     resultController.updateText(formattedReport);
                 }
             });
-
-            // Pass the report items for table display
-            resultController.displayReportItems(model.getValidationReportItems());
         }
     }
 

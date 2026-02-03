@@ -3,13 +3,13 @@ package fr.inria.corese.gui.feature.result;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-import fr.inria.corese.gui.core.model.ValidationReportItem;
 import fr.inria.corese.gui.feature.result.graph.GraphResultController;
 import fr.inria.corese.gui.feature.result.table.TableResultController;
 import fr.inria.corese.gui.feature.result.text.TextResultController;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import javafx.scene.Parent;
 
 /**
@@ -56,7 +56,6 @@ public class ResultController {
    */
   public ResultController(List<ButtonConfig> buttons, ResultViewConfig config) {
       this(config);
-      // TODO: Handle legacy buttons if necessary, or refactor callers to not pass them if unused
   }
 
   /**
@@ -89,7 +88,6 @@ public class ResultController {
     // 1. Setup Text Tab
     if (textController != null) {
       view.enableTextTab(textController.getView());
-      // The format change handler is configured by the caller via setOnFormatChanged.
     }
 
     // 2. Setup Table Tab
@@ -123,12 +121,9 @@ public class ResultController {
 
   /**
    * Dynamically configures which tabs should be visible.
-   * Note: This only hides/shows tabs if the controller was initialized with them.
    */
   public void configureTabsForResult(boolean text, boolean table, boolean graph) {
       if (text && textController != null) view.enableTextTab(textController.getView());
-      // else view.disableTextTab(); // If we had a disable method
-
       if (table && tableController != null) view.enableTableTab(tableController.getView());
       if (graph && graphController != null) view.enableGraphTab(graphController.getView());
       
@@ -191,14 +186,16 @@ public class ResultController {
           tableController.updateTable(csvData);
       }
   }
-
-  public void displayReportItems(List<ValidationReportItem> items) {
+  
+  /**
+   * Sets the content provider for the table view (used for export/copy).
+   */
+  public void setFormatProvider(Function<SerializationFormat, String> provider) {
       if (tableController != null) {
-          tableController.displayReport(items);
+          tableController.setFormatProvider(provider);
       }
   }
 
-  /** Clears all result views. */
   public void clearAll() {
     clearResults();
   }
@@ -209,15 +206,6 @@ public class ResultController {
     if (graphController != null) graphController.clear();
   }
 
-  // ==============================================================================================
-  // Public API
-  // ==============================================================================================
-
-  /**
-   * Returns the root view node of this controller.
-   *
-   * @return The Parent node (usually a TabPane wrapper).
-   */
   public Parent getViewRoot() {
     return view.getRoot();
   }

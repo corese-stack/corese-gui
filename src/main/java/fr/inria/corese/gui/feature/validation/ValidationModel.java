@@ -1,10 +1,9 @@
 package fr.inria.corese.gui.feature.validation;
 
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-import fr.inria.corese.gui.core.adapter.GraphStore;
+import fr.inria.corese.gui.core.adapter.RdfDataService;
 import fr.inria.corese.gui.core.adapter.ShaclService;
 import fr.inria.corese.gui.core.model.ValidationResult;
-import fr.inria.corese.gui.core.model.ValidationReportItem;
 import java.util.List;
 
 /**
@@ -27,7 +26,7 @@ public class ValidationModel {
      * @return true if data is loaded, false otherwise.
      */
     public boolean hasData() {
-        return GraphStore.getInstance().hasData();
+        return RdfDataService.getInstance().hasData();
     }
 
     /**
@@ -40,7 +39,7 @@ public class ValidationModel {
         if (this.lastResult != null) {
             ShaclService.getInstance().releaseReport(this.lastResult.getReportId());
         }
-        this.lastResult = ShaclService.getInstance().validateShapes(shapesContent);
+        this.lastResult = ShaclService.getInstance().validate(shapesContent);
         return this.lastResult;
     }
 
@@ -58,18 +57,6 @@ public class ValidationModel {
             lastResult.getReportId(),
             SerializationFormat.fromString(format)
         );
-    }
-
-    /**
-     * Retrieves the validation report items from the last result.
-     *
-     * @return A list of ValidationReportItem objects.
-     */
-    public List<ValidationReportItem> getValidationReportItems() {
-        if (lastResult == null || lastResult.getReportId() == null) {
-            return List.of();
-        }
-        return ShaclService.getInstance().extractReportItems(lastResult.getReportId());
     }
 
     /**

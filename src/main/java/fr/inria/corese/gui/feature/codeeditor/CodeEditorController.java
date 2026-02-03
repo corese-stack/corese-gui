@@ -197,7 +197,8 @@ public class CodeEditorController {
             || lower.contains("ask ")
             || lower.contains("describe ")
             || lower.startsWith("prefix ")
-            || lower.contains("\nprefix "))) {
+            || lower.contains("\nprefix ")))
+     {
       return "sparql";
     }
 
@@ -211,7 +212,8 @@ public class CodeEditorController {
     }
 
     // JSON
-    if (isModeAllowed("json") && (trimmed.startsWith("{") || trimmed.startsWith("["))) {
+    if (isModeAllowed("json") && (trimmed.startsWith("{") || trimmed.startsWith("[")))
+     {
       return "json";
     }
 
@@ -392,16 +394,16 @@ public class CodeEditorController {
     }
 
     // Validate before export logic (simulating validation check)
-    RdfSyntaxService.SyntaxCheckResult result =
-        RdfSyntaxService.getInstance().validateTurtle(content);
-    if (result.isValid()) {
+    RdfSyntaxService.CheckResult result =
+        RdfSyntaxService.getInstance().checkTurtle(content);
+    if (result.valid()) {
       // If parse succeeds, proceed to export (stub for now)
       DialogHelper.showInformation(
           "Export", "Content is valid RDF. Export implementation pending.");
     } else {
       DialogHelper.showError(
           "Validation Error",
-          "Content is not valid RDF/Turtle:\n" + result.getErrorMessage());
+          "Content is not valid RDF/Turtle:\n" + result.message());
     }
   }
 
