@@ -610,8 +610,22 @@ class KGGraphVis extends HTMLElement {
         // Tooltip Interaction
         // Note: #global-tooltip is outside shadow DOM
         const tooltip = d3.select("#global-tooltip");
+        
+        // Throttle function to limit mousemove frequency
+        let tooltipMoveTimer = null;
+        const throttleTooltip = (callback, delay = 16) => { // ~60fps
+            return function(...args) {
+                if (!tooltipMoveTimer) {
+                    tooltipMoveTimer = setTimeout(() => {
+                        callback.apply(this, args);
+                        tooltipMoveTimer = null;
+                    }, delay);
+                }
+            };
+        };
+        
         this.nodeSelection
-            .on("mouseover", (d) => {
+            .on("mouseover", function(d) {
                 const isLiteral = d.type === 'Literal';
                 const title = isLiteral ? `"${self.formatLabel(d.id)}"` : self.formatLabel(d.id);
                 let content = `<div class="tooltip-title">${title}</div>`;
@@ -640,15 +654,22 @@ class KGGraphVis extends HTMLElement {
                 }
 
                 tooltip.style("opacity", 1).html(content);
+                
+                // Attach mousemove only when hovering over node
+                d3.select(this).on("mousemove", throttleTooltip(() => {
+                    tooltip
+                        .style("left", (d3.event.pageX + 15) + "px")
+                        .style("top", (d3.event.pageY - 10) + "px");
+                }));
             })
-            .on("mousemove", () => {
-                // Adjust position relative to viewport
-                tooltip
-                    .style("left", (d3.event.pageX + 15) + "px")
-                    .style("top", (d3.event.pageY - 10) + "px");
-            })
-            .on("mouseout", () => {
+            .on("mouseout", function() {
                 tooltip.style("opacity", 0);
+                // Remove mousemove listener when leaving node
+                d3.select(this).on("mousemove", null);
+                if (tooltipMoveTimer) {
+                    clearTimeout(tooltipMoveTimer);
+                    tooltipMoveTimer = null;
+                }
             });
 
         // Start!
