@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.feature.result.graph;
 
-import fr.inria.corese.gui.component.notification.NotificationManager;
+import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.utils.ExportHelper;
@@ -53,9 +53,9 @@ public class GraphResultController {
       ClipboardContent content = new ClipboardContent();
       content.putString(svg);
       Clipboard.getSystemClipboard().setContent(content);
-      NotificationManager.getInstance().showSuccess("Graph SVG copied to clipboard");
+      NotificationWidget.getInstance().showSuccess("Graph SVG copied to clipboard");
     } else {
-      NotificationManager.getInstance().showWarning("No graph to copy");
+      NotificationWidget.getInstance().showWarning("No graph to copy");
     }
   }
 
@@ -68,7 +68,7 @@ public class GraphResultController {
     if (svg != null && !svg.isEmpty()) {
       ExportHelper.exportSvg(view.getGraphWidget().getScene().getWindow(), svg);
     } else {
-      NotificationManager.getInstance().showWarning("No graph to export");
+      NotificationWidget.getInstance().showWarning("No graph to export");
     }
   }
 

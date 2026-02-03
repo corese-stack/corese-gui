@@ -2,7 +2,7 @@ package fr.inria.corese.gui.feature.tabeditor;
 
 
 import fr.inria.corese.gui.component.button.FloatingButtonWidget;
-import fr.inria.corese.gui.component.notification.NotificationManager;
+import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.dialog.DialogService;
 import fr.inria.corese.gui.core.manager.FileLoaderService;
 import fr.inria.corese.gui.feature.codeeditor.CodeEditorController;
@@ -610,7 +610,7 @@ public class TabEditorController {
         event -> {
           unlockTabUI(tab);
           updateTabContent(tab, task.getValue());
-          NotificationManager.getInstance().showSuccess("File loaded: " + file.getName());
+          NotificationWidget.getInstance().showSuccess("File loaded: " + file.getName());
         });
 
     task.setOnFailed(

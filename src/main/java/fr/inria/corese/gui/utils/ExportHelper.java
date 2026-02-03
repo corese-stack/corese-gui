@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.utils;
 
-import fr.inria.corese.gui.component.notification.NotificationManager;
+import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import java.io.File;
 import java.nio.file.Files;
@@ -171,14 +171,14 @@ public final class ExportHelper {
 
           @Override
           protected void succeeded() {
-            Platform.runLater(() -> NotificationManager.getInstance().showSuccess("File saved successfully"));
+            Platform.runLater(() -> NotificationWidget.getInstance().showSuccess("File saved successfully"));
           }
 
           @Override
           protected void failed() {
             Platform.runLater(
                 () ->
-                    NotificationManager.getInstance().showError(
+                    NotificationWidget.getInstance().showError(
                         "Export Failed: " + getException().getMessage()));
           }
         };

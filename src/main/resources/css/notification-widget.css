@@ -1,0 +1,21 @@
+/* ============================================================================ */
+/* Notification Toast Widget                                                   */
+/* ============================================================================ */
+
+.notification-toast {
+    -fx-background-color: -color-bg-default;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-width: 0 0 0 4px;
+    -fx-padding: 12 16 12 16;
+    -fx-spacing: 10;
+}
+
+.notification-icon {
+    -fx-icon-color: -color-fg-default;
+}
+
+.notification-label {
+    -fx-text-fill: -color-fg-default;
+}

@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.feature.result.table;
 
-import fr.inria.corese.gui.component.notification.NotificationManager;
+import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.factory.ButtonFactory;
 import fr.inria.corese.gui.utils.ExportHelper;
@@ -177,14 +177,14 @@ public class TableResultController {
         if (allRows.isEmpty()) return;
         
         if (formatProvider == null) {
-            NotificationManager.getInstance().showError("Copy failed: No data provider available.");
+            NotificationWidget.getInstance().showError("Copy failed: No data provider available.");
             return;
         }
 
         // Use Corese's Markdown export by default for copy
         String content = formatProvider.apply(SerializationFormat.MARKDOWN);
         if (content == null || content.startsWith("Error")) {
-             NotificationManager.getInstance().showError("Copy failed: " + content);
+             NotificationWidget.getInstance().showError("Copy failed: " + content);
              return;
         }
 
@@ -192,14 +192,14 @@ public class TableResultController {
         clipboardContent.putString(content);
         Clipboard.getSystemClipboard().setContent(clipboardContent);
         
-        NotificationManager.getInstance().showSuccess("Result copied to clipboard (Markdown)");
+        NotificationWidget.getInstance().showSuccess("Result copied to clipboard (Markdown)");
     }
 
     private void exportContent() {
         if (allRows.isEmpty()) return;
         
         if (formatProvider == null) {
-             NotificationManager.getInstance().showError("Export failed: No data provider available.");
+             NotificationWidget.getInstance().showError("Export failed: No data provider available.");
              return;
         }
         

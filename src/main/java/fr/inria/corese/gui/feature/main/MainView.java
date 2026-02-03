@@ -1,7 +1,7 @@
 package fr.inria.corese.gui.feature.main;
 
 import atlantafx.base.controls.ModalPane;
-import fr.inria.corese.gui.component.notification.NotificationManager;
+import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.dialog.DialogService;
 import fr.inria.corese.gui.core.view.AbstractView;
 import javafx.geometry.Pos;
@@ -58,7 +58,7 @@ public final class MainView extends AbstractView {
 
     // 4. Initialize Global Managers
     DialogService.getInstance().setModalPane(modalPane);
-    NotificationManager.getInstance().setContainer(notificationContainer);
+    NotificationWidget.getInstance().setContainer(notificationContainer);
   }
 
   public void setNavigationRoot(Parent navigationRoot) {

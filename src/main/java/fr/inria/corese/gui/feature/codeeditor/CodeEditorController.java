@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.feature.codeeditor;
 
-import fr.inria.corese.gui.component.notification.NotificationManager;
+import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.dialog.DialogService;
 import fr.inria.corese.gui.core.config.ButtonConfig;
@@ -324,10 +324,10 @@ public class CodeEditorController {
         String content = Files.readString(file.toPath());
         // Append or Replace? Standard import usually replaces content in editors unless "Insert"
         model.setContent(content);
-        NotificationManager.getInstance().showSuccess("Imported: " + file.getName());
+        NotificationWidget.getInstance().showSuccess("Imported: " + file.getName());
       } catch (IOException e) {
         logger.error("Failed to import file", e);
-        NotificationManager.getInstance().showError("Import failed: " + e.getMessage());
+        NotificationWidget.getInstance().showError("Import failed: " + e.getMessage());
       }
     }
   }
@@ -382,7 +382,7 @@ public class CodeEditorController {
       writer.write(model.getContent());
       model.setFilePath(file.getAbsolutePath());
       model.markAsSaved();
-      NotificationManager.getInstance().showSuccess("Saved: " + file.getName());
+      NotificationWidget.getInstance().showSuccess("Saved: " + file.getName());
     } catch (IOException e) {
       logger.error("Save failed", e);
       DialogService.getInstance().showError("Save Error", "Could not save file: " + e.getMessage());
@@ -392,7 +392,7 @@ public class CodeEditorController {
   private void exportContent() {
     String content = model.getContent();
     if (content == null || content.isBlank()) {
-      NotificationManager.getInstance().showWarning("Nothing to export");
+      NotificationWidget.getInstance().showWarning("Nothing to export");
       return;
     }
 

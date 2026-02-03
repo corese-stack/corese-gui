@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.feature.data;
 
-import fr.inria.corese.gui.component.notification.NotificationManager;
+import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.adapter.RdfDataService;
 import java.io.File;
 import java.util.List;
@@ -43,12 +43,12 @@ public class DataViewController {
                     rdfDataService.loadFile(file);
                     successCount++;
                 } catch (Exception ex) {
-                    NotificationManager.getInstance().showError("Error loading " + file.getName() + ": " + ex.getMessage());
+                    NotificationWidget.getInstance().showError("Error loading " + file.getName() + ": " + ex.getMessage());
                 }
             }
 
             if (successCount > 0) {
-                NotificationManager.getInstance().showSuccess("Loaded " + successCount + " file(s).");
+                NotificationWidget.getInstance().showSuccess("Loaded " + successCount + " file(s).");
             }
         }
     }

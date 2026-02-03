@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.feature.result.text;
 
-import fr.inria.corese.gui.component.notification.NotificationManager;
+import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.factory.ButtonFactory;
 import fr.inria.corese.gui.utils.ExportHelper;
@@ -86,7 +86,7 @@ public class TextResultController {
         ClipboardContent content = new ClipboardContent();
         content.putString(text);
         Clipboard.getSystemClipboard().setContent(content);
-        NotificationManager.getInstance().showSuccess("Result copied to clipboard");
+        NotificationWidget.getInstance().showSuccess("Result copied to clipboard");
     }
 
     private void exportContent() {
