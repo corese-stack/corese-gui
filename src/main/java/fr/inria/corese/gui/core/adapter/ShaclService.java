@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.core.adapter;
 
 import fr.inria.corese.core.Graph;
+import fr.inria.corese.core.api.Loader;
 import fr.inria.corese.core.load.Load;
 import fr.inria.corese.core.shacl.Shacl;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
@@ -17,27 +18,61 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Service for performing SHACL validation on the shared Corese graph.
  *
- * <p>Manages parsing of SHACL shapes, execution of the validation engine,
- * and caching of validation reports for display/export.
+ * <p>
+ * This service handles SHACL shape parsing, validation execution, and report caching.
+ * It provides a simple API for validating RDF data against SHACL constraints.
+ *
+ * <p>
+ * The Singleton pattern is justified here because:
+ * <ul>
+ *   <li>Validation operations must be coordinated to prevent conflicts</li>
+ *   <li>Report cache should be centrally managed</li>
+ *   <li>Ensures consistent validation behavior across the application</li>
+ * </ul>
+ *
+ * <p>
+ * Example usage:
+ * <pre>{@code
+ * ShaclService service = ShaclService.getInstance();
+ * String shapes = "# SHACL shapes in Turtle format...";
+ * ValidationResult result = service.validate(shapes);
+ * if (!result.conforms()) {
+ *     String report = service.formatReport(result.reportId(), SerializationFormat.TURTLE);
+ * }
+ * }</pre>
  */
+@SuppressWarnings("java:S6548") // Singleton pattern is justified for validation coordination
 public class ShaclService {
+
+    // ==============================================================================================
+    // Fields
+    // ==============================================================================================
 
     private static final Logger logger = LoggerFactory.getLogger(ShaclService.class);
     private static final ShaclService INSTANCE = new ShaclService();
 
     private final Map<String, Graph> reportCache;
 
+    // ==============================================================================================
+    // Constructor
+    // ==============================================================================================
+
     private ShaclService() {
         this.reportCache = new ConcurrentHashMap<>();
     }
 
+    // ==============================================================================================
+    // Public API
+    // ==============================================================================================
+
+    /**
+     * Returns the singleton instance of the SHACL service.
+     *
+     * @return The ShaclService instance.
+     */
     public static ShaclService getInstance() {
         return INSTANCE;
     }
-
-    // ============================================================================================
-    // Public API
-    // ============================================================================================
 
     /**
      * Validates the current data in the GraphStore against the provided SHACL shapes.
@@ -58,7 +93,7 @@ public class ShaclService {
             Graph shapesGraph = Graph.create();
             Load.create(shapesGraph).parse(
                 new ByteArrayInputStream(shapesContent.getBytes(StandardCharsets.UTF_8)), 
-                Load.format.TURTLE_FORMAT
+                Loader.format.TURTLE_FORMAT
             );
 
             // 3. Run Validation

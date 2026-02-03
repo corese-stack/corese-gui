@@ -6,41 +6,73 @@ import fr.inria.corese.core.print.ResultFormat;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 
 /**
- * Utility service for formatting Corese results (Graphs and Mappings) into string representations.
+ * Utility service for formatting Corese results into various serialization formats.
  *
- * <p>This class encapsulates the translation between Corese's internal {@link ResultFormat}
- * and the GUI's {@link SerializationFormat}. It handles:
+ * <p>
+ * This service translates between Corese's internal {@link ResultFormat} and the GUI's
+ * {@link SerializationFormat}, handling both graph serialization and SPARQL result formatting.
+ *
+ * <p>
+ * The Singleton pattern is justified here because:
  * <ul>
- *   <li>Graph serialization (Turtle, RDF/XML, JSON-LD, etc.)</li>
- *   <li>SPARQL Result serialization (XML, JSON, CSV, TSV)</li>
+ *   <li>Formatting operations are stateless and don't require multiple instances</li>
+ *   <li>Provides consistent format conversion across the application</li>
+ *   <li>Optimizes resource usage with a single formatter instance</li>
  * </ul>
+ *
+ * <p>
+ * Example usage:
+ * <pre>{@code
+ * ResultFormatter formatter = ResultFormatter.getInstance();
+ * String turtle = formatter.formatGraph(graph, SerializationFormat.TURTLE);
+ * String jsonResults = formatter.formatMappings(mappings, SerializationFormat.JSON);
+ * }</pre>
  */
+@SuppressWarnings("java:S6548") // Singleton pattern is justified for stateless service
 public class ResultFormatter {
+
+    // ==============================================================================================
+    // Fields
+    // ==============================================================================================
 
     private static final ResultFormatter INSTANCE = new ResultFormatter();
 
+    // ==============================================================================================
+    // Constructor
+    // ==============================================================================================
+
     private ResultFormatter() {}
 
+    // ==============================================================================================
+    // Public API
+    // ==============================================================================================
+
     /**
-     * Returns the singleton instance of ResultFormatter.
+     * Returns the singleton instance of the result formatter.
      *
-     * @return the singleton instance
+     * @return The ResultFormatter instance.
      */
     public static ResultFormatter getInstance() {
         return INSTANCE;
-    }
+    } 
 
-    // ============================================================================================ 
-    // Internal Package-Private API (Using Corese Types)
-    // ============================================================================================ 
+    // ==============================================================================================
+    // Package-Private API (Corese Types)
+    // ==============================================================================================
 
     /**
-     * Formats a Corese Graph.
+     * Formats a Corese graph into the specified serialization format.
+     *
+     * @param graph The Corese graph to format.
+     * @param format The desired output format.
+     * @return The formatted graph as a string, or an error message if formatting fails.
      */
     String formatGraph(Graph graph, SerializationFormat format) {
-        if (graph == null) return "Error: No graph data available.";
+        if (graph == null) {
+            return "Error: No graph data available.";
+        }
         
-        ResultFormat.format coreseFormat = toCoreseFormat(format);
+        fr.inria.corese.core.sparql.api.ResultFormatDef.format coreseFormat = toCoreseFormat(format);
         if (coreseFormat == null) {
             return "Error: Unsupported format for Graph serialization: " + format;
         }
@@ -53,12 +85,18 @@ public class ResultFormatter {
     }
 
     /**
-     * Formats Corese Mappings (Query Results).
+     * Formats Corese SPARQL query results into the specified serialization format.
+     *
+     * @param mappings The Corese mappings to format.
+     * @param format The desired output format.
+     * @return The formatted results as a string, or an error message if formatting fails.
      */
     String formatMappings(Mappings mappings, SerializationFormat format) {
-        if (mappings == null) return "Error: No query results available.";
+        if (mappings == null) {
+            return "Error: No query results available.";
+        }
 
-        ResultFormat.format coreseFormat = toCoreseFormat(format);
+        fr.inria.corese.core.sparql.api.ResultFormatDef.format coreseFormat = toCoreseFormat(format);
         if (coreseFormat == null) {
             return "Error: Unsupported format for Mappings serialization: " + format;
         }
@@ -70,24 +108,30 @@ public class ResultFormatter {
         }
     }
 
-    // ============================================================================================ 
-    // Helpers
-    // ============================================================================================ 
+    // ==============================================================================================
+    // Private Methods
+    // ==============================================================================================
 
-    private ResultFormat.format toCoreseFormat(SerializationFormat format) {
+    /**
+     * Converts GUI SerializationFormat to Corese ResultFormat.
+     *
+     * @param format The GUI format enum.
+     * @return The corresponding Corese format, or null if not applicable.
+     */
+    private fr.inria.corese.core.sparql.api.ResultFormatDef.format toCoreseFormat(SerializationFormat format) {
         if (format == null) return null;
         return switch (format) {
-            case XML -> ResultFormat.format.XML_FORMAT;
-            case RDF_XML -> ResultFormat.format.RDF_XML_FORMAT;
-            case JSON -> ResultFormat.format.JSON_FORMAT;
-            case JSON_LD -> ResultFormat.format.JSONLD_FORMAT;
-            case CSV -> ResultFormat.format.CSV_FORMAT;
-            case TSV -> ResultFormat.format.TSV_FORMAT;
-            case TURTLE -> ResultFormat.format.TURTLE_FORMAT;
-            case N_TRIPLES -> ResultFormat.format.NTRIPLES_FORMAT;
-            case N_QUADS -> ResultFormat.format.NQUADS_FORMAT;
-            case TRIG -> ResultFormat.format.TRIG_FORMAT;
-            case MARKDOWN -> ResultFormat.format.MARKDOWN_FORMAT;
+            case XML -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.XML_FORMAT;
+            case RDF_XML -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.RDF_XML_FORMAT;
+            case JSON -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.JSON_FORMAT;
+            case JSON_LD -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.JSONLD_FORMAT;
+            case CSV -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.CSV_FORMAT;
+            case TSV -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.TSV_FORMAT;
+            case TURTLE -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.TURTLE_FORMAT;
+            case N_TRIPLES -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.NTRIPLES_FORMAT;
+            case N_QUADS -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.NQUADS_FORMAT;
+            case TRIG -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.TRIG_FORMAT;
+            case MARKDOWN -> fr.inria.corese.core.sparql.api.ResultFormatDef.format.MARKDOWN_FORMAT;
             // These formats are for code editing, not result serialization
             case SPARQL_QUERY, SPARQL_UPDATE, JAVASCRIPT, TEXT -> null;
         };
