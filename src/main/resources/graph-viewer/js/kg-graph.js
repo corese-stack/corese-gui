@@ -407,7 +407,7 @@ class KGGraphVis extends HTMLElement {
 
         // Performance optimization: Sample large graphs
         if (graph.nodes.length > this.MAX_NODES) {
-            console.warn(`Graph has ${graph.nodes.length} nodes. Sampling to ${this.MAX_NODES} for performance.`);
+            // Graph sampled for performance (keeping most important nodes)
             graph = this.sampleGraph(graph);
         }
 
@@ -514,7 +514,6 @@ class KGGraphVis extends HTMLElement {
             .on("tick", () => this.tickedThrottled())
             .on("end", () => {
                 this.simulationStopped = true;
-                console.log('Simulation stopped naturally');
             });
         
         this.simulationStopped = false;
@@ -615,7 +614,7 @@ class KGGraphVis extends HTMLElement {
         // Draw Edge Labels (disable for large graphs for performance)
         const autoDisableLabels = this.graph.nodes.length > 300;
         if (autoDisableLabels && this.showEdgeLabels) {
-            console.log('Auto-disabling edge labels for large graph performance');
+            // Labels disabled automatically for performance
             this.showEdgeLabels = false;
         }
         
@@ -734,10 +733,13 @@ class KGGraphVis extends HTMLElement {
                 tooltip.style("opacity", 1).html(content);
                 
                 // Attach mousemove only when hovering over node
-                d3.select(this).on("mousemove", throttleTooltip(() => {
-                    tooltip
-                        .style("left", (d3.event.pageX + 15) + "px")
-                        .style("top", (d3.event.pageY - 10) + "px");
+                d3.select(this).on("mousemove", throttleTooltip(function() {
+                    const evt = d3.event || window.event;
+                    if (evt && evt.pageX !== undefined && evt.pageY !== undefined) {
+                        tooltip
+                            .style("left", (evt.pageX + 15) + "px")
+                            .style("top", (evt.pageY - 10) + "px");
+                    }
                 }));
             })
             .on("mouseout", function() {
@@ -766,7 +768,6 @@ class KGGraphVis extends HTMLElement {
 
         // Auto-stabilize simulation when converged to save CPU (but keep it alive)
         if (this.simulation && this.simulation.alpha() < this.AUTO_STOP_ALPHA && !this.simulationStopped) {
-            console.log('Simulation stabilized, reducing CPU usage');
             this.simulation.alphaTarget(0); // Set target to 0 but don't stop
             this.simulationStopped = true;
         }
