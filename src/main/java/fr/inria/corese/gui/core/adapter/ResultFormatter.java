@@ -88,6 +88,8 @@ public class ResultFormatter {
             case N_QUADS -> ResultFormat.format.NQUADS_FORMAT;
             case TRIG -> ResultFormat.format.TRIG_FORMAT;
             case MARKDOWN -> ResultFormat.format.MARKDOWN_FORMAT;
+            // These formats are for code editing, not result serialization
+            case SPARQL_QUERY, SPARQL_UPDATE, JAVASCRIPT, TEXT -> null;
         };
     }
 }

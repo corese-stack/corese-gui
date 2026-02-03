@@ -21,6 +21,8 @@ import javafx.stage.FileChooser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.inria.corese.gui.core.enums.SerializationFormat;
+
 /**
  * Controller for the Code Editor component.
  *
@@ -162,96 +164,97 @@ public class CodeEditorController {
   // ==============================================================================================
 
   private void detectAndSetMode() {
-    String mode = "text/plain";
+    SerializationFormat format = SerializationFormat.TEXT;
     String path = model.getFilePath();
     String content = model.getContent();
 
     if (path != null) {
-      mode = detectModeFromExtension(path);
+      format = detectModeFromExtension(path);
     } else if (content != null) {
-      mode = detectModeFromContent(content);
+      format = detectModeFromContent(content);
     }
 
-    view.getCodeMirrorView().setMode(mode);
+    view.getCodeMirrorView().setMode(format);
   }
 
-  private String detectModeFromExtension(String path) {
-    String lower = path.toLowerCase();
-    if (endsWithAny(lower, ".ttl", ".n3", ".nt")) return "turtle";
-    if (endsWithAny(lower, ".rq", ".sparql")) return "sparql";
-    if (endsWithAny(lower, ".rdf", ".owl", ".xml")) return "xml";
-    if (endsWithAny(lower, ".json", ".jsonld")) return "json";
-    if (endsWithAny(lower, ".trig")) return "trig";
-    if (endsWithAny(lower, ".js")) return "javascript";
-    return "text/plain";
+  private SerializationFormat detectModeFromExtension(String path) {
+    if (path == null) return SerializationFormat.TEXT;
+    
+    // Extract extension
+    String extension = "";
+    int i = path.lastIndexOf('.');
+    if (i > 0) {
+      extension = path.substring(i);
+    }
+    
+    // Use the Enum's built-in lookup
+    SerializationFormat format = SerializationFormat.forExtension(extension);
+    
+    // Fallback if not found or restricted
+    if (format == null || !isModeAllowed(format)) {
+      return SerializationFormat.TEXT;
+    }
+    
+    return format;
   }
 
-  private String detectModeFromContent(String content) {
+  private SerializationFormat detectModeFromContent(String content) {
     String lower = content.toLowerCase();
     String trimmed = content.trim();
 
     // SPARQL
-    if (isModeAllowed("sparql")
+    if (isModeAllowed(SerializationFormat.SPARQL_QUERY)
         && (lower.contains("select ")
             || lower.contains("construct ")
             || lower.contains("ask ")
             || lower.contains("describe ")
             || lower.startsWith("prefix ")
-            || lower.contains("\nprefix ")))
-     {
-      return "sparql";
+            || lower.contains("\nprefix "))) {
+      return SerializationFormat.SPARQL_QUERY;
     }
 
     // Turtle / Trig
-    if ((isModeAllowed("turtle") || isModeAllowed("trig"))
+    if ((isModeAllowed(SerializationFormat.TURTLE) || isModeAllowed(SerializationFormat.TRIG))
         && (lower.contains("@prefix")
             || lower.contains("@base")
             || lower.contains(" a ")
             || trimmed.endsWith("."))) {
-      return isModeAllowed("trig") ? "trig" : "turtle";
+      return isModeAllowed(SerializationFormat.TRIG) ? SerializationFormat.TRIG : SerializationFormat.TURTLE;
     }
 
     // JSON
-    if (isModeAllowed("json") && (trimmed.startsWith("{") || trimmed.startsWith("[")))
-     {
-      return "json";
+    if (isModeAllowed(SerializationFormat.JSON) 
+        && (trimmed.startsWith("{") || trimmed.startsWith("["))) {
+      return SerializationFormat.JSON;
     }
 
     // XML
-    if (isModeAllowed("xml") && trimmed.startsWith("<")) {
-      return "xml";
+    if (isModeAllowed(SerializationFormat.XML) && trimmed.startsWith("<")) {
+      return SerializationFormat.XML;
     }
 
-    return "text/plain";
+    return SerializationFormat.TEXT;
   }
 
-  private boolean endsWithAny(String str, String... suffixes) {
-    for (String s : suffixes) {
-      if (str.endsWith(s)) return true;
-    }
-    return false;
-  }
-
-  private boolean isModeAllowed(String mode) {
+  private boolean isModeAllowed(SerializationFormat format) {
     // If no restriction, everything is allowed
     if (allowedExtensions.isEmpty()) return true;
+    if (format == null) return false;
 
-    // Simplified mapping logic
-    return switch (mode) {
-      case "sparql" -> containsAnyAllowed(".rq", ".sparql");
-      case "turtle" -> containsAnyAllowed(".ttl", ".n3", ".nt");
-      case "trig" -> containsAnyAllowed(".trig");
-      case "xml" -> containsAnyAllowed(".xml", ".rdf", ".owl");
-      case "json" -> containsAnyAllowed(".json", ".jsonld");
-      case "javascript" -> containsAnyAllowed(".js");
-      default -> true;
-    };
-  }
-
-  private boolean containsAnyAllowed(String... exts) {
-    for (String ext : exts) {
-      if (allowedExtensions.contains(ext)) return true;
+    // Check if the format's extension is in the allowed list
+    // Also consider related extensions (e.g. .ttl for TURTLE)
+    // For simplicity, we check if the format's primary extension is allowed
+    // Or if any of the allowed extensions map to this format
+    
+    // Check main extension
+    if (allowedExtensions.contains(format.getExtension())) return true;
+    
+    // Check if any allowed extension maps to this format
+    for (String ext : allowedExtensions) {
+      SerializationFormat f = SerializationFormat.forExtension(ext);
+      if (f == format) return true;
     }
+    
     return false;
   }
 

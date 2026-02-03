@@ -29,8 +29,16 @@ public enum SerializationFormat {
   JSON("JSON", ".json"),
   XML("XML", ".xml"),
 
+  // SPARQL Query/Update
+  SPARQL_QUERY("SPARQL Query", ".rq"),
+  SPARQL_UPDATE("SPARQL Update", ".ru"),
+
+  // Scripts
+  JAVASCRIPT("JavaScript", ".js"),
+
   // Other
-  MARKDOWN("Markdown", ".md");
+  MARKDOWN("Markdown", ".md"),
+  TEXT("Text", ".txt");
 
   private final String label;
   private final String extension;
@@ -78,7 +86,38 @@ public enum SerializationFormat {
       case TURTLE, TRIG, N_TRIPLES, N_QUADS -> "turtle";
       case RDF_XML, XML -> "xml";
       case JSON_LD, JSON -> "json";
-      case CSV, TSV, MARKDOWN -> "text/plain";
+      case CSV, TSV, MARKDOWN, TEXT -> "text/plain";
+      case SPARQL_QUERY, SPARQL_UPDATE -> "sparql";
+      case JAVASCRIPT -> "javascript";
+    };
+  }
+
+  /**
+   * Finds a serialization format by its file extension.
+   *
+   * @param extension The file extension (e.g., ".ttl", "rq") - case insensitive, with or without dot
+   * @return The matching SerializationFormat, or null if not found
+   */
+  public static SerializationFormat forExtension(String extension) {
+    if (extension == null || extension.isBlank()) {
+      return null;
+    }
+
+    String ext = extension.toLowerCase().startsWith(".") ? extension.toLowerCase() : "." + extension.toLowerCase();
+
+    // Direct match
+    for (SerializationFormat format : values()) {
+      if (format.extension.equals(ext)) {
+        return format;
+      }
+    }
+
+    // Aliases / Related formats logic
+    return switch (ext) {
+      case ".n3" -> TURTLE;
+      case ".sparql" -> SPARQL_QUERY;
+      case ".owl" -> RDF_XML;
+      default -> null;
     };
   }
 

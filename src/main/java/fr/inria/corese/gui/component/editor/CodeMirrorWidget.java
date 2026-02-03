@@ -290,31 +290,10 @@ public class CodeMirrorWidget extends VBox {
   }
 
   /**
-   * Sets the editor mode based on the given serialization format.
+   * Gets the current editor content.
    * 
-   * @param format The serialization format to set the mode for
+   * @return The current content of the editor
    */
-  public void setMode(SerializationFormat format) {
-    if (format != null) {
-      setMode(format.getCodeMirrorMode());
-    }
-  }
-
-  /**
-   * Sets the editor mode directly.
-   * 
-   * @param mode The CodeMirror mode string
-   */
-  public void setMode(String mode) {
-    if (mode == null || mode.isEmpty())
-      return;
-    Platform.runLater(() -> modeProperty.set(mode));
-  }
-
-  public StringProperty modeProperty() {
-    return modeProperty;
-  }
-
   public String getContent() {
     if (!initialized)
       return contentProperty.get();
@@ -327,6 +306,28 @@ public class CodeMirrorWidget extends VBox {
       return contentProperty.get();
     }
   }
+
+  /**
+   * Sets the editor mode based on the given serialization format.
+   * 
+   * @param format The serialization format to set the mode for
+   */
+  public void setMode(SerializationFormat format) {
+    if (format != null) {
+      Platform.runLater(() -> modeProperty.set(format.getCodeMirrorMode()));
+    }
+  }
+
+  /**
+   * Gets the current editor mode.
+   * 
+   * @return The current mode of the editor
+   */
+  public StringProperty modeProperty() {
+    return modeProperty;
+  }
+
+
 
   public StringProperty contentProperty() {
     return contentProperty;
