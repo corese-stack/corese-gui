@@ -4,35 +4,35 @@ import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.kgram.core.Mappings;
 import fr.inria.corese.core.query.QueryProcess;
 import fr.inria.corese.core.sparql.triple.parser.ASTQuery;
+import fr.inria.corese.gui.core.enums.QueryType;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-import java.util.ArrayList;
+import fr.inria.corese.gui.core.model.QueryResultRef;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Central manager for executing and caching SPARQL queries per UI tab over the Corese Graph.
- * Implements a thread-safe singleton that: - runs queries via QueryProcess and stores a
- * TabCacheEntry with either Mappings (SELECT/ASK) or a result Graph (CONSTRUCT/DESCRIBE); - formats
- * cached results using ExportManager; - converts external format names to Corese formats and logs
- * operations; - provides cache access and clearing by tab id. Typical flow:
- * executeAndCacheQuery(query, tabId) -> getFormattedCachedQuery(tabId, format) ->
- * clearCacheForTab(tabId).
+ * Central manager for executing and caching SPARQL queries over the Corese Graph.
+ *
+ * <p>Implements a thread-safe singleton that: - runs queries via QueryProcess and stores a
+ * QueryCacheEntry with either Mappings (SELECT/ASK) or a result Graph (CONSTRUCT/DESCRIBE); -
+ * formats cached results using ExportManager; - converts external format names to Corese formats
+ * and logs operations; - exposes results via opaque ids so the GUI never sees corese-core types.
  */
 public class QueryManager {
+  private static final Logger logger = LoggerFactory.getLogger(QueryManager.class);
+
   private static QueryManager instance;
 
   private final CoreseGraphManager graphManager;
-  private QueryProcess queryProcess;
 
-  private final List<String> logEntries;
-
-  private final Map<Integer, TabCacheEntry> queryResultCache = new HashMap<>();
+  private final Map<String, QueryCacheEntry> queryResultCache = new ConcurrentHashMap<>();
 
   private QueryManager() {
     this.graphManager = CoreseGraphManager.getInstance();
-    this.logEntries = new ArrayList<>();
   }
 
   public static synchronized QueryManager getInstance() {
@@ -43,63 +43,50 @@ public class QueryManager {
   }
 
   /**
-   * Central manager that executes, caches, and formats SPARQL queries per UI tab over a Corese
-   * Graph.
+   * Executes a query and caches its result internally.
    *
-   * <p>Features: - Thread-safe singleton (getInstance) using GraphManager and QueryProcess to run
-   * queries. - Per-tab caching of results as either Mappings (SELECT/ASK) or Graph
-   * (CONSTRUCT/DESCRIBE), with query type derived from the AST. - Result formatting via
-   * ExportManager with validation of mapping vs RDF formats. - Utilities to retrieve and clear
-   * cached results, plus lightweight logging.
-   *
-   * <p>Typical flow: executeAndCacheQuery(query, tabId) -> getFormattedCachedQuery(tabId, format)
-   * -> clearCacheForTab(tabId).
+   * <p>Returns a lightweight handle that the GUI can store without exposing corese-core types.
    */
-  public void executeAndCacheQuery(String query, Integer tabId) throws Exception {
+  public QueryResultRef execute(String query) throws Exception {
     try {
-      this.queryProcess = QueryProcess.create(graphManager.getGraph());
-      Mappings mappings = this.queryProcess.query(query);
+      QueryProcess queryProcess = QueryProcess.create(graphManager.getGraph());
+      Mappings mappings = queryProcess.query(query);
       ASTQuery ast = mappings.getAST();
-      String queryType = determineQueryTypeFromAST(ast);
+      QueryType queryType = determineQueryTypeFromAST(ast);
 
-      TabCacheEntry cacheEntry;
-      if (ast.isConstruct() || ast.isDescribe()) {
+      QueryCacheEntry cacheEntry;
+      if (queryType == QueryType.CONSTRUCT || queryType == QueryType.DESCRIBE) {
         Graph resultGraph = (Graph) mappings.getGraph();
-        cacheEntry = new TabCacheEntry(queryType, resultGraph, ast);
+        cacheEntry = new QueryCacheEntry(queryType, resultGraph);
       } else {
-        cacheEntry = new TabCacheEntry(queryType, mappings, ast);
+        cacheEntry = new QueryCacheEntry(queryType, mappings);
       }
-      queryResultCache.put(tabId, cacheEntry);
-      addLogEntry("Query executed and result cached for tab " + tabId);
+      String resultId = UUID.randomUUID().toString();
+      queryResultCache.put(resultId, cacheEntry);
+      logger.info("Query executed and result cached with id {}", resultId);
+      return new QueryResultRef(resultId, queryType);
     } catch (Exception e) {
-      addLogEntry("Error executing or caching query: " + e.getMessage());
+      logger.error("Error executing or caching query", e);
       throw e;
     }
   }
 
-  public TabCacheEntry getCachedResult(Integer tabId) {
-    return queryResultCache.get(tabId);
-  }
-
-  public void clearCacheForTab(Integer tabId) {
-    queryResultCache.remove(tabId);
-  }
-
-  public String getFormattedCachedQuery(Integer tabId, String formatString) {
-    TabCacheEntry cachedEntry = getCachedResult(tabId);
+  public String formatResult(String resultId, String formatString) {
+    QueryCacheEntry cachedEntry = queryResultCache.get(resultId);
     if (cachedEntry == null) return "";
-
-    ASTQuery ast = cachedEntry.getAst();
-    if (ast == null) return "Error: Query AST not found in cache.";
 
     SerializationFormat format = SerializationFormat.fromString(formatString);
     boolean isRdfFormat = isRdfFormat(format);
+    QueryType queryType = cachedEntry.getQueryType();
 
-    if ((ast.isConstruct() || ast.isDescribe() || ast.isUpdate()) && !isRdfFormat) {
+    if ((queryType == QueryType.CONSTRUCT
+            || queryType == QueryType.DESCRIBE
+            || queryType == QueryType.UPDATE)
+        && !isRdfFormat) {
       return String.format(
           "Error: %s is not a valid RDF format for this query type.", formatString);
     }
-    if ((ast.isSelect() || ast.isAsk()) && isRdfFormat) {
+    if ((queryType == QueryType.SELECT || queryType == QueryType.ASK) && isRdfFormat) {
       return String.format(
           "Error: %s is not a valid mapping format for this query type.", formatString);
     }
@@ -118,43 +105,34 @@ public class QueryManager {
     return Arrays.asList(SerializationFormat.rdfFormats()).contains(format);
   }
 
-  private String determineQueryTypeFromAST(ASTQuery ast) {
-    if (ast.isSelect()) return "SELECT";
-    if (ast.isConstruct()) return "CONSTRUCT";
-    if (ast.isAsk()) return "ASK";
-    if (ast.isDescribe()) return "DESCRIBE";
-    return "UNKNOWN";
+  private QueryType determineQueryTypeFromAST(ASTQuery ast) {
+    if (ast == null) return QueryType.UNKNOWN;
+    if (ast.isUpdate()) return QueryType.UPDATE;
+    if (ast.isSelect()) return QueryType.SELECT;
+    if (ast.isConstruct()) return QueryType.CONSTRUCT;
+    if (ast.isAsk()) return QueryType.ASK;
+    if (ast.isDescribe()) return QueryType.DESCRIBE;
+    return QueryType.UNKNOWN;
   }
 
-  public void addLogEntry(String entry) {
-    logEntries.add(entry);
-  }
-
-  public List<String> getLogEntries() {
-    return new ArrayList<>(logEntries);
-  }
-
-  public static class TabCacheEntry {
-    private final String queryType;
+  public static class QueryCacheEntry {
+    private final QueryType queryType;
     private final Mappings mappingsResult;
     private final Graph graphResult;
-    private final ASTQuery ast;
 
-    public TabCacheEntry(String queryType, Mappings mappings, ASTQuery ast) {
+    public QueryCacheEntry(QueryType queryType, Mappings mappings) {
       this.queryType = queryType;
       this.mappingsResult = mappings;
       this.graphResult = null;
-      this.ast = ast;
     }
 
-    public TabCacheEntry(String queryType, Graph graph, ASTQuery ast) {
+    public QueryCacheEntry(QueryType queryType, Graph graph) {
       this.queryType = queryType;
       this.mappingsResult = null;
       this.graphResult = graph;
-      this.ast = ast;
     }
 
-    public String getQueryType() {
+    public QueryType getQueryType() {
       return queryType;
     }
 
@@ -166,8 +144,11 @@ public class QueryManager {
       return graphResult;
     }
 
-    public ASTQuery getAst() {
-      return ast;
+  }
+
+  public void releaseResult(String resultId) {
+    if (resultId != null) {
+      queryResultCache.remove(resultId);
     }
   }
 }

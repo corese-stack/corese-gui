@@ -4,14 +4,18 @@ import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
+import fr.inria.corese.gui.core.enums.QueryType;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.manager.QueryManager;
+import fr.inria.corese.gui.core.model.QueryResultRef;
 import fr.inria.corese.gui.feature.codeeditor.CodeEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
 import fr.inria.corese.gui.feature.tabeditor.TabEditorConfig;
 import fr.inria.corese.gui.feature.tabeditor.TabEditorController;
 import java.io.File;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
@@ -33,6 +37,7 @@ public class QueryViewController {
     private final QueryView view;
     private final QueryManager stateManager = QueryManager.getInstance();
     private TabEditorController tabEditorController;
+    private final Map<Tab, QueryResultRef> tabResults = new HashMap<>();
 
     public QueryViewController(QueryView view) {
         this.view = view;
@@ -95,7 +100,10 @@ public class QueryViewController {
             while (c.next()) {
                 if (c.wasRemoved()) {
                     for (Tab removedTab : c.getRemoved()) {
-                        stateManager.clearCacheForTab(removedTab.hashCode());
+                        QueryResultRef ref = tabResults.remove(removedTab);
+                        if (ref != null) {
+                            stateManager.releaseResult(ref.getId());
+                        }
                     }
                 }
                 // Added tabs handled by TabEditorController logic mostly, 
@@ -118,22 +126,24 @@ public class QueryViewController {
         if (resultController == null || codeEditor == null) return;
 
         final String queryContent = codeEditor.getContent();
-        final Integer tabId = selectedTab.hashCode();
+        QueryResultRef previousRef = tabResults.remove(selectedTab);
+        if (previousRef != null) {
+            stateManager.releaseResult(previousRef.getId());
+        }
 
         // Prepare UI
         resultController.clearResults();
-        stateManager.clearCacheForTab(tabId);
         tabEditorController.setExecutionState(true);
 
         // Execute in background
         new Thread(() -> {
             try {
-                stateManager.executeAndCacheQuery(queryContent, tabId);
-                var cachedEntry = stateManager.getCachedResult(tabId);
+                QueryResultRef resultRef = stateManager.execute(queryContent);
 
                 Platform.runLater(() -> {
                     tabEditorController.setExecutionState(false);
-                    if (cachedEntry != null) {
+                    if (resultRef != null) {
+                        tabResults.put(selectedTab, resultRef);
                         tabEditorController.showResultPane();
                         updateResultsForSelectedQueryTab(selectedTab);
                     }
@@ -156,48 +166,52 @@ public class QueryViewController {
 
         resultController.clearResults();
 
-        final Integer queryTabId = selectedQueryTab.hashCode();
-        var cachedEntry = stateManager.getCachedResult(queryTabId);
+        QueryResultRef resultRef = tabResults.get(selectedQueryTab);
+        if (resultRef == null) return;
 
-        if (cachedEntry == null) return;
-
-        String queryType = cachedEntry.getQueryType();
+        QueryType queryType = resultRef.getQueryType();
         // Configure view based on query type (SELECT/ASK vs CONSTRUCT/DESCRIBE)
-        if ("SELECT".equals(queryType) || "ASK".equals(queryType)) {
-            configureForTableResult(resultController, queryTabId);
-        } else if ("CONSTRUCT".equals(queryType) || "DESCRIBE".equals(queryType)) {
-            configureForGraphResult(resultController, queryTabId);
+        if (queryType == QueryType.SELECT || queryType == QueryType.ASK) {
+            configureForTableResult(resultController, resultRef);
+        } else if (queryType == QueryType.CONSTRUCT || queryType == QueryType.DESCRIBE) {
+            configureForGraphResult(resultController, resultRef);
+        } else {
+            resultController.configureTabsForResult(true, false, false);
+            resultController.selectTextTab();
+            resultController.updateText("No result available for this query type.");
         }
     }
 
-    private void configureForTableResult(ResultController controller, Integer tabId) {
-        controller.configureTabsForResult(true, false, true, false); // Text + Table
+    private void configureForTableResult(ResultController controller, QueryResultRef resultRef) {
+        String resultId = resultRef.getId();
+        controller.configureTabsForResult(true, true, false); // Text + Table
         controller.configureTextFormats(SerializationFormat.sparqlResultFormats(), SerializationFormat.XML);
 
         controller.setOnFormatChanged(format -> {
-            String formattedResult = stateManager.getFormattedCachedQuery(tabId, format.getLabel());
+            String formattedResult = stateManager.formatResult(resultId, format.getLabel());
             controller.updateText(formattedResult);
         });
 
         // Default view: Table
-        controller.getView().selectTableTab();
-        controller.updateTableView(stateManager.getFormattedCachedQuery(tabId, "CSV"));
-        controller.updateText(stateManager.getFormattedCachedQuery(tabId, "XML"));
+        controller.selectTableTab();
+        controller.updateTableView(stateManager.formatResult(resultId, "CSV"));
+        controller.updateText(stateManager.formatResult(resultId, "XML"));
     }
 
-    private void configureForGraphResult(ResultController controller, Integer tabId) {
-        controller.configureTabsForResult(true, false, false, true); // Text + Graph
+    private void configureForGraphResult(ResultController controller, QueryResultRef resultRef) {
+        String resultId = resultRef.getId();
+        controller.configureTabsForResult(true, false, true); // Text + Graph
         controller.configureTextFormats(SerializationFormat.rdfFormats(), SerializationFormat.TURTLE);
 
         controller.setOnFormatChanged(format -> {
-            String formattedResult = stateManager.getFormattedCachedQuery(tabId, format.getLabel());
+            String formattedResult = stateManager.formatResult(resultId, format.getLabel());
             controller.updateText(formattedResult);
         });
 
         // Default view: Graph
-        controller.getView().selectGraphTab();
-        controller.displayGraph(stateManager.getFormattedCachedQuery(tabId, "JSON-LD"));
-        controller.updateText(stateManager.getFormattedCachedQuery(tabId, "TURTLE"));
+        controller.selectGraphTab();
+        controller.displayGraph(stateManager.formatResult(resultId, "JSON-LD"));
+        controller.updateText(stateManager.formatResult(resultId, "TURTLE"));
     }
 
     // ==============================================================================================

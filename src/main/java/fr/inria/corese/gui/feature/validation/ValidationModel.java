@@ -1,6 +1,5 @@
 package fr.inria.corese.gui.feature.validation;
 
-import fr.inria.corese.gui.core.manager.ExportManager;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.manager.CoreseGraphManager;
 import fr.inria.corese.gui.core.manager.ShaclManager;
@@ -37,6 +36,9 @@ public class ValidationModel {
      * @return The result of the validation.
      */
     public ValidationResult validate(String shapesContent) {
+        if (this.lastResult != null) {
+            ShaclManager.getInstance().releaseReport(this.lastResult.getReportId());
+        }
         this.lastResult = ShaclManager.getInstance().validate(shapesContent);
         return this.lastResult;
     }
@@ -48,11 +50,11 @@ public class ValidationModel {
      * @return The formatted string, or null if no report exists.
      */
     public String formatLastReport(String format) {
-        if (lastResult == null || lastResult.getReportGraph() == null) {
+        if (lastResult == null || lastResult.getReportId() == null) {
             return null;
         }
-        return ExportManager.getInstance().formatGraph(
-            lastResult.getReportGraph(), 
+        return ShaclManager.getInstance().formatReport(
+            lastResult.getReportId(),
             SerializationFormat.fromString(format)
         );
     }
@@ -63,7 +65,10 @@ public class ValidationModel {
      * @return A list of ValidationReportItem objects.
      */
     public List<ValidationReportItem> getValidationReportItems() {
-        return ShaclManager.getInstance().extractReportItems(lastResult);
+        if (lastResult == null || lastResult.getReportId() == null) {
+            return List.of();
+        }
+        return ShaclManager.getInstance().extractReportItems(lastResult.getReportId());
     }
 
     /**
@@ -73,5 +78,13 @@ public class ValidationModel {
      */
     public ValidationResult getLastResult() {
         return lastResult;
+    }
+
+    /** Releases cached validation report resources. */
+    public void dispose() {
+        if (lastResult != null) {
+            ShaclManager.getInstance().releaseReport(lastResult.getReportId());
+            lastResult = null;
+        }
     }
 }

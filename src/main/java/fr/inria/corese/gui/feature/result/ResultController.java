@@ -3,7 +3,6 @@ package fr.inria.corese.gui.feature.result;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-import fr.inria.corese.gui.core.model.QueryResult;
 import fr.inria.corese.gui.core.model.ValidationReportItem;
 import fr.inria.corese.gui.feature.result.graph.GraphResultController;
 import fr.inria.corese.gui.feature.result.table.TableResultController;
@@ -11,7 +10,6 @@ import fr.inria.corese.gui.feature.result.text.TextResultController;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
-import javafx.application.Platform;
 import javafx.scene.Parent;
 
 /**
@@ -38,9 +36,6 @@ public class ResultController {
   private final TextResultController textController;
   private final TableResultController tableController;
   private final GraphResultController graphController;
-
-  // State
-  private QueryResult currentResult;
 
   // ==============================================================================================
   // Constructor
@@ -94,7 +89,7 @@ public class ResultController {
     // 1. Setup Text Tab
     if (textController != null) {
       view.enableTextTab(textController.getView());
-      textController.setOnFormatChanged(this::handleTextFormatChange);
+      // The format change handler is configured by the caller via setOnFormatChanged.
     }
 
     // 2. Setup Table Tab
@@ -130,7 +125,7 @@ public class ResultController {
    * Dynamically configures which tabs should be visible.
    * Note: This only hides/shows tabs if the controller was initialized with them.
    */
-  public void configureTabsForResult(boolean text, boolean table, boolean visual, boolean graph) {
+  public void configureTabsForResult(boolean text, boolean table, boolean graph) {
       if (text && textController != null) view.enableTextTab(textController.getView());
       // else view.disableTextTab(); // If we had a disable method
 
@@ -203,53 +198,15 @@ public class ResultController {
       }
   }
 
-  // ==============================================================================================
-  // Data Processing
-  // ==============================================================================================
-
-  /**
-   * Displays the provided query result in all active tabs.
-   *
-   * @param result The query result to display.
-   */
-  public void displayResult(QueryResult result) {
-    this.currentResult = result;
-
-    if (result == null) {
-      clearAll();
-      return;
-    }
-
-    // Update Text View
-    if (textController != null) {
-        // Logic handled by caller usually via updateText, or we implement auto-conversion here
-    }
-  }
-
   /** Clears all result views. */
   public void clearAll() {
     clearResults();
   }
 
   public void clearResults() {
-    this.currentResult = null;
     if (textController != null) textController.clearContent();
     if (tableController != null) tableController.clear();
     if (graphController != null) graphController.clear();
-  }
-
-  // ==============================================================================================
-  // Event Handlers
-  // ==============================================================================================
-
-  private void handleTextFormatChange(SerializationFormat newFormat) {
-    if (currentResult != null) {
-      updateTextContent(newFormat);
-    }
-  }
-
-  private void updateTextContent(SerializationFormat format) {
-    // Placeholder
   }
 
   // ==============================================================================================
@@ -264,20 +221,5 @@ public class ResultController {
   public Parent getViewRoot() {
     return view.getRoot();
   }
-  
-  /**
-   * Returns the view object (internal use).
-   */
-  public ResultView getView() {
-      return view;
-  }
 
-  /**
-   * Sets a callback for when an export action is triggered in sub-controllers.
-   *
-   * @param handler The export handler.
-   */
-  public void setOnExport(Consumer<QueryResult> handler) {
-    // propagate to sub-controllers if they support export events
-  }
 }

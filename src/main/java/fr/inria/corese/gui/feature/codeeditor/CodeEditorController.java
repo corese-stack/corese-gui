@@ -1,19 +1,15 @@
 package fr.inria.corese.gui.feature.codeeditor;
 
-import fr.inria.corese.core.Graph;
-import fr.inria.corese.core.api.Loader;
-import fr.inria.corese.core.load.Load;
 import fr.inria.corese.gui.component.notification.NotificationManager;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.DialogHelper;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.core.factory.ButtonFactory;
-import java.io.ByteArrayInputStream;
+import fr.inria.corese.gui.core.manager.RdfSyntaxManager;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -396,18 +392,16 @@ public class CodeEditorController {
     }
 
     // Validate before export logic (simulating validation check)
-    try {
-      Graph g = Graph.create();
-      Load.create(g)
-          .parse(
-              new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8)),
-              Loader.format.TURTLE_FORMAT);
+    RdfSyntaxManager.SyntaxCheckResult result =
+        RdfSyntaxManager.getInstance().validateTurtle(content);
+    if (result.isValid()) {
       // If parse succeeds, proceed to export (stub for now)
       DialogHelper.showInformation(
           "Export", "Content is valid RDF. Export implementation pending.");
-    } catch (Exception e) {
+    } else {
       DialogHelper.showError(
-          "Validation Error", "Content is not valid RDF/Turtle:\n" + e.getMessage());
+          "Validation Error",
+          "Content is not valid RDF/Turtle:\n" + result.getErrorMessage());
     }
   }
 

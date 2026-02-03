@@ -5,7 +5,9 @@ import fr.inria.corese.core.load.Load;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Unified manager for Corese Graph operations.
@@ -19,11 +21,10 @@ import java.net.URL;
  */
 public class CoreseGraphManager {
 
+    private static final Logger logger = LoggerFactory.getLogger(CoreseGraphManager.class);
+
     private static CoreseGraphManager instance;
     private Graph graph;
-    
-    // Lazy loaded to avoid circular dependency with QueryManager
-    private QueryManager queryManager; 
 
     private CoreseGraphManager() {
         this.graph = Graph.create();
@@ -40,7 +41,7 @@ public class CoreseGraphManager {
     // Graph Lifecycle
     // ============================================================================================
 
-    public synchronized Graph getGraph() {
+    synchronized Graph getGraph() {
         return graph;
     }
 
@@ -54,7 +55,7 @@ public class CoreseGraphManager {
         } else {
             graph = Graph.create();
         }
-        log("Graph cleared.");
+        logger.info("Graph cleared.");
     }
 
     public synchronized int getTripletCount() {
@@ -77,9 +78,9 @@ public class CoreseGraphManager {
             Load loader = Load.create(graph);
             Load.format format = detectFormat(file.getName());
             loader.parse(file.getAbsolutePath(), format);
-            log("Loaded file: " + file.getAbsolutePath());
+            logger.info("Loaded file: {}", file.getAbsolutePath());
         } catch (Exception e) {
-            log("Error loading file " + file.getName() + ": " + e.getMessage());
+            logger.error("Error loading file {}: {}", file.getName(), e.getMessage());
             throw e;
         }
     }
@@ -93,9 +94,9 @@ public class CoreseGraphManager {
             // URL loading might need auto-detection or specific format if known.
             // Corese Load.parse(url) typically handles content negotiation or extension detection.
             loader.parse(url); 
-            log("Loaded URL: " + url);
+            logger.info("Loaded URL: {}", url);
         } catch (Exception e) {
-             log("Error loading URL " + url + ": " + e.getMessage());
+             logger.error("Error loading URL {}: {}", url, e.getMessage());
              throw e;
         }
     }
@@ -111,9 +112,9 @@ public class CoreseGraphManager {
     public synchronized void exportToFile(File file, SerializationFormat format) throws Exception {
          String content = exportToString(format);
          try (FileOutputStream out = new FileOutputStream(file)) {
-             out.write(content.getBytes());
+             out.write(content.getBytes(StandardCharsets.UTF_8));
          }
-         log("Graph exported to: " + file.getAbsolutePath());
+         logger.info("Graph exported to: {}", file.getAbsolutePath());
     }
 
     // ============================================================================================
@@ -138,12 +139,5 @@ public class CoreseGraphManager {
         return Load.format.TURTLE_FORMAT; // Default
     }
 
-    private void log(String message) {
-        if (queryManager == null) {
-            queryManager = QueryManager.getInstance();
-        }
-        if (queryManager != null) {
-            queryManager.addLogEntry(message);
-        }
-    }
+    // Logging is handled directly by this manager.
 }

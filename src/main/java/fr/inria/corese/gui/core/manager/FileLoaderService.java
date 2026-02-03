@@ -3,6 +3,7 @@ package fr.inria.corese.gui.core.manager;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.charset.StandardCharsets;
 import javafx.concurrent.Task;
 
 /**
@@ -59,7 +60,7 @@ public class FileLoaderService {
       protected String call() throws IOException {
         updateTitle("Loading " + file.getName());
         updateMessage("Reading file: " + file.getAbsolutePath());
-        return Files.readString(file.toPath());
+        return Files.readString(file.toPath(), StandardCharsets.UTF_8);
       }
     };
   }
@@ -80,6 +81,6 @@ public class FileLoaderService {
     if (file == null) {
       throw new NullPointerException("File cannot be null");
     }
-    return Files.readString(file.toPath());
+    return Files.readString(file.toPath(), StandardCharsets.UTF_8);
   }
 }

@@ -1,18 +1,18 @@
 package fr.inria.corese.gui.feature.validation;
 
-import fr.inria.corese.core.Graph;
-
 /**
  * Represents the result of a SHACL validation execution.
+ *
+ * <p>This DTO is GUI-facing and must not expose corese-core types.
  */
 public class ValidationResult {
     private final boolean conforms;
-    private final Graph reportGraph;
+    private final String reportId;
     private final String errorMessage;
 
-    public ValidationResult(boolean conforms, Graph reportGraph, String errorMessage) {
+    public ValidationResult(boolean conforms, String reportId, String errorMessage) {
         this.conforms = conforms;
-        this.reportGraph = reportGraph;
+        this.reportId = reportId;
         this.errorMessage = errorMessage;
     }
 
@@ -20,8 +20,11 @@ public class ValidationResult {
         return conforms;
     }
 
-    public Graph getReportGraph() {
-        return reportGraph;
+    /**
+     * Identifier for the cached SHACL report, if available.
+     */
+    public String getReportId() {
+        return reportId;
     }
 
     public String getErrorMessage() {

@@ -28,10 +28,10 @@ import java.util.Set;
  *     .withGraphTab()
  *     .build();
  *
- * // Validation context: Text + Visual
+ * // Validation context: Text + Table
  * ResultViewConfig config = ResultViewConfig.builder()
  *     .withTextTab()
- *     .withVisualTab()
+ *     .withTableTab()
  *     .build();
  *
  * // All tabs
@@ -46,7 +46,6 @@ public class ResultViewConfig {
   /** Available result tab types. */
   public enum TabType {
     TEXT,
-    VISUAL,
     TABLE,
     GRAPH;
 
@@ -114,7 +113,6 @@ public class ResultViewConfig {
   public static ResultViewConfig allTabs() {
     return builder()
         .withTextTab()
-        .withVisualTab()
         .withTableTab()
         .withGraphTab()
         .build();
@@ -133,16 +131,6 @@ public class ResultViewConfig {
      */
     public Builder withTextTab() {
       tabs.add(TabType.TEXT);
-      return this;
-    }
-
-    /**
-     * Enables the Visual tab (validation reports).
-     *
-     * @return This builder for chaining
-     */
-    public Builder withVisualTab() {
-      tabs.add(TabType.VISUAL);
       return this;
     }
 

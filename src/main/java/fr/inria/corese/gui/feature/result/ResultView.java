@@ -15,7 +15,7 @@ import javafx.scene.control.TabPane;
 import javafx.scene.layout.BorderPane;
 
 /**
- * Main view for displaying query results with multiple tab types (Text, Visual, Table, Graph).
+ * Main view for displaying query results with multiple tab types (Text, Table, Graph).
  *
  * <p>This view is intentionally created empty - the controller is responsible for configuring
  * which tabs should be shown based on {@link fr.inria.corese.gui.core.ResultViewConfig}.
@@ -35,7 +35,6 @@ public class ResultView extends AbstractView {
 
     private final TabPane tabPane;
     private final Tab textTab;
-    private final Tab visualTab;
     private final Tab tableTab;
     private final Tab graphTab;
 
@@ -44,7 +43,6 @@ public class ResultView extends AbstractView {
         
         tabPane = new TabPane();
         textTab = new Tab(ResultViewConfig.TabType.TEXT.getLabel());
-        visualTab = new Tab(ResultViewConfig.TabType.VISUAL.getLabel());
         tableTab = new Tab(ResultViewConfig.TabType.TABLE.getLabel());
         graphTab = new Tab(ResultViewConfig.TabType.GRAPH.getLabel());
         
@@ -68,9 +66,6 @@ public class ResultView extends AbstractView {
 
     /** Returns the text tab (package-private - prefer enableTextTab()). */
     Tab getTextTab() { return textTab; }
-
-    /** Returns the visual tab (package-private - prefer enableVisualTab()). */
-    Tab getVisualTab() { return visualTab; }
 
     /** Returns the table tab (package-private - prefer enableTableTab()). */
     Tab getTableTab() { return tableTab; }
@@ -99,18 +94,6 @@ public class ResultView extends AbstractView {
         textTab.setContent(content);
         if (!tabPane.getTabs().contains(textTab)) {
             tabPane.getTabs().add(textTab);
-        }
-    }
-
-    /**
-     * Enables the visual tab with the specified content.
-     *
-     * @param content The JavaFX node to display in the visual tab
-     */
-    public void enableVisualTab(javafx.scene.Node content) {
-        visualTab.setContent(content);
-        if (!tabPane.getTabs().contains(visualTab)) {
-            tabPane.getTabs().add(visualTab);
         }
     }
 
@@ -170,7 +153,7 @@ public class ResultView extends AbstractView {
      *
      * <p>When disabled, the tab is shown but grayed out and not selectable.
      *
-     * @param tab The tab to enable/disable (use getTextTab(), getVisualTab(), etc.)
+     * @param tab The tab to enable/disable (use getTextTab(), getTableTab(), etc.)
      * @param enabled True to enable the tab, false to disable it
      */
     public void setTabEnabled(Tab tab, boolean enabled) {
@@ -191,7 +174,6 @@ public class ResultView extends AbstractView {
     public Tab getTabByType(ResultViewConfig.TabType tabType) {
         return switch (tabType) {
             case TEXT -> textTab;
-            case VISUAL -> visualTab;
             case TABLE -> tableTab;
             case GRAPH -> graphTab;
         };

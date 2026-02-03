@@ -3,7 +3,6 @@ package fr.inria.corese.gui.feature.validation;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
-import fr.inria.corese.gui.core.manager.ShaclManager;
 import fr.inria.corese.gui.feature.result.ResultController;
 import fr.inria.corese.gui.feature.tabeditor.TabEditorConfig;
 import fr.inria.corese.gui.feature.tabeditor.TabEditorController;
@@ -82,7 +81,7 @@ public class ValidationController {
             )
             .withResultView(
                 view.getResultToolbarButtons(),
-                ResultViewConfig.builder().withTextTab().withVisualTab().build()
+                ResultViewConfig.builder().withTextTab().withTableTab().build()
             )
             .withEmptyState(emptyState)
             .withAllowedExtensions(List.of(
@@ -200,8 +199,7 @@ public class ValidationController {
             // Configure tabs: Validation results have text and visual
             resultController.configureTabsForResult(
                 true, // text: enabled (TURTLE/RDF/XML report)
-                true, // visual: enabled (validation report table)
-                false, // table: disabled (not used for validation)
+                true, // table: enabled (validation report table)
                 false // graph: disabled (not used for validation)
             );
 
@@ -223,7 +221,7 @@ public class ValidationController {
             });
 
             // Pass the report items for visualization
-            resultController.displayReportItems(ShaclManager.getInstance().extractReportItems(result));
+            resultController.displayReportItems(model.getValidationReportItems());
         }
     }
 
@@ -235,7 +233,10 @@ public class ValidationController {
         while (change.next()) {
             if (change.wasRemoved()) {
                 for (Tab tab : change.getRemoved()) {
-                    tabModels.remove(tab);
+                    ValidationModel model = tabModels.remove(tab);
+                    if (model != null) {
+                        model.dispose();
+                    }
                 }
             }
         }
