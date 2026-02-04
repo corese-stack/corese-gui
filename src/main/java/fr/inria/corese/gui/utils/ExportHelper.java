@@ -83,11 +83,22 @@ public final class ExportHelper {
       return;
     }
 
+    FileChooser fileChooser = createFileChooser(formats);
+    File file = fileChooser.showSaveDialog(window);
+
+    if (file != null) {
+      SerializationFormat selectedFormat = determineFormat(file, fileChooser, formats);
+      File finalFile = enforceExtension(file, selectedFormat);
+      String content = contentProvider.apply(selectedFormat);
+      writeFileAsync(finalFile, content);
+    }
+  }
+
+  private static FileChooser createFileChooser(List<SerializationFormat> formats) {
     FileChooser fileChooser = new FileChooser();
     fileChooser.setTitle("Export Result");
-    fileChooser.setInitialFileName("export"); // No extension initially
+    fileChooser.setInitialFileName("export");
 
-    // Add filters for each format
     for (SerializationFormat format : formats) {
       String ext = format.getExtension();
       FileChooser.ExtensionFilter filter =
@@ -95,40 +106,52 @@ public final class ExportHelper {
       fileChooser.getExtensionFilters().add(filter);
     }
 
-    File file = fileChooser.showSaveDialog(window);
+    return fileChooser;
+  }
 
-    if (file != null) {
-      // Determine format from the selected filter or file extension
-      SerializationFormat selectedFormat = formats.get(0); // Default
-      FileChooser.ExtensionFilter selectedFilter = fileChooser.getSelectedExtensionFilter();
-
-      if (selectedFilter != null) {
-        for (SerializationFormat fmt : formats) {
-          if (selectedFilter.getDescription().contains(fmt.getLabel())) {
-            selectedFormat = fmt;
-            break;
-          }
-        }
-      } else {
-        // Fallback: check extension
-        String name = file.getName().toLowerCase();
-        for (SerializationFormat fmt : formats) {
-          if (name.endsWith(fmt.getExtension())) {
-            selectedFormat = fmt;
-            break;
-          }
-        }
+  private static SerializationFormat determineFormat(
+      File file, FileChooser fileChooser, List<SerializationFormat> formats) {
+    
+    FileChooser.ExtensionFilter selectedFilter = fileChooser.getSelectedExtensionFilter();
+    
+    if (selectedFilter != null) {
+      SerializationFormat formatFromFilter = findFormatByFilter(selectedFilter, formats);
+      if (formatFromFilter != null) {
+        return formatFromFilter;
       }
-
-      // Enforce extension
-      if (!file.getName().toLowerCase().endsWith(selectedFormat.getExtension())) {
-        file = new File(file.getAbsolutePath() + selectedFormat.getExtension());
-      }
-
-      // Generate content using the provider
-      String content = contentProvider.apply(selectedFormat);
-      writeFileAsync(file, content);
     }
+    
+    // Fallback: check extension
+    SerializationFormat formatFromExtension = findFormatByExtension(file.getName(), formats);
+    return formatFromExtension != null ? formatFromExtension : formats.get(0);
+  }
+
+  private static SerializationFormat findFormatByFilter(
+      FileChooser.ExtensionFilter filter, List<SerializationFormat> formats) {
+    for (SerializationFormat fmt : formats) {
+      if (filter.getDescription().contains(fmt.getLabel())) {
+        return fmt;
+      }
+    }
+    return null;
+  }
+
+  private static SerializationFormat findFormatByExtension(
+      String fileName, List<SerializationFormat> formats) {
+    String lowerName = fileName.toLowerCase();
+    for (SerializationFormat fmt : formats) {
+      if (lowerName.endsWith(fmt.getExtension())) {
+        return fmt;
+      }
+    }
+    return null;
+  }
+
+  private static File enforceExtension(File file, SerializationFormat format) {
+    if (!file.getName().toLowerCase().endsWith(format.getExtension())) {
+      return new File(file.getAbsolutePath() + format.getExtension());
+    }
+    return file;
   }
 
   /**

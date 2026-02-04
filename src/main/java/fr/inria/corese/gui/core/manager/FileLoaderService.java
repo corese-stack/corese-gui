@@ -37,6 +37,10 @@ import javafx.concurrent.Task;
  */
 public class FileLoaderService {
 
+  private FileLoaderService() {
+    // Utility class - prevent instantiation
+  }
+
   /**
    * Creates a Task that loads file content asynchronously.
    *

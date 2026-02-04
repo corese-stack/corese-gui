@@ -2,7 +2,7 @@ package fr.inria.corese.gui.feature.main;
 
 import atlantafx.base.controls.ModalPane;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
-import fr.inria.corese.gui.core.dialog.DialogService;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.view.AbstractView;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
@@ -57,7 +57,7 @@ public final class MainView extends AbstractView {
     StackPane.setAlignment(notificationContainer, Pos.BOTTOM_RIGHT);
 
     // 4. Initialize Global Managers
-    DialogService.getInstance().setModalPane(modalPane);
+    ModalService.getInstance().setModalPane(modalPane);
     NotificationWidget.getInstance().setContainer(notificationContainer);
   }
 

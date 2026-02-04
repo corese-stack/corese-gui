@@ -93,7 +93,7 @@ public class TabContext {
       return null;
     }
     Object userData = tab.getUserData();
-    return userData instanceof TabContext ? (TabContext) userData : null;
+    return userData instanceof TabContext tabContext ? tabContext : null;
   }
 
   /**
@@ -196,10 +196,10 @@ public class TabContext {
     }
 
     // Dispose result controller if present
-    if (resultController != null && resultController instanceof AutoCloseable) {
+    if (resultController instanceof AutoCloseable autoCloseable) {
       try {
-        ((AutoCloseable) resultController).close();
-      } catch (Exception e) {
+        autoCloseable.close();
+      } catch (Exception _) {
         // Log but don't throw - we're cleaning up
       }
     }

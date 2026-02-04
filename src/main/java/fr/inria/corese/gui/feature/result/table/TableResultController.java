@@ -87,14 +87,14 @@ public class TableResultController {
         view.clearTable();
 
         if (csvResult == null || csvResult.isEmpty()) {
-            updatePagination(true);
+            updatePagination();
             return;
         }
 
         // Split by line (handling both \r\n and \n)
         String[] lines = csvResult.split("\\r?\\n");
         if (lines.length == 0) {
-            updatePagination(true);
+            updatePagination();
             return;
         }
 
@@ -107,7 +107,7 @@ public class TableResultController {
             allRows.add(lines[i].split(",", -1));
         }
 
-        updatePagination(true);
+        updatePagination();
     }
 
     // ==============================================================================================
@@ -123,14 +123,14 @@ public class TableResultController {
             int newRowsPerPage = Integer.parseInt(newValue);
             if (newRowsPerPage > 0) {
                 this.rowsPerPage = newRowsPerPage;
-                updatePagination(true);
+                updatePagination();
             }
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             // Ignore invalid input
         }
     }
 
-    private void updatePagination(boolean resetPage) {
+    private void updatePagination() {
         view.setTotalRowsLabel("Total rows: " + allRows.size());
 
         if (allRows.isEmpty()) {
@@ -143,13 +143,8 @@ public class TableResultController {
         int pageCount = (int) Math.ceil((double) allRows.size() / rowsPerPage);
         view.updatePagination(pageCount);
 
-        if (resetPage) {
-            view.setCurrentPageIndex(0);
-            updateTableForPage(0);
-        } else {
-            view.setCurrentPageIndex(0);
-            updateTableForPage(0);
-        }
+        view.setCurrentPageIndex(0);
+        updateTableForPage(0);
     }
 
     private void updateTableForPage(int pageIndex) {
@@ -222,7 +217,7 @@ public class TableResultController {
         Platform.runLater(() -> {
             allRows.clear();
             view.clearTable();
-            updatePagination(true);
+            updatePagination();
         });
     }
 

@@ -1,5 +1,7 @@
 package fr.inria.corese.gui.core.enums;
 
+import java.util.function.Supplier;
+
 import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.feature.data.DataView;
 import fr.inria.corese.gui.feature.data.DataViewController;
@@ -10,35 +12,9 @@ import fr.inria.corese.gui.feature.settings.SettingsModel;
 import fr.inria.corese.gui.feature.settings.SettingsView;
 import fr.inria.corese.gui.feature.validation.ValidationController;
 import fr.inria.corese.gui.feature.validation.ValidationView;
-import java.util.function.Supplier;
 
 /**
- * Enumerates all available views in the Corese-GUI application.
- *
- * <p>Each {@code ViewId} represents a distinct section of the UI (e.g., "Data", "Query",
- * "Settings") and defines how that view should be loaded — either from an FXML file or via a
- * Java-based factory.
- *
- * <p>This enum provides a uniform way to refer to views across controllers, ensuring type safety
- * and avoiding string-based identifiers.
- *
- * <h3>Usage</h3>
- *
- * <pre>{@code
- * ViewId view = ViewId.DATA;
- * AbstractView viewInstance = view.hasFactory()
- *     ? view.createInstance()
- *     : loadFromFxml(view.getFxmlPath());
- * }</pre>
- *
- * <p>Each entry can define:
- *
- * <ul>
- *   <li>A unique {@code id} used for logging and navigation.
- *   <li>An optional FXML path (if the view is defined in FXML).
- *   <li>An optional Java {@code Supplier<AbstractView>} factory (if the view is built
- *       programmatically).
- * </ul>
+ * Enumeration of application view identifiers.
  */
 public enum ViewId {
 
@@ -47,7 +23,6 @@ public enum ViewId {
   /** View displaying dataset loading and management features. */
   DATA(
       "data-view",
-      null,
       () -> {
         DataView view = new DataView();
         new DataViewController(view);
@@ -57,7 +32,6 @@ public enum ViewId {
   /** View for writing and executing SPARQL queries. */
   QUERY(
       "query-view",
-      null,
       () -> {
         QueryView view = new QueryView();
         new QueryViewController(view);
@@ -67,7 +41,6 @@ public enum ViewId {
   /** View for validating RDF data (e.g., SHACL). */
   VALIDATION(
       "validation-view",
-      null,
       () -> {
         ValidationView view = new ValidationView();
         new ValidationController(view);
@@ -77,7 +50,6 @@ public enum ViewId {
   /** Application configuration and preferences view. */
   SETTINGS(
       "settings-view",
-      null,
       () -> {
         SettingsModel model = new SettingsModel();
         SettingsView view = new SettingsView();
@@ -92,14 +64,14 @@ public enum ViewId {
   /** Unique string identifier for this view. */
   private final String id;
 
-  /** Optional factory function that instantiates the view directly in Java (no FXML). */
+  /** Factory to create an instance of the view. */
   private final Supplier<AbstractView> factory;
 
   // ===========================================================================
   // Constructor
   // ===========================================================================
 
-  ViewId(String id, String fxmlPath, Supplier<AbstractView> factory) {
+  ViewId(String id, Supplier<AbstractView> factory) {
     this.id = id;
     this.factory = factory;
   }
@@ -116,7 +88,8 @@ public enum ViewId {
   /**
    * Instantiates the view using its Java-based factory, if defined.
    *
-   * @return a newly created AbstractView instance, or {@code null} if no factory exists
+   * @return a newly created AbstractView instance, or {@code null} if no factory
+   *         exists
    */
   public AbstractView createInstance() {
     return factory != null ? factory.get() : null;

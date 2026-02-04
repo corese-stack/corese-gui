@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.feature.query;
 
-import fr.inria.corese.gui.core.dialog.DialogService;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
@@ -151,7 +151,7 @@ public class QueryViewController {
             } catch (Exception e) {
                 Platform.runLater(() -> {
                     tabEditorController.setExecutionState(false);
-                    DialogService.getInstance().showError("Query Execution Error", e.getMessage());
+                    ModalService.getInstance().showError("Query Execution Error", e.getMessage());
                 });
                 logger.error("Error executing query", e);
             }
@@ -171,14 +171,14 @@ public class QueryViewController {
 
         QueryType queryType = resultRef.getQueryType();
         // Configure view based on query type (SELECT/ASK vs CONSTRUCT/DESCRIBE)
-        if (queryType == QueryType.SELECT || queryType == QueryType.ASK) {
-            configureForTableResult(resultController, resultRef);
-        } else if (queryType == QueryType.CONSTRUCT || queryType == QueryType.DESCRIBE) {
-            configureForGraphResult(resultController, resultRef);
-        } else {
-            resultController.configureTabsForResult(true, false, false);
-            resultController.selectTextTab();
-            resultController.updateText("No result available for this query type.");
+        switch (queryType) {
+            case SELECT, ASK -> configureForTableResult(resultController, resultRef);
+            case CONSTRUCT, DESCRIBE -> configureForGraphResult(resultController, resultRef);
+            default -> {
+                resultController.configureTabsForResult(true, false, false);
+                resultController.selectTextTab();
+                resultController.updateText("No result available for this query type.");
+            }
         }
     }
 

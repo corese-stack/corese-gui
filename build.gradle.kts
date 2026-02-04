@@ -19,7 +19,6 @@ repositories {
 dependencies {
     // JavaFX
     implementation("org.openjfx:javafx-controls:25.0.1")
-    implementation("org.openjfx:javafx-fxml:25.0.1")
     implementation("org.openjfx:javafx-web:25.0.1")
     implementation("org.openjfx:javafx-swing:25.0.1")
     implementation("org.openjfx:javafx-base:25.0.1")
@@ -46,7 +45,7 @@ dependencies {
 
 javafx {
     version = "25.0.1"
-    modules("javafx.controls", "javafx.fxml", "javafx.web", "javafx.swing")
+    modules("javafx.controls", "javafx.web", "javafx.swing")
 }
 
 application {

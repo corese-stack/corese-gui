@@ -1,7 +1,8 @@
 package fr.inria.corese.gui.feature.codeeditor;
 
 import java.io.File;
-import java.util.Stack;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
@@ -29,8 +30,8 @@ public class CodeEditorModel {
   private final ReadOnlyStringWrapper displayName = new ReadOnlyStringWrapper("Untitled");
 
   // Simple snapshot-based undo/redo history
-  private final Stack<String> undoStack = new Stack<>();
-  private final Stack<String> redoStack = new Stack<>();
+  private final Deque<String> undoStack = new ArrayDeque<>();
+  private final Deque<String> redoStack = new ArrayDeque<>();
   private boolean isUndoingOrRedoing = false;
   private String currentSavedContent = "";
 

@@ -2,7 +2,7 @@ package fr.inria.corese.gui.feature.codeeditor;
 
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
-import fr.inria.corese.gui.core.dialog.DialogService;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.core.factory.ButtonFactory;
@@ -306,7 +306,7 @@ public class CodeEditorController {
         model.markAsSaved();
       } catch (IOException e) {
         logger.error("Failed to open file", e);
-        DialogService.getInstance().showError("Error Opening File", e.getMessage());
+        ModalService.getInstance().showError("Error Opening File", e.getMessage());
       }
     }
   }
@@ -368,7 +368,7 @@ public class CodeEditorController {
   }
 
   private File enforceExtension(File file, FileChooser.ExtensionFilter filter) {
-    if (filter != null && filter.getExtensions().size() > 0) {
+    if (filter != null && !filter.getExtensions().isEmpty()) {
       String ext = filter.getExtensions().get(0).replace("*", ""); // e.g. ".ttl"
       if (!file.getName().toLowerCase().endsWith(ext)) {
         return new File(file.getAbsolutePath() + ext);
@@ -385,7 +385,7 @@ public class CodeEditorController {
       NotificationWidget.getInstance().showSuccess("Saved: " + file.getName());
     } catch (IOException e) {
       logger.error("Save failed", e);
-      DialogService.getInstance().showError("Save Error", "Could not save file: " + e.getMessage());
+      ModalService.getInstance().showError("Save Error", "Could not save file: " + e.getMessage());
     }
   }
 
@@ -401,10 +401,10 @@ public class CodeEditorController {
         RdfSyntaxService.getInstance().checkTurtle(content);
     if (result.valid()) {
       // If parse succeeds, proceed to export (stub for now)
-      DialogService.getInstance().showInformation(
+      ModalService.getInstance().showInformation(
           "Export", "Content is valid RDF. Export implementation pending.");
     } else {
-      DialogService.getInstance().showError(
+      ModalService.getInstance().showError(
           "Validation Error",
           "Content is not valid RDF/Turtle:\n" + result.message());
     }

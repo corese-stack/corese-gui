@@ -4,7 +4,6 @@ import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.adapter.RdfDataService;
 import fr.inria.corese.gui.core.adapter.ShaclService;
 import fr.inria.corese.gui.core.model.ValidationResult;
-import java.util.List;
 
 /**
  * Model for the Validation feature.

@@ -1,9 +1,8 @@
 package fr.inria.corese.gui.feature.tabeditor;
 
-
 import fr.inria.corese.gui.component.button.FloatingButtonWidget;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
-import fr.inria.corese.gui.core.dialog.DialogService;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.manager.FileLoaderService;
 import fr.inria.corese.gui.feature.codeeditor.CodeEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
@@ -31,32 +30,32 @@ import org.slf4j.LoggerFactory;
 /**
  * Controller for the tabbed editor interface.
  *
- * <p>This controller manages multiple code editor tabs using a clean MVC architecture with:
+ * <p>
+ * This controller manages multiple code editor tabs using a clean MVC
+ * architecture with:
  *
  * <ul>
- *   <li><b>Single source of truth:</b> TabContext stored in Tab.userData
- *   <li><b>Builder pattern:</b> Configuration via TabEditorConfig
- *   <li><b>Clean separation:</b> UI assembly vs business logic
- *   <li><b>Async operations:</b> Non-blocking file I/O
+ * <li><b>Single source of truth:</b> TabContext stored in Tab.userData
+ * <li><b>Builder pattern:</b> Configuration via TabEditorConfig
+ * <li><b>Clean separation:</b> UI assembly vs business logic
+ * <li><b>Async operations:</b> Non-blocking file I/O
  * </ul>
  *
- * <p><b>Usage example:</b>
+ * <p>
+ * <b>Usage example:</b>
  *
  * <pre>{@code
  * // 1. Build configuration
  * TabEditorConfig config = TabEditorConfig.builder()
  *     .withEditorButtons(List.of(
  *         new ButtonConfig(ButtonIcon.SAVE, "Save"),
- *         new ButtonConfig(ButtonIcon.UNDO, "Undo")
- *     ))
+ *         new ButtonConfig(ButtonIcon.UNDO, "Undo")))
  *     .withExecution(
  *         new ButtonConfig(ButtonIcon.PLAY, "Run"),
- *         this::executeQuery
- *     )
+ *         this::executeQuery)
  *     .withResultView(
  *         List.of(new ButtonConfig(ButtonIcon.COPY, "Copy")),
- *         ResultViewConfig.builder().withTextTab().build()
- *     )
+ *         ResultViewConfig.builder().withTextTab().build())
  *     .build();
  *
  * // 2. Create controller (all configuration done!)
@@ -92,8 +91,11 @@ public class TabEditorController {
   /**
    * Shared thread pool for asynchronous file loading operations.
    *
-   * <p>Uses a cached thread pool to efficiently handle multiple concurrent file loads without
-   * creating excessive threads. Threads are reused and automatically cleaned up when idle,
+   * <p>
+   * Uses a cached thread pool to efficiently handle multiple concurrent file
+   * loads without
+   * creating excessive threads. Threads are reused and automatically cleaned up
+   * when idle,
    * preventing resource exhaustion when opening many files.
    */
   private final ExecutorService fileLoadExecutor;
@@ -101,11 +103,16 @@ public class TabEditorController {
   /**
    * Preloaded tab that is ready for instant use.
    *
-   * <p>This tab is created during initialization if {@link TabEditorConfig#shouldPreloadFirstTab()}
-   * is enabled. It remains in memory but invisible until the user creates a new empty tab, at which
+   * <p>
+   * This tab is created during initialization if
+   * {@link TabEditorConfig#shouldPreloadFirstTab()}
+   * is enabled. It remains in memory but invisible until the user creates a new
+   * empty tab, at which
    * point this preloaded instance is reused for instant display.
    *
-   * <p>After being used once, this field is set to null and all subsequent tabs are created
+   * <p>
+   * After being used once, this field is set to null and all subsequent tabs are
+   * created
    * on-demand.
    */
   private Tab preloadedTab;
@@ -117,7 +124,9 @@ public class TabEditorController {
   /**
    * Constructs a TabEditorController with the given configuration.
    *
-   * <p>All configuration must be provided upfront via TabEditorConfig.builder(). This ensures the
+   * <p>
+   * All configuration must be provided upfront via TabEditorConfig.builder().
+   * This ensures the
    * controller is always in a valid state and prevents incomplete initialization.
    *
    * @param config The configuration for this controller (must not be null)
@@ -131,14 +140,13 @@ public class TabEditorController {
     this.config = config;
     this.view = new TabEditorView();
     this.resultControllerFactory = config.createResultControllerFactory();
-    this.fileLoadExecutor =
-        Executors.newCachedThreadPool(
-            r -> {
-              Thread t = new Thread(r);
-              t.setDaemon(true);
-              t.setName("file-loader-" + t.threadId());
-              return t;
-            });
+    this.fileLoadExecutor = Executors.newCachedThreadPool(
+        r -> {
+          Thread t = new Thread(r);
+          t.setDaemon(true);
+          t.setName("file-loader-" + t.threadId());
+          return t;
+        });
 
     initialize();
   }
@@ -201,10 +209,13 @@ public class TabEditorController {
   /**
    * Creates a new tab with specific title and content.
    *
-   * <p>If a preloaded tab is available and the parameters match (default title and empty content),
-   * the preloaded tab is reused for instant display. Otherwise, a new tab is created.
+   * <p>
+   * If a preloaded tab is available and the parameters match (default title and
+   * empty content),
+   * the preloaded tab is reused for instant display. Otherwise, a new tab is
+   * created.
    *
-   * @param title The tab title
+   * @param title   The tab title
    * @param content The initial content
    * @return The created Tab
    */
@@ -222,7 +233,9 @@ public class TabEditorController {
   /**
    * Opens a file in a new tab asynchronously.
    *
-   * <p>If the file is already open, selects that tab instead. The file is loaded in a background
+   * <p>
+   * If the file is already open, selects that tab instead. The file is loaded in
+   * a background
    * thread to keep the UI responsive.
    *
    * @param file The file to open
@@ -249,7 +262,9 @@ public class TabEditorController {
   /**
    * Requests to close a tab, showing confirmation if needed.
    *
-   * <p>Follows JavaFX naming convention for user-requested actions. If the tab has unsaved changes,
+   * <p>
+   * Follows JavaFX naming convention for user-requested actions. If the tab has
+   * unsaved changes,
    * shows a confirmation dialog.
    *
    * @param tab The tab to close
@@ -270,16 +285,16 @@ public class TabEditorController {
         controller.getModel().getDisplayName(),
         result -> {
           switch (result) {
-            case DialogService.UnsavedChangesResult.SAVE:
+            case ModalService.UnsavedChangesResult.SAVE:
               controller.saveFile();
               if (!controller.getModel().isModified()) {
                 closeTabImmediately(tab);
               }
               break;
-            case DialogService.UnsavedChangesResult.DONT_SAVE:
+            case ModalService.UnsavedChangesResult.DONT_SAVE:
               closeTabImmediately(tab);
               break;
-            case DialogService.UnsavedChangesResult.CANCEL:
+            case ModalService.UnsavedChangesResult.CANCEL:
               // Do nothing
               break;
           }
@@ -410,11 +425,15 @@ public class TabEditorController {
   /**
    * Shuts down this controller and releases all resources.
    *
-   * <p>This method should be called when the TabEditorController is no longer needed, typically
-   * when the application is closing. It performs an orderly shutdown of the file loading thread
+   * <p>
+   * This method should be called when the TabEditorController is no longer
+   * needed, typically
+   * when the application is closing. It performs an orderly shutdown of the file
+   * loading thread
    * pool, allowing currently running tasks to complete.
    *
-   * <p><b>Important:</b> After calling this method, no new files should be opened.
+   * <p>
+   * <b>Important:</b> After calling this method, no new files should be opened.
    */
   public void shutdown() {
     fileLoadExecutor.shutdown();
@@ -428,10 +447,12 @@ public class TabEditorController {
   /**
    * Creates a tab with full context attached and adds it to the view.
    *
-   * <p>This method delegates to {@link #createTabWithoutAdding} and then adds the tab to the view.
+   * <p>
+   * This method delegates to {@link #createTabWithoutAdding} and then adds the
+   * tab to the view.
    *
-   * @param title Tab title
-   * @param content Initial content
+   * @param title    Tab title
+   * @param content  Initial content
    * @param filePath File path (null if not associated with a file)
    * @return The created and displayed Tab
    */
@@ -444,28 +465,32 @@ public class TabEditorController {
   /**
    * Creates a tab with full context attached but does not add it to the view.
    *
-   * <p>This is the core tab assembly method that creates all components and wires them together:
+   * <p>
+   * This is the core tab assembly method that creates all components and wires
+   * them together:
    *
    * <ul>
-   *   <li>Creates editor and result controllers
-   *   <li>Assembles the UI layout
-   *   <li>Creates the tab with its content
-   *   <li>Attaches the TabContext
-   *   <li>Binds properties and file associations
+   * <li>Creates editor and result controllers
+   * <li>Assembles the UI layout
+   * <li>Creates the tab with its content
+   * <li>Attaches the TabContext
+   * <li>Binds properties and file associations
    * </ul>
    *
-   * <p>This method is used for preloading tabs without displaying them, allowing instant display
+   * <p>
+   * This method is used for preloading tabs without displaying them, allowing
+   * instant display
    * when needed later.
    *
-   * @param title Tab title
-   * @param content Initial content
+   * @param title    Tab title
+   * @param content  Initial content
    * @param filePath File path (null if not associated with a file)
    * @return The fully configured Tab (not yet added to view)
    */
   private Tab createTabWithoutAdding(String title, String content, String filePath) {
     // 1. Create controllers
-    CodeEditorController editorController =
-        new CodeEditorController(config.getEditorButtons(), content, config.getAllowedExtensions());
+    CodeEditorController editorController = new CodeEditorController(config.getEditorButtons(), content,
+        config.getAllowedExtensions());
     ResultController resultController = createResultControllerIfConfigured();
 
     // 2. Assemble UI
@@ -476,7 +501,7 @@ public class TabEditorController {
     Tab tab = view.createEditorTab(title, tabContent);
 
     // 4. Attach context (single source of truth)
-    FloatingButtonWidget executionButton = setupExecutionButton(editorWrapper, editorController);
+    FloatingButtonWidget executionButton = setupExecutionButton(editorWrapper);
     attachContext(tab, editorController, resultController, executionButton);
 
     // 5. Final setup
@@ -491,12 +516,13 @@ public class TabEditorController {
   /**
    * Attaches TabContext to tab's userData.
    *
-   * <p>This is the single source of truth for all tab-related components.
+   * <p>
+   * This is the single source of truth for all tab-related components.
    *
-   * @param tab The tab
+   * @param tab              The tab
    * @param editorController The editor controller
    * @param resultController The result controller (nullable)
-   * @param executionButton The execution button (nullable)
+   * @param executionButton  The execution button (nullable)
    */
   private void attachContext(
       Tab tab,
@@ -527,12 +553,12 @@ public class TabEditorController {
   }
 
   private FloatingButtonWidget setupExecutionButton(
-      StackPane editorWrapper, CodeEditorController editorController) {
+      StackPane editorWrapper) {
     if (!config.hasExecution()) {
       return null;
     }
 
-    FloatingButtonWidget runButton = createExecutionButton(editorController);
+    FloatingButtonWidget runButton = createExecutionButton();
     StackPane.setAlignment(runButton, Pos.BOTTOM_RIGHT);
     StackPane.setMargin(runButton, TabEditorView.getExecutionButtonMargin());
     editorWrapper.getChildren().add(runButton);
@@ -540,7 +566,7 @@ public class TabEditorController {
     return runButton;
   }
 
-  private FloatingButtonWidget createExecutionButton(CodeEditorController editorController) {
+  private FloatingButtonWidget createExecutionButton() {
     FloatingButtonWidget runButton = new FloatingButtonWidget(config.getExecutionButton());
 
     // Set action
@@ -575,13 +601,12 @@ public class TabEditorController {
     // Bind execution button properties
     TabContext context = TabContext.get(tab);
     if (context != null && context.hasExecutionButton()) {
-      BooleanBinding isEmpty =
-          Bindings.createBooleanBinding(
-              () -> {
-                String c = editorController.getModel().getContent();
-                return c == null || c.trim().isEmpty();
-              },
-              editorController.getModel().contentProperty());
+      BooleanBinding isEmpty = Bindings.createBooleanBinding(
+          () -> {
+            String c = editorController.getModel().getContent();
+            return c == null || c.trim().isEmpty();
+          },
+          editorController.getModel().contentProperty());
 
       // Bind loading state (visual animation)
       context.getExecutionButton().loadingProperty().bind(context.executionRunningProperty());
@@ -660,14 +685,16 @@ public class TabEditorController {
   /**
    * Closes a tab immediately without confirmation.
    *
-   * <p>Performs thorough cleanup to prevent memory leaks:
+   * <p>
+   * Performs thorough cleanup to prevent memory leaks:
    *
    * <ul>
-   *   <li>Unbinds all JavaFX property bindings
-   *   <li>Calls dispose() on TabContext, which in turn disposes CodeEditorController (unbinding
-   *       CodeMirror content and cleaning up listeners)
-   *   <li>Clears all references
-   *   <li>Removes tab from view
+   * <li>Unbinds all JavaFX property bindings
+   * <li>Calls dispose() on TabContext, which in turn disposes
+   * CodeEditorController (unbinding
+   * CodeMirror content and cleaning up listeners)
+   * <li>Clears all references
+   * <li>Removes tab from view
    * </ul>
    *
    * @param tab The tab to close
@@ -683,7 +710,8 @@ public class TabEditorController {
     // Unbind to prevent memory leaks
     tab.textProperty().unbind();
 
-    // Dispose resources (CodeEditorController.dispose() unbinds bidirectional content binding)
+    // Dispose resources (CodeEditorController.dispose() unbinds bidirectional
+    // content binding)
     if (context != null) {
       context.dispose();
     }
