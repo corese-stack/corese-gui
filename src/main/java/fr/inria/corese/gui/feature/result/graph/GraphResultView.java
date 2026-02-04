@@ -1,10 +1,10 @@
 package fr.inria.corese.gui.feature.result.graph;
 
+import fr.inria.corese.gui.component.button.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
+import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
-import fr.inria.corese.gui.core.config.ButtonConfig;
-import fr.inria.corese.gui.core.enums.ButtonIcon;
-import fr.inria.corese.gui.core.factory.ButtonFactory;
 import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.utils.CssUtils;
 import java.util.List;
@@ -34,9 +34,8 @@ import javafx.util.Duration;
  */
 public class GraphResultView extends AbstractView {
 
-  private static final String COMMON_STYLESHEET_PATH = "/css/common.css";
-  private static final String VIEW_STYLESHEET_PATH = "/css/graph-result.css";
-
+      private static final String COMMON_STYLESHEET_PATH = "/css/common/common.css";
+      private static final String VIEW_STYLESHEET_PATH = "/css/features/graph-result.css";
   // Animation constants
   private static final double OPACITY_IDLE = 0.7;
   private static final double OPACITY_HOVER = 1.0;

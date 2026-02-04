@@ -1,12 +1,13 @@
-package fr.inria.corese.gui.feature.codeeditor;
+package fr.inria.corese.gui.feature.editor.code;
 
+import fr.inria.corese.gui.component.button.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
+import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
-import fr.inria.corese.gui.core.dialog.ModalService;
-import fr.inria.corese.gui.core.config.ButtonConfig;
-import fr.inria.corese.gui.core.enums.ButtonIcon;
-import fr.inria.corese.gui.core.factory.ButtonFactory;
-import fr.inria.corese.gui.core.adapter.RdfSyntaxService;
+import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.core.service.RdfSyntaxService;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;

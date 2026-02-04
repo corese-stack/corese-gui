@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.core.manager;
+package fr.inria.corese.gui.feature.main;
 
 import java.util.EnumMap;
 import java.util.Map;

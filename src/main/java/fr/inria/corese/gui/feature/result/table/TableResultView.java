@@ -3,9 +3,9 @@ package fr.inria.corese.gui.feature.result.table;
 import java.util.List;
 import java.util.function.Consumer;
 
+import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.pagination.TablePaginationWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
-import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.view.AbstractView;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -30,7 +30,7 @@ import javafx.scene.layout.BorderPane;
  */
 public class TableResultView extends AbstractView {
 
-    private static final String STYLESHEET = "/css/table-result.css";
+    private static final String STYLESHEET = "/css/features/table-result.css";
     private static final int INDEX_COLUMN_WIDTH = 50;
     private static final int SCROLLBAR_MARGIN = 20;
 

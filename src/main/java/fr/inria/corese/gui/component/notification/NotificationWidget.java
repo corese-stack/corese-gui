@@ -53,7 +53,7 @@ public class NotificationWidget {
 
     private static final NotificationWidget INSTANCE = new NotificationWidget();
 
-    private static final String STYLESHEET = "/css/notification-widget.css";
+    private static final String STYLESHEET = "/css/components/notification-widget.css";
     private static final String STYLE_CLASS_TOAST = "notification-toast";
     private static final String STYLE_CLASS_ICON = "notification-icon";
     private static final String STYLE_CLASS_LABEL = "notification-label";

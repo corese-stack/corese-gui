@@ -1,9 +1,9 @@
 package fr.inria.corese.gui.feature.validation;
 
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-import fr.inria.corese.gui.core.adapter.RdfDataService;
-import fr.inria.corese.gui.core.adapter.ShaclService;
 import fr.inria.corese.gui.core.model.ValidationResult;
+import fr.inria.corese.gui.core.service.RdfDataService;
+import fr.inria.corese.gui.core.service.ShaclService;
 
 /**
  * Model for the Validation feature.

@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.core.enums;
+package fr.inria.corese.gui.component.button.enums;
 
 import org.kordamp.ikonli.Ikon;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignB;
@@ -14,7 +14,7 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignT;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignU;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignW;
 
-import fr.inria.corese.gui.core.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.config.ButtonConfig;
 
 /**
  * Enumeration of button icons used throughout the application.

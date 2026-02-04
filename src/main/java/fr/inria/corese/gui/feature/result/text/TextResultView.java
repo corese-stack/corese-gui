@@ -1,8 +1,8 @@
 package fr.inria.corese.gui.feature.result.text;
 
+import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.editor.CodeMirrorWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
-import fr.inria.corese.gui.core.config.ButtonConfig;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.utils.CssUtils;
@@ -38,8 +38,8 @@ public class TextResultView extends AbstractView {
     // Constants
     // ==============================================================================================
 
-    private static final String STYLESHEET_PATH = "/css/text-result.css";
-    private static final String COMMON_STYLESHEET_PATH = "/css/common.css";
+    private static final String STYLESHEET_PATH = "/css/features/text-result.css";
+    private static final String COMMON_STYLESHEET_PATH = "/css/common/common.css";
     
     private static final String STYLE_CLASS_FLOATING_PANEL = "floating-panel";
     private static final String STYLE_CLASS_FORMAT_BOX = "format-selector-box";

@@ -2,7 +2,8 @@ package fr.inria.corese.gui.component.button;
 
 import atlantafx.base.controls.RingProgressIndicator;
 import atlantafx.base.theme.Styles;
-import fr.inria.corese.gui.core.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.config.ButtonConfig;
+
 import java.net.URL;
 import java.util.Objects;
 import javafx.beans.property.BooleanProperty;
@@ -33,8 +34,7 @@ public class FloatingButtonWidget extends Button {
   // ==============================================================================================
 
   /** Path to the CSS stylesheet for floating button styles. */
-  private static final String STYLESHEET = "/css/floating-button-widget.css";
-
+      private static final String STYLESHEET = "/css/components/floating-button-widget.css";
   /** Primary CSS style class applied to this button. */
   private static final String STYLE_CLASS = "floating-button";
 

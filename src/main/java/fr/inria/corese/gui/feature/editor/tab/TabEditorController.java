@@ -1,10 +1,10 @@
-package fr.inria.corese.gui.feature.tabeditor;
+package fr.inria.corese.gui.feature.editor.tab;
 
 import fr.inria.corese.gui.component.button.FloatingButtonWidget;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
-import fr.inria.corese.gui.core.dialog.ModalService;
-import fr.inria.corese.gui.core.manager.FileLoaderService;
-import fr.inria.corese.gui.feature.codeeditor.CodeEditorController;
+import fr.inria.corese.gui.core.service.FileLoaderService;
+import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
 import java.io.File;
 import java.io.IOException;

@@ -2,9 +2,10 @@ package fr.inria.corese.gui.core.dialog;
 
 import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.component.button.IconButtonWidget;
-import fr.inria.corese.gui.core.config.ButtonConfig;
-import fr.inria.corese.gui.core.enums.ButtonIcon;
-import fr.inria.corese.gui.core.dialog.ModalService.UnsavedChangesResult;
+import fr.inria.corese.gui.component.button.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
+import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.core.service.ModalService.UnsavedChangesResult;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -34,7 +35,7 @@ import java.util.function.Consumer;
  */
 public class DialogLayout extends VBox {
 
-    private static final String STYLESHEET = DialogLayout.class.getResource("/css/app-dialog.css").toExternalForm();
+    private static final String STYLESHEET = DialogLayout.class.getResource("/css/components/app-dialog.css").toExternalForm();
 
     // ==============================================================================================
     // Constructor

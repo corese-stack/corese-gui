@@ -1,6 +1,7 @@
-package fr.inria.corese.gui.core.dialog;
+package fr.inria.corese.gui.core.service;
 
 import atlantafx.base.controls.ModalPane;
+import fr.inria.corese.gui.core.dialog.DialogLayout;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import java.util.function.Consumer;

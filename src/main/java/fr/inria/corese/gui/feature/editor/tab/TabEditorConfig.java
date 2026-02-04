@@ -1,6 +1,6 @@
-package fr.inria.corese.gui.feature.tabeditor;
+package fr.inria.corese.gui.feature.editor.tab;
 
-import fr.inria.corese.gui.core.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.feature.result.ResultController;
 import java.util.ArrayList;

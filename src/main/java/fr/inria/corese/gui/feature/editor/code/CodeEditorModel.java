@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.feature.codeeditor;
+package fr.inria.corese.gui.feature.editor.code;
 
 import java.io.File;
 import java.util.ArrayDeque;

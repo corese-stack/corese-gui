@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.core.adapter;
+package fr.inria.corese.gui.core.service;
 
 import fr.inria.corese.core.api.Loader;
 import fr.inria.corese.core.Graph;

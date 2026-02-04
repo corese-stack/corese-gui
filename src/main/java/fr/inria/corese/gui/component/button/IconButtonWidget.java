@@ -1,9 +1,10 @@
 package fr.inria.corese.gui.component.button;
 
-import fr.inria.corese.gui.core.config.ButtonConfig;
 import javafx.scene.control.Button;
 import javafx.scene.control.Tooltip;
 import org.kordamp.ikonli.javafx.FontIcon;
+
+import fr.inria.corese.gui.component.button.config.ButtonConfig;
 
 /**
  * A standard icon button component (Widget).

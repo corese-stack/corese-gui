@@ -1,12 +1,13 @@
 package fr.inria.corese.gui.feature.validation;
 
-import fr.inria.corese.gui.core.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
-import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.core.model.ValidationResult;
+import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
+import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
-import fr.inria.corese.gui.feature.tabeditor.TabEditorConfig;
-import fr.inria.corese.gui.feature.tabeditor.TabEditorController;
+
 import java.io.File;
 import java.util.HashMap;
 import java.util.List;

@@ -2,7 +2,7 @@ package fr.inria.corese.gui.feature.main;
 
 import atlantafx.base.controls.ModalPane;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
-import fr.inria.corese.gui.core.dialog.ModalService;
+import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.view.AbstractView;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
@@ -24,8 +24,7 @@ import javafx.scene.layout.VBox;
  */
 public final class MainView extends AbstractView {
 
-  private static final String STYLESHEET_PATH = "/css/main-view.css";
-
+      private static final String STYLESHEET_PATH = "/css/features/main-view.css";
   // Layout Containers
   private final VBox navigationContainer = new VBox();
   private final BorderPane contentArea = new BorderPane();

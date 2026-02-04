@@ -1,7 +1,7 @@
-package fr.inria.corese.gui.core.factory;
+package fr.inria.corese.gui.component.button.factory;
 
-import fr.inria.corese.gui.core.config.ButtonConfig;
-import fr.inria.corese.gui.core.enums.ButtonIcon;
+import fr.inria.corese.gui.component.button.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 
 /**
  * Factory for creating standardized button configurations.

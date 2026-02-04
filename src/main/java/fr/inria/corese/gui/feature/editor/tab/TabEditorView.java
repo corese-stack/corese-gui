@@ -1,7 +1,7 @@
-package fr.inria.corese.gui.feature.tabeditor;
+package fr.inria.corese.gui.feature.editor.tab;
 
+import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.view.AbstractView;
-import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.utils.TabPaneUtils;
 import fr.inria.corese.gui.utils.ThemeManager;
 
@@ -54,7 +54,7 @@ public class TabEditorView extends AbstractView {
     // Constants
     // ==============================================================================================
 
-    private static final String STYLESHEET = "/css/tab-editor.css";
+    private static final String STYLESHEET = "/css/features/tab-editor.css";
     private static final String TAB_CONTENT_WRAPPER_ID = "tab-content-wrapper";
     private static final String EMPTY_STATE_VIEW_ID = "empty-state-widget";
     private static final String STYLE_CLASS_ADD_BUTTON = "add-tab-button";

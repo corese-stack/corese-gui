@@ -1,7 +1,7 @@
-package fr.inria.corese.gui.feature.tabeditor;
+package fr.inria.corese.gui.feature.editor.tab;
 
 import fr.inria.corese.gui.component.button.FloatingButtonWidget;
-import fr.inria.corese.gui.feature.codeeditor.CodeEditorController;
+import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;

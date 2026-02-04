@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.core.adapter;
+package fr.inria.corese.gui.core.service;
 
 import fr.inria.corese.core.load.Load;
 import fr.inria.corese.core.load.LoadFormat;

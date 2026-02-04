@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.feature.codeeditor;
+package fr.inria.corese.gui.feature.editor.code;
 
 import fr.inria.corese.gui.component.editor.CodeMirrorWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;

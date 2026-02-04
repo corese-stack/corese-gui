@@ -2,8 +2,6 @@ package fr.inria.corese.gui.feature.main;
 
 import fr.inria.corese.gui.core.enums.ViewId;
 
-import fr.inria.corese.gui.core.manager.ViewManager;
-
 
 
 

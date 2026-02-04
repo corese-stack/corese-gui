@@ -1,8 +1,8 @@
 package fr.inria.corese.gui.feature.result.graph;
 
+import fr.inria.corese.gui.component.button.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
-import fr.inria.corese.gui.core.config.ButtonConfig;
-import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.utils.ExportHelper;
 import java.util.List;
 import javafx.scene.Node;

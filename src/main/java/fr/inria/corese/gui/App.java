@@ -1,9 +1,9 @@
 package fr.inria.corese.gui;
 
-import fr.inria.corese.gui.core.manager.ViewManager;
 import fr.inria.corese.gui.feature.main.MainController;
 import fr.inria.corese.gui.feature.main.MainView;
 import fr.inria.corese.gui.feature.main.NavigationBarController;
+import fr.inria.corese.gui.feature.main.ViewManager;
 import fr.inria.corese.gui.utils.SvgImageLoader;
 import fr.inria.corese.gui.utils.ThemeManager;
 

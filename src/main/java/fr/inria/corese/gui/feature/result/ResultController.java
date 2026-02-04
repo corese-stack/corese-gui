@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.feature.result;
 
-import fr.inria.corese.gui.core.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.feature.result.graph.GraphResultController;

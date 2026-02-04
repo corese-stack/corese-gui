@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.core.manager;
+package fr.inria.corese.gui.core.service;
 
 import java.io.File;
 import java.io.IOException;

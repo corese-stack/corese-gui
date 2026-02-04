@@ -1,7 +1,8 @@
 package fr.inria.corese.gui.feature.data;
 
 import fr.inria.corese.gui.component.notification.NotificationWidget;
-import fr.inria.corese.gui.core.adapter.RdfDataService;
+import fr.inria.corese.gui.core.service.RdfDataService;
+
 import java.io.File;
 import java.util.List;
 import javafx.stage.FileChooser;

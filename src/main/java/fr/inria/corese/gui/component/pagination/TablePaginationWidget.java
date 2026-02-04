@@ -3,8 +3,8 @@ package fr.inria.corese.gui.component.pagination;
 import java.util.function.Consumer;
 
 import fr.inria.corese.gui.component.button.IconButtonWidget;
-import fr.inria.corese.gui.core.config.ButtonConfig;
-import fr.inria.corese.gui.core.enums.ButtonIcon;
+import fr.inria.corese.gui.component.button.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import javafx.beans.property.StringProperty;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
@@ -48,7 +48,7 @@ public class TablePaginationWidget extends HBox {
     // Fields
     // ==============================================================================================
 
-    private static final String STYLESHEET = "/css/table-pagination-widget.css";
+    private static final String STYLESHEET = "/css/components/table-pagination-widget.css";
     private static final String STYLE_CLASS_FOOTER = "table-pagination-footer";
     private static final String STYLE_CLASS_SQUARE_INPUT = "pagination-square-input";
 

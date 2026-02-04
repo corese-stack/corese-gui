@@ -1,8 +1,8 @@
 package fr.inria.corese.gui.feature.validation;
 
+import fr.inria.corese.gui.component.button.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.emptystate.EmptyStateWidget;
-import fr.inria.corese.gui.core.config.ButtonConfig;
-import fr.inria.corese.gui.core.enums.ButtonIcon;
 import fr.inria.corese.gui.core.view.AbstractView;
 import java.util.List;
 import javafx.scene.Node;
@@ -23,7 +23,7 @@ public class ValidationView extends AbstractView {
     // Constants
     // ==============================================================================================
 
-    private static final String STYLESHEET_PATH = "/css/validation-view.css";
+    private static final String STYLESHEET_PATH = "/css/features/validation-view.css";
 
     // ==============================================================================================
     // Constructor
