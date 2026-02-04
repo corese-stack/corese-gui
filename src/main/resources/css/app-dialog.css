@@ -1,0 +1,28 @@
+/**
+ * Styles for AppDialog component.
+ *
+ * Provides consistent visual styling for all application dialogs including
+ * background, border radius, and size constraints.
+ */
+
+.app-dialog {
+    -fx-background-color: -color-bg-default;
+    -fx-background-radius: 10;
+    -fx-min-width: 400px;
+    -fx-max-width: 600px;
+    -fx-padding: 20;
+    -fx-spacing: 15;
+}
+
+.app-dialog .dialog-header {
+    -fx-alignment: center-left;
+}
+
+.app-dialog .dialog-actions {
+    -fx-alignment: center-right;
+    -fx-spacing: 10;
+}
+
+.app-dialog .dialog-message {
+    -fx-wrap-text: true;
+}

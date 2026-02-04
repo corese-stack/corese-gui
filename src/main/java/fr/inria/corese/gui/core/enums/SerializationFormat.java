@@ -34,16 +34,12 @@ public enum SerializationFormat {
   TSV("TSV", ".tsv"),
   JSON("JSON", ".json"),
   XML("XML", ".xml"),
+  MARKDOWN("Markdown", ".md"),
 
   // SPARQL Query/Update
   SPARQL_QUERY("SPARQL Query", ".rq"),
-  SPARQL_UPDATE("SPARQL Update", ".ru"),
-
-  // Scripts
-  JAVASCRIPT("JavaScript", ".js"),
 
   // Other
-  MARKDOWN("Markdown", ".md"),
   TEXT("Text", ".txt");
 
   private final String label;
@@ -93,8 +89,7 @@ public enum SerializationFormat {
       case RDF_XML, XML -> "xml";
       case JSON_LD, JSON -> "json";
       case CSV, TSV, MARKDOWN, TEXT -> "text/plain";
-      case SPARQL_QUERY, SPARQL_UPDATE -> "sparql";
-      case JAVASCRIPT -> "javascript";
+      case SPARQL_QUERY -> "sparql";
     };
   }
 

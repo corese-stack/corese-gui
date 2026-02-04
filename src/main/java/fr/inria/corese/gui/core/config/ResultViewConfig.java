@@ -1,158 +1,170 @@
 package fr.inria.corese.gui.core.config;
 
-
 import java.util.EnumSet;
 import java.util.Set;
 
 /**
- * Configuration for which tabs should be displayed in the ResultView.
+ * Configuration for result view tabs.
  *
- * <p>This class provides a declarative way to specify which result tabs are available, making
- * ResultController truly generic and context-agnostic.
+ * <p>
+ * Defines which tabs (Text, Table, Graph) are available in the result view,
+ * providing a declarative and type-safe way to configure the UI.
  *
- * <p><b>Usage examples:</b>
+ * <p>
+ * This class uses the Builder pattern to construct configurations and is immutable
+ * once created, ensuring thread-safety and predictable behavior.
  *
+ * <p>
+ * Example usage:
  * <pre>{@code
- * // Query context: Text + Table + Graph
- * ResultViewConfig config = ResultViewConfig.builder()
- *     .withTextTab()
- *     .withTableTab()
- *     .withGraphTab()
- *     .build();
- *
- * // Validation context: Text + Table
- * ResultViewConfig config = ResultViewConfig.builder()
- *     .withTextTab()
- *     .withTableTab()
- *     .build();
- *
- * // All tabs
+ * // Query results: all tabs
  * ResultViewConfig config = ResultViewConfig.allTabs();
- *
- * // Default (Text only)
- * ResultViewConfig config = ResultViewConfig.defaultConfig();
+ * 
+ * // Validation: text and table only
+ * ResultViewConfig config = ResultViewConfig.builder()
+ *     .withTextTab()
+ *     .withTableTab()
+ *     .build();
  * }</pre>
  */
 public class ResultViewConfig {
 
-  /** Available result tab types. */
-  public enum TabType {
-    TEXT,
-    TABLE,
-    GRAPH;
+    // ==============================================================================================
+    // Inner Types
+    // ==============================================================================================
 
-    /**
-     * Returns the display label for this tab type.
-     *
-     * <p>Formats the enum name with title case (e.g., TEXT → "Text").
-     *
-     * @return The human-readable tab label
-     */
-    public String getLabel() {
-      String name = name();
-      return name.charAt(0) + name.substring(1).toLowerCase();
+    /** Available result tab types. */
+    public enum TabType {
+        TEXT,
+        TABLE,
+        GRAPH;
+
+        /**
+         * Returns the display label for this tab type.
+         *
+         * @return The human-readable label (e.g., "Text", "Table", "Graph")
+         */
+        public String getLabel() {
+            String name = name();
+            return name.charAt(0) + name.substring(1).toLowerCase();
+        }
     }
-  }
 
-  private final Set<TabType> enabledTabs;
+    // ==============================================================================================
+    // Fields
+    // ==============================================================================================
 
-  private ResultViewConfig(Set<TabType> enabledTabs) {
-    this.enabledTabs = EnumSet.copyOf(enabledTabs);
-  }
+    private final Set<TabType> enabledTabs;
 
-  /**
-   * Checks if a specific tab type is enabled.
-   *
-   * @param tabType The tab type to check
-   * @return true if the tab is enabled, false otherwise
-   */
-  public boolean hasTab(TabType tabType) {
-    return enabledTabs.contains(tabType);
-  }
+    // ==============================================================================================
+    // Constructor
+    // ==============================================================================================
 
-  /**
-   * Returns the set of enabled tab types.
-   *
-   * @return An immutable copy of enabled tabs
-   */
-  public Set<TabType> getEnabledTabs() {
-    return EnumSet.copyOf(enabledTabs);
-  }
+    private ResultViewConfig(Set<TabType> enabledTabs) {
+        this.enabledTabs = EnumSet.copyOf(enabledTabs);
+    }
 
-  /**
-   * Creates a builder for constructing a ResultViewConfig.
-   *
-   * @return A new builder instance
-   */
-  public static Builder builder() {
-    return new Builder();
-  }
-
-  /**
-   * Creates a default configuration with only the Text tab.
-   *
-   * @return Default configuration
-   */
-  public static ResultViewConfig defaultConfig() {
-    return builder().withTextTab().build();
-  }
-
-  /**
-   * Creates a configuration with all tabs enabled.
-   *
-   * @return Configuration with all tabs
-   */
-  public static ResultViewConfig allTabs() {
-    return builder().withTextTab().withTableTab().withGraphTab().build();
-  }
-
-  /** Builder for ResultViewConfig. */
-  public static class Builder {
-    private final Set<TabType> tabs = EnumSet.noneOf(TabType.class);
-
-    private Builder() {}
+    // ==============================================================================================
+    // Public API
+    // ==============================================================================================
 
     /**
-     * Enables the Text tab.
+     * Checks if a specific tab type is enabled.
      *
-     * @return This builder for chaining
+     * @param tabType The tab type to check.
+     * @return true if the tab is enabled, false otherwise.
      */
-    public Builder withTextTab() {
-      tabs.add(TabType.TEXT);
-      return this;
+    public boolean hasTab(TabType tabType) {
+        return enabledTabs.contains(tabType);
     }
 
     /**
-     * Enables the Table tab (SPARQL results).
+     * Returns the set of enabled tabs.
      *
-     * @return This builder for chaining
+     * @return An unmodifiable view of enabled tabs.
      */
-    public Builder withTableTab() {
-      tabs.add(TabType.TABLE);
-      return this;
+    public Set<TabType> getEnabledTabs() {
+        return EnumSet.copyOf(enabledTabs);
     }
 
     /**
-     * Enables the Graph tab (visualization).
+     * Creates a builder for constructing a configuration.
      *
-     * @return This builder for chaining
+     * @return A new builder instance.
      */
-    public Builder withGraphTab() {
-      tabs.add(TabType.GRAPH);
-      return this;
+    public static Builder builder() {
+        return new Builder();
     }
 
     /**
-     * Builds the ResultViewConfig.
+     * Creates a configuration with all tabs enabled.
      *
-     * @return The configured ResultViewConfig instance
-     * @throws IllegalStateException if no tabs are enabled
+     * @return Configuration with Text, Table, and Graph tabs.
      */
-    public ResultViewConfig build() {
-      if (tabs.isEmpty()) {
-        throw new IllegalStateException("At least one tab must be enabled");
-      }
-      return new ResultViewConfig(tabs);
+    public static ResultViewConfig allTabs() {
+        return builder()
+            .withTextTab()
+            .withTableTab()
+            .withGraphTab()
+            .build();
     }
-  }
+
+    // ==============================================================================================
+    // Builder
+    // ==============================================================================================
+
+    /**
+     * Builder for constructing ResultViewConfig instances.
+     *
+     * <p>
+     * Provides a fluent API for selecting which tabs to enable.
+     */
+    public static class Builder {
+        private final Set<TabType> tabs = EnumSet.noneOf(TabType.class);
+
+        private Builder() {}
+
+        /**
+         * Enables the Text tab for displaying serialized results.
+         *
+         * @return This builder for method chaining.
+         */
+        public Builder withTextTab() {
+            tabs.add(TabType.TEXT);
+            return this;
+        }
+
+        /**
+         * Enables the Table tab for displaying SPARQL query results.
+         *
+         * @return This builder for method chaining.
+         */
+        public Builder withTableTab() {
+            tabs.add(TabType.TABLE);
+            return this;
+        }
+
+        /**
+         * Enables the Graph tab for visualizing RDF graphs.
+         *
+         * @return This builder for method chaining.
+         */
+        public Builder withGraphTab() {
+            tabs.add(TabType.GRAPH);
+            return this;
+        }
+
+        /**
+         * Builds the immutable ResultViewConfig instance.
+         *
+         * @return The configured ResultViewConfig.
+         * @throws IllegalStateException if no tabs are enabled.
+         */
+        public ResultViewConfig build() {
+            if (tabs.isEmpty()) {
+                throw new IllegalStateException("At least one tab must be enabled");
+            }
+            return new ResultViewConfig(tabs);
+        }
+    }
 }

@@ -1,31 +1,31 @@
 package fr.inria.corese.gui.core.config;
 
-import fr.inria.corese.gui.component.button.IconButtonWidget;
 import fr.inria.corese.gui.core.enums.ButtonIcon;
-
-
-
-
-
-
+import fr.inria.corese.gui.core.factory.ButtonFactory;
 
 /**
  * Configuration class for button components.
  *
- * <p>This immutable class provides a unified way to configure buttons throughout the application,
- * whether they are toolbar buttons, floating action buttons, or any other UI button. It
- * encapsulates all the information needed to display and configure a button: icon, tooltip, and
+ * <p>
+ * This immutable class provides a unified way to configure buttons throughout
+ * the application,
+ * whether they are toolbar buttons, floating action buttons, or any other UI
+ * button. It
+ * encapsulates all the information needed to display and configure a button:
+ * icon, tooltip, and
  * action.
  *
- * <p><b>Design principles:</b>
+ * <p>
+ * <b>Design principles:</b>
  *
  * <ul>
- *   <li><b>Immutability:</b> Thread-safe and can be safely shared
- *   <li><b>Separation of concerns:</b> Configuration separate from presentation
- *   <li><b>Flexibility:</b> Supports buttons with or without tooltips/actions
+ * <li><b>Immutability:</b> Thread-safe and can be safely shared
+ * <li><b>Separation of concerns:</b> Configuration separate from presentation
+ * <li><b>Flexibility:</b> Supports buttons with or without tooltips/actions
  * </ul>
  *
- * <p><b>Usage examples:</b>
+ * <p>
+ * <b>Usage examples:</b>
  *
  * <pre>{@code
  * // Simple: just icon
@@ -38,7 +38,9 @@ import fr.inria.corese.gui.core.enums.ButtonIcon;
  * new ButtonConfig(ButtonIcon.SAVE, "Save File", () -> saveFile())
  * }</pre>
  *
- * <p><b>Best practice:</b> Use {@link ButtonFactory} factory methods for standard buttons to ensure
+ * <p>
+ * <b>Best practice:</b> Use {@link ButtonFactory} factory methods for standard
+ * buttons to ensure
  * consistent tooltips across the application.
  *
  * @see ButtonIcon
@@ -76,7 +78,7 @@ public class ButtonConfig {
   /**
    * Creates a button configuration with icon and tooltip.
    *
-   * @param icon The icon to display
+   * @param icon    The icon to display
    * @param tooltip The tooltip text shown on hover
    */
   public ButtonConfig(ButtonIcon icon, String tooltip) {
@@ -86,12 +88,14 @@ public class ButtonConfig {
   /**
    * Creates a complete button configuration with icon, tooltip, and action.
    *
-   * <p>This is the preferred constructor for creating self-contained buttons that handle their own
+   * <p>
+   * This is the preferred constructor for creating self-contained buttons that
+   * handle their own
    * click events.
    *
-   * @param icon The icon to display
+   * @param icon    The icon to display
    * @param tooltip The tooltip text shown on hover
-   * @param action The action to execute when clicked
+   * @param action  The action to execute when clicked
    */
   public ButtonConfig(ButtonIcon icon, String tooltip, Runnable action) {
     this.icon = icon;
