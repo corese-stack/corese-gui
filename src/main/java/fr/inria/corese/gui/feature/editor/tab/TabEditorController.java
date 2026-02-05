@@ -1,22 +1,18 @@
 package fr.inria.corese.gui.feature.editor.tab;
 
 import fr.inria.corese.gui.component.button.FloatingButtonWidget;
-import fr.inria.corese.gui.component.notification.NotificationWidget;
-import fr.inria.corese.gui.core.service.FileLoaderService;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
+import fr.inria.corese.gui.utils.ImportHelper;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.collections.ListChangeListener;
-import javafx.concurrent.Task;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -89,18 +85,6 @@ public class TabEditorController {
   private final Supplier<ResultController> resultControllerFactory;
 
   /**
-   * Shared thread pool for asynchronous file loading operations.
-   *
-   * <p>
-   * Uses a cached thread pool to efficiently handle multiple concurrent file
-   * loads without
-   * creating excessive threads. Threads are reused and automatically cleaned up
-   * when idle,
-   * preventing resource exhaustion when opening many files.
-   */
-  private final ExecutorService fileLoadExecutor;
-
-  /**
    * Preloaded tab that is ready for instant use.
    *
    * <p>
@@ -140,13 +124,6 @@ public class TabEditorController {
     this.config = config;
     this.view = new TabEditorView();
     this.resultControllerFactory = config.createResultControllerFactory();
-    this.fileLoadExecutor = Executors.newCachedThreadPool(
-        r -> {
-          Thread t = new Thread(r);
-          t.setDaemon(true);
-          t.setName("file-loader-" + t.threadId());
-          return t;
-        });
 
     initialize();
   }
@@ -428,15 +405,13 @@ public class TabEditorController {
    * <p>
    * This method should be called when the TabEditorController is no longer
    * needed, typically
-   * when the application is closing. It performs an orderly shutdown of the file
-   * loading thread
-   * pool, allowing currently running tasks to complete.
+   * when the application is closing.
    *
    * <p>
-   * <b>Important:</b> After calling this method, no new files should be opened.
+   * <b>Note:</b> File loading threads are daemon threads managed by
+   * {@link ImportHelper} and will automatically terminate when the application exits.
    */
   public void shutdown() {
-    fileLoadExecutor.shutdown();
     logger.info("TabEditorController shutdown initiated");
   }
 
@@ -629,30 +604,21 @@ public class TabEditorController {
   // ===============================================================================
 
   private void startFileLoadingTask(Tab tab, File file) {
-    Task<String> task = FileLoaderService.loadFileAsync(file);
-
-    task.setOnSucceeded(
-        event -> {
+    ImportHelper.loadFileAsync(
+        file,
+        content -> {
           unlockTabUI(tab);
-          updateTabContent(tab, task.getValue());
-          NotificationWidget.getInstance().showSuccess("File loaded: " + file.getName());
-        });
-
-    task.setOnFailed(
-        event -> {
-          Throwable ex = task.getException();
-          String errorMsg = ex != null ? ex.getMessage() : "Unknown error";
-
+          updateTabContent(tab, content);
+        },
+        ex -> {
           // Log full exception for debugging
           logger.error("Failed to load file: {}", file.getAbsolutePath(), ex);
 
           // Show user-friendly error message
+          String errorMsg = ex.getMessage() != null ? ex.getMessage() : "Unknown error";
           view.showError("File Error", "Could not read file: " + errorMsg);
           Platform.runLater(() -> closeTabImmediately(tab));
         });
-
-    // Use thread pool instead of creating new threads
-    fileLoadExecutor.submit(task);
   }
 
   private void lockTabUI(Tab tab) {
