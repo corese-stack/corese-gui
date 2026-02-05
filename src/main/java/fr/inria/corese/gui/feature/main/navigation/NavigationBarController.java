@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.feature.main;
+package fr.inria.corese.gui.feature.main.navigation;
 
 import fr.inria.corese.gui.core.enums.ViewId;
 
@@ -77,7 +77,7 @@ public final class NavigationBarController {
     view.setNavigationHandler(this::navigate);
 
     // Toggle button in the view → update model.collapsed
-    view.setOnToggle(model::setCollapsed);
+    view.setOnToggle(() -> model.setCollapsed(!model.isCollapsed()));
     
     // Logo click -> open website
     view.setOnLogoClick(() -> BrowserUtils.openUrl(AppConstants.PROJECT_URL));

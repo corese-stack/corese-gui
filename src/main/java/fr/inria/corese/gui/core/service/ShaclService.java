@@ -6,6 +6,7 @@ import fr.inria.corese.core.load.Load;
 import fr.inria.corese.core.shacl.Shacl;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.model.ValidationResult;
+import fr.inria.corese.gui.utils.ResultFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +76,7 @@ public class ShaclService {
     }
 
     /**
-     * Validates the current data in the GraphStore against the provided SHACL shapes.
+     * Validates the current data in the GraphStoreService against the provided SHACL shapes.
      *
      * @param shapesContent The SHACL shapes definition in Turtle format.
      * @return A {@link ValidationResult} summary.
@@ -87,7 +88,7 @@ public class ShaclService {
 
         try {
             // 1. Prepare Data Graph (from Store)
-            Graph dataGraph = GraphStore.getInstance().getGraph();
+            Graph dataGraph = GraphStoreService.getInstance().getGraph();
 
             // 2. Parse Shapes Graph
             Graph shapesGraph = Graph.create();

@@ -8,7 +8,7 @@ import atlantafx.base.theme.*;
  * <p>Each enum constant represents a specific theme variant (light or dark) and holds the necessary
  * configuration (name, darkness, theme instance).
  */
-public enum AppTheme {
+public enum AppThemeRegistry {
   NORD_LIGHT("Nord", false, new NordLight()),
   NORD_DARK("Nord", true, new NordDark()),
   PRIMER_LIGHT("Primer", false, new PrimerLight()),
@@ -31,7 +31,7 @@ public enum AppTheme {
    * @param isDark True if this is a dark theme
    * @param theme The AtlantaFX Theme instance
    */
-  AppTheme(String baseName, boolean isDark, Theme theme) {
+  AppThemeRegistry(String baseName, boolean isDark, Theme theme) {
     this.baseName = baseName;
     this.isDark = isDark;
     this.theme = theme;
@@ -72,8 +72,8 @@ public enum AppTheme {
    * @param theme the AtlantaFX theme
    * @return the matching AppTheme, or null if not found
    */
-  public static AppTheme fromTheme(Theme theme) {
-    for (AppTheme appTheme : values()) {
+  public static AppThemeRegistry fromTheme(Theme theme) {
+    for (AppThemeRegistry appTheme : values()) {
       if (appTheme.getTheme().getClass().equals(theme.getClass())) {
         return appTheme;
       }
@@ -88,8 +88,8 @@ public enum AppTheme {
    * @param isDark true for dark mode, false for light mode
    * @return the matching AppTheme, or null if not found
    */
-  public static AppTheme getVariant(String baseName, boolean isDark) {
-    for (AppTheme appTheme : values()) {
+  public static AppThemeRegistry getVariant(String baseName, boolean isDark) {
+    for (AppThemeRegistry appTheme : values()) {
       if (appTheme.baseName.equals(baseName) && appTheme.isDark == isDark) {
         return appTheme;
       }

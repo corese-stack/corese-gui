@@ -14,7 +14,7 @@ import java.io.InputStream;
  *
  * <p>
  * This service provides a clean API for RDF data operations, handling I/O and format detection
- * while delegating actual graph operations to the {@link GraphStore}.
+ * while delegating actual graph operations to the {@link GraphStoreService}.
  *
  * <p>
  * The Singleton pattern is justified here because:
@@ -92,9 +92,9 @@ public class RdfDataService {
         }
 
         try (InputStream stream = new FileInputStream(file)) {
-            Load loader = Load.create(GraphStore.getInstance().getGraph());
+            Load loader = Load.create(GraphStoreService.getInstance().getGraph());
             loader.parse(stream, format);
-            logger.info("Successfully loaded {} triples from file.", GraphStore.getInstance().size());
+            logger.info("Successfully loaded {} triples from file.", GraphStoreService.getInstance().size());
         } catch (Exception e) { // Generic catch is justified: Corese can throw various exception types
             String errorMsg = String.format("Failed to load RDF file '%s': %s", file.getName(), e.getMessage());
             logger.error(errorMsg, e);
@@ -110,7 +110,7 @@ public class RdfDataService {
      */
     public void clearData() {
         logger.info("Clearing all RDF data from graph.");
-        GraphStore.getInstance().clear();
+        GraphStoreService.getInstance().clear();
     }
 
     /**
@@ -119,7 +119,7 @@ public class RdfDataService {
      * @return true if the graph has at least one triple, false otherwise.
      */
     public boolean hasData() {
-        return GraphStore.getInstance().hasData();
+        return GraphStoreService.getInstance().hasData();
     }
 
     /**
@@ -128,7 +128,7 @@ public class RdfDataService {
      * @return The count of RDF triples.
      */
     public int getTripleCount() {
-        return GraphStore.getInstance().size();
+        return GraphStoreService.getInstance().size();
     }
 
     // ==============================================================================================

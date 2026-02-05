@@ -7,6 +7,7 @@ import fr.inria.corese.core.sparql.triple.parser.ASTQuery;
 import fr.inria.corese.gui.core.enums.QueryType;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.model.QueryResultRef;
+import fr.inria.corese.gui.utils.ResultFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,7 +98,7 @@ public class QueryService {
         logger.debug("Executing SPARQL query...");
         
         try {
-            Graph graph = GraphStore.getInstance().getGraph();
+            Graph graph = GraphStoreService.getInstance().getGraph();
             QueryProcess exec = QueryProcess.create(graph);
             
             Mappings mappings = exec.query(queryString);

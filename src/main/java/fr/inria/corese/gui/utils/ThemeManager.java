@@ -288,7 +288,7 @@ public final class ThemeManager {
     String shadowColor = "rgba(0, 0, 0, 0.25)"; // Default light
     Theme currentTheme = getTheme();
     if (currentTheme != null) {
-      AppTheme appTheme = AppTheme.fromTheme(currentTheme);
+      AppThemeRegistry appTheme = AppThemeRegistry.fromTheme(currentTheme);
       if (appTheme != null && appTheme.isDark()) {
         shadowColor = "rgba(255, 255, 255, 0.25)";
       }
@@ -344,7 +344,7 @@ public final class ThemeManager {
    * @return A sorted list of unique base theme names.
    */
   public List<String> getBaseThemes() {
-    return Arrays.stream(AppTheme.values()).map(AppTheme::getBaseName).distinct().sorted().toList();
+    return Arrays.stream(AppThemeRegistry.values()).map(AppThemeRegistry::getBaseName).distinct().sorted().toList();
   }
 
   /**
@@ -355,7 +355,7 @@ public final class ThemeManager {
    * @return The corresponding Theme object, or null if not found.
    */
   public Theme getThemeVariant(String baseName, boolean isDark) {
-    AppTheme appTheme = AppTheme.getVariant(baseName, isDark);
+    AppThemeRegistry appTheme = AppThemeRegistry.getVariant(baseName, isDark);
     return appTheme != null ? appTheme.getTheme() : null;
   }
 
@@ -367,7 +367,7 @@ public final class ThemeManager {
   public String getCurrentThemeName() {
     Theme current = getTheme();
     if (current == null) return null;
-    AppTheme appTheme = AppTheme.fromTheme(current);
+    AppThemeRegistry appTheme = AppThemeRegistry.fromTheme(current);
     return appTheme != null ? appTheme.name() : null;
   }
 
@@ -379,7 +379,7 @@ public final class ThemeManager {
    */
   public String getBaseThemeName(String themeName) {
     try {
-      return AppTheme.valueOf(themeName).getBaseName();
+      return AppThemeRegistry.valueOf(themeName).getBaseName();
     } catch (IllegalArgumentException | NullPointerException e) {
       return themeName;
     }
@@ -393,7 +393,7 @@ public final class ThemeManager {
    */
   public boolean isDarkTheme(String themeName) {
     try {
-      return AppTheme.valueOf(themeName).isDark();
+      return AppThemeRegistry.valueOf(themeName).isDark();
     } catch (IllegalArgumentException | NullPointerException e) {
       return false;
     }
@@ -408,10 +408,10 @@ public final class ThemeManager {
   public Theme getThemeByName(String name) {
     // Try to find by AppTheme name
     try {
-      return AppTheme.valueOf(name).getTheme();
+      return AppThemeRegistry.valueOf(name).getTheme();
     } catch (IllegalArgumentException e) {
       // Try to find by display name construction (legacy support if needed)
-      for (AppTheme t : AppTheme.values()) {
+      for (AppThemeRegistry t : AppThemeRegistry.values()) {
         String constructedName = t.getBaseName() + (t.isDark() ? " Dark" : " Light");
         if (constructedName.equals(name)) {
           return t.getTheme();
@@ -445,7 +445,7 @@ public final class ThemeManager {
           }
         } else if (getTheme() == null) {
           // Default fallback if no theme is set/saved
-          setTheme(AppTheme.PRIMER_LIGHT.getTheme());
+          setTheme(AppThemeRegistry.PRIMER_LIGHT.getTheme());
         }
 
         if (colorHex != null) {

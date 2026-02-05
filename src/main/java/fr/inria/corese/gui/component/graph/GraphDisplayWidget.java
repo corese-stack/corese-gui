@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.component.graph;
 
-import fr.inria.corese.gui.utils.AppTheme;
+import fr.inria.corese.gui.utils.AppThemeRegistry;
 import fr.inria.corese.gui.utils.CssUtils;
 import fr.inria.corese.gui.utils.ThemeManager;
 import java.nio.charset.StandardCharsets;
@@ -238,7 +238,7 @@ public class GraphDisplayWidget extends VBox {
     String themeName = "default";
 
     if (tm.getTheme() != null) {
-      AppTheme appTheme = AppTheme.fromTheme(tm.getTheme());
+      AppThemeRegistry appTheme = AppThemeRegistry.fromTheme(tm.getTheme());
       if (appTheme != null) {
         isDark = appTheme.isDark();
         themeName = appTheme.getBaseName().toLowerCase();

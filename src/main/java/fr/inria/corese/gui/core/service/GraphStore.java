@@ -29,14 +29,14 @@ import org.slf4j.LoggerFactory;
  * </ul>
  */
 @SuppressWarnings("java:S6548") // Singleton pattern is justified for global graph management
-class GraphStore {
+class GraphStoreService {
 
     // ==============================================================================================
     // Fields
     // ==============================================================================================
 
-    private static final Logger logger = LoggerFactory.getLogger(GraphStore.class);
-    private static final GraphStore INSTANCE = new GraphStore();
+    private static final Logger logger = LoggerFactory.getLogger(GraphStoreService.class);
+    private static final GraphStoreService INSTANCE = new GraphStoreService();
 
     private final Graph graph;
 
@@ -47,7 +47,7 @@ class GraphStore {
     /**
      * Private constructor to enforce singleton usage within the package.
      */
-    private GraphStore() {
+    private GraphStoreService() {
         this.graph = Graph.create();
         logger.debug("Corese Graph initialized.");
     }
@@ -57,11 +57,11 @@ class GraphStore {
     // ==============================================================================================
 
     /**
-     * Returns the singleton instance of the GraphStore.
+     * Returns the singleton instance of the GraphStoreService.
      *
      * @return the singleton instance
      */
-    static GraphStore getInstance() {
+    static GraphStoreService getInstance() {
         return INSTANCE;
     }
 

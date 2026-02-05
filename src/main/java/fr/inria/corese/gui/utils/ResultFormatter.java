@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.core.service;
+package fr.inria.corese.gui.utils;
 
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.kgram.core.Mappings;
@@ -65,7 +65,7 @@ public class ResultFormatter {
     }
 
     // ==============================================================================================
-    // Package-Private API (Corese Types)
+    // Public API (Corese Types)
     // ==============================================================================================
 
     /**
@@ -76,7 +76,7 @@ public class ResultFormatter {
      * @return The formatted graph as a string, or an error message if formatting
      *         fails.
      */
-    String formatGraph(Graph graph, SerializationFormat format) {
+    public String formatGraph(Graph graph, SerializationFormat format) {
         if (graph == null) {
             return "Error: No graph data available.";
         }
@@ -101,7 +101,7 @@ public class ResultFormatter {
      * @return The formatted results as a string, or an error message if formatting
      *         fails.
      */
-    String formatMappings(Mappings mappings, SerializationFormat format) {
+    public String formatMappings(Mappings mappings, SerializationFormat format) {
         if (mappings == null) {
             return "Error: No query results available.";
         }
