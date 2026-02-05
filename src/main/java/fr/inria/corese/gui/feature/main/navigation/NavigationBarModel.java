@@ -20,9 +20,9 @@ import javafx.beans.property.SimpleObjectProperty;
  */
 public final class NavigationBarModel {
 
-  /** The currently active view. Defaults to QUERY. */
+  /** The currently active view. Defaults to DATA. */
   private final ObjectProperty<ViewId> activeView =
-      new SimpleObjectProperty<>(ViewId.QUERY);
+      new SimpleObjectProperty<>(ViewId.DATA);
 
   /** Whether the sidebar is collapsed. Defaults to expanded (false). */
   private final BooleanProperty collapsed = new SimpleBooleanProperty(false);

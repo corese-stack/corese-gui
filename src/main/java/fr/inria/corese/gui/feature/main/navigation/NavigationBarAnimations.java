@@ -1,203 +1,202 @@
 package fr.inria.corese.gui.feature.main.navigation;
 
-import fr.inria.corese.gui.core.enums.ViewId;
-import javafx.animation.FadeTransition;
+import javafx.animation.Interpolator;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
 import javafx.animation.ParallelTransition;
-import javafx.animation.Transition;
-import javafx.animation.TranslateTransition;
-import javafx.scene.Node;
+import javafx.animation.PauseTransition;
+import javafx.animation.RotateTransition;
+import javafx.animation.SequentialTransition;
+import javafx.animation.Timeline;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 /**
- * Animation utilities for the navigation bar.
+ * Utility class for creating navigation bar animations.
  *
- * <p>Provides smooth transitions when collapsing/expanding the sidebar, including:
- *
- * <ul>
- *   <li>Sidebar width animation
- *   <li>Logo size animation
- *   <li>Label fade in/out animations
- * </ul>
+ * <p>This class encapsulates all animation logic for the sidebar collapse/expand transitions,
+ * separating animation concerns from the main view logic.
  */
-public final class NavigationBarAnimations {
+final class NavigationBarAnimations {
 
-  private static final Duration ANIMATION_DURATION = Duration.millis(200);
+  // ==== Animation constants ====
+  // Width
+  private static final double EXPANDED_WIDTH = 200;
+  private static final double COLLAPSED_WIDTH = 72;
 
-  // Prevent instantiation
-  private NavigationBarAnimations() {}
+  // Logo sizing
+  private static final double LOGO_EXPANDED_SIZE = 52;
+  private static final double LOGO_COLLAPSED_SIZE = 28;
+
+  // Animation timing
+  private static final Duration ANIM_DURATION = Duration.millis(250);
+  private static final Duration TEXT_FADE_DURATION = Duration.millis(150);
+  private static final Duration TEXT_FADE_DELAY = Duration.millis(50);
+
+  // Text animation
+  private static final double TEXT_SLIDE_DISTANCE = 18;
+
+  private NavigationBarAnimations() {
+    // Utility class - prevent instantiation
+  }
+
+  /** Returns the expanded logo size for initial view setup. */
+  static double getLogoExpandedSize() {
+    return LOGO_EXPANDED_SIZE;
+  }
 
   /**
-   * Animates the sidebar collapsing to a smaller width.
+   * Creates a complete collapse/expand animation for the navigation bar.
    *
-   * @param sidebar the root container to resize
-   * @param logoImageView the logo to shrink
-   * @param navButtons map of navigation buttons containing labels to hide
-   * @param targetWidth the target width for the collapsed sidebar
-   * @param targetLogoSize the target logo size
+   * @param root the root VBox container
+   * @param toggleIcon the chevron icon that rotates
+   * @param logoView the logo ImageView that resizes
+   * @param navigationButtons array of navigation buttons with text labels
+   * @param collapsed true if collapsing, false if expanding
+   * @return the complete animation ready to play
    */
-  public static void animateCollapse(
-      VBox sidebar,
-      ImageView logoImageView,
-      Map<ViewId, HBox> navButtons,
-      double targetWidth,
-      double targetLogoSize) {
+  static ParallelTransition createToggleAnimation(
+      VBox root,
+      FontIcon toggleIcon,
+      ImageView logoView,
+      Button[] navigationButtons,
+      boolean collapsed) {
 
-    List<Transition> transitions = new ArrayList<>();
+    double targetWidth = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
+    double iconRotation = collapsed ? 180 : 0;
+    double targetLogoSize = collapsed ? LOGO_COLLAPSED_SIZE : LOGO_EXPANDED_SIZE;
 
-    // Sidebar width animation
-    transitions.add(createWidthAnimation(sidebar, targetWidth));
+    Timeline widthAnim = createWidthAnimation(root, targetWidth);
+    RotateTransition iconRotate = createIconRotation(toggleIcon, iconRotation);
+    Timeline logoAnim = createLogoAnimation(logoView, targetLogoSize);
 
-    // Logo size animation
-    transitions.add(createLogoAnimation(logoImageView, targetLogoSize));
+    Duration delay = collapsed ? Duration.ZERO : TEXT_FADE_DELAY;
+    ParallelTransition textAnim = createTextTransition(navigationButtons, !collapsed, delay);
 
-    // Fade out labels
-    for (HBox button : navButtons.values()) {
-      Node label = findLabelNode(button);
-      if (label != null) {
-        transitions.add(createFadeOut(label));
+    return new ParallelTransition(widthAnim, iconRotate, logoAnim, textAnim);
+  }
+
+  /** Creates the sidebar width animation. */
+  private static Timeline createWidthAnimation(VBox root, double targetWidth) {
+    return new Timeline(
+        new KeyFrame(
+            ANIM_DURATION,
+            new KeyValue(root.prefWidthProperty(), targetWidth, Interpolator.EASE_BOTH),
+            new KeyValue(root.minWidthProperty(), targetWidth, Interpolator.EASE_BOTH),
+            new KeyValue(root.maxWidthProperty(), targetWidth, Interpolator.EASE_BOTH)));
+  }
+
+  /** Creates the toggle icon rotation animation. */
+  private static RotateTransition createIconRotation(FontIcon icon, double targetAngle) {
+    RotateTransition rotation = new RotateTransition(ANIM_DURATION, icon);
+    rotation.setToAngle(targetAngle);
+    rotation.setInterpolator(Interpolator.EASE_BOTH);
+    return rotation;
+  }
+
+  /** Creates the logo resize animation. */
+  private static Timeline createLogoAnimation(ImageView logoView, double targetSize) {
+    return new Timeline(
+        new KeyFrame(
+            ANIM_DURATION,
+            new KeyValue(logoView.fitWidthProperty(), targetSize, Interpolator.EASE_BOTH),
+            new KeyValue(logoView.fitHeightProperty(), targetSize, Interpolator.EASE_BOTH)));
+  }
+
+  /**
+   * Creates fade in/out animation for button text labels.
+   *
+   * @param buttons array of buttons containing text labels
+   * @param fadeIn true to fade in, false to fade out
+   * @param delay delay before starting the animation
+   * @return parallel animation for all text labels
+   */
+  private static ParallelTransition createTextTransition(
+      Button[] buttons, boolean fadeIn, Duration delay) {
+    ParallelTransition group = new ParallelTransition();
+
+    for (Button button : buttons) {
+      Label label = (Label) button.getUserData();
+      if (label == null) {
+        continue;
+      }
+
+      if (fadeIn) {
+        group.getChildren().add(createFadeInAnimation(label, delay));
+      } else {
+        group.getChildren().add(createFadeOutAnimation(label));
       }
     }
 
-    ParallelTransition parallel = new ParallelTransition();
-    parallel.getChildren().addAll(transitions);
-    parallel.play();
+    return group;
   }
 
   /**
-   * Animates the sidebar expanding to its full width.
+   * Creates fade-in animation for a single label.
    *
-   * @param sidebar the root container to resize
-   * @param logoImageView the logo to enlarge
-   * @param navButtons map of navigation buttons containing labels to show
-   * @param targetWidth the target width for the expanded sidebar
-   * @param targetLogoSize the target logo size
+   * @param label the label to animate
+   * @param delay delay before starting the animation
+   * @return the fade-in animation
    */
-  public static void animateExpand(
-      VBox sidebar,
-      ImageView logoImageView,
-      Map<ViewId, HBox> navButtons,
-      double targetWidth,
-      double targetLogoSize) {
+  private static SequentialTransition createFadeInAnimation(Label label, Duration delay) {
+    // Initialize hidden state
+    label.setVisible(false);
+    label.setManaged(false);
+    label.setOpacity(0);
+    label.setTranslateX(-TEXT_SLIDE_DISTANCE);
 
-    List<Transition> transitions = new ArrayList<>();
+    // Wait before showing
+    PauseTransition wait = new PauseTransition(delay);
+    wait.setOnFinished(
+        ev -> {
+          label.setVisible(true);
+          label.setManaged(true);
+        });
 
-    // Sidebar width animation
-    transitions.add(createWidthAnimation(sidebar, targetWidth));
+    // Fade in and slide
+    Timeline appear =
+        new Timeline(
+            new KeyFrame(
+                Duration.ZERO,
+                new KeyValue(label.opacityProperty(), 0),
+                new KeyValue(label.translateXProperty(), -TEXT_SLIDE_DISTANCE)),
+            new KeyFrame(
+                TEXT_FADE_DURATION,
+                new KeyValue(label.opacityProperty(), 1),
+                new KeyValue(label.translateXProperty(), 0)));
 
-    // Logo size animation
-    transitions.add(createLogoAnimation(logoImageView, targetLogoSize));
-
-    // Fade in labels
-    for (HBox button : navButtons.values()) {
-      Node label = findLabelNode(button);
-      if (label != null) {
-        transitions.add(createFadeIn(label));
-      }
-    }
-
-    ParallelTransition parallel = new ParallelTransition();
-    parallel.getChildren().addAll(transitions);
-    parallel.play();
-  }
-
-  // ===== Animation Helpers =====
-
-  /**
-   * Creates an animation to smoothly change the sidebar width.
-   *
-   * @param sidebar the sidebar VBox
-   * @param targetWidth the target width
-   * @return a Transition animating the width change
-   */
-  private static Transition createWidthAnimation(VBox sidebar, double targetWidth) {
-    return new Transition() {
-      {
-        setCycleDuration(ANIMATION_DURATION);
-      }
-
-      private final double startWidth = sidebar.getPrefWidth();
-
-      @Override
-      protected void interpolate(double frac) {
-        double newWidth = startWidth + (targetWidth - startWidth) * frac;
-        sidebar.setPrefWidth(newWidth);
-        sidebar.setMinWidth(newWidth);
-        sidebar.setMaxWidth(newWidth);
-      }
-    };
+    return new SequentialTransition(wait, appear);
   }
 
   /**
-   * Creates an animation to smoothly change the logo size.
+   * Creates fade-out animation for a single label.
    *
-   * @param logoImageView the logo ImageView
-   * @param targetSize the target size (both width and height)
-   * @return a Transition animating the size change
+   * @param label the label to animate
+   * @return the fade-out animation
    */
-  private static Transition createLogoAnimation(ImageView logoImageView, double targetSize) {
-    return new Transition() {
-      {
-        setCycleDuration(ANIMATION_DURATION);
-      }
+  private static Timeline createFadeOutAnimation(Label label) {
+    Timeline disappear =
+        new Timeline(
+            new KeyFrame(
+                Duration.ZERO,
+                new KeyValue(label.opacityProperty(), 1),
+                new KeyValue(label.translateXProperty(), 0)),
+            new KeyFrame(
+                TEXT_FADE_DURATION,
+                new KeyValue(label.opacityProperty(), 0),
+                new KeyValue(label.translateXProperty(), -TEXT_SLIDE_DISTANCE)));
 
-      private final double startWidth = logoImageView.getFitWidth();
-      private final double startHeight = logoImageView.getFitHeight();
+    disappear.setOnFinished(
+        e -> {
+          label.setVisible(false);
+          label.setManaged(false);
+          label.setTranslateX(0);
+        });
 
-      @Override
-      protected void interpolate(double frac) {
-        double newSize = startWidth + (targetSize - startWidth) * frac;
-        logoImageView.setFitWidth(newSize);
-        logoImageView.setFitHeight(newSize);
-      }
-    };
-  }
-
-  /**
-   * Creates a fade-out animation for a node.
-   *
-   * @param node the node to fade out
-   * @return a FadeTransition
-   */
-  private static FadeTransition createFadeOut(Node node) {
-    FadeTransition fade = new FadeTransition(ANIMATION_DURATION, node);
-    fade.setFromValue(node.getOpacity());
-    fade.setToValue(0.0);
-    fade.setOnFinished(event -> node.setVisible(false));
-    return fade;
-  }
-
-  /**
-   * Creates a fade-in animation for a node.
-   *
-   * @param node the node to fade in
-   * @return a FadeTransition
-   */
-  private static FadeTransition createFadeIn(Node node) {
-    node.setVisible(true);
-    FadeTransition fade = new FadeTransition(ANIMATION_DURATION, node);
-    fade.setFromValue(0.0);
-    fade.setToValue(1.0);
-    return fade;
-  }
-
-  /**
-   * Finds the label node in a navigation button.
-   *
-   * @param button the HBox containing icon + label
-   * @return the label node, or null if not found
-   */
-  private static Node findLabelNode(HBox button) {
-    // Assumes the second child is the label
-    if (button.getChildren().size() > 1) {
-      return button.getChildren().get(1);
-    }
-    return null;
+    return disappear;
   }
 }

@@ -1,409 +1,317 @@
 package fr.inria.corese.gui.feature.main.navigation;
 
-import atlantafx.base.theme.Theme;
-import fr.inria.corese.gui.AppConstants;
 import fr.inria.corese.gui.core.enums.ViewId;
-import fr.inria.corese.gui.utils.ThemeManager;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.geometry.Insets;
+import fr.inria.corese.gui.core.view.AbstractView;
+import fr.inria.corese.gui.utils.SvgImageLoader;
+
+import atlantafx.base.theme.Styles;
+import java.util.function.Consumer;
+import javafx.animation.Animation;
+import javafx.animation.ParallelTransition;
 import javafx.geometry.Pos;
-import javafx.scene.Cursor;
-import javafx.scene.Node;
-import javafx.scene.Parent;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.Separator;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.SVGPath;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import org.kordamp.ikonli.Ikon;
+import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
-import org.kordamp.ikonli.materialdesign.MaterialDesign;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.function.Consumer;
-import java.util.logging.Logger;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignD;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignM;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * JavaFX view for the sidebar navigation.
+ * View component for the sidebar (navigation bar) of the Corese-GUI application.
  *
- * <p>Displays:
+ * <p><strong>Responsibilities:</strong>
  *
  * <ul>
- *   <li>a Corese logo at the top
- *   <li>navigation buttons that trigger callbacks when clicked
- *   <li>a toggle button (expand/collapse) that can be collapsed/expanded
+ *   <li>Defines the UI layout and structure
+ *   <li>Manages collapse/expand animations
+ *   <li>Handles visual state (active button highlighting)
  * </ul>
  *
- * <p>Animations are delegated to {@link NavigationBarAnimations}.
+ * <p><strong>Does NOT handle:</strong> Business logic and event coordination are delegated to
+ * {@link fr.inria.corese.gui.feature.main.navigation.NavigationBarController}.
+ *
+ * <p>This class follows the MVC pattern as a pure View component.
  */
-public final class NavigationBarView {
+public final class NavigationBarView extends AbstractView {
 
-  private static final Logger LOGGER = Logger.getLogger(NavigationBarView.class.getName());
+  private static final Logger LOGGER = LoggerFactory.getLogger(NavigationBarView.class);
+  private static final String STYLESHEET_PATH = "/css/features/navigation-bar.css";
 
-  // ===== Constants =====
-
-  private static final String LOGO_IMAGE_PATH = "/images/corese_logo.png";
-  private static final double LOGO_SIZE_EXPANDED = 130;
-  private static final double LOGO_SIZE_COLLAPSED = 50;
-
-  private static final double SIDEBAR_WIDTH_EXPANDED = 180;
-  private static final double SIDEBAR_WIDTH_COLLAPSED = 60;
-
-  private static final Color SIDEBAR_BACKGROUND_LIGHT = Color.web("#f8f9fa");
-  private static final Color SIDEBAR_BACKGROUND_DARK = Color.web("#2b2d30");
-
-  private static final Color BUTTON_HOVER_LIGHT = Color.web("#e0e0e0");
-  private static final Color BUTTON_HOVER_DARK = Color.web("#3c3f41");
-
-  private static final Color ACTIVE_INDICATOR_LIGHT = Color.web("#007bff");
-  private static final Color ACTIVE_INDICATOR_DARK = Color.web("#4a9eff");
-
-  private static final String STYLE_CLASS_NAV_BUTTON = "nav-button";
-  private static final String STYLE_CLASS_ACTIVE = "active";
-
-  // ===== Properties =====
-
-  /** Internal property tracking collapse state. */
-  private final BooleanProperty collapsed = new SimpleBooleanProperty(false);
-
-  /** Property tracking the currently active view button. */
-  private final ObjectProperty<ViewId> activeView =
-      new SimpleObjectProperty<>(ViewId.QUERY);
-
-  // ===== UI Components =====
-
-  private final VBox root = new VBox();
-  private final StackPane logoContainer = new StackPane();
-  private final ImageView logoImageView = new ImageView();
-  private final VBox navButtonsContainer = new VBox();
-  private final StackPane toggleButtonContainer = new StackPane();
-
-  /** Map to keep track of navigation buttons for styling. */
-  private final Map<ViewId, HBox> navButtons = new HashMap<>();
-
-  // ===== Callbacks =====
-
-  /** Handler to be invoked when a navigation button is clicked. */
-  private Consumer<ViewId> navigationHandler;
-
-  /** Handler to be invoked when the toggle button is clicked. */
-  private Runnable onToggle;
-
-  /** Handler to be invoked when the logo is clicked. */
+  // ==== State ====
+  private boolean collapsed = false;
+  private ParallelTransition currentTransition;
+  private Consumer<Boolean> onToggle;
   private Runnable onLogoClick;
 
-  // ===== Constructor =====
+  // ==== UI elements ====
+  private final Button logo;
+  private final Button dataButton;
+  private final Button queryButton;
+  private final Button validationButton;
+  private final Button toggleButton;
+  private final Button settingsButton;
 
+  // ==== Constructor ====
+
+  /** Creates a new NavigationBarView instance and initializes the layout. */
   public NavigationBarView() {
-    setupLogoArea();
-    setupNavigationButtons();
-    setupToggleButton();
+    super(new VBox(), STYLESHEET_PATH);
 
-    buildLayout();
-    applyCurrentTheme();
-    setupThemeListener();
+    this.logo = createLogoButton();
+    this.dataButton =
+        createNavigationButton("Data", MaterialDesignD.DATABASE, "Load and manage RDF data");
+    this.queryButton =
+        createNavigationButton(
+            "Query", MaterialDesignM.MAGNIFY, "Execute SPARQL queries on loaded RDF datasets");
+    this.validationButton =
+        createNavigationButton(
+            "Validation",
+            MaterialDesignS.SHIELD_CHECK,
+            "Validate RDF data against SHACL shapes and constraints");
+    this.toggleButton = createToggleButton();
+    this.settingsButton =
+        createNavigationButton(
+            "Settings", MaterialDesignC.COG, "Configure application preferences and appearance");
 
-    // Set initial collapsed state
-    setCollapsed(false);
+    initializeLayout();
   }
 
-  // ===== Logo Setup =====
+  // ===== Layout & creation =====
 
-  private void setupLogoArea() {
-    logoImageView.setPreserveRatio(true);
-    logoImageView.setSmooth(true);
+  /** Configures the sidebar layout structure. */
+  private void initializeLayout() {
+    VBox root = (VBox) getRoot();
+    root.getStyleClass().add("sidebar");
+    root.setFillWidth(true);
+
+    Region spacer = new Region();
+    VBox.setVgrow(spacer, Priority.ALWAYS);
+
+    root.getChildren()
+        .setAll(
+            logo, dataButton, queryButton, validationButton, spacer, toggleButton, settingsButton);
+  }
+
+  /** Creates the top logo button (non-interactive except logging). */
+  private Button createLogoButton() {
+    Button button = new Button();
+    button.getStyleClass().addAll("sidebar-logo", Styles.FLAT);
+    button.setMaxWidth(Double.MAX_VALUE);
+    button.setAlignment(Pos.CENTER);
 
     try {
-      var logoUrl = getClass().getResource(LOGO_IMAGE_PATH);
-      if (logoUrl == null) {
-        LOGGER.warning("Logo image not found: " + LOGO_IMAGE_PATH);
-      } else {
-        logoImageView.setImage(new Image(logoUrl.toExternalForm()));
+      double logoSize = NavigationBarAnimations.getLogoExpandedSize();
+      // Load SVG with 2x scaling for high DPI
+      Image image = SvgImageLoader.loadSvgImage("/images/corese-logo.svg", logoSize, logoSize, 2.0);
+
+      if (image != null) {
+        ImageView view = new ImageView(image);
+        view.getStyleClass().add("app-logo");
+        view.setPreserveRatio(true);
+        view.setSmooth(true);
+        view.setFitWidth(logoSize);
+        view.setFitHeight(logoSize);
+        button.setGraphic(view);
       }
     } catch (Exception e) {
-      LOGGER.warning("Failed to load logo: " + e.getMessage());
+      LOGGER.error("Failed to load logo image", e);
     }
 
-    // Make logo clickable with hand cursor
-    logoContainer.setCursor(Cursor.HAND);
-    logoContainer.setOnMouseClicked(event -> {
-      if (onLogoClick != null) {
-        onLogoClick.run();
-      }
-    });
-
-    // Initial size
-    logoImageView.setFitWidth(LOGO_SIZE_EXPANDED);
-    logoImageView.setFitHeight(LOGO_SIZE_EXPANDED);
-
-    logoContainer.getChildren().add(logoImageView);
-    VBox.setMargin(logoContainer, new Insets(15, 0, 25, 0));
+    button.setOnAction(
+        e -> {
+          if (onLogoClick != null) {
+            onLogoClick.run();
+          }
+        });
+    return button;
   }
 
-  // ===== Navigation Buttons =====
-
-  private void setupNavigationButtons() {
-    navButtonsContainer.setSpacing(5);
-    navButtonsContainer.setAlignment(Pos.TOP_CENTER);
-    navButtonsContainer.setPadding(new Insets(0));
-
-    // Create buttons for each view
-    createNavButton(ViewId.QUERY, MaterialDesign.MDI_CODE_BRACES, "Query Editor");
-    createNavButton(ViewId.SETTINGS, MaterialDesign.MDI_SETTINGS, "Settings");
-    createNavButton(
-        ViewId.VALIDATION, MaterialDesign.MDI_CHECK_CIRCLE_OUTLINE, "Validation");
-
-    // Set default active view
-    setActiveView(ViewId.QUERY);
-  }
-
-  /**
-   * Creates a navigation button for the given view.
-   *
-   * @param viewId the view identifier
-   * @param icon the FontAwesome icon
-   * @param tooltipText the tooltip text
-   */
-  private void createNavButton(ViewId viewId, MaterialDesign icon, String tooltipText) {
-    var iconNode = new FontIcon(icon);
-    iconNode.setIconSize(24);
-    iconNode.getStyleClass().add("nav-icon");
-
-    var label = new Label(tooltipText);
-    label.getStyleClass().add("nav-label");
-
-    var button = new HBox(10, iconNode, label);
+  /** Creates a sidebar button with icon and text. */
+  private Button createNavigationButton(String text, Ikon iconCode, String tooltipText) {
+    Button button = new Button();
+    button.getStyleClass().addAll("sidebar-button", Styles.FLAT, Styles.LEFT_PILL);
+    button.setMaxWidth(Double.MAX_VALUE);
     button.setAlignment(Pos.CENTER_LEFT);
-    button.setPadding(new Insets(12, 15, 12, 15));
-    button.setCursor(Cursor.HAND);
-    button.getStyleClass().add(STYLE_CLASS_NAV_BUTTON);
 
-    button.setOnMouseClicked(
-        event -> {
-          if (navigationHandler != null) {
-            navigationHandler.accept(viewId);
-          }
-        });
+    FontIcon icon = new FontIcon(iconCode);
+    icon.getStyleClass().add("sidebar-icon");
 
-    Tooltip tooltip = new Tooltip(tooltipText);
-    Tooltip.install(button, tooltip);
+    Label label = new Label(text);
+    label.getStyleClass().add("sidebar-text");
 
-    navButtons.put(viewId, button);
-    navButtonsContainer.getChildren().add(button);
+    HBox content = new HBox(icon, label);
+    content.getStyleClass().add("sidebar-button-content");
+    content.setAlignment(Pos.CENTER_LEFT);
+
+    button.setGraphic(content);
+    button.setUserData(label);
+    button.setTooltip(new Tooltip(tooltipText));
+
+    return button;
   }
 
-  // ===== Toggle Button =====
+  /** Creates the toggle button for collapse/expand. */
+  private Button createToggleButton() {
+    Button button = new Button();
+    button.getStyleClass().addAll("sidebar-toggle", Styles.FLAT, Styles.ROUNDED);
+    button.setMaxWidth(Double.MAX_VALUE);
+    button.setAlignment(Pos.CENTER);
 
-  private void setupToggleButton() {
-    // Chevron icon (changes direction based on collapsed state)
-    var chevronIcon = new FontIcon(MaterialDesign.MDI_CHEVRON_LEFT);
-    chevronIcon.setIconSize(20);
-    chevronIcon.getStyleClass().add("toggle-icon");
+    FontIcon icon = new FontIcon(Feather.CHEVRONS_LEFT);
+    icon.getStyleClass().add("sidebar-icon");
+    button.setGraphic(icon);
 
-    // Rotate chevron when collapsed
-    collapsed.addListener(
-        (obs, oldVal, newVal) -> {
-          if (newVal) {
-            chevronIcon.setIconCode(MaterialDesign.MDI_CHEVRON_RIGHT);
-          } else {
-            chevronIcon.setIconCode(MaterialDesign.MDI_CHEVRON_LEFT);
-          }
-        });
-
-    var toggleButton = new HBox(chevronIcon);
-    toggleButton.setAlignment(Pos.CENTER);
-    toggleButton.setPadding(new Insets(10));
-    toggleButton.setCursor(Cursor.HAND);
-    toggleButton.getStyleClass().add("toggle-button");
-
-    toggleButton.setOnMouseClicked(
-        event -> {
-          setCollapsed(!collapsed.get());
+    button.setTooltip(new Tooltip("Collapse sidebar"));
+    button.setOnAction(
+        e -> {
           if (onToggle != null) {
-            onToggle.run();
+            onToggle.accept(!collapsed);
           }
         });
 
-    Tooltip toggleTooltip = new Tooltip("Toggle Sidebar");
-    Tooltip.install(toggleButton, toggleTooltip);
-
-    var separator = new Separator();
-    separator.setPadding(new Insets(10, 0, 10, 0));
-
-    toggleButtonContainer.getChildren().addAll(separator, toggleButton);
-    toggleButtonContainer.setAlignment(Pos.BOTTOM_CENTER);
+    return button;
   }
 
-  // ===== Layout =====
+  // ===== Collapse / expand =====
 
-  private void buildLayout() {
-    root.setAlignment(Pos.TOP_CENTER);
-    root.setPadding(new Insets(0));
-
-    // Logo at top
-    root.getChildren().add(logoContainer);
-
-    // Navigation buttons in the middle (grows to fill space)
-    VBox.setVgrow(navButtonsContainer, Priority.ALWAYS);
-    root.getChildren().add(navButtonsContainer);
-
-    // Toggle button at bottom
-    root.getChildren().add(toggleButtonContainer);
-
-    // Initial width
-    root.setPrefWidth(SIDEBAR_WIDTH_EXPANDED);
-    root.setMinWidth(SIDEBAR_WIDTH_EXPANDED);
-    root.setMaxWidth(SIDEBAR_WIDTH_EXPANDED);
-  }
-
-  // ===== Theme Handling =====
-
-  private void applyCurrentTheme() {
-    Theme currentTheme = ThemeManager.getInstance().getTheme();
-    boolean isDark = currentTheme != null && ThemeManager.getInstance().isDarkTheme(currentTheme.getName());
-    Color bgColor = isDark ? SIDEBAR_BACKGROUND_DARK : SIDEBAR_BACKGROUND_LIGHT;
-
-    root.setBackground(new Background(new BackgroundFill(bgColor, null, null)));
-
-    // Update button styles
-    for (HBox button : navButtons.values()) {
-      updateButtonStyle(button, isDark);
+  /** Allows the controller/model to set collapse state. */
+  public void setCollapsed(boolean value) {
+    if (this.collapsed != value) {
+      toggleSidebar();
     }
   }
 
-  private void updateButtonStyle(HBox button, boolean isDark) {
-    Color hoverColor = isDark ? BUTTON_HOVER_DARK : BUTTON_HOVER_LIGHT;
-
-    button.setOnMouseEntered(
-        event -> {
-          if (!button.getStyleClass().contains(STYLE_CLASS_ACTIVE)) {
-            button.setBackground(new Background(new BackgroundFill(hoverColor, null, null)));
-          }
-        });
-
-    button.setOnMouseExited(
-        event -> {
-          if (!button.getStyleClass().contains(STYLE_CLASS_ACTIVE)) {
-            button.setBackground(Background.EMPTY);
-          }
-        });
-  }
-
-  private void setupThemeListener() {
-    ThemeManager.getInstance()
-        .themeProperty()
-        .addListener((obs, oldVal, newVal) -> applyCurrentTheme());
-  }
-
-  // ===== Public API =====
-
-  /** Returns the root node for embedding. */
-  public Parent getRoot() {
-    return root;
-  }
-
-  /**
-   * Sets the collapsed state of the sidebar.
-   *
-   * @param collapsed true to collapse, false to expand
-   */
-  public void setCollapsed(boolean collapsed) {
-    this.collapsed.set(collapsed);
-
-    if (collapsed) {
-      NavigationBarAnimations.animateCollapse(
-          root, logoImageView, navButtons, SIDEBAR_WIDTH_COLLAPSED, LOGO_SIZE_COLLAPSED);
-    } else {
-      NavigationBarAnimations.animateExpand(
-          root, logoImageView, navButtons, SIDEBAR_WIDTH_EXPANDED, LOGO_SIZE_EXPANDED);
+  /** Performs the collapse/expand animation. */
+  private void toggleSidebar() {
+    if (currentTransition != null && currentTransition.getStatus() == Animation.Status.RUNNING) {
+      currentTransition.stop();
     }
+
+    collapsed = !collapsed;
+
+    VBox root = (VBox) getRoot();
+    FontIcon toggleIcon = (FontIcon) toggleButton.getGraphic();
+    ImageView logoView = (ImageView) logo.getGraphic();
+
+    Button[] navigationButtons =
+        new Button[] {dataButton, validationButton, queryButton, settingsButton};
+
+    currentTransition =
+        NavigationBarAnimations.createToggleAnimation(
+            root, toggleIcon, logoView, navigationButtons, collapsed);
+
+    currentTransition.setOnFinished(
+        e -> {
+          if (collapsed) {
+            root.getStyleClass().add("collapsed");
+            toggleButton.getTooltip().setText("Expand sidebar");
+          } else {
+            root.getStyleClass().remove("collapsed");
+            toggleButton.getTooltip().setText("Collapse sidebar");
+          }
+          currentTransition = null;
+        });
+
+    currentTransition.play();
   }
 
-  /** Returns whether the sidebar is currently collapsed. */
-  public boolean isCollapsed() {
-    return collapsed.get();
-  }
+  // ===== Selection & handlers =====
 
   /**
-   * Highlights the given view as active.
+   * Sets the active view and highlights the corresponding button.
    *
    * @param viewId the view to highlight
    */
   public void setActiveView(ViewId viewId) {
-    Objects.requireNonNull(viewId, "viewId cannot be null");
-
-    // Remove active styling from all buttons
-    for (var entry : navButtons.entrySet()) {
-      var button = entry.getValue();
-      button.getStyleClass().remove(STYLE_CLASS_ACTIVE);
-      button.setBackground(Background.EMPTY);
+    Button targetButton = getButtonForViewId(viewId);
+    if (targetButton == null) {
+      return;
     }
 
-    // Add active styling to the selected button
-    var activeButton = navButtons.get(viewId);
-    if (activeButton != null) {
-      activeButton.getStyleClass().add(STYLE_CLASS_ACTIVE);
+    // Remove accent from all buttons
+    getRoot()
+        .lookupAll(".sidebar-button")
+        .forEach(
+            node -> {
+              if (node instanceof Button button) {
+                button.getStyleClass().remove(Styles.ACCENT);
+              }
+            });
 
-      Theme currentTheme = ThemeManager.getInstance().getTheme();
-      boolean isDark = currentTheme != null && ThemeManager.getInstance().isDarkTheme(currentTheme.getName());
-      Color indicatorColor = isDark ? ACTIVE_INDICATOR_DARK : ACTIVE_INDICATOR_LIGHT;
-
-      activeButton.setBackground(
-          new Background(
-              new BackgroundFill(
-                  isDark ? BUTTON_HOVER_DARK : BUTTON_HOVER_LIGHT, null, null)));
-
-      // Add left border indicator
-      activeButton.setBorder(
-          new Border(
-              new BorderStroke(
-                  indicatorColor,
-                  Color.TRANSPARENT,
-                  Color.TRANSPARENT,
-                  Color.TRANSPARENT,
-                  BorderStrokeStyle.SOLID,
-                  BorderStrokeStyle.NONE,
-                  BorderStrokeStyle.NONE,
-                  BorderStrokeStyle.NONE,
-                  null,
-                  new BorderWidths(0, 0, 0, 4),
-                  null)));
-    }
-
-    activeView.set(viewId);
+    // Highlight the target button
+    targetButton.getStyleClass().add(Styles.ACCENT);
   }
 
   /**
-   * Sets the navigation handler callback.
+   * Sets the navigation handler to be called when a navigation button is clicked.
    *
-   * @param handler the callback invoked when a button is clicked
+   * @param handler the navigation handler
    */
   public void setNavigationHandler(Consumer<ViewId> handler) {
-    this.navigationHandler = handler;
+    for (ViewId id : ViewId.values()) {
+      Button button = getButtonForViewId(id);
+      if (button != null) {
+        button.setOnAction(
+            e -> {
+              if (handler != null) {
+                handler.accept(id);
+              }
+            });
+      }
+    }
   }
 
   /**
-   * Sets the toggle handler callback.
+   * Returns the button corresponding to the given view ID.
    *
-   * @param onToggle the callback invoked when the toggle button is clicked
+   * @param viewId the view ID
+   * @return the corresponding button
    */
-  public void setOnToggle(Runnable onToggle) {
-    this.onToggle = onToggle;
+  private Button getButtonForViewId(ViewId viewId) {
+    return switch (viewId) {
+      case DATA -> dataButton;
+      case VALIDATION -> validationButton;
+      case QUERY -> queryButton;
+      case SETTINGS -> settingsButton;
+    };
   }
 
   /**
-   * Sets the logo click handler callback.
+   * Returns whether the sidebar is currently collapsed.
    *
-   * @param onLogoClick the callback invoked when the logo is clicked
+   * @return true if collapsed, false otherwise
    */
-  public void setOnLogoClick(Runnable onLogoClick) {
-    this.onLogoClick = onLogoClick;
+  public boolean isCollapsed() {
+    return collapsed;
+  }
+
+  /**
+   * Sets the toggle handler to be called when the sidebar is collapsed or expanded.
+   *
+   * @param handler the toggle handler
+   */
+  public void setOnToggle(Consumer<Boolean> handler) {
+    this.onToggle = handler;
+  }
+
+  /**
+   * Sets the handler to be called when the logo is clicked.
+   *
+   * @param handler the logo click handler
+   */
+  public void setOnLogoClick(Runnable handler) {
+    this.onLogoClick = handler;
   }
 }

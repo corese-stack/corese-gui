@@ -77,7 +77,7 @@ public final class NavigationBarController {
     view.setNavigationHandler(this::navigate);
 
     // Toggle button in the view → update model.collapsed
-    view.setOnToggle(() -> model.setCollapsed(!model.isCollapsed()));
+    view.setOnToggle(collapsed -> model.setCollapsed(collapsed));
     
     // Logo click -> open website
     view.setOnLogoClick(() -> BrowserUtils.openUrl(AppConstants.PROJECT_URL));
