@@ -81,7 +81,7 @@ public class CodeEditorController {
         if (btn.getAction() == null) {
           Runnable defaultAction = getDefaultAction(btn.getIcon());
           if (defaultAction != null) {
-            config.add(new ButtonConfig(btn.getIcon(), btn.getTooltip(), defaultAction));
+            config.add(ButtonFactory.custom(btn.getIcon(), btn.getTooltip(), defaultAction));
           } else {
             config.add(btn);
           }

@@ -40,27 +40,6 @@ import org.slf4j.LoggerFactory;
  * <p>
  * <b>Usage example:</b>
  *
- * <pre>{@code
- * // 1. Build configuration
- * TabEditorConfig config = TabEditorConfig.builder()
- *     .withEditorButtons(List.of(
- *         new ButtonConfig(ButtonIcon.SAVE, "Save"),
- *         new ButtonConfig(ButtonIcon.UNDO, "Undo")))
- *     .withExecution(
- *         new ButtonConfig(ButtonIcon.PLAY, "Run"),
- *         this::executeQuery)
- *     .withResultView(
- *         List.of(new ButtonConfig(ButtonIcon.COPY, "Copy")),
- *         ResultViewConfig.builder().withTextTab().build())
- *     .build();
- *
- * // 2. Create controller (all configuration done!)
- * TabEditorController controller = new TabEditorController(config);
- *
- * // 3. Use it
- * controller.openFile(myFile);
- * Parent view = controller.getViewRoot();
- * }</pre>
  */
 public class TabEditorController {
 

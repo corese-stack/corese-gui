@@ -3,6 +3,7 @@ package fr.inria.corese.gui.core.dialog;
 import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.component.button.IconButtonWidget;
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.service.ModalService.UnsavedChangesResult;
@@ -61,7 +62,7 @@ public class DialogLayout extends VBox {
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         IconButtonWidget closeBtn = new IconButtonWidget(
-                new ButtonConfig(ButtonIcon.CLOSE_WINDOW, "Close", ModalService.getInstance()::hide));
+                ButtonFactory.custom(ButtonIcon.CLOSE_WINDOW, "Close", ModalService.getInstance()::hide));
 
         HBox header = new HBox(titleLabel, spacer, closeBtn);
         header.getStyleClass().add("dialog-header");

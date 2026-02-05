@@ -1,7 +1,6 @@
 package fr.inria.corese.gui.feature.result.graph;
 
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
-import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
@@ -156,7 +155,7 @@ public class GraphResultView extends AbstractView {
   private void setupToolbar() {
     List<ButtonConfig> buttons =
         List.of(
-            new ButtonConfig(ButtonIcon.RELOAD, "Reset Layout", graphWidget::resetLayout),
+            ButtonFactory.resetLayout(graphWidget::resetLayout),
             ButtonFactory.zoomIn(graphWidget::zoomIn),
             ButtonFactory.zoomOut(graphWidget::zoomOut));
 

@@ -63,11 +63,15 @@ public class ButtonConfig {
   private final Runnable action;
 
   // ===============================================================================
-  // Constructors
+  // Constructors (Public - Prefer ButtonFactory for standard buttons)
   // ===============================================================================
 
   /**
    * Creates a button configuration with icon only.
+   *
+   * <p><b>Recommendation:</b> Use {@link ButtonFactory} methods for standard buttons with
+   * consistent tooltips. Use this constructor only when you need a custom button without
+   * an action or tooltip.
    *
    * @param icon The icon to display
    */
@@ -77,6 +81,10 @@ public class ButtonConfig {
 
   /**
    * Creates a button configuration with icon and tooltip.
+   *
+   * <p><b>Recommendation:</b> Use {@link ButtonFactory} methods for standard buttons with
+   * consistent tooltips. Use this constructor only when you need a custom tooltip or
+   * when the button doesn't match any standard factory method.
    *
    * @param icon    The icon to display
    * @param tooltip The tooltip text shown on hover
@@ -88,10 +96,10 @@ public class ButtonConfig {
   /**
    * Creates a complete button configuration with icon, tooltip, and action.
    *
-   * <p>
-   * This is the preferred constructor for creating self-contained buttons that
-   * handle their own
-   * click events.
+   * <p><b>Recommendation:</b> Use {@link ButtonFactory} methods for standard buttons with
+   * consistent tooltips (e.g., {@link ButtonFactory#copy}, {@link ButtonFactory#save}).
+   * Use {@link ButtonFactory#custom} for buttons with custom tooltips that don't match
+   * any standard factory method.
    *
    * @param icon    The icon to display
    * @param tooltip The tooltip text shown on hover

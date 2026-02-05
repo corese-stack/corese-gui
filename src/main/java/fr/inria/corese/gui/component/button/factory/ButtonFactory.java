@@ -46,6 +46,27 @@ public final class ButtonFactory {
   }
 
   // ===============================================================================
+  // Custom Configuration
+  // ===============================================================================
+
+  /**
+   * Creates a custom button configuration with non-standard icon/tooltip combination.
+   *
+   * <p>Use this method when you need a button that doesn't fit the standard factory methods
+   * (e.g., context-specific tooltips like "Copy SVG" instead of "Copy to Clipboard").
+   *
+   * <p><b>Note:</b> Prefer using standard factory methods when possible to maintain consistency.
+   *
+   * @param icon    The icon to display
+   * @param tooltip The custom tooltip text
+   * @param action  The action to execute when clicked, or null if wired later
+   * @return A configured ButtonConfig with custom settings
+   */
+  public static ButtonConfig custom(ButtonIcon icon, String tooltip, Runnable action) {
+    return new ButtonConfig(icon, tooltip, action);
+  }
+
+  // ===============================================================================
   // File Operations
   // ===============================================================================
 
@@ -77,6 +98,18 @@ public final class ButtonFactory {
    */
   public static ButtonConfig export(Runnable action) {
     return new ButtonConfig(ButtonIcon.EXPORT, "Export to File", action);
+  }
+
+  /**
+   * Creates an Export SVG button configuration.
+   *
+   * <p>Specialized variant for exporting SVG content specifically.
+   *
+   * @param action The action to execute when clicked, or null if wired later
+   * @return A configured ButtonConfig with export icon and SVG-specific tooltip
+   */
+  public static ButtonConfig exportSvg(Runnable action) {
+    return new ButtonConfig(ButtonIcon.EXPORT, "Export SVG", action);
   }
 
   /**
@@ -134,6 +167,18 @@ public final class ButtonFactory {
   }
 
   /**
+   * Creates a Copy SVG button configuration.
+   *
+   * <p>Specialized variant for copying SVG content specifically.
+   *
+   * @param action The action to execute when clicked, or null if wired later
+   * @return A configured ButtonConfig with copy icon and SVG-specific tooltip
+   */
+  public static ButtonConfig copySvg(Runnable action) {
+    return new ButtonConfig(ButtonIcon.COPY, "Copy SVG", action);
+  }
+
+  /**
    * Creates a standardized Zoom In button configuration.
    *
    * @param action The action to execute when clicked, or null if wired later
@@ -151,6 +196,18 @@ public final class ButtonFactory {
    */
   public static ButtonConfig zoomOut(Runnable action) {
     return new ButtonConfig(ButtonIcon.ZOOM_OUT, "Zoom Out", action);
+  }
+
+  /**
+   * Creates a Reset Layout button configuration.
+   *
+   * <p>Specialized variant for resetting graph layouts.
+   *
+   * @param action The action to execute when clicked, or null if wired later
+   * @return A configured ButtonConfig with reload icon and layout-specific tooltip
+   */
+  public static ButtonConfig resetLayout(Runnable action) {
+    return new ButtonConfig(ButtonIcon.RELOAD, "Reset Layout", action);
   }
 
   // ===============================================================================

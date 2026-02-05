@@ -1,7 +1,7 @@
 package fr.inria.corese.gui.feature.validation;
 
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
-import fr.inria.corese.gui.component.button.enums.ButtonIcon;
+import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.emptystate.EmptyStateWidget;
 import fr.inria.corese.gui.core.view.AbstractView;
 import java.util.List;
@@ -54,8 +54,8 @@ public class ValidationView extends AbstractView {
      */
     public List<ButtonConfig> getResultToolbarButtons() {
         return List.of(
-            new ButtonConfig(ButtonIcon.COPY),
-            new ButtonConfig(ButtonIcon.EXPORT)
+            ButtonFactory.copy(null),
+            ButtonFactory.export(null)
         );
     }
 

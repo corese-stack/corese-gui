@@ -2,6 +2,7 @@ package fr.inria.corese.gui.feature.query;
 
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
+import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.QueryType;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
@@ -56,19 +57,19 @@ public class QueryViewController {
         // 2. Configure Editor
         TabEditorConfig config = TabEditorConfig.builder()
             .withEditorButtons(List.of(
-                new ButtonConfig(ButtonIcon.SAVE, "Save File"),
-                new ButtonConfig(ButtonIcon.CLEAR, "Clear Content"),
-                new ButtonConfig(ButtonIcon.UNDO, "Undo"),
-                new ButtonConfig(ButtonIcon.REDO, "Redo")
+                ButtonFactory.save(null),
+                ButtonFactory.clear(null),
+                ButtonFactory.undo(null),
+                ButtonFactory.redo(null)
             ))
             .withExecution(
-                new ButtonConfig(ButtonIcon.PLAY, "Run Query"),
+                ButtonFactory.custom(ButtonIcon.PLAY, "Run Query", null),
                 this::executeQuery
             )
             .withResultView(
                 List.of(
-                    new ButtonConfig(ButtonIcon.COPY, "Copy to Clipboard"),
-                    new ButtonConfig(ButtonIcon.EXPORT, "Export Results")
+                    ButtonFactory.copy(null),
+                    ButtonFactory.export(null)
                 ),
                 ResultViewConfig.builder().withTextTab().withTableTab().withGraphTab().build()
             )

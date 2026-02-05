@@ -42,13 +42,6 @@ import fr.inria.corese.gui.component.button.config.ButtonConfig;
  * <p>
  * <b>Usage example:</b>
  *
- * <pre>{@code
- * ButtonConfig config = new ButtonConfig(
- *     ButtonIcon.SAVE,
- *     "Save File",
- *     () -> saveFile());
- * }</pre>
- *
  * @see ButtonConfig
  * @see fr.inria.corese.gui.core.ButtonFactory
  */

@@ -1,7 +1,7 @@
 package fr.inria.corese.gui.feature.result.graph;
 
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
-import fr.inria.corese.gui.component.button.enums.ButtonIcon;
+import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.utils.ExportHelper;
 import java.util.List;
@@ -36,11 +36,11 @@ public class GraphResultController {
   private void initialize() {
     view.setToolbarActions(
         List.of(
-            new ButtonConfig(ButtonIcon.COPY, "Copy SVG", this::copySvg),
-            new ButtonConfig(ButtonIcon.EXPORT, "Export SVG", this::exportSvg),
-            new ButtonConfig(ButtonIcon.RELOAD, "Reset Layout", view.getGraphWidget()::resetLayout),
-            new ButtonConfig(ButtonIcon.ZOOM_IN, "Zoom In", view.getGraphWidget()::zoomIn),
-            new ButtonConfig(ButtonIcon.ZOOM_OUT, "Zoom Out", view.getGraphWidget()::zoomOut)));
+            ButtonFactory.copySvg(this::copySvg),
+            ButtonFactory.exportSvg(this::exportSvg),
+            ButtonFactory.resetLayout(view.getGraphWidget()::resetLayout),
+            ButtonFactory.zoomIn(view.getGraphWidget()::zoomIn),
+            ButtonFactory.zoomOut(view.getGraphWidget()::zoomOut)));
   }
 
   /**
