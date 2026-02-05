@@ -1,21 +1,14 @@
 package fr.inria.corese.gui.feature.main.navigation;
 
 import fr.inria.corese.gui.core.enums.ViewId;
-
 import fr.inria.corese.gui.AppConstants;
 import fr.inria.corese.gui.utils.BrowserUtils;
 import fr.inria.corese.gui.core.theme.ThemeManager;
-
-
-
-
-
-
 import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.logging.Logger;
-
 import javafx.scene.Parent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Controller responsible for handling sidebar navigation actions.
@@ -30,7 +23,7 @@ import javafx.scene.Parent;
  */
 public final class NavigationBarController {
 
-  private static final Logger LOGGER = Logger.getLogger(NavigationBarController.class.getName());
+  private static final Logger LOGGER = LoggerFactory.getLogger(NavigationBarController.class);
 
   private final NavigationBarView view;
   private final NavigationBarModel model;
@@ -87,7 +80,7 @@ public final class NavigationBarController {
 
   /** Called when the user clicks a navigation button. */
   private void navigate(ViewId viewId) {
-    LOGGER.fine(() -> "Navigation triggered: " + viewId);
+    LOGGER.debug("Navigation triggered: {}", viewId);
     model.setActiveView(viewId);
 
     if (onNavigate != null) {

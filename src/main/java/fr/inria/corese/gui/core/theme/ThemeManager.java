@@ -2,14 +2,14 @@ package fr.inria.corese.gui.core.theme;
 
 import atlantafx.base.theme.Theme;
 import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.prefs.Preferences;
 import javafx.application.Application;
 import javafx.beans.property.*;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Manages the global visual theme and accent color of the Corese-GUI application.
@@ -27,7 +27,7 @@ import javafx.stage.Stage;
 @SuppressWarnings("java:S6548")
 public final class ThemeManager {
 
-  private static final Logger LOGGER = Logger.getLogger(ThemeManager.class.getName());
+  private static final Logger LOGGER = LoggerFactory.getLogger(ThemeManager.class);
   private static final String PREF_THEME = "app.theme";
   private static final String PREF_ACCENT_COLOR = "app.accentColor";
   private static final String PREF_SYSTEM_THEME = "app.systemThemeEnabled";
@@ -77,9 +77,7 @@ public final class ThemeManager {
     systemThemeMonitor.setThemeChangeListener(
         isDark -> {
           if (isSystemThemeEnabled()) {
-            LOGGER.log(
-                Level.INFO,
-                "System theme changed: {0}",
+            LOGGER.info("System theme changed: {}",
                 Boolean.TRUE.equals(isDark) ? "Dark" : "Light");
             setTheme(SystemThemeDetector.getSystemTheme());
           }
@@ -194,7 +192,7 @@ public final class ThemeManager {
                 setAccentColor(systemAccent);
             });
         } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Failed to detect system settings", e);
+            LOGGER.warn("Failed to detect system settings", e);
         }
     }).start();
   }
@@ -452,12 +450,12 @@ public final class ThemeManager {
           try {
             setAccentColor(Color.web(colorHex));
           } catch (IllegalArgumentException e) {
-            LOGGER.warning("Invalid saved accent color: " + colorHex);
+            LOGGER.warn("Invalid saved accent color: {}", colorHex);
           }
         }
       }
     } catch (Exception e) {
-      LOGGER.log(Level.WARNING, "Failed to load preferences", e);
+      LOGGER.warn("Failed to load preferences", e);
     } finally {
       loadingPreferences = false;
     }
@@ -483,7 +481,7 @@ public final class ThemeManager {
         }
       }
     } catch (Exception e) {
-      LOGGER.log(Level.WARNING, "Failed to save preferences", e);
+      LOGGER.warn("Failed to save preferences", e);
     }
   }
 }

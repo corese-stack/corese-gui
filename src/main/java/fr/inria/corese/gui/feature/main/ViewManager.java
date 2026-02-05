@@ -2,7 +2,8 @@ package fr.inria.corese.gui.feature.main;
 
 import java.util.EnumMap;
 import java.util.Map;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import fr.inria.corese.gui.core.enums.ViewId;
 import fr.inria.corese.gui.core.view.AbstractView;
@@ -14,7 +15,7 @@ public final class ViewManager {
 
   // ===== Fields =====
 
-  private static final Logger LOGGER = Logger.getLogger(ViewManager.class.getName());
+  private static final Logger LOGGER = LoggerFactory.getLogger(ViewManager.class);
 
   /** Cache mapping ViewId to their corresponding AbstractView instances. */
   private final Map<ViewId, AbstractView> cache = new EnumMap<>(ViewId.class);
@@ -23,9 +24,8 @@ public final class ViewManager {
    * Returns the view for the given {@link ViewId}.
    *
    * <p>
-   * Loads the view on first access and caches it. Never
-   * returns {@code
-   * null} — throws an exception if the view cannot be loaded.
+   * Loads the view on first access and caches it (Lazy Loading). Never
+   * returns {@code null} — throws an exception if the view cannot be loaded.
    *
    * @param viewId the identifier of the view
    * @return the AbstractView instance associated with the view
@@ -47,25 +47,6 @@ public final class ViewManager {
   }
 
   /**
-   * Preloads all views defined in {@link ViewId}.
-   *
-   * <p>
-   * Iterates through all enum constants and ensures their views are loaded and
-   * cached.
-   * This is useful for avoiding initialization delays when switching views for
-   * the first time.
-   */
-  public void preloadAllViews() {
-    for (ViewId viewId : ViewId.values()) {
-      try {
-        getView(viewId);
-      } catch (Exception e) {
-        LOGGER.warning("Failed to preload view: " + viewId + ". Error: " + e.getMessage());
-      }
-    }
-  }
-
-  /**
    * Adapter used by computeIfAbsent to load a view safely and convert checked
    * exceptions into
    * unchecked ones with proper logging.
@@ -73,7 +54,7 @@ public final class ViewManager {
   private AbstractView safeLoadView(ViewId viewId) {
     try {
       AbstractView view = loadView(viewId);
-      LOGGER.fine(() -> "Loaded view: " + viewId);
+      LOGGER.debug("Loaded view: {}", viewId);
       return view;
     } catch (RuntimeException e) {
       // Rethrow with contextual information (no logging to avoid double-reporting)

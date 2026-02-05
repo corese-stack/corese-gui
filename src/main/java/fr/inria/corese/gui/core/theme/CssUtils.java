@@ -1,11 +1,11 @@
 package fr.inria.corese.gui.core.theme;
 
 import java.net.URL;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.paint.Color;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility class for managing CSS stylesheets across the application.
@@ -24,7 +24,7 @@ public final class CssUtils {
 
   // ===== Fields =====
 
-  private static final Logger LOGGER = Logger.getLogger(CssUtils.class.getName());
+  private static final Logger LOGGER = LoggerFactory.getLogger(CssUtils.class);
 
   // ===== Constructor =====
 
@@ -42,18 +42,18 @@ public final class CssUtils {
    */
   public static void applyViewStyles(Parent node, String stylesheetPath) {
     if (node == null || stylesheetPath == null || stylesheetPath.isBlank()) {
-      LOGGER.warning("CssUtils.applyViewStyles(): invalid arguments.");
+      LOGGER.warn("CssUtils.applyViewStyles(): invalid arguments.");
       return;
     }
 
     URL css = CssUtils.class.getResource(stylesheetPath);
     if (css == null) {
-      LOGGER.log(Level.WARNING, "View stylesheet not found: {0}", stylesheetPath);
+      LOGGER.warn("View stylesheet not found: {}", stylesheetPath);
       return;
     }
 
     node.getStylesheets().add(css.toExternalForm());
-    LOGGER.log(Level.FINE, "Applied stylesheet to view: {0}", stylesheetPath);
+    LOGGER.debug("Applied stylesheet to view: {}", stylesheetPath);
   }
 
   /**
@@ -81,17 +81,17 @@ public final class CssUtils {
    */
   public static void applySceneStyles(Scene scene, String stylesheetPath) {
     if (scene == null || stylesheetPath == null || stylesheetPath.isBlank()) {
-      LOGGER.warning("CssUtils.applySceneStyles(): invalid arguments.");
+      LOGGER.warn("CssUtils.applySceneStyles(): invalid arguments.");
       return;
     }
 
     URL css = CssUtils.class.getResource(stylesheetPath);
     if (css == null) {
-      LOGGER.log(Level.WARNING, "Scene stylesheet not found: {0}", stylesheetPath);
+      LOGGER.warn("Scene stylesheet not found: {}", stylesheetPath);
       return;
     }
 
     scene.getStylesheets().add(css.toExternalForm());
-    LOGGER.log(Level.FINE, "Applied stylesheet to scene: {0}", stylesheetPath);
+    LOGGER.debug("Applied stylesheet to scene: {}", stylesheetPath);
   }
 }
