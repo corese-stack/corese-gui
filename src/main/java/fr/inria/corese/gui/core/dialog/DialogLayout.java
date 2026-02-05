@@ -39,8 +39,12 @@ import javafx.scene.layout.VBox;
  */
 public class DialogLayout extends VBox {
 
-    private static final String STYLESHEET = DialogLayout.class.getResource("/css/components/app-dialog.css")
-            .toExternalForm();
+    private static final String STYLESHEET;
+
+    static {
+        java.net.URL resource = DialogLayout.class.getResource("/css/components/app-dialog.css");
+        STYLESHEET = (resource != null) ? resource.toExternalForm() : null;
+    }
 
     // ==============================================================================================
     // Constructor
@@ -55,7 +59,9 @@ public class DialogLayout extends VBox {
      */
     public DialogLayout(String title, Node content, Node... actions) {
         getStyleClass().addAll(Styles.ELEVATED_1, "app-dialog");
-        getStylesheets().add(STYLESHEET);
+        if (STYLESHEET != null) {
+            getStylesheets().add(STYLESHEET);
+        }
         setMaxHeight(Region.USE_PREF_SIZE);
 
         // Header with title and close button

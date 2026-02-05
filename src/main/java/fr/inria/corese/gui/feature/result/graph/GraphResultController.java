@@ -21,6 +21,10 @@ import javafx.scene.input.ClipboardContent;
  */
 public class GraphResultController {
 
+  private static final String MSG_COPY_SUCCESS = "Graph SVG copied to clipboard";
+  private static final String MSG_COPY_EMPTY = "No graph to copy";
+  private static final String MSG_EXPORT_EMPTY = "No graph to export";
+
   private final GraphResultView view;
 
   /**
@@ -56,9 +60,9 @@ public class GraphResultController {
       ClipboardContent content = new ClipboardContent();
       content.putString(svg);
       Clipboard.getSystemClipboard().setContent(content);
-      NotificationWidget.getInstance().showSuccess("Graph SVG copied to clipboard");
+      NotificationWidget.getInstance().showSuccess(MSG_COPY_SUCCESS);
     } else {
-      NotificationWidget.getInstance().showWarning("No graph to copy");
+      NotificationWidget.getInstance().showWarning(MSG_COPY_EMPTY);
     }
   }
 
@@ -71,7 +75,7 @@ public class GraphResultController {
     if (svg != null && !svg.isEmpty()) {
       ExportHelper.exportSvg(view.getGraphWidget().getScene().getWindow(), svg);
     } else {
-      NotificationWidget.getInstance().showWarning("No graph to export");
+      NotificationWidget.getInstance().showWarning(MSG_EXPORT_EMPTY);
     }
   }
 

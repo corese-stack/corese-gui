@@ -28,7 +28,7 @@ import java.nio.charset.StandardCharsets;
  * RdfSyntaxService service = RdfSyntaxService.getInstance();
  * CheckResult result = service.checkTurtle(turtleContent);
  * if (!result.valid()) {
- *     System.out.println("Syntax error: " + result.message());
+ *     // Handle error: result.message()
  * }
  * }</pre>
  */
