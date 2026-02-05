@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.utils;
+package fr.inria.corese.gui.core.service;
 
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.kgram.core.Mappings;

@@ -4,7 +4,7 @@ import fr.inria.corese.gui.component.button.FloatingButtonWidget;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
-import fr.inria.corese.gui.utils.ImportHelper;
+import fr.inria.corese.gui.core.io.ImportHelper;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;

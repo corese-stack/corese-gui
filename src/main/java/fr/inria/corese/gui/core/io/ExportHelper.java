@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.utils;
+package fr.inria.corese.gui.core.io;
 
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;

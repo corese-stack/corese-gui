@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.utils;
+package fr.inria.corese.gui.core.theme;
 
 import atlantafx.base.theme.*;
 import java.io.BufferedReader;

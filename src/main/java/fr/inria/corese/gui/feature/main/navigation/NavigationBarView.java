@@ -2,7 +2,7 @@ package fr.inria.corese.gui.feature.main.navigation;
 
 import fr.inria.corese.gui.core.enums.ViewId;
 import fr.inria.corese.gui.core.view.AbstractView;
-import fr.inria.corese.gui.utils.SvgImageLoader;
+import fr.inria.corese.gui.utils.fx.SvgImageLoader;
 
 import atlantafx.base.theme.Styles;
 import java.util.function.Consumer;

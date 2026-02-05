@@ -5,7 +5,7 @@ import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.view.AbstractView;
-import fr.inria.corese.gui.utils.CssUtils;
+import fr.inria.corese.gui.core.theme.CssUtils;
 import java.util.List;
 import javafx.animation.FadeTransition;
 import javafx.geometry.Insets;

@@ -4,8 +4,8 @@ import fr.inria.corese.gui.feature.main.MainController;
 import fr.inria.corese.gui.feature.main.MainView;
 import fr.inria.corese.gui.feature.main.navigation.NavigationBarController;
 import fr.inria.corese.gui.feature.main.ViewManager;
-import fr.inria.corese.gui.utils.SvgImageLoader;
-import fr.inria.corese.gui.utils.ThemeManager;
+import fr.inria.corese.gui.utils.fx.SvgImageLoader;
+import fr.inria.corese.gui.core.theme.ThemeManager;
 
 
 

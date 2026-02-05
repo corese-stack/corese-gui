@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.utils;
+package fr.inria.corese.gui.core.theme;
 
 import javafx.application.Platform;
 import javafx.scene.paint.Color;

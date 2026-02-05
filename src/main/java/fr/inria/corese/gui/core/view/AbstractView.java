@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.core.view;
 
-import fr.inria.corese.gui.utils.CssUtils;
+import fr.inria.corese.gui.core.theme.CssUtils;
 
 
 

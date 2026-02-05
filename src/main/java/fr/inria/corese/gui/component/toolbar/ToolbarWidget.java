@@ -3,7 +3,7 @@ package fr.inria.corese.gui.component.toolbar;
 import fr.inria.corese.gui.component.button.IconButtonWidget;
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
-import fr.inria.corese.gui.utils.CssUtils;
+import fr.inria.corese.gui.core.theme.CssUtils;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;

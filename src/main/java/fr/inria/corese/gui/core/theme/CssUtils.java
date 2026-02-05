@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.utils;
+package fr.inria.corese.gui.core.theme;
 
 import java.net.URL;
 import java.util.logging.Level;

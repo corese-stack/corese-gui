@@ -3,7 +3,7 @@ package fr.inria.corese.gui.feature.settings;
 import fr.inria.corese.gui.AppConstants;
 import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.utils.BrowserUtils;
-import fr.inria.corese.gui.utils.SvgImageLoader;
+import fr.inria.corese.gui.utils.fx.SvgImageLoader;
 
 
 

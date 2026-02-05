@@ -4,7 +4,7 @@ import fr.inria.corese.gui.core.enums.ViewId;
 
 import fr.inria.corese.gui.AppConstants;
 import fr.inria.corese.gui.utils.BrowserUtils;
-import fr.inria.corese.gui.utils.ThemeManager;
+import fr.inria.corese.gui.core.theme.ThemeManager;
 
 
 

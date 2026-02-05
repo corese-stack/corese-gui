@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.feature.settings;
 
-import fr.inria.corese.gui.utils.ThemeManager;
+import fr.inria.corese.gui.core.theme.ThemeManager;
 
 
 

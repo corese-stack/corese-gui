@@ -2,8 +2,8 @@ package fr.inria.corese.gui.feature.editor.tab;
 
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.view.AbstractView;
-import fr.inria.corese.gui.utils.TabPaneUtils;
-import fr.inria.corese.gui.utils.ThemeManager;
+import fr.inria.corese.gui.utils.fx.TabPaneUtils;
+import fr.inria.corese.gui.core.theme.ThemeManager;
 
 import java.util.HashMap;
 import java.util.Map;

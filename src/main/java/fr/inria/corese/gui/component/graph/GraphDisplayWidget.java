@@ -1,8 +1,8 @@
 package fr.inria.corese.gui.component.graph;
 
-import fr.inria.corese.gui.utils.AppThemeRegistry;
-import fr.inria.corese.gui.utils.CssUtils;
-import fr.inria.corese.gui.utils.ThemeManager;
+import fr.inria.corese.gui.core.theme.AppThemeRegistry;
+import fr.inria.corese.gui.core.theme.CssUtils;
+import fr.inria.corese.gui.core.theme.ThemeManager;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import javafx.application.Platform;

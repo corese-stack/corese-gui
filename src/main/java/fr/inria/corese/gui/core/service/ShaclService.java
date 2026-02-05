@@ -6,7 +6,7 @@ import fr.inria.corese.core.load.Load;
 import fr.inria.corese.core.shacl.Shacl;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.model.ValidationResult;
-import fr.inria.corese.gui.utils.ResultFormatter;
+import fr.inria.corese.gui.core.service.ResultFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

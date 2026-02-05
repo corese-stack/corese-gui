@@ -1,9 +1,9 @@
 package fr.inria.corese.gui.component.editor;
 
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-import fr.inria.corese.gui.utils.AppThemeRegistry;
-import fr.inria.corese.gui.utils.CssUtils;
-import fr.inria.corese.gui.utils.ThemeManager;
+import fr.inria.corese.gui.core.theme.AppThemeRegistry;
+import fr.inria.corese.gui.core.theme.CssUtils;
+import fr.inria.corese.gui.core.theme.ThemeManager;
 import java.net.URL;
 import javafx.application.Platform;
 import javafx.beans.property.DoubleProperty;

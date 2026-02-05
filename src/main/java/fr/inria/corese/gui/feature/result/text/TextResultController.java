@@ -3,7 +3,7 @@ package fr.inria.corese.gui.feature.result.text;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-import fr.inria.corese.gui.utils.ExportHelper;
+import fr.inria.corese.gui.core.io.ExportHelper;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
