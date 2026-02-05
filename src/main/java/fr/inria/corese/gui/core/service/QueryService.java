@@ -1,5 +1,12 @@
 package fr.inria.corese.gui.core.service;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.kgram.core.Mappings;
 import fr.inria.corese.core.query.QueryProcess;
@@ -7,36 +14,32 @@ import fr.inria.corese.core.sparql.triple.parser.ASTQuery;
 import fr.inria.corese.gui.core.enums.QueryType;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.model.QueryResultRef;
-import fr.inria.corese.gui.core.service.ResultFormatter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Service for executing SPARQL queries against the shared Corese graph.
  *
  * <p>
- * This service manages the lifecycle of query execution and result caching, providing:
+ * This service manages the lifecycle of query execution and result caching,
+ * providing:
  * <ul>
- *   <li>Execution of SELECT, ASK, CONSTRUCT, DESCRIBE, and UPDATE queries</li>
- *   <li>Automatic query type detection</li>
- *   <li>Result caching for pagination, formatting, and export without re-execution</li>
- *   <li>Memory-efficient result management with explicit release</li>
+ * <li>Execution of SELECT, ASK, CONSTRUCT, DESCRIBE, and UPDATE queries</li>
+ * <li>Automatic query type detection</li>
+ * <li>Result caching for pagination, formatting, and export without
+ * re-execution</li>
+ * <li>Memory-efficient result management with explicit release</li>
  * </ul>
  *
  * <p>
  * The Singleton pattern is justified here because:
  * <ul>
- *   <li>Query execution must be coordinated to prevent conflicts</li>
- *   <li>Result cache should be centrally managed for the entire application</li>
- *   <li>Ensures consistent query processing and result formatting</li>
+ * <li>Query execution must be coordinated to prevent conflicts</li>
+ * <li>Result cache should be centrally managed for the entire application</li>
+ * <li>Ensures consistent query processing and result formatting</li>
  * </ul>
  *
  * <p>
  * Example usage:
+ * 
  * <pre>{@code
  * QueryService service = QueryService.getInstance();
  * QueryResultRef result = service.executeQuery("SELECT * WHERE { ?s ?p ?o }");
@@ -81,13 +84,16 @@ public class QueryService {
      * Executes a SPARQL query against the shared graph.
      *
      * <p>
-     * The query type is automatically detected, and results are cached for subsequent formatting.
-     * The returned reference contains a unique ID that can be used to access formatted results.
+     * The query type is automatically detected, and results are cached for
+     * subsequent formatting.
+     * The returned reference contains a unique ID that can be used to access
+     * formatted results.
      *
      * @param queryString The SPARQL query string.
-     * @return A {@link QueryResultRef} containing the result ID and detected query type.
+     * @return A {@link QueryResultRef} containing the result ID and detected query
+     *         type.
      * @throws IllegalArgumentException if the query string is null or empty.
-     * @throws QueryExecutionException if the query is invalid or execution fails.
+     * @throws QueryExecutionException  if the query is invalid or execution fails.
      */
     @SuppressWarnings("java:S2139")
     public QueryResultRef executeQuery(String queryString) {
@@ -96,17 +102,17 @@ public class QueryService {
         }
 
         logger.debug("Executing SPARQL query...");
-        
+
         try {
             Graph graph = GraphStoreService.getInstance().getGraph();
             QueryProcess exec = QueryProcess.create(graph);
-            
+
             Mappings mappings = exec.query(queryString);
             ASTQuery ast = mappings.getAST();
-            
+
             QueryType type = detectType(ast);
             String id = UUID.randomUUID().toString();
-            
+
             Graph resultGraph = null;
             if (type == QueryType.CONSTRUCT || type == QueryType.DESCRIBE) {
                 Object g = mappings.getGraph();
@@ -114,13 +120,13 @@ public class QueryService {
                     resultGraph = constructedGraph;
                 }
             }
-            
+
             CacheEntry entry = new CacheEntry(type, mappings, resultGraph);
             resultCache.put(id, entry);
-            
+
             logger.info("Query executed successfully. Type: {}, ID: {}, Results: {}", type, id, mappings.size());
             return new QueryResultRef(id, type);
-            
+
         } catch (Exception e) { // Generic catch is justified: Corese can throw various exception types
             String errorMsg = String.format("Query execution failed: %s", e.getMessage());
             logger.error(errorMsg, e);
@@ -142,7 +148,8 @@ public class QueryService {
         }
 
         if (entry.type == QueryType.CONSTRUCT || entry.type == QueryType.DESCRIBE) {
-            if (entry.graph == null) return "Error: No graph result available.";
+            if (entry.graph == null)
+                return "Error: No graph result available.";
             return ResultFormatter.getInstance().formatGraph(entry.graph, format);
         } else {
             return ResultFormatter.getInstance().formatMappings(entry.mappings, format);
@@ -153,7 +160,8 @@ public class QueryService {
      * Releases a cached result to free memory.
      *
      * <p>
-     * This should be called when the result is no longer needed to prevent memory leaks.
+     * This should be called when the result is no longer needed to prevent memory
+     * leaks.
      *
      * @param resultId The ID of the result to release.
      */
@@ -172,12 +180,18 @@ public class QueryService {
      * Detects the query type from the AST.
      */
     private QueryType detectType(ASTQuery ast) {
-        if (ast == null) return QueryType.UNKNOWN;
-        if (ast.isSelect()) return QueryType.SELECT;
-        if (ast.isAsk()) return QueryType.ASK;
-        if (ast.isConstruct()) return QueryType.CONSTRUCT;
-        if (ast.isDescribe()) return QueryType.DESCRIBE;
-        if (ast.isUpdate()) return QueryType.UPDATE;
+        if (ast == null)
+            return QueryType.UNKNOWN;
+        if (ast.isSelect())
+            return QueryType.SELECT;
+        if (ast.isAsk())
+            return QueryType.ASK;
+        if (ast.isConstruct())
+            return QueryType.CONSTRUCT;
+        if (ast.isDescribe())
+            return QueryType.DESCRIBE;
+        if (ast.isUpdate())
+            return QueryType.UPDATE;
         return QueryType.UNKNOWN;
     }
 
@@ -201,5 +215,6 @@ public class QueryService {
     /**
      * Internal cache entry holder.
      */
-    private record CacheEntry(QueryType type, Mappings mappings, Graph graph) {}
+    private record CacheEntry(QueryType type, Mappings mappings, Graph graph) {
+    }
 }

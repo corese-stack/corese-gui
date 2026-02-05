@@ -23,6 +23,7 @@ public class ValidationView extends AbstractView {
     // Constants
     // ==============================================================================================
 
+    @SuppressWarnings("java:S1075") // Hardcoded URI - not relevant for internal CSS resources
     private static final String STYLESHEET_PATH = "/css/features/validation-view.css";
 
     // ==============================================================================================

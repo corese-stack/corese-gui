@@ -1,12 +1,13 @@
 package fr.inria.corese.gui.feature.result.graph;
 
+import java.util.List;
+
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
-import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.core.theme.CssUtils;
-import java.util.List;
+import fr.inria.corese.gui.core.view.AbstractView;
 import javafx.animation.FadeTransition;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -26,15 +27,21 @@ import javafx.util.Duration;
 /**
  * View for displaying graph visualization results.
  * <p>
- * This view integrates a {@link GraphDisplayWidget} for the main visualization and a
- * {@link ToolbarWidget} for actions. It also includes a floating legend that explains the
+ * This view integrates a {@link GraphDisplayWidget} for the main visualization
+ * and a
+ * {@link ToolbarWidget} for actions. It also includes a floating legend that
+ * explains the
  * node types (Resource, Literal, Blank Node).
  * </p>
  */
 public class GraphResultView extends AbstractView {
 
-      private static final String COMMON_STYLESHEET_PATH = "/css/common/common.css";
-      private static final String VIEW_STYLESHEET_PATH = "/css/features/graph-result.css";
+  @SuppressWarnings("java:S1075") // Hardcoded URI - not relevant for internal CSS resources
+  private static final String COMMON_STYLESHEET_PATH = "/css/common/common.css";
+
+  @SuppressWarnings("java:S1075")
+  private static final String VIEW_STYLESHEET_PATH = "/css/features/graph-result.css";
+
   // Animation constants
   private static final double OPACITY_IDLE = 0.7;
   private static final double OPACITY_HOVER = 1.0;
@@ -153,17 +160,17 @@ public class GraphResultView extends AbstractView {
    * Configures the default toolbar buttons (Reset, Zoom In/Out).
    */
   private void setupToolbar() {
-    List<ButtonConfig> buttons =
-        List.of(
-            ButtonFactory.resetLayout(graphWidget::resetLayout),
-            ButtonFactory.zoomIn(graphWidget::zoomIn),
-            ButtonFactory.zoomOut(graphWidget::zoomOut));
+    List<ButtonConfig> buttons = List.of(
+        ButtonFactory.resetLayout(graphWidget::resetLayout),
+        ButtonFactory.zoomIn(graphWidget::zoomIn),
+        ButtonFactory.zoomOut(graphWidget::zoomOut));
 
     toolbarWidget.setButtons(buttons);
   }
 
   /**
-   * Updates the toolbar actions, allowing external controllers to add specific buttons.
+   * Updates the toolbar actions, allowing external controllers to add specific
+   * buttons.
    *
    * @param buttons The list of button configurations to display in the toolbar.
    */

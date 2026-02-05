@@ -1,10 +1,10 @@
 package fr.inria.corese.gui.feature.result.graph;
 
-import fr.inria.corese.gui.component.button.config.ButtonConfig;
+import java.util.List;
+
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.io.ExportHelper;
-import java.util.List;
 import javafx.scene.Node;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -12,8 +12,10 @@ import javafx.scene.input.ClipboardContent;
 /**
  * Controller for the Graph Visualization feature.
  * <p>
- * This class coordinates the interaction between the graph data (JSON-LD) and the
- * {@link GraphResultView}. It manages the toolbar actions (Copy, Export, Zoom, Reset)
+ * This class coordinates the interaction between the graph data (JSON-LD) and
+ * the
+ * {@link GraphResultView}. It manages the toolbar actions (Copy, Export, Zoom,
+ * Reset)
  * and delegates the actual graph rendering to the view's widget.
  * </p>
  */
@@ -44,7 +46,8 @@ public class GraphResultController {
   }
 
   /**
-   * Captures the current graph as an SVG string and copies it to the system clipboard.
+   * Captures the current graph as an SVG string and copies it to the system
+   * clipboard.
    * Shows a notification upon success or failure.
    */
   private void copySvg() {
@@ -76,14 +79,16 @@ public class GraphResultController {
    * Displays an RDF graph using the provided JSON-LD data.
    *
    * @param jsonLdData The RDF data to visualize, formatted as a JSON-LD string.
-   *                   Must be a valid JSON-LD structure compatible with the graph visualizer.
+   *                   Must be a valid JSON-LD structure compatible with the graph
+   *                   visualizer.
    */
   public void displayGraph(String jsonLdData) {
     view.getGraphWidget().displayGraph(jsonLdData);
   }
 
   /**
-   * Clears the current graph visualization, removing all nodes and links from the view.
+   * Clears the current graph visualization, removing all nodes and links from the
+   * view.
    */
   public void clear() {
     view.getGraphWidget().clear();

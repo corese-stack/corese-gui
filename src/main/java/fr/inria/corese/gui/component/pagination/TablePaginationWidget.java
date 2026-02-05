@@ -3,9 +3,8 @@ package fr.inria.corese.gui.component.pagination;
 import java.util.function.Consumer;
 
 import fr.inria.corese.gui.component.button.IconButtonWidget;
-import fr.inria.corese.gui.component.button.config.ButtonConfig;
-import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
+import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import javafx.beans.property.StringProperty;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
@@ -97,7 +96,8 @@ public class TablePaginationWidget extends HBox {
         this.firstButton = new IconButtonWidget(
                 ButtonFactory.custom(ButtonIcon.FIRST_PAGE, "First Page", () -> changePage(0)));
         this.prevButton = new IconButtonWidget(
-                ButtonFactory.custom(ButtonIcon.PREVIOUS_PAGE, "Previous Page", () -> changePage(currentPageIndex - 1)));
+                ButtonFactory.custom(ButtonIcon.PREVIOUS_PAGE, "Previous Page",
+                        () -> changePage(currentPageIndex - 1)));
         this.nextButton = new IconButtonWidget(
                 ButtonFactory.custom(ButtonIcon.NEXT_PAGE, "Next Page", () -> changePage(currentPageIndex + 1)));
         this.lastButton = new IconButtonWidget(

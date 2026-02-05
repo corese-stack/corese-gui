@@ -98,7 +98,7 @@ public final class MainController {
           }
         }
         LOGGER.info("All views preloaded successfully in background.");
-      } catch (InterruptedException e) {
+      } catch (InterruptedException _) {
         Thread.currentThread().interrupt();
         LOGGER.warn("View preloading interrupted");
       }

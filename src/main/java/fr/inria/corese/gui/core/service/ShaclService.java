@@ -1,38 +1,40 @@
 package fr.inria.corese.gui.core.service;
 
-import fr.inria.corese.core.Graph;
-import fr.inria.corese.core.api.Loader;
-import fr.inria.corese.core.load.Load;
-import fr.inria.corese.core.shacl.Shacl;
-import fr.inria.corese.gui.core.enums.SerializationFormat;
-import fr.inria.corese.gui.core.model.ValidationResult;
-import fr.inria.corese.gui.core.service.ResultFormatter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import fr.inria.corese.core.Graph;
+import fr.inria.corese.core.api.Loader;
+import fr.inria.corese.core.load.Load;
+import fr.inria.corese.core.shacl.Shacl;
+import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.core.model.ValidationResult;
+
 /**
  * Service for performing SHACL validation on the shared Corese graph.
  *
  * <p>
- * This service handles SHACL shape parsing, validation execution, and report caching.
+ * This service handles SHACL shape parsing, validation execution, and report
+ * caching.
  * It provides a simple API for validating RDF data against SHACL constraints.
  *
  * <p>
  * The Singleton pattern is justified here because:
  * <ul>
- *   <li>Validation operations must be coordinated to prevent conflicts</li>
- *   <li>Report cache should be centrally managed</li>
- *   <li>Ensures consistent validation behavior across the application</li>
+ * <li>Validation operations must be coordinated to prevent conflicts</li>
+ * <li>Report cache should be centrally managed</li>
+ * <li>Ensures consistent validation behavior across the application</li>
  * </ul>
  *
  * <p>
  * Example usage:
+ * 
  * <pre>{@code
  * ShaclService service = ShaclService.getInstance();
  * String shapes = "# SHACL shapes in Turtle format...";
@@ -76,7 +78,8 @@ public class ShaclService {
     }
 
     /**
-     * Validates the current data in the GraphStoreService against the provided SHACL shapes.
+     * Validates the current data in the GraphStoreService against the provided
+     * SHACL shapes.
      *
      * @param shapesContent The SHACL shapes definition in Turtle format.
      * @return A {@link ValidationResult} summary.
@@ -93,9 +96,8 @@ public class ShaclService {
             // 2. Parse Shapes Graph
             Graph shapesGraph = Graph.create();
             Load.create(shapesGraph).parse(
-                new ByteArrayInputStream(shapesContent.getBytes(StandardCharsets.UTF_8)), 
-                Loader.format.TURTLE_FORMAT
-            );
+                    new ByteArrayInputStream(shapesContent.getBytes(StandardCharsets.UTF_8)),
+                    Loader.format.TURTLE_FORMAT);
 
             // 3. Run Validation
             Shacl shacl = new Shacl(dataGraph, shapesGraph);
@@ -124,8 +126,9 @@ public class ShaclService {
      */
     public String formatReport(String reportId, SerializationFormat format) {
         Graph reportGraph = reportCache.get(reportId);
-        if (reportGraph == null) return "Error: Report not found (ID: " + reportId + ")";
-        
+        if (reportGraph == null)
+            return "Error: Report not found (ID: " + reportId + ")";
+
         return ResultFormatter.getInstance().formatGraph(reportGraph, format);
     }
 

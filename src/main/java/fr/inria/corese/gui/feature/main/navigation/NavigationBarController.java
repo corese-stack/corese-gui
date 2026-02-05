@@ -1,24 +1,27 @@
 package fr.inria.corese.gui.feature.main.navigation;
 
-import fr.inria.corese.gui.core.enums.ViewId;
-import fr.inria.corese.gui.AppConstants;
-import fr.inria.corese.gui.utils.BrowserUtils;
-import fr.inria.corese.gui.core.theme.ThemeManager;
 import java.util.Objects;
 import java.util.function.Consumer;
-import javafx.scene.Parent;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import fr.inria.corese.gui.AppConstants;
+import fr.inria.corese.gui.core.enums.ViewId;
+import fr.inria.corese.gui.core.theme.ThemeManager;
+import fr.inria.corese.gui.utils.BrowserUtils;
+import javafx.scene.Parent;
 
 /**
  * Controller responsible for handling sidebar navigation actions.
  *
- * <p>Coordinates between {@link NavigationBarView} and {@link NavigationBarModel}:
+ * <p>
+ * Coordinates between {@link NavigationBarView} and {@link NavigationBarModel}:
  *
  * <ul>
- *   <li>updates the model when the user clicks navigation or toggle
- *   <li>updates the view when the model changes
- *   <li>notifies the outside world via an {@code onNavigate} callback
+ * <li>updates the model when the user clicks navigation or toggle
+ * <li>updates the view when the model changes
+ * <li>notifies the outside world via an {@code onNavigate} callback
  * </ul>
  */
 public final class NavigationBarController {
@@ -70,8 +73,8 @@ public final class NavigationBarController {
     view.setNavigationHandler(this::navigate);
 
     // Toggle button in the view → update model.collapsed
-    view.setOnToggle(collapsed -> model.setCollapsed(collapsed));
-    
+    view.setOnToggle(model::setCollapsed);
+
     // Logo click -> open website
     view.setOnLogoClick(() -> BrowserUtils.openUrl(AppConstants.PROJECT_URL));
   }
@@ -90,7 +93,9 @@ public final class NavigationBarController {
 
   // ===== Public API =====
 
-  /** Returns the root node of the navigation bar for embedding in parent layouts. */
+  /**
+   * Returns the root node of the navigation bar for embedding in parent layouts.
+   */
   public Parent getRoot() {
     return view.getRoot();
   }

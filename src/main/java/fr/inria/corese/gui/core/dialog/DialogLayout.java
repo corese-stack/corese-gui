@@ -1,10 +1,11 @@
 package fr.inria.corese.gui.core.dialog;
 
+import java.util.function.Consumer;
+
 import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.component.button.IconButtonWidget;
-import fr.inria.corese.gui.component.button.config.ButtonConfig;
-import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
+import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.service.ModalService.UnsavedChangesResult;
 import javafx.scene.Node;
@@ -14,29 +15,32 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import java.util.function.Consumer;
 
 /**
  * Standard dialog component for the application.
  *
  * <p>
  * Provides a consistent visual style for all dialogs with title, content area,
- * and action buttons. Integrates with AtlantaFX theme system for automatic styling.
+ * and action buttons. Integrates with AtlantaFX theme system for automatic
+ * styling.
  *
  * <p>
- * Styling is defined in {@code app-dialog.css} for maintainability and consistency.
+ * Styling is defined in {@code app-dialog.css} for maintainability and
+ * consistency.
  *
  * <p>
  * Factory methods are provided for common dialog types:
  * <ul>
  * <li>{@link #createError(String, String)} - Error notification dialogs</li>
  * <li>{@link #createInfo(String, String)} - Information dialogs</li>
- * <li>{@link #createUnsavedChanges(String, Consumer)} - Unsaved changes confirmation</li>
+ * <li>{@link #createUnsavedChanges(String, Consumer)} - Unsaved changes
+ * confirmation</li>
  * </ul>
  */
 public class DialogLayout extends VBox {
 
-    private static final String STYLESHEET = DialogLayout.class.getResource("/css/components/app-dialog.css").toExternalForm();
+    private static final String STYLESHEET = DialogLayout.class.getResource("/css/components/app-dialog.css")
+            .toExternalForm();
 
     // ==============================================================================================
     // Constructor
@@ -151,8 +155,8 @@ public class DialogLayout extends VBox {
     /**
      * Creates a simple dialog with a message and an OK button.
      *
-     * @param title      The dialog title.
-     * @param message    The message to display.
+     * @param title       The dialog title.
+     * @param message     The message to display.
      * @param buttonStyle The style to apply to the OK button.
      * @return A new dialog instance.
      */

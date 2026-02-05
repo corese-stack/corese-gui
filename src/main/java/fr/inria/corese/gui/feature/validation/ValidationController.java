@@ -1,6 +1,13 @@
 package fr.inria.corese.gui.feature.validation;
 
-import fr.inria.corese.gui.component.button.config.ButtonConfig;
+import java.io.File;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
@@ -8,31 +15,30 @@ import fr.inria.corese.gui.core.model.ValidationResult;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
-
-import java.io.File;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
 import javafx.scene.control.Tab;
 import javafx.stage.FileChooser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Controller for the Validation View.
  *
- * <p>This controller acts as the main orchestrator for the SHACL Validation feature. It follows the
- * MVC pattern, mediating between the {@link ValidationView} and the {@link ValidationModel}.
+ * <p>
+ * This controller acts as the main orchestrator for the SHACL Validation
+ * feature. It follows the
+ * MVC pattern, mediating between the {@link ValidationView} and the
+ * {@link ValidationModel}.
  *
- * <p>Responsibilities:
+ * <p>
+ * Responsibilities:
  *
  * <ul>
- *   <li>Initializing the editor interface via {@link TabEditorController}.
- *   <li>Managing the lifecycle of {@link ValidationModel} instances associated with each tab.
- *   <li>Handling user actions such as running validation, opening files, and updating results.
+ * <li>Initializing the editor interface via {@link TabEditorController}.
+ * <li>Managing the lifecycle of {@link ValidationModel} instances associated
+ * with each tab.
+ * <li>Handling user actions such as running validation, opening files, and
+ * updating results.
  * </ul>
  */
 public class ValidationController {
@@ -71,30 +77,25 @@ public class ValidationController {
 
         // Build configuration
         TabEditorConfig config = TabEditorConfig.builder()
-            .withEditorButtons(List.of(
-                ButtonFactory.save(null),
-                ButtonFactory.export(null),
-                ButtonFactory.clear(null),
-                ButtonFactory.undo(null),
-                ButtonFactory.redo(null)
-            ))
-            .withExecution(
-                ButtonFactory.custom(ButtonIcon.PLAY, view.getRunValidationLabel(), null),
-                this::executeValidation
-            )
-            .withResultView(
-                view.getResultToolbarButtons(),
-                ResultViewConfig.builder().withTextTab().build()
-            )
-            .withEmptyState(emptyState)
-            .withAllowedExtensions(List.of(
-                ".ttl", ".n3", ".nt", ".rdf", ".owl", ".xml", ".jsonld", ".json", ".trig", ".shacl"
-            ))
-            .withMenuItems(List.of(
-                new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
-                new TabEditorConfig.MenuItem("Open File", this::onOpenFilesButtonClick)
-            ))
-            .build();
+                .withEditorButtons(List.of(
+                        ButtonFactory.save(null),
+                        ButtonFactory.export(null),
+                        ButtonFactory.clear(null),
+                        ButtonFactory.undo(null),
+                        ButtonFactory.redo(null)))
+                .withExecution(
+                        ButtonFactory.custom(ButtonIcon.PLAY, view.getRunValidationLabel(), null),
+                        this::executeValidation)
+                .withResultView(
+                        view.getResultToolbarButtons(),
+                        ResultViewConfig.builder().withTextTab().build())
+                .withEmptyState(emptyState)
+                .withAllowedExtensions(List.of(
+                        ".ttl", ".n3", ".nt", ".rdf", ".owl", ".xml", ".jsonld", ".json", ".trig", ".shacl"))
+                .withMenuItems(List.of(
+                        new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
+                        new TabEditorConfig.MenuItem("Open File", this::onOpenFilesButtonClick)))
+                .build();
 
         // Create controller
         tabEditorController = new TabEditorController(config);
@@ -114,10 +115,12 @@ public class ValidationController {
 
     public void executeValidation() {
         Tab selectedTab = tabEditorController.getSelectedTab();
-        if (selectedTab == null) return;
+        if (selectedTab == null)
+            return;
 
         ResultController resultController = tabEditorController.getCurrentResultController();
-        if (resultController == null) return;
+        if (resultController == null)
+            return;
 
         // Clear previous results
         resultController.clearResults();
@@ -129,10 +132,9 @@ public class ValidationController {
         if (!model.hasData()) {
             tabEditorController.hideResultPane();
             tabEditorController.showError(
-                "No Data Loaded",
-                "Validation requires an RDF graph to be loaded.\n"
-                    + "Please go to the 'Data' view and load an RDF file."
-            );
+                    "No Data Loaded",
+                    "Validation requires an RDF graph to be loaded.\n"
+                            + "Please go to the 'Data' view and load an RDF file.");
             return;
         }
 
@@ -141,10 +143,9 @@ public class ValidationController {
         if (shapesContent == null || shapesContent.trim().isEmpty()) {
             tabEditorController.hideResultPane();
             tabEditorController.showError(
-                "Empty Shapes",
-                "The shapes file is empty.\n"
-                    + "Please write or load SHACL shapes in the editor before validating."
-            );
+                    "Empty Shapes",
+                    "The shapes file is empty.\n"
+                            + "Please write or load SHACL shapes in the editor before validating.");
             return;
         }
 
@@ -172,11 +173,10 @@ public class ValidationController {
                 tabEditorController.setExecutionState(false);
                 tabEditorController.hideResultPane();
                 tabEditorController.showError(
-                    "Validation Error",
-                    "An unexpected error occurred during validation.\n"
-                        + "Please check the logs for more details.",
-                    e.getMessage()
-                );
+                        "Validation Error",
+                        "An unexpected error occurred during validation.\n"
+                                + "Please check the logs for more details.",
+                        e.getMessage());
             });
         }
     }
@@ -188,10 +188,9 @@ public class ValidationController {
             // Handle validation errors (e.g., syntax errors in shapes)
             tabEditorController.hideResultPane();
             tabEditorController.showError(
-                "Invalid SHACL Syntax",
-                "The SHACL shapes contain syntax errors.\nPlease correct the errors listed below:",
-                result.getErrorMessage()
-            );
+                    "Invalid SHACL Syntax",
+                    "The SHACL shapes contain syntax errors.\nPlease correct the errors listed below:",
+                    result.getErrorMessage());
         } else {
             // Success: Display the report
             Tab selectedTab = tabEditorController.getSelectedTab();
@@ -201,9 +200,9 @@ public class ValidationController {
 
             // Configure tabs: Validation results have text only
             resultController.configureTabsForResult(
-                true, // text: enabled (TURTLE/RDF/XML report)
-                false, // table: disabled
-                false // graph: disabled (not used for validation)
+                    true, // text: enabled (TURTLE/RDF/XML report)
+                    false, // table: disabled
+                    false // graph: disabled (not used for validation)
             );
 
             // Ensure the text tab is visible to show the report
@@ -250,15 +249,12 @@ public class ValidationController {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open Shapes File");
         fileChooser.getExtensionFilters().addAll(
-            new FileChooser.ExtensionFilter(
-                "RDF & SHACL Files",
-                "*.ttl", "*.rdf", "*.n3", "*.shacl", "*.jsonld", "*.trig", "*.xml", "*.owl"
-            )
-        );
+                new FileChooser.ExtensionFilter(
+                        "RDF & SHACL Files",
+                        "*.ttl", "*.rdf", "*.n3", "*.shacl", "*.jsonld", "*.trig", "*.xml", "*.owl"));
 
         File file = fileChooser.showOpenDialog(
-            view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null
-        );
+                view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null);
 
         if (file != null) {
             tabEditorController.openFile(file);
