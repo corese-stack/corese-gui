@@ -10,16 +10,14 @@ import fr.inria.corese.gui.core.model.QueryResultRef;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.service.QueryService;
 import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
+import fr.inria.corese.gui.feature.editor.tab.TabContext;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
 
 import java.io.File;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import javafx.application.Platform;
-import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
 import javafx.scene.control.Tab;
 import javafx.stage.FileChooser;
@@ -39,7 +37,6 @@ public class QueryViewController {
     private final QueryView view;
     private final QueryService queryService = QueryService.getInstance();
     private TabEditorController tabEditorController;
-    private final Map<Tab, QueryResultRef> tabResults = new HashMap<>();
 
     public QueryViewController(QueryView view) {
         this.view = view;
@@ -97,21 +94,9 @@ public class QueryViewController {
     private void setupTabListeners() {
         tabEditorController.addSelectionListener(
             (obs, oldTab, newTab) -> updateResultsForSelectedQueryTab(newTab));
-
-        tabEditorController.addTabListener((ListChangeListener<Tab>) c -> {
-            while (c.next()) {
-                if (c.wasRemoved()) {
-                    for (Tab removedTab : c.getRemoved()) {
-                        QueryResultRef ref = tabResults.remove(removedTab);
-                        if (ref != null) {
-                            queryService.releaseResult(ref.getId());
-                        }
-                    }
-                }
-                // Added tabs handled by TabEditorController logic mostly, 
-                // but we can add specific config here if needed.
-            }
-        });
+            
+        // No need for a removal listener here anymore.
+        // TabContext.dispose() handles result release automatically when TabEditorController closes a tab.
     }
 
     // ==============================================================================================
@@ -122,15 +107,21 @@ public class QueryViewController {
         Tab selectedTab = tabEditorController.getSelectedTab();
         if (selectedTab == null) return;
 
-        ResultController resultController = tabEditorController.getCurrentResultController();
-        CodeEditorController codeEditor = tabEditorController.getEditorControllerForTab(selectedTab);
+        TabContext context = TabContext.get(selectedTab);
+        if (context == null) return;
+
+        ResultController resultController = context.getResultController();
+        CodeEditorController codeEditor = context.getEditorController();
         
         if (resultController == null || codeEditor == null) return;
 
         final String queryContent = codeEditor.getContent();
-        QueryResultRef previousRef = tabResults.remove(selectedTab);
+        
+        // Release previous result for this tab if any
+        QueryResultRef previousRef = context.getQueryResultRef();
         if (previousRef != null) {
             queryService.releaseResult(previousRef.getId());
+            context.setQueryResultRef(null);
         }
 
         // Prepare UI
@@ -145,7 +136,9 @@ public class QueryViewController {
                 Platform.runLater(() -> {
                     tabEditorController.setExecutionState(false);
                     if (resultRef != null) {
-                        tabResults.put(selectedTab, resultRef);
+                        // Store result in context (Single Source of Truth)
+                        context.setQueryResultRef(resultRef);
+                        
                         tabEditorController.showResultPane();
                         updateResultsForSelectedQueryTab(selectedTab);
                     }
@@ -163,12 +156,15 @@ public class QueryViewController {
     private void updateResultsForSelectedQueryTab(Tab selectedQueryTab) {
         if (selectedQueryTab == null) return;
 
-        ResultController resultController = tabEditorController.getCurrentResultController();
+        TabContext context = TabContext.get(selectedQueryTab);
+        if (context == null) return;
+
+        ResultController resultController = context.getResultController();
         if (resultController == null) return;
 
         resultController.clearResults();
 
-        QueryResultRef resultRef = tabResults.get(selectedQueryTab);
+        QueryResultRef resultRef = context.getQueryResultRef();
         if (resultRef == null) return;
 
         QueryType queryType = resultRef.getQueryType();

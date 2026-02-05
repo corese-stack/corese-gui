@@ -54,6 +54,12 @@ public class TabContext {
   /** Property indicating if an execution is currently running for this tab. */
   private final BooleanProperty executionRunning = new SimpleBooleanProperty(false);
 
+  /**
+   * Reference to the query result associated with this tab.
+   * Stored here to ensure proper lifecycle management and cleanup.
+   */
+  private fr.inria.corese.gui.core.model.QueryResultRef queryResultRef;
+
   // ===============================================================================
   // Constructor
   // ===============================================================================
@@ -107,7 +113,7 @@ public class TabContext {
   }
 
   // ===============================================================================
-  // Getters
+  // Getters & Setters
   // ===============================================================================
 
   /**
@@ -135,6 +141,24 @@ public class TabContext {
    */
   public FloatingButtonWidget getExecutionButton() {
     return executionButton;
+  }
+
+  /**
+   * Sets the query result reference for this tab.
+   *
+   * @param queryResultRef The query result reference
+   */
+  public void setQueryResultRef(fr.inria.corese.gui.core.model.QueryResultRef queryResultRef) {
+    this.queryResultRef = queryResultRef;
+  }
+
+  /**
+   * Gets the query result reference for this tab.
+   *
+   * @return The query result reference, or null if none
+   */
+  public fr.inria.corese.gui.core.model.QueryResultRef getQueryResultRef() {
+    return queryResultRef;
   }
 
   /**
@@ -185,11 +209,18 @@ public class TabContext {
    *   <li>All controllers are properly disposed
    *   <li>All bindings are unbound
    *   <li>All listeners are removed
+   *   <li>Query results are released from the service
    * </ul>
    *
    * <p>After calling dispose(), this context should not be used anymore.
    */
   public void dispose() {
+    // Release query result if present
+    if (queryResultRef != null) {
+      fr.inria.corese.gui.core.service.QueryService.getInstance().releaseResult(queryResultRef.getId());
+      queryResultRef = null;
+    }
+
     // Dispose editor controller
     if (editorController != null) {
       editorController.dispose();

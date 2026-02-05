@@ -13,8 +13,8 @@ import fr.inria.corese.gui.utils.ThemeManager;
 
 
 import java.util.Objects;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
@@ -28,7 +28,7 @@ import javafx.stage.Stage;
  */
 public final class App extends Application {
 
-  private static final Logger LOGGER = Logger.getLogger(App.class.getName());
+  private static final Logger LOGGER = LoggerFactory.getLogger(App.class);
 
   @Override
   public void start(Stage primaryStage) {
@@ -69,7 +69,7 @@ public final class App extends Application {
       }
     } catch (Exception e) {
       // Log but don't crash if icon fails
-      LOGGER.log(Level.WARNING, "Failed to load application icon", e);
+      LOGGER.warn("Failed to load application icon", e);
     }
 
     primaryStage.setScene(scene);
