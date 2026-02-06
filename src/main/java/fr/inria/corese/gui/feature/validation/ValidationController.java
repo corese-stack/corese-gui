@@ -15,6 +15,7 @@ import fr.inria.corese.gui.core.model.ValidationResult;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
+import fr.inria.corese.gui.utils.AppExecutors;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
@@ -153,7 +154,7 @@ public class ValidationController {
         tabEditorController.setExecutionState(true);
 
         // Execute validation asynchronously
-        new Thread(() -> runValidationTask(model, shapesContent, resultController)).start();
+        AppExecutors.execute(() -> runValidationTask(model, shapesContent, resultController));
     }
 
     // ==============================================================================================

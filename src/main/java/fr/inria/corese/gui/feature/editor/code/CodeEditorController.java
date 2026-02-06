@@ -7,10 +7,11 @@ import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.service.RdfSyntaxService;
+import fr.inria.corese.gui.utils.AppExecutors;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -300,15 +301,22 @@ public class CodeEditorController {
 
     File file = chooser.showOpenDialog(view.getRoot().getScene().getWindow());
     if (file != null) {
-      try {
-        String content = Files.readString(file.toPath());
-        model.setContent(content);
-        model.setFilePath(file.getAbsolutePath());
-        model.markAsSaved();
-      } catch (IOException e) {
-        logger.error("Failed to open file", e);
-        ModalService.getInstance().showError("Error Opening File", e.getMessage());
-      }
+      AppExecutors.execute(
+          () -> {
+            try {
+              String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+              Platform.runLater(
+                  () -> {
+                    model.setContent(content);
+                    model.setFilePath(file.getAbsolutePath());
+                    model.markAsSaved();
+                  });
+            } catch (IOException e) {
+              logger.error("Failed to open file", e);
+              Platform.runLater(
+                  () -> ModalService.getInstance().showError("Error Opening File", e.getMessage()));
+            }
+          });
     }
   }
 
@@ -321,15 +329,24 @@ public class CodeEditorController {
 
     File file = chooser.showOpenDialog(view.getRoot().getScene().getWindow());
     if (file != null) {
-      try {
-        String content = Files.readString(file.toPath());
-        // Append or Replace? Standard import usually replaces content in editors unless "Insert"
-        model.setContent(content);
-        NotificationWidget.getInstance().showSuccess("Imported: " + file.getName());
-      } catch (IOException e) {
-        logger.error("Failed to import file", e);
-        NotificationWidget.getInstance().showError("Import failed: " + e.getMessage());
-      }
+      AppExecutors.execute(
+          () -> {
+            try {
+              String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+              Platform.runLater(
+                  () -> {
+                    // Append or Replace? Standard import usually replaces content in editors unless "Insert"
+                    model.setContent(content);
+                    NotificationWidget.getInstance().showSuccess("Imported: " + file.getName());
+                  });
+            } catch (IOException e) {
+              logger.error("Failed to import file", e);
+              Platform.runLater(
+                  () ->
+                      NotificationWidget.getInstance()
+                          .showError("Import failed: " + e.getMessage()));
+            }
+          });
     }
   }
 
@@ -379,15 +396,27 @@ public class CodeEditorController {
   }
 
   private void writeToFile(File file) {
-    try (FileWriter writer = new FileWriter(file)) {
-      writer.write(model.getContent());
-      model.setFilePath(file.getAbsolutePath());
-      model.markAsSaved();
-      NotificationWidget.getInstance().showSuccess("Saved: " + file.getName());
-    } catch (IOException e) {
-      logger.error("Save failed", e);
-      ModalService.getInstance().showError("Save Error", "Could not save file: " + e.getMessage());
-    }
+    String contentSnapshot = model.getContent();
+    AppExecutors.execute(
+        () -> {
+          try {
+            Files.writeString(file.toPath(), contentSnapshot, StandardCharsets.UTF_8);
+            Platform.runLater(
+                () -> {
+                  model.setFilePath(file.getAbsolutePath());
+                  if (contentSnapshot.equals(model.getContent())) {
+                    model.markAsSaved();
+                  }
+                  NotificationWidget.getInstance().showSuccess("Saved: " + file.getName());
+                });
+          } catch (IOException e) {
+            logger.error("Save failed", e);
+            Platform.runLater(
+                () ->
+                    ModalService.getInstance()
+                        .showError("Save Error", "Could not save file: " + e.getMessage()));
+          }
+        });
   }
 
   private void exportContent() {

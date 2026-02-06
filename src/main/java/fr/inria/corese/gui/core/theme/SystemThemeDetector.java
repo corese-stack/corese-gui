@@ -3,6 +3,7 @@ package fr.inria.corese.gui.core.theme;
 import atlantafx.base.theme.*;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -217,7 +218,7 @@ public final class SystemThemeDetector {
     try {
       Path config = Paths.get(System.getProperty("user.home"), ".config", "kdeglobals");
       if (Files.exists(config)) {
-        String content = Files.readString(config);
+        String content = Files.readString(config, StandardCharsets.UTF_8);
         // Look for ColorScheme=...Dark...
         return content.contains("ColorScheme=Breeze Dark")
             || content.contains("ColorScheme=BreezeDark")
@@ -255,7 +256,7 @@ public final class SystemThemeDetector {
       Path config = Paths.get(System.getProperty("user.home"), ".config", "kdeglobals");
       if (!Files.exists(config)) return null;
 
-      return parseKdeGlobals(Files.readAllLines(config));
+      return parseKdeGlobals(Files.readAllLines(config, StandardCharsets.UTF_8));
     } catch (Exception e) {
       LOGGER.warn("Failed to parse KDE globals", e);
     }

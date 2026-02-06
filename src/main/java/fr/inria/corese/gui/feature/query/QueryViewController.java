@@ -19,6 +19,7 @@ import fr.inria.corese.gui.feature.editor.tab.TabContext;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
+import fr.inria.corese.gui.utils.AppExecutors;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.control.Tab;
@@ -131,7 +132,7 @@ public class QueryViewController {
         tabEditorController.setExecutionState(true);
 
         // Execute in background
-        new Thread(() -> {
+        AppExecutors.execute(() -> {
             try {
                 QueryResultRef resultRef = queryService.executeQuery(queryContent);
 
@@ -152,7 +153,7 @@ public class QueryViewController {
                 });
                 logger.error("Error executing query", e);
             }
-        }).start();
+        });
     }
 
     private void updateResultsForSelectedQueryTab(Tab selectedQueryTab) {
@@ -236,7 +237,8 @@ public class QueryViewController {
                 new FileChooser.ExtensionFilter("SPARQL Query", "*.rq", "*.sparql"),
                 new FileChooser.ExtensionFilter("All Files", "*.*"));
 
-        File file = fileChooser.showOpenDialog(null);
+        File file = fileChooser.showOpenDialog(
+                view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null);
         if (file != null) {
             openQueryFile(file);
         }

@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.core.io;
 
 import fr.inria.corese.gui.component.notification.NotificationWidget;
+import fr.inria.corese.gui.utils.AppExecutors;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -128,9 +129,7 @@ public final class ImportHelper {
           }
         }));
 
-    Thread thread = new Thread(task);
-    thread.setDaemon(true);
-    thread.start();
+    AppExecutors.execute(task);
   }
 
   /**

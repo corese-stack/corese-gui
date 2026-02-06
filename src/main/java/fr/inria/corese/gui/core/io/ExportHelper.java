@@ -2,7 +2,9 @@ package fr.inria.corese.gui.core.io;
 
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.utils.AppExecutors;
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.function.Function;
@@ -188,7 +190,7 @@ public final class ExportHelper {
         new Task<>() {
           @Override
           protected Void call() throws Exception {
-            Files.writeString(file.toPath(), content);
+            Files.writeString(file.toPath(), content, StandardCharsets.UTF_8);
             return null;
           }
 
@@ -206,8 +208,6 @@ public final class ExportHelper {
           }
         };
 
-    Thread thread = new Thread(task);
-    thread.setDaemon(true);
-    thread.start();
+    AppExecutors.execute(task);
   }
 }

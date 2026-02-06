@@ -10,6 +10,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import fr.inria.corese.gui.utils.AppExecutors;
 
 /**
  * Manages the global visual theme and accent color of the Corese-GUI application.
@@ -182,7 +183,7 @@ public final class ThemeManager {
    * application properties. This is done asynchronously to avoid blocking the UI.
    */
   public void detectAndApplySystemSettings() {
-    new Thread(() -> {
+    AppExecutors.execute(() -> {
         try {
             Theme systemTheme = SystemThemeDetector.getSystemTheme();
             Color systemAccent = SystemThemeDetector.getSystemAccentColor();
@@ -194,7 +195,7 @@ public final class ThemeManager {
         } catch (Exception e) {
             LOGGER.warn("Failed to detect system settings", e);
         }
-    }).start();
+    });
   }
 
   // ===== Property Accessors =====
