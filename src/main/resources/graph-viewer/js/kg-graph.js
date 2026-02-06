@@ -34,8 +34,20 @@ class KGGraphVis extends HTMLElement {
         this.nodeLabelsVisible = true;
         this.edgeLabelsVisible = true;
         this.currentZoom = 1;
-        this.nodeLabelZoomThreshold = 0.45;
-        this.edgeLabelZoomThreshold = 0.45;
+        this.nodeLabelZoomThreshold = 0.40;
+        this.edgeLabelZoomThreshold = 0.40;
+        this.labelCullEnabled = true;
+        this.labelVisibilityThrottleMs = 80;
+        this.lastLabelVisibilityUpdate = 0;
+        this.labelVisibilityRaf = null;
+        this.currentTransform = { k: 1, x: 0, y: 0 };
+        this.isInteracting = false;
+        this.labelsHiddenForInteraction = false;
+        this.interactionTimer = null;
+        this.interactionDebounceMs = 140;
+        this.interactionHideLabels = true;
+        this.interactionHideNodeThreshold = 300;
+        this.interactionHideLinkThreshold = 600;
         this.width = 800;
         this.height = 600;
 
@@ -48,6 +60,8 @@ class KGGraphVis extends HTMLElement {
         this.MAX_LINKS = 2000;  // Maximum links to display
         this.TICK_THROTTLE = 16; // ~60fps throttle for ticked()
         this.lastTickTime = 0;
+        this.LABEL_TICK_THROTTLE = 50; // Throttle label position updates
+        this.lastLabelUpdate = 0;
         this.simulationStopped = false;
         this.AUTO_STOP_ALPHA = 0.005; // Alpha threshold for auto-stabilize (very low)
     }
@@ -104,12 +118,17 @@ class KGGraphVis extends HTMLElement {
 
         const prevNodeVisible = this.nodeLabelsVisible;
         const prevEdgeVisible = this.edgeLabelsVisible;
-
         if (this.nodeLabelSelection) {
             this.nodeLabelSelection.style('display', null);
         }
         if (this.linkLabelSelection) {
             this.linkLabelSelection.style('display', this.showEdgeLabels ? null : 'none');
+        }
+        if (this.nodeSelection) {
+            this.nodeSelection.style('display', null);
+        }
+        if (this.linkSelection) {
+            this.linkSelection.style('display', null);
         }
 
         const clone = svg.cloneNode(true);
@@ -143,6 +162,8 @@ class KGGraphVis extends HTMLElement {
         if (this.linkLabelSelection) {
             this.linkLabelSelection.style('display', prevEdgeVisible ? null : 'none');
         }
+        this.updateLevelOfDetail(this.currentZoom);
+        this.scheduleLabelVisibilityUpdate();
         return result;
     }
 
@@ -291,6 +312,16 @@ class KGGraphVis extends HTMLElement {
                 svg:active { 
                     cursor: grabbing; 
                 }
+                svg.labels-hidden .node-label,
+                svg.labels-hidden .edge-label {
+                    display: none;
+                }
+                svg.node-labels-off .node-label {
+                    display: none;
+                }
+                svg.edge-labels-off .edge-label {
+                    display: none;
+                }
                 .node-label {
                     pointer-events: none; 
                     font-family: 'Segoe UI', system-ui, sans-serif;
@@ -348,11 +379,111 @@ class KGGraphVis extends HTMLElement {
         this.nodeLabelsVisible = showNodeLabels;
         this.edgeLabelsVisible = showEdgeLabels;
 
-        if (this.nodeLabelSelection) {
-            this.nodeLabelSelection.style('display', showNodeLabels ? null : 'none');
+        if (this.svg) {
+            this.svg.classed('node-labels-off', !showNodeLabels);
+            this.svg.classed('edge-labels-off', !showEdgeLabels);
         }
-        if (this.linkLabelSelection) {
-            this.linkLabelSelection.style('display', showEdgeLabels ? null : 'none');
+        this.scheduleLabelVisibilityUpdate();
+    }
+
+    shouldHideLabelsDuringInteraction() {
+        if (!this.interactionHideLabels || !this.graph) return false;
+        const nodeCount = this.graph.nodes ? this.graph.nodes.length : 0;
+        const linkCount = this.graph.links ? this.graph.links.length : 0;
+        return nodeCount >= this.interactionHideNodeThreshold
+            || linkCount >= this.interactionHideLinkThreshold;
+    }
+
+    hideLabelsForInteraction() {
+        this.labelsHiddenForInteraction = true;
+        if (this.svg) {
+            this.svg.classed('labels-hidden', true);
+        }
+    }
+
+    onInteraction() {
+        this.isInteracting = true;
+        if (this.shouldHideLabelsDuringInteraction()) {
+            this.hideLabelsForInteraction();
+        }
+        if (this.interactionTimer) {
+            clearTimeout(this.interactionTimer);
+        }
+        this.interactionTimer = setTimeout(() => {
+            this.isInteracting = false;
+            this.interactionTimer = null;
+            this.labelsHiddenForInteraction = false;
+            if (this.svg) {
+                this.svg.classed('labels-hidden', false);
+            }
+            this.updateLabelVisibility();
+        }, this.interactionDebounceMs);
+    }
+
+    scheduleLabelVisibilityUpdate() {
+        if (!this.labelCullEnabled) return;
+        if (!this.nodeLabelSelection && !this.linkLabelSelection) return;
+        if (this.labelsHiddenForInteraction) return;
+        if (this.labelVisibilityRaf) return;
+        this.labelVisibilityRaf = requestAnimationFrame(() => {
+            this.labelVisibilityRaf = null;
+            const now = performance.now();
+            if (now - this.lastLabelVisibilityUpdate < this.labelVisibilityThrottleMs) {
+                return;
+            }
+            this.lastLabelVisibilityUpdate = now;
+            this.updateLabelVisibility();
+        });
+    }
+
+    updateLabelVisibility() {
+        if (!this.labelCullEnabled) return;
+        if (!this.nodeLabelSelection && !this.linkLabelSelection) return;
+
+        const showNodeLabels = this.nodeLabelsVisible && !!this.nodeLabelSelection;
+        const showEdgeLabels = this.edgeLabelsVisible && !!this.linkLabelSelection;
+        if (!showNodeLabels && this.nodeLabelSelection) {
+            this.nodeLabelSelection.style('display', 'none');
+        }
+        if (!showEdgeLabels && this.linkLabelSelection) {
+            this.linkLabelSelection.style('display', 'none');
+        }
+        if (!showNodeLabels && !showEdgeLabels) {
+            return;
+        }
+
+        const t = this.currentTransform || { k: 1, x: 0, y: 0 };
+        const pad = 80 / t.k;
+        const x0 = (-t.x) / t.k - pad;
+        const y0 = (-t.y) / t.k - pad;
+        const x1 = (this.width - t.x) / t.k + pad;
+        const y1 = (this.height - t.y) / t.k + pad;
+
+        const inView = (x, y) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
+
+        if (showNodeLabels) {
+            this.nodeLabelSelection.style('display', d => {
+                if (!d || typeof d.x !== 'number' || typeof d.y !== 'number') {
+                    return null;
+                }
+                return inView(d.x, d.y) ? null : 'none';
+            });
+        }
+
+        if (showEdgeLabels) {
+            this.linkLabelSelection.style('display', d => {
+                if (!d || !d.source || !d.target) return 'none';
+                const sx = d.source.x;
+                const sy = d.source.y;
+                const tx = d.target.x;
+                const ty = d.target.y;
+                if (typeof sx !== 'number' || typeof sy !== 'number' || typeof tx !== 'number' || typeof ty !== 'number') {
+                    return 'none';
+                }
+                const mx = (sx + tx) / 2;
+                const my = (sy + ty) / 2;
+                return inView(mx, my) ? null : 'none';
+            });
         }
     }
 
@@ -600,7 +731,9 @@ class KGGraphVis extends HTMLElement {
             .on("zoom", () => {
                 const transform = d3.event.transform;
                 gZoom.attr("transform", transform);
+                this.currentTransform = transform;
                 this.updateLevelOfDetail(transform.k);
+                this.onInteraction();
             });
         this.svg.call(this.zoomBehavior);
 
@@ -842,6 +975,7 @@ class KGGraphVis extends HTMLElement {
         }
 
         this.ticked();
+        this.scheduleLabelVisibilityUpdate();
     }
 
     /**
@@ -886,11 +1020,15 @@ class KGGraphVis extends HTMLElement {
             });
         }
 
-        // Update Labels
-        if (this.linkLabelSelection && this.edgeLabelsVisible) {
-            this.linkLabelSelection
-                .attr("x", d => (hasPos(d.source) && hasPos(d.target)) ? (d.source.x + d.target.x) / 2 : 0)
-                .attr("y", d => (hasPos(d.source) && hasPos(d.target)) ? (d.source.y + d.target.y) / 2 : 0);
+        // Update Edge Labels (throttled)
+        if (this.linkLabelSelection && this.edgeLabelsVisible && !this.labelsHiddenForInteraction) {
+            const now = performance.now();
+            if (now - this.lastLabelUpdate >= this.LABEL_TICK_THROTTLE) {
+                this.lastLabelUpdate = now;
+                this.linkLabelSelection
+                    .attr("x", d => (hasPos(d.source) && hasPos(d.target)) ? (d.source.x + d.target.x) / 2 : null)
+                    .attr("y", d => (hasPos(d.source) && hasPos(d.target)) ? (d.source.y + d.target.y) / 2 : null);
+            }
         }
     }
 
@@ -923,6 +1061,7 @@ class KGGraphVis extends HTMLElement {
     truncateLabel(label) {
         return label.length > 25 ? label.substring(0, 22) + '...' : label;
     }
+
 }
 
 // Register Custom Element
