@@ -48,6 +48,7 @@ public class TabEditorController {
   // ===============================================================================
 
   private static final String DEFAULT_TAB_TITLE = "untitled";
+  private static final String DEFAULT_TAB_LABEL = "Untitled";
   private static final Logger LOGGER = LoggerFactory.getLogger(TabEditorController.class);
 
   // ===============================================================================
@@ -79,6 +80,7 @@ public class TabEditorController {
    * on-demand.
    */
   private Tab preloadedTab;
+  private int untitledCounter = 0;
 
   // ===============================================================================
   // Constructor
@@ -176,14 +178,66 @@ public class TabEditorController {
    * @return The created Tab
    */
   public Tab createNewTab(String title, String content) {
+    String effectiveTitle = resolveNewTabTitle(title);
     // Use preloaded tab if available and parameters match default empty tab
     if (preloadedTab != null && title.equals(DEFAULT_TAB_TITLE) && content.isEmpty()) {
       Tab tab = preloadedTab;
       preloadedTab = null; // Clear after use - only first tab is preloaded
+      TabContext context = TabContext.get(tab);
+      if (context != null) {
+        context.getEditorController().getModel().setDisplayNameOverride(effectiveTitle);
+      }
       view.addNewEditorTab(tab);
       return tab;
     }
-    return createTabWithContext(title, content, null);
+    return createTabWithContext(effectiveTitle, content, null);
+  }
+
+  private String resolveNewTabTitle(String requestedTitle) {
+    if (DEFAULT_TAB_TITLE.equals(requestedTitle)) {
+      return nextUntitledTitle();
+    }
+    return ensureUniqueTitle(requestedTitle);
+  }
+
+  private String nextUntitledTitle() {
+    java.util.Set<String> existingTitles = getExistingTabTitles();
+    int next = untitledCounter + 1;
+    String candidate = DEFAULT_TAB_LABEL + " " + next;
+    while (existingTitles.contains(candidate)) {
+      next++;
+      candidate = DEFAULT_TAB_LABEL + " " + next;
+    }
+    untitledCounter = next;
+    return candidate;
+  }
+
+  private String ensureUniqueTitle(String baseTitle) {
+    if (baseTitle == null || baseTitle.isBlank()) {
+      return nextUntitledTitle();
+    }
+    java.util.Set<String> existingTitles = getExistingTabTitles();
+    if (!existingTitles.contains(baseTitle)) {
+      return baseTitle;
+    }
+    int suffix = 2;
+    String candidate = baseTitle + " (" + suffix + ")";
+    while (existingTitles.contains(candidate)) {
+      suffix++;
+      candidate = baseTitle + " (" + suffix + ")";
+    }
+    return candidate;
+  }
+
+  private java.util.Set<String> getExistingTabTitles() {
+    java.util.Set<String> titles = new java.util.HashSet<>();
+    for (Tab tab : view.getTabs()) {
+      String text = tab.getText();
+      if (text != null && !text.isBlank()) {
+        titles.add(text);
+      }
+    }
+    return titles;
   }
 
   /**
@@ -446,6 +500,9 @@ public class TabEditorController {
     CodeEditorController editorController = new CodeEditorController(config.getEditorButtons(), content,
         config.getAllowedExtensions());
     ResultController resultController = createResultControllerIfConfigured();
+    if (filePath == null) {
+      editorController.getModel().setDisplayNameOverride(title);
+    }
 
     // 2. Assemble UI
     StackPane editorWrapper = new StackPane(editorController.getViewRoot());

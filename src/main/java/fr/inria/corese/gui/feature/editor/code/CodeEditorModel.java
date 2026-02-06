@@ -28,6 +28,7 @@ public class CodeEditorModel {
   private final StringProperty filePath = new SimpleStringProperty(null);
   private final BooleanProperty modified = new SimpleBooleanProperty(false);
   private final ReadOnlyStringWrapper displayName = new ReadOnlyStringWrapper("Untitled");
+  private final StringProperty displayNameOverride = new SimpleStringProperty(null);
 
   // Simple snapshot-based undo/redo history
   private final Deque<String> undoStack = new ArrayDeque<>();
@@ -41,6 +42,7 @@ public class CodeEditorModel {
 
   private void setupListeners() {
     filePath.addListener((obs, o, n) -> updateDisplayName());
+    displayNameOverride.addListener((obs, o, n) -> updateDisplayName());
 
     content.addListener(
         (obs, oldVal, newVal) -> {
@@ -111,6 +113,8 @@ public class CodeEditorModel {
     String path = filePath.get();
     if (path != null && !path.isBlank()) {
       name = new File(path).getName();
+    } else if (displayNameOverride.get() != null && !displayNameOverride.get().isBlank()) {
+      name = displayNameOverride.get();
     }
     displayName.set(name);
   }
@@ -159,6 +163,9 @@ public class CodeEditorModel {
 
   public void setFilePath(String filePath) {
     this.filePath.set(filePath);
+    if (filePath != null && !filePath.isBlank()) {
+      displayNameOverride.set(null);
+    }
   }
 
   public boolean isModified() {
@@ -171,5 +178,9 @@ public class CodeEditorModel {
 
   public String getDisplayName() {
     return displayName.get();
+  }
+
+  public void setDisplayNameOverride(String displayNameOverride) {
+    this.displayNameOverride.set(displayNameOverride);
   }
 }

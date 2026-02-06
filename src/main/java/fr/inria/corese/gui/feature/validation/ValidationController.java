@@ -237,7 +237,7 @@ public class ValidationController {
 	}
 
 	private void onNewFileButtonClick() {
-		tabEditorController.createNewTab("untitled-shapes.ttl", "");
+		tabEditorController.createNewTab();
 	}
 
 	private void onOpenFilesButtonClick() {
