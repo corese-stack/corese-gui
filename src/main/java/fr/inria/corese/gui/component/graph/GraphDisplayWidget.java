@@ -5,10 +5,12 @@ import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.theme.ThemeManager;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.concurrent.Worker;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebEngine;
@@ -16,6 +18,7 @@ import javafx.scene.web.WebView;
 import netscape.javascript.JSObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import javafx.util.Duration;
 
 /**
  * A reusable JavaFX widget for visualizing RDF graphs.
@@ -48,6 +51,7 @@ public class GraphDisplayWidget extends VBox {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GraphDisplayWidget.class);
   private static final String GRAPH_HTML_PATH = "/graph-viewer/graph-viewer.html";
+  private static final int MASK_FADE_MS = 140;
 
   // ==============================================================================================
   // Fields
@@ -55,6 +59,8 @@ public class GraphDisplayWidget extends VBox {
 
   private final WebView webView;
   private final WebEngine webEngine;
+  private final StackPane container;
+  private final Region loadingMask;
   private final JavaBridge bridge = new JavaBridge();
 
   private boolean pageLoaded = false;
@@ -71,9 +77,12 @@ public class GraphDisplayWidget extends VBox {
   public GraphDisplayWidget() {
     this.webView = new WebView();
     this.webEngine = webView.getEngine();
+    this.container = new StackPane();
+    this.loadingMask = new Region();
 
     initializeLayout();
     initializeListeners();
+    applyThemeBackground();
 
     // Wait for the widget to be attached to a scene before loading
     sceneProperty().addListener((obs, oldScene, newScene) -> {
@@ -97,9 +106,15 @@ public class GraphDisplayWidget extends VBox {
     webView.setPrefHeight(Region.USE_COMPUTED_SIZE);
     webView.setMinHeight(0);
     webView.setMinWidth(0);
+    loadingMask.getStyleClass().add("graph-loading-mask");
+    loadingMask.setOpacity(1);
+    loadingMask.setVisible(true);
+    loadingMask.setMouseTransparent(true);
 
-    setVgrow(webView, Priority.ALWAYS);
-    getChildren().add(webView);
+    container.getChildren().addAll(webView, loadingMask);
+
+    setVgrow(container, Priority.ALWAYS);
+    getChildren().add(container);
   }
 
   private void initializeListeners() {
@@ -109,11 +124,13 @@ public class GraphDisplayWidget extends VBox {
     webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
       if (newState == Worker.State.RUNNING || newState == Worker.State.SCHEDULED) {
         pageLoaded = false;
+        showLoadingMask();
       } else if (newState == Worker.State.SUCCEEDED) {
         onPageLoaded();
       } else if (newState == Worker.State.FAILED) {
         LOGGER.error("Failed to load graph visualization");
         pageLoaded = false;
+        showLoadingMask();
       }
     });
 
@@ -147,6 +164,7 @@ public class GraphDisplayWidget extends VBox {
         displayGraph(pendingJsonLdData);
         pendingJsonLdData = null;
       }
+      hideLoadingMask();
     } catch (Exception e) {
       LOGGER.error("Error during graph page initialization", e);
     }
@@ -182,10 +200,24 @@ public class GraphDisplayWidget extends VBox {
   private void loadGraphPage() {
     try {
       String htmlPath = getClass().getResource(GRAPH_HTML_PATH).toExternalForm();
+      showLoadingMask();
       webEngine.load(htmlPath);
     } catch (Exception e) {
       LOGGER.error("Failed to load graph HTML resource", e);
     }
+  }
+
+  private void showLoadingMask() {
+    loadingMask.setOpacity(1);
+    loadingMask.setVisible(true);
+  }
+
+  private void hideLoadingMask() {
+    FadeTransition fade = new FadeTransition(Duration.millis(MASK_FADE_MS), loadingMask);
+    fade.setFromValue(loadingMask.getOpacity());
+    fade.setToValue(0);
+    fade.setOnFinished(event -> loadingMask.setVisible(false));
+    fade.play();
   }
 
   private void injectGraphData(String jsonLdData) {
@@ -230,9 +262,6 @@ public class GraphDisplayWidget extends VBox {
   }
 
   private void updateTheme() {
-    if (!pageLoaded)
-      return;
-
     ThemeManager tm = ThemeManager.getInstance();
     boolean isDark = false;
     String themeName = "default";
@@ -245,6 +274,12 @@ public class GraphDisplayWidget extends VBox {
       }
     }
 
+    applyThemeBackground();
+
+    if (!pageLoaded) {
+      return;
+    }
+
     Color accent = tm.getAccentColor();
     String hexAccent = CssUtils.toHex(accent);
 
@@ -252,6 +287,14 @@ public class GraphDisplayWidget extends VBox {
         "if(window.setTheme) window.setTheme(%b, '%s', '%s');", isDark, hexAccent, themeName);
 
     executeScriptSafe(script);
+  }
+
+  private void applyThemeBackground() {
+    String background = ThemeManager.getInstance().getGraphViewerBackgroundHex();
+    String style = "-fx-background-color: " + background + ";";
+    container.setStyle(style);
+    loadingMask.setStyle(style);
+    webView.setStyle(style);
   }
 
   private void executeScriptSafe(String script) {

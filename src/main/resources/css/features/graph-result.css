@@ -4,6 +4,7 @@
 
 .result-center-stack {
     -fx-alignment: top-left;
+    -fx-background-color: -color-bg-default;
 }
 
 /* Legend Panel */

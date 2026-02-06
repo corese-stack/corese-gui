@@ -364,6 +364,28 @@ public final class ThemeManager {
   }
 
   /**
+   * Returns the graph viewer background color that matches the current theme.
+   *
+   * @return background color hex string.
+   */
+  public String getGraphViewerBackgroundHex() {
+    Theme current = getTheme();
+    AppThemeRegistry appTheme = current != null ? AppThemeRegistry.fromTheme(current) : null;
+    String baseName = appTheme != null ? appTheme.getBaseName() : "default";
+    boolean isDark = appTheme != null && appTheme.isDark();
+    return resolveGraphViewerBackgroundHex(baseName, isDark);
+  }
+
+  private String resolveGraphViewerBackgroundHex(String baseName, boolean isDark) {
+    String name = baseName != null ? baseName.toLowerCase() : "default";
+    return switch (name) {
+      case "primer" -> isDark ? "#010409" : "#ffffff";
+      case "nord" -> isDark ? "#242933" : "#ffffff";
+      default -> isDark ? "#1e1e1e" : "#ffffff";
+    };
+  }
+
+  /**
    * Gets the name of the currently active theme.
    *
    * @return The name of the current theme (e.g., "NORD_DARK"), or null if none set.
