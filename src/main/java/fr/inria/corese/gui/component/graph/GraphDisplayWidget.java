@@ -284,7 +284,9 @@ public class GraphDisplayWidget extends VBox {
       Object result = webEngine.executeScript(
           "(function() {" +
               "  var el = document.getElementById('myGraph');" +
-              "  if (!el || !el.shadowRoot) return null;" +
+              "  if (!el) return null;" +
+              "  if (typeof el.exportSvg === 'function') { return el.exportSvg(); }" +
+              "  if (!el.shadowRoot) return null;" +
               "  var svg = el.shadowRoot.querySelector('svg');" +
               "  if (!svg) return null;" +
               "  var clone = svg.cloneNode(true);" +

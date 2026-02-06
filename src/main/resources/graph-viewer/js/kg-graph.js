@@ -24,12 +24,18 @@ class KGGraphVis extends HTMLElement {
         this.linkSelection = null;
         this.nodeSelection = null;
         this.linkLabelSelection = null;
+        this.nodeLabelSelection = null;
 
         // Component state
         this.internalData = new WeakMap();
         this.internalData.set(this, {});
         this.resizeObserver = null;
         this.showEdgeLabels = true;
+        this.nodeLabelsVisible = true;
+        this.edgeLabelsVisible = true;
+        this.currentZoom = 1;
+        this.nodeLabelZoomThreshold = 0.45;
+        this.edgeLabelZoomThreshold = 0.45;
         this.width = 800;
         this.height = 600;
 
@@ -56,9 +62,7 @@ class KGGraphVis extends HTMLElement {
      */
     setShowEdgeLabels(show) {
         this.showEdgeLabels = show;
-        if (this.linkLabelSelection) {
-            this.linkLabelSelection.style('display', show ? null : 'none');
-        }
+        this.updateLevelOfDetail(this.currentZoom);
     }
 
     /**
@@ -87,6 +91,59 @@ class KGGraphVis extends HTMLElement {
         if (this.svg && this.zoomBehavior) {
             this.svg.transition().duration(300).call(this.zoomBehavior.scaleBy, 1 / 1.3);
         }
+    }
+
+    /**
+     * Export SVG with full label detail (independent of current zoom).
+     * @returns {string|null} SVG string or null.
+     */
+    exportSvg() {
+        if (!this.shadowRoot) return null;
+        const svg = this.shadowRoot.querySelector('svg');
+        if (!svg) return null;
+
+        const prevNodeVisible = this.nodeLabelsVisible;
+        const prevEdgeVisible = this.edgeLabelsVisible;
+
+        if (this.nodeLabelSelection) {
+            this.nodeLabelSelection.style('display', null);
+        }
+        if (this.linkLabelSelection) {
+            this.linkLabelSelection.style('display', this.showEdgeLabels ? null : 'none');
+        }
+
+        const clone = svg.cloneNode(true);
+        try {
+            const bbox = svg.getBBox();
+            const padding = 40;
+            const x = bbox.x - padding;
+            const y = bbox.y - padding;
+            const width = bbox.width + 2 * padding;
+            const height = bbox.height + 2 * padding;
+            clone.setAttribute('viewBox', `${x} ${y} ${width} ${height}`);
+            clone.setAttribute('width', width);
+            clone.setAttribute('height', height);
+            const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            bg.setAttribute('x', x);
+            bg.setAttribute('y', y);
+            bg.setAttribute('width', width);
+            bg.setAttribute('height', height);
+            bg.setAttribute('fill', 'white');
+            clone.insertBefore(bg, clone.firstChild);
+        } catch (e) {
+            console.warn('Could not adjust SVG bounds:', e);
+        }
+
+        const serializer = new XMLSerializer();
+        const result = serializer.serializeToString(clone);
+
+        if (this.nodeLabelSelection) {
+            this.nodeLabelSelection.style('display', prevNodeVisible ? null : 'none');
+        }
+        if (this.linkLabelSelection) {
+            this.linkLabelSelection.style('display', prevEdgeVisible ? null : 'none');
+        }
+        return result;
     }
 
     /**
@@ -281,6 +338,22 @@ class KGGraphVis extends HTMLElement {
         const rect = this.getBoundingClientRect();
         this.width = rect.width || 800;
         this.height = rect.height || 600;
+    }
+
+    updateLevelOfDetail(scale) {
+        const zoom = scale || 1;
+        this.currentZoom = zoom;
+        const showNodeLabels = zoom >= this.nodeLabelZoomThreshold;
+        const showEdgeLabels = zoom >= this.edgeLabelZoomThreshold && this.showEdgeLabels;
+        this.nodeLabelsVisible = showNodeLabels;
+        this.edgeLabelsVisible = showEdgeLabels;
+
+        if (this.nodeLabelSelection) {
+            this.nodeLabelSelection.style('display', showNodeLabels ? null : 'none');
+        }
+        if (this.linkLabelSelection) {
+            this.linkLabelSelection.style('display', showEdgeLabels ? null : 'none');
+        }
     }
 
     /* -------------------------------------------------------------
@@ -524,7 +597,11 @@ class KGGraphVis extends HTMLElement {
         // Zoom Behavior
         this.zoomBehavior = d3.zoom()
             .scaleExtent([0.05, 10])
-            .on("zoom", () => gZoom.attr("transform", d3.event.transform));
+            .on("zoom", () => {
+                const transform = d3.event.transform;
+                gZoom.attr("transform", transform);
+                this.updateLevelOfDetail(transform.k);
+            });
         this.svg.call(this.zoomBehavior);
 
         // Layers
@@ -611,22 +688,12 @@ class KGGraphVis extends HTMLElement {
                 return null;
             });
 
-        // Draw Edge Labels (disable for large graphs for performance)
-        const autoDisableLabels = this.graph.nodes.length > 300;
-        if (autoDisableLabels && this.showEdgeLabels) {
-            // Labels disabled automatically for performance
-            this.showEdgeLabels = false;
-        }
-        
+        // Draw Edge Labels
         this.linkLabelSelection = labelGroup.selectAll("text")
             .data(this.graph.links).enter().append("text")
             .attr("class", "edge-label")
             .attr("text-anchor", "middle")
             .text(d => this.formatLabel(d.name));
-
-        if (!this.showEdgeLabels) {
-            this.linkLabelSelection.style('display', 'none');
-        }
 
         // Draw Nodes with Drag Behavior
         this.nodeSelection = nodeGroup.selectAll("g")
@@ -678,11 +745,13 @@ class KGGraphVis extends HTMLElement {
         });
 
         // Node Labels
-        this.nodeSelection.append("text")
+        this.nodeLabelSelection = this.nodeSelection.append("text")
             .attr("class", "node-label")
             .attr("dy", 35)
             .attr("text-anchor", "middle")
             .text(d => this.truncateLabel(this.formatLabel(d.id)));
+
+        this.updateLevelOfDetail(this.currentZoom);
 
         // Tooltip Interaction
         // Note: #global-tooltip is outside shadow DOM
@@ -818,7 +887,7 @@ class KGGraphVis extends HTMLElement {
         }
 
         // Update Labels
-        if (this.linkLabelSelection && this.showEdgeLabels) {
+        if (this.linkLabelSelection && this.edgeLabelsVisible) {
             this.linkLabelSelection
                 .attr("x", d => (hasPos(d.source) && hasPos(d.target)) ? (d.source.x + d.target.x) / 2 : 0)
                 .attr("y", d => (hasPos(d.source) && hasPos(d.target)) ? (d.source.y + d.target.y) / 2 : 0);
