@@ -17,6 +17,7 @@ import fr.inria.corese.gui.component.button.config.ButtonConfig;
 public class IconButtonWidget extends Button {
 
   private static final int ICON_SIZE = 25;
+  private static final String STYLESHEET = "/css/components/icon-button-widget.css";
 
   // ==============================================================================================
   // Constructor
@@ -32,6 +33,7 @@ public class IconButtonWidget extends Button {
       throw new IllegalArgumentException("ButtonConfig must not be null and must have an icon.");
     }
 
+    initializeStyle();
     configureIcon(config);
     configureTooltip(config);
     configureAction(config);
@@ -41,10 +43,18 @@ public class IconButtonWidget extends Button {
   // Initialization Methods
   // ==============================================================================================
 
+  private void initializeStyle() {
+    java.net.URL cssResource = getClass().getResource(STYLESHEET);
+    if (cssResource != null) {
+      getStylesheets().add(cssResource.toExternalForm());
+    }
+    getStyleClass().add("icon-button");
+  }
+
   private void configureIcon(ButtonConfig config) {
     FontIcon fontIcon = new FontIcon(config.getIcon().getIkon());
     fontIcon.setIconSize(ICON_SIZE);
-    fontIcon.iconColorProperty().bind(textFillProperty());
+    fontIcon.getStyleClass().add("icon-button-icon");
     setGraphic(fontIcon);
     getStyleClass().add("flat");
   }

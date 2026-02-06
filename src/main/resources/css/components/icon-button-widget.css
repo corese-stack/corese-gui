@@ -1,0 +1,11 @@
+/* ==========================================================================
+   Icon Button Widget
+   ========================================================================== */
+
+.icon-button .icon-button-icon {
+    -fx-icon-color: -color-fg-default;
+}
+
+.icon-button:disabled .icon-button-icon {
+    -fx-icon-color: -color-fg-muted;
+}
