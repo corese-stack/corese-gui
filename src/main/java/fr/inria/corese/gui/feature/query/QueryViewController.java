@@ -24,6 +24,7 @@ import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.control.Tab;
 import javafx.stage.FileChooser;
+import java.util.prefs.Preferences;
 
 /**
  * Controller for the Query feature.
@@ -36,6 +37,11 @@ import javafx.stage.FileChooser;
 public class QueryViewController {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(QueryViewController.class);
+	private static final Preferences PREFS = Preferences.userNodeForPackage(QueryViewController.class);
+	private static final String PREF_LAST_TABLE_TAB = "results.lastTab.table";
+	private static final String PREF_LAST_GRAPH_TAB = "results.lastTab.graph";
+	private static ResultViewConfig.TabType lastTableTab = loadTabPreference(PREF_LAST_TABLE_TAB);
+	private static ResultViewConfig.TabType lastGraphTab = loadTabPreference(PREF_LAST_GRAPH_TAB);
 
 	private final QueryView view;
 	private final QueryService queryService = QueryService.getInstance();
@@ -77,7 +83,20 @@ public class QueryViewController {
 	}
 
 	private void setupTabListeners() {
-		tabEditorController.addSelectionListener((obs, oldTab, newTab) -> updateResultsForSelectedQueryTab(newTab));
+		tabEditorController.addSelectionListener((obs, oldTab, newTab) -> updateResultsForSelectedQueryTab(newTab, false));
+		tabEditorController.addTabListener(change -> {
+			while (change.next()) {
+				if (change.wasAdded()) {
+					for (Tab tab : change.getAddedSubList()) {
+						registerResultTabPreference(tab);
+					}
+				}
+			}
+		});
+
+		for (Tab tab : tabEditorController.getTabs()) {
+			registerResultTabPreference(tab);
+		}
 
 		// No need for a removal listener here anymore.
 		// TabContext.dispose() handles result release automatically when
@@ -128,7 +147,7 @@ public class QueryViewController {
 						context.setQueryResultRef(resultRef);
 
 						tabEditorController.showResultPane();
-						updateResultsForSelectedQueryTab(selectedTab);
+						updateResultsForSelectedQueryTab(selectedTab, true);
 					}
 				});
 			} catch (Exception e) {
@@ -141,7 +160,7 @@ public class QueryViewController {
 		});
 	}
 
-	private void updateResultsForSelectedQueryTab(Tab selectedQueryTab) {
+	private void updateResultsForSelectedQueryTab(Tab selectedQueryTab, boolean forceRefresh) {
 		if (selectedQueryTab == null)
 			return;
 
@@ -153,11 +172,15 @@ public class QueryViewController {
 		if (resultController == null)
 			return;
 
-		resultController.clearResults();
-
 		QueryResultRef resultRef = context.getQueryResultRef();
 		if (resultRef == null)
 			return;
+
+		if (!forceRefresh && context.isResultRendered(resultRef)) {
+			return;
+		}
+
+		resultController.clearResults();
 
 		QueryType queryType = resultRef.getQueryType();
 		// Configure view based on query type (SELECT/ASK vs CONSTRUCT/DESCRIBE)
@@ -165,16 +188,17 @@ public class QueryViewController {
 			case SELECT, ASK -> configureForTableResult(resultController, resultRef);
 			case CONSTRUCT, DESCRIBE -> configureForGraphResult(resultController, resultRef);
 			default -> {
-				resultController.configureTabsForResult(true, false, false);
-				resultController.selectTextTab();
+				resultController.configureTabsForResult(true, false, false, ResultViewConfig.TabType.TEXT);
 				resultController.updateText("No result available for this query type.");
 			}
 		}
+
+		context.markResultRendered(resultRef);
 	}
 
 	private void configureForTableResult(ResultController controller, QueryResultRef resultRef) {
 		String resultId = resultRef.getId();
-		controller.configureTabsForResult(true, true, false); // Text + Table
+		controller.configureTabsForResult(true, true, false, getPreferredTab(resultRef.getQueryType())); // Text + Table
 		controller.configureTextFormats(SerializationFormat.sparqlResultFormats(), SerializationFormat.XML);
 		SerializationFormat preferredFormat = controller
 				.getPreferredTextFormat(SerializationFormat.sparqlResultFormats(), SerializationFormat.XML);
@@ -189,8 +213,6 @@ public class QueryViewController {
 		// Provide formatting capability to the table controller (for Export/Copy)
 		controller.setFormatProvider(format -> queryService.formatResult(resultId, format));
 
-		// Default view: Table
-		controller.selectTableTab();
 		AppExecutors.execute(() -> {
 			String csvResult = queryService.formatResult(resultId, SerializationFormat.CSV);
 			String textResult = queryService.formatResult(resultId, preferredFormat);
@@ -203,7 +225,7 @@ public class QueryViewController {
 
 	private void configureForGraphResult(ResultController controller, QueryResultRef resultRef) {
 		String resultId = resultRef.getId();
-		controller.configureTabsForResult(true, false, true); // Text + Graph
+		controller.configureTabsForResult(true, false, true, getPreferredTab(resultRef.getQueryType())); // Text + Graph
 		controller.configureTextFormats(SerializationFormat.rdfFormats(), SerializationFormat.TURTLE);
 		SerializationFormat preferredFormat = controller.getPreferredTextFormat(SerializationFormat.rdfFormats(),
 				SerializationFormat.TURTLE);
@@ -215,8 +237,6 @@ public class QueryViewController {
 			});
 		});
 
-		// Default view: Graph
-		controller.selectGraphTab();
 		AppExecutors.execute(() -> {
 			String jsonLdResult = queryService.formatResult(resultId, SerializationFormat.JSON_LD);
 			String textResult = queryService.formatResult(resultId, preferredFormat);
@@ -225,6 +245,73 @@ public class QueryViewController {
 				controller.updateText(textResult);
 			});
 		});
+	}
+
+	private void registerResultTabPreference(Tab tab) {
+		TabContext context = TabContext.get(tab);
+		if (context == null) {
+			return;
+		}
+		ResultController resultController = context.getResultController();
+		if (resultController == null) {
+			return;
+		}
+		resultController.setOnTabSelected(tabType -> {
+			QueryResultRef resultRef = context.getQueryResultRef();
+			if (resultRef == null) {
+				return;
+			}
+			rememberPreferredTab(resultRef.getQueryType(), tabType);
+		});
+	}
+
+	private static ResultViewConfig.TabType getPreferredTab(QueryType queryType) {
+		if (queryType == QueryType.SELECT || queryType == QueryType.ASK) {
+			return isTableTab(lastTableTab) ? lastTableTab : null;
+		}
+		if (queryType == QueryType.CONSTRUCT || queryType == QueryType.DESCRIBE) {
+			return isGraphTab(lastGraphTab) ? lastGraphTab : null;
+		}
+		return null;
+	}
+
+	private static void rememberPreferredTab(QueryType queryType, ResultViewConfig.TabType tabType) {
+		if (queryType == null || tabType == null) {
+			return;
+		}
+		if (queryType == QueryType.SELECT || queryType == QueryType.ASK) {
+			if (!isTableTab(tabType)) {
+				return;
+			}
+			lastTableTab = tabType;
+			PREFS.put(PREF_LAST_TABLE_TAB, tabType.name());
+		} else if (queryType == QueryType.CONSTRUCT || queryType == QueryType.DESCRIBE) {
+			if (!isGraphTab(tabType)) {
+				return;
+			}
+			lastGraphTab = tabType;
+			PREFS.put(PREF_LAST_GRAPH_TAB, tabType.name());
+		}
+	}
+
+	private static boolean isTableTab(ResultViewConfig.TabType tabType) {
+		return tabType == ResultViewConfig.TabType.TABLE || tabType == ResultViewConfig.TabType.TEXT;
+	}
+
+	private static boolean isGraphTab(ResultViewConfig.TabType tabType) {
+		return tabType == ResultViewConfig.TabType.GRAPH || tabType == ResultViewConfig.TabType.TEXT;
+	}
+
+	private static ResultViewConfig.TabType loadTabPreference(String key) {
+		String value = PREFS.get(key, null);
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+		try {
+			return ResultViewConfig.TabType.valueOf(value);
+		} catch (IllegalArgumentException ex) {
+			return null;
+		}
 	}
 
 	// ==============================================================================================

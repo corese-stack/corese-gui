@@ -11,6 +11,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javafx.scene.Parent;
+import javafx.scene.control.Tab;
 
 /**
  * Main controller for the Results Pane.
@@ -38,6 +39,8 @@ public class ResultController {
 	private final TextResultController textController;
 	private final TableResultController tableController;
 	private final GraphResultController graphController;
+
+	private javafx.beans.value.ChangeListener<Tab> tabSelectionListener;
 
 	// ==============================================================================================
 	// Constructor
@@ -127,6 +130,23 @@ public class ResultController {
 	 * Dynamically configures which tabs should be visible.
 	 */
 	public void configureTabsForResult(boolean text, boolean table, boolean graph) {
+		configureTabsForResult(text, table, graph, null);
+	}
+
+	/**
+	 * Dynamically configures which tabs should be visible.
+	 *
+	 * @param text
+	 *            enable text tab
+	 * @param table
+	 *            enable table tab
+	 * @param graph
+	 *            enable graph tab
+	 * @param preferredTab
+	 *            preferred tab to select when current selection is not available
+	 */
+	public void configureTabsForResult(boolean text, boolean table, boolean graph,
+			ResultViewConfig.TabType preferredTab) {
 		if (textController != null) {
 			view.enableTextTab(textController.getView());
 			view.setTabEnabled(view.getTabByType(ResultViewConfig.TabType.TEXT), text);
@@ -141,6 +161,16 @@ public class ResultController {
 		}
 
 		// Re-evaluate selection
+		ResultViewConfig.TabType current = getSelectedTabType();
+		if (current != null && isTabEnabled(current)) {
+			return;
+		}
+
+		if (preferredTab != null && isTabEnabled(preferredTab)) {
+			selectTab(preferredTab);
+			return;
+		}
+
 		if (table) {
 			view.selectTableTab();
 		} else if (text) {
@@ -160,6 +190,57 @@ public class ResultController {
 
 	public void selectGraphTab() {
 		view.selectGraphTab();
+	}
+
+	public void setOnTabSelected(Consumer<ResultViewConfig.TabType> listener) {
+		if (tabSelectionListener != null) {
+			view.getTabPane().getSelectionModel().selectedItemProperty().removeListener(tabSelectionListener);
+			tabSelectionListener = null;
+		}
+		if (listener == null) {
+			return;
+		}
+		tabSelectionListener = (obs, oldTab, newTab) -> {
+			ResultViewConfig.TabType tabType = getTabType(newTab);
+			if (tabType != null) {
+				listener.accept(tabType);
+			}
+		};
+		view.getTabPane().getSelectionModel().selectedItemProperty().addListener(tabSelectionListener);
+	}
+
+	private ResultViewConfig.TabType getSelectedTabType() {
+		Tab selected = view.getTabPane().getSelectionModel().getSelectedItem();
+		return getTabType(selected);
+	}
+
+	private ResultViewConfig.TabType getTabType(Tab tab) {
+		if (tab == null) {
+			return null;
+		}
+		if (tab == view.getTabByType(ResultViewConfig.TabType.TEXT)) {
+			return ResultViewConfig.TabType.TEXT;
+		}
+		if (tab == view.getTabByType(ResultViewConfig.TabType.TABLE)) {
+			return ResultViewConfig.TabType.TABLE;
+		}
+		if (tab == view.getTabByType(ResultViewConfig.TabType.GRAPH)) {
+			return ResultViewConfig.TabType.GRAPH;
+		}
+		return null;
+	}
+
+	private boolean isTabEnabled(ResultViewConfig.TabType tabType) {
+		Tab tab = view.getTabByType(tabType);
+		return tab != null && !tab.isDisable();
+	}
+
+	private void selectTab(ResultViewConfig.TabType tabType) {
+		switch (tabType) {
+			case TEXT -> view.selectTextTab();
+			case TABLE -> view.selectTableTab();
+			case GRAPH -> view.selectGraphTab();
+		}
 	}
 
 	// ==============================================================================================

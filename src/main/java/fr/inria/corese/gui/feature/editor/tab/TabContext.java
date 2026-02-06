@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.feature.editor.tab;
 
 import fr.inria.corese.gui.component.button.FloatingButtonWidget;
+import fr.inria.corese.gui.core.model.QueryResultRef;
 import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
 import javafx.beans.property.BooleanProperty;
@@ -58,7 +59,10 @@ public class TabContext {
    * Reference to the query result associated with this tab.
    * Stored here to ensure proper lifecycle management and cleanup.
    */
-  private fr.inria.corese.gui.core.model.QueryResultRef queryResultRef;
+  private QueryResultRef queryResultRef;
+
+  /** Tracks the last rendered query result id to avoid re-rendering on tab switch. */
+  private String lastRenderedResultId;
 
   // ===============================================================================
   // Constructor
@@ -148,8 +152,11 @@ public class TabContext {
    *
    * @param queryResultRef The query result reference
    */
-  public void setQueryResultRef(fr.inria.corese.gui.core.model.QueryResultRef queryResultRef) {
+  public void setQueryResultRef(QueryResultRef queryResultRef) {
     this.queryResultRef = queryResultRef;
+    if (queryResultRef == null) {
+      lastRenderedResultId = null;
+    }
   }
 
   /**
@@ -157,8 +164,33 @@ public class TabContext {
    *
    * @return The query result reference, or null if none
    */
-  public fr.inria.corese.gui.core.model.QueryResultRef getQueryResultRef() {
+  public QueryResultRef getQueryResultRef() {
     return queryResultRef;
+  }
+
+  /**
+   * Returns true if the current result reference has already been rendered.
+   *
+   * @param resultRef The current query result reference
+   * @return true if already rendered, false otherwise
+   */
+  public boolean isResultRendered(QueryResultRef resultRef) {
+    if (resultRef == null || resultRef.getId() == null) {
+      return false;
+    }
+    return resultRef.getId().equals(lastRenderedResultId);
+  }
+
+  /**
+   * Marks the provided result reference as rendered.
+   *
+   * @param resultRef The result reference that has been rendered
+   */
+  public void markResultRendered(QueryResultRef resultRef) {
+    if (resultRef == null || resultRef.getId() == null) {
+      return;
+    }
+    lastRenderedResultId = resultRef.getId();
   }
 
   /**
