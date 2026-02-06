@@ -242,6 +242,10 @@ globalThis.setMode = function (modeName) {
     }
 
     cm.setOption("mode", mime);
+    const wrapper = cm.getWrapperElement();
+    if (wrapper) {
+        wrapper.setAttribute("data-mode", mode || "text");
+    }
     if (autoFormatResults) {
         formatContentIfPossible();
     }
