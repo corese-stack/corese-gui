@@ -86,6 +86,9 @@ public enum ButtonIcon {
 	/** Icon for reload/refresh operations. */
 	RELOAD(MaterialDesignR.REFRESH),
 
+	/** Icon for re-energizing graph layout forces. */
+	LAYOUT_FORCE(MaterialDesignM.MAGNET_ON),
+
 	/** Icon for viewing logs. */
 	LOGS(MaterialDesignB.BOOK_OPEN_VARIANT),
 

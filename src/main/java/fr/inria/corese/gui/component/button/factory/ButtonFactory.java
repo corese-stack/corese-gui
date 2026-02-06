@@ -233,7 +233,7 @@ public final class ButtonFactory {
 	 *         tooltip
 	 */
 	public static ButtonConfig resetLayout(Runnable action) {
-		return new ButtonConfig(ButtonIcon.RELOAD, "Reset Layout", action);
+		return new ButtonConfig(ButtonIcon.LAYOUT_FORCE, "Re-energize Layout", action);
 	}
 
 	// ===============================================================================
