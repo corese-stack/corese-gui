@@ -34,7 +34,7 @@ public class FloatingButtonWidget extends Button {
   // ==============================================================================================
 
   /** Path to the CSS stylesheet for floating button styles. */
-      private static final String STYLESHEET = "/css/components/floating-button-widget.css";
+  private static final String STYLESHEET = "/css/components/floating-button-widget.css";
   /** Primary CSS style class applied to this button. */
   private static final String STYLE_CLASS = "floating-button";
 
@@ -80,10 +80,8 @@ public class FloatingButtonWidget extends Button {
   // ==============================================================================================
 
   private FontIcon createIcon(ButtonConfig config) {
-    FontIcon icon = new FontIcon();
-    if (config.getIcon() != null) {
-      icon = new FontIcon(config.getIcon().getIkon());
-    }
+    FontIcon icon =
+        config.getIcon() != null ? new FontIcon(config.getIcon().getIkon()) : new FontIcon();
     icon.setIconSize(ICON_SIZE);
     return icon;
   }

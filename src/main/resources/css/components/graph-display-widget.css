@@ -1,0 +1,15 @@
+/* ============================================================================
+ * Graph Display Widget
+ * ============================================================================ */
+
+.graph-display-container {
+    -fx-background-color: -color-bg-default;
+}
+
+.graph-display-webview {
+    -fx-background-color: -color-bg-default;
+}
+
+.graph-loading-mask {
+    -fx-background-color: -color-bg-default;
+}

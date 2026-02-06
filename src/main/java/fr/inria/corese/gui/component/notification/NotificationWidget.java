@@ -167,12 +167,15 @@ public class NotificationWidget {
      * @return The configured HBox toast component.
      */
     private HBox createToast(String message, String styleClass, Feather iconCode) {
-        HBox toast = new HBox(10);
-        toast.getStylesheets().add(getClass().getResource(STYLESHEET).toExternalForm());
-        toast.getStyleClass().addAll(Styles.ELEVATED_2, STYLE_CLASS_TOAST);
-        toast.setAlignment(Pos.CENTER_LEFT);
-        toast.setMinWidth(TOAST_MIN_WIDTH);
-        toast.setMaxWidth(TOAST_MAX_WIDTH);
+    HBox toast = new HBox(10);
+    toast.getStylesheets().add(getClass().getResource(STYLESHEET).toExternalForm());
+    toast.getStyleClass().addAll(Styles.ELEVATED_2, STYLE_CLASS_TOAST);
+    if (styleClass != null && !styleClass.isBlank()) {
+        toast.getStyleClass().add(styleClass);
+    }
+    toast.setAlignment(Pos.CENTER_LEFT);
+    toast.setMinWidth(TOAST_MIN_WIDTH);
+    toast.setMaxWidth(TOAST_MAX_WIDTH);
 
         FontIcon icon = new FontIcon(iconCode);
         icon.getStyleClass().add(STYLE_CLASS_ICON);
@@ -183,18 +186,12 @@ public class NotificationWidget {
 
         Label label = new Label(message);
         label.getStyleClass().addAll(STYLE_CLASS_LABEL, Styles.TEXT_BOLD);
-        label.setWrapText(true);
+    label.setWrapText(true);
 
-        toast.getChildren().addAll(icon, label);
+    toast.getChildren().addAll(icon, label);
 
-        // Apply colored left border strip
-        if (styleClass != null) {
-            String colorName = getColorVariableName(styleClass);
-            toast.setStyle("-fx-border-color: transparent transparent transparent -color-" + colorName + "-fg;");
-        }
-
-        return toast;
-    }
+    return toast;
+  }
 
     /**
      * Plays the entrance, display, and exit animation for a toast notification.
@@ -231,19 +228,4 @@ public class NotificationWidget {
         animation.play();
     }
 
-    /**
-     * Maps an AtlantaFX style class to the corresponding CSS color variable name.
-     * 
-     * @param styleClass The AtlantaFX style class (e.g., Styles.ACCENT).
-     * @return The CSS color variable name part (e.g., "accent").
-     */
-    private String getColorVariableName(String styleClass) {
-        return switch (styleClass) {
-            case Styles.ACCENT -> "accent";
-            case Styles.SUCCESS -> "success";
-            case Styles.WARNING -> "warning";
-            case Styles.DANGER -> "danger";
-            default -> "accent";
-        };
-    }
 }

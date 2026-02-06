@@ -12,6 +12,22 @@
     -fx-spacing: 10;
 }
 
+.notification-toast.accent {
+    -fx-border-color: transparent transparent transparent -color-accent-fg;
+}
+
+.notification-toast.success {
+    -fx-border-color: transparent transparent transparent -color-success-fg;
+}
+
+.notification-toast.warning {
+    -fx-border-color: transparent transparent transparent -color-warning-fg;
+}
+
+.notification-toast.danger {
+    -fx-border-color: transparent transparent transparent -color-danger-fg;
+}
+
 .notification-icon {
     -fx-icon-color: -color-fg-default;
 }

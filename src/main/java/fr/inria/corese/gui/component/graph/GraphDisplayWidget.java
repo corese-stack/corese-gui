@@ -50,7 +50,11 @@ public class GraphDisplayWidget extends VBox {
   // ==============================================================================================
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GraphDisplayWidget.class);
+  private static final String STYLESHEET = "/css/components/graph-display-widget.css";
   private static final String GRAPH_HTML_PATH = "/graph-viewer/graph-viewer.html";
+  private static final String STYLE_CLASS_CONTAINER = "graph-display-container";
+  private static final String STYLE_CLASS_WEBVIEW = "graph-display-webview";
+  private static final String STYLE_CLASS_LOADING_MASK = "graph-loading-mask";
   private static final int MASK_FADE_MS = 140;
 
   // ==============================================================================================
@@ -82,7 +86,6 @@ public class GraphDisplayWidget extends VBox {
 
     initializeLayout();
     initializeListeners();
-    applyThemeBackground();
 
     // Wait for the widget to be attached to a scene before loading
     sceneProperty().addListener((obs, oldScene, newScene) -> {
@@ -101,12 +104,17 @@ public class GraphDisplayWidget extends VBox {
   // ==============================================================================================
 
   private void initializeLayout() {
+    CssUtils.applyViewStyles(this, STYLESHEET);
+
     webView.setContextMenuEnabled(false);
     webView.setPrefWidth(Region.USE_COMPUTED_SIZE);
     webView.setPrefHeight(Region.USE_COMPUTED_SIZE);
     webView.setMinHeight(0);
     webView.setMinWidth(0);
-    loadingMask.getStyleClass().add("graph-loading-mask");
+
+    container.getStyleClass().add(STYLE_CLASS_CONTAINER);
+    webView.getStyleClass().add(STYLE_CLASS_WEBVIEW);
+    loadingMask.getStyleClass().add(STYLE_CLASS_LOADING_MASK);
     loadingMask.setOpacity(1);
     loadingMask.setVisible(true);
     loadingMask.setMouseTransparent(true);
@@ -274,8 +282,6 @@ public class GraphDisplayWidget extends VBox {
       }
     }
 
-    applyThemeBackground();
-
     if (!pageLoaded) {
       return;
     }
@@ -287,14 +293,6 @@ public class GraphDisplayWidget extends VBox {
         "if(window.setTheme) window.setTheme(%b, '%s', '%s');", isDark, hexAccent, themeName);
 
     executeScriptSafe(script);
-  }
-
-  private void applyThemeBackground() {
-    String background = ThemeManager.getInstance().getGraphViewerBackgroundHex();
-    String style = "-fx-background-color: " + background + ";";
-    container.setStyle(style);
-    loadingMask.setStyle(style);
-    webView.setStyle(style);
   }
 
   private void executeScriptSafe(String script) {
