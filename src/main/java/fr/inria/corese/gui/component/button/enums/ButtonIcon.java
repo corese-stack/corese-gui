@@ -21,10 +21,8 @@ import fr.inria.corese.gui.component.button.config.ButtonConfig;
  *
  * <p>
  * This enum provides a centralized mapping between semantic button actions and
- * their visual icon
- * representations. It serves as an abstraction layer over the underlying icon
- * library (Material
- * Design Icons), making it easy to:
+ * their visual icon representations. It serves as an abstraction layer over the
+ * underlying icon library (Material Design Icons), making it easy to:
  *
  * <ul>
  * <li>Change icons globally by modifying only this enum
@@ -34,10 +32,9 @@ import fr.inria.corese.gui.component.button.config.ButtonConfig;
  *
  * <p>
  * <b>Design rationale:</b> The enum name is {@code ButtonIcon} (not
- * {@code IconButtonType})
- * because it represents the <i>icon itself</i>, not a "type of button". This
- * shorter, more semantic
- * naming improves code readability.
+ * {@code IconButtonType}) because it represents the <i>icon itself</i>, not a
+ * "type of button". This shorter, more semantic naming improves code
+ * readability.
  *
  * <p>
  * <b>Usage example:</b>
@@ -47,112 +44,116 @@ import fr.inria.corese.gui.component.button.config.ButtonConfig;
  */
 public enum ButtonIcon {
 
-  // ===============================================================================
-  // Enum Constants - File Operations
-  // ===============================================================================
+	// ===============================================================================
+	// Enum Constants - File Operations
+	// ===============================================================================
 
-  /** Icon for save/save-as operations. */
-  SAVE(MaterialDesignC.CONTENT_SAVE_OUTLINE),
+	/** Icon for save/save-as operations. */
+	SAVE(MaterialDesignC.CONTENT_SAVE_OUTLINE),
 
-  /** Icon for opening files. */
-  OPEN_FILE(MaterialDesignF.FILE),
+	/** Icon for opening files. */
+	OPEN_FILE(MaterialDesignF.FILE),
 
-  /** Icon for importing data/files. */
-  IMPORT(MaterialDesignI.IMPORT),
+	/** Icon for importing data/files. */
+	IMPORT(MaterialDesignI.IMPORT),
 
-  /** Icon for exporting data/files. */
-  EXPORT(MaterialDesignE.EXPORT),
+	/** Icon for exporting data/files. */
+	EXPORT(MaterialDesignE.EXPORT),
 
-  // ===============================================================================
-  // Enum Constants - Editor Operations
-  // ===============================================================================
+	// ===============================================================================
+	// Enum Constants - Editor Operations
+	// ===============================================================================
 
-  /** Icon for clearing/deleting content. */
-  CLEAR(MaterialDesignB.BROOM),
+	/** Icon for clearing/deleting content. */
+	CLEAR(MaterialDesignB.BROOM),
 
-  /** Icon for undo operations. */
-  UNDO(MaterialDesignU.UNDO),
+	/** Icon for undo operations. */
+	UNDO(MaterialDesignU.UNDO),
 
-  /** Icon for redo operations. */
-  REDO(MaterialDesignR.REDO),
+	/** Icon for redo operations. */
+	REDO(MaterialDesignR.REDO),
 
-  /** Icon for zoom in operations. */
-  ZOOM_IN(MaterialDesignM.MAGNIFY_PLUS_OUTLINE),
+	/** Icon for zoom in operations. */
+	ZOOM_IN(MaterialDesignM.MAGNIFY_PLUS_OUTLINE),
 
-  /** Icon for zoom out operations. */
-  ZOOM_OUT(MaterialDesignM.MAGNIFY_MINUS_OUTLINE),
+	/** Icon for zoom out operations. */
+	ZOOM_OUT(MaterialDesignM.MAGNIFY_MINUS_OUTLINE),
 
-  // ===============================================================================
-  // Enum Constants - Navigation & Information
-  // ===============================================================================
+	// ===============================================================================
+	// Enum Constants - Navigation & Information
+	// ===============================================================================
 
-  /** Icon for documentation/help links. */
-  DOCUMENTATION(MaterialDesignL.LINK),
+	/** Icon for documentation/help links. */
+	DOCUMENTATION(MaterialDesignL.LINK),
 
-  /** Icon for reload/refresh operations. */
-  RELOAD(MaterialDesignR.REFRESH),
+	/** Icon for reload/refresh operations. */
+	RELOAD(MaterialDesignR.REFRESH),
 
-  /** Icon for viewing logs. */
-  LOGS(MaterialDesignB.BOOK_OPEN_VARIANT),
+	/** Icon for viewing logs. */
+	LOGS(MaterialDesignB.BOOK_OPEN_VARIANT),
 
-  /** Icon for first page navigation. */
-  FIRST_PAGE(MaterialDesignC.CHEVRON_DOUBLE_LEFT),
+	/** Icon for first page navigation. */
+	FIRST_PAGE(MaterialDesignC.CHEVRON_DOUBLE_LEFT),
 
-  /** Icon for previous page navigation. */
-  PREVIOUS_PAGE(MaterialDesignC.CHEVRON_LEFT),
+	/** Icon for previous page navigation. */
+	PREVIOUS_PAGE(MaterialDesignC.CHEVRON_LEFT),
 
-  /** Icon for next page navigation. */
-  NEXT_PAGE(MaterialDesignC.CHEVRON_RIGHT),
+	/** Icon for next page navigation. */
+	NEXT_PAGE(MaterialDesignC.CHEVRON_RIGHT),
 
-  /** Icon for last page navigation. */
-  LAST_PAGE(MaterialDesignC.CHEVRON_DOUBLE_RIGHT),
+	/** Icon for last page navigation. */
+	LAST_PAGE(MaterialDesignC.CHEVRON_DOUBLE_RIGHT),
 
-  /** Close Window */
-  CLOSE_WINDOW(MaterialDesignW.WINDOW_CLOSE),
+	/** Close Window */
+	CLOSE_WINDOW(MaterialDesignW.WINDOW_CLOSE),
 
-  // ===============================================================================
-  // Enum Constants - Actions
-  // ===============================================================================
+	// ===============================================================================
+	// Enum Constants - Actions
+	// ===============================================================================
 
-  /** Icon for delete/remove operations. */
-  DELETE(MaterialDesignT.TRASH_CAN),
+	/** Icon for delete/remove operations. */
+	DELETE(MaterialDesignT.TRASH_CAN),
 
-  /** Icon for copy to clipboard operations. */
-  COPY(MaterialDesignC.CONTENT_COPY),
+	/** Icon for copy to clipboard operations. */
+	COPY(MaterialDesignC.CONTENT_COPY),
 
-  /** Icon for play/execute/run operations. */
-  PLAY(MaterialDesignP.PLAY);
+	/** Icon for copy selection operations. */
+	COPY_SELECTION(MaterialDesignC.CONTENT_DUPLICATE),
 
-  // ===============================================================================
-  // Fields
-  // ===============================================================================
+	/** Icon for play/execute/run operations. */
+	PLAY(MaterialDesignP.PLAY);
 
-  /** The underlying Ikonli icon instance. */
-  private final Ikon ikon;
+	// ===============================================================================
+	// Fields
+	// ===============================================================================
 
-  // ===============================================================================
-  // Constructor
-  // ===============================================================================
+	/** The underlying Ikonli icon instance. */
+	private final Ikon ikon;
 
-  /**
-   * Creates a button icon with the specified Ikonli icon.
-   *
-   * @param ikon The Ikonli icon to associate with this button icon
-   */
-  ButtonIcon(Ikon ikon) {
-    this.ikon = ikon;
-  }
+	// ===============================================================================
+	// Constructor
+	// ===============================================================================
 
-  // ===============================================================================
-  // Public API
-  // ===============================================================================
+	/**
+	 * Creates a button icon with the specified Ikonli icon.
+	 *
+	 * @param ikon
+	 *            The Ikonli icon to associate with this button icon
+	 */
+	ButtonIcon(Ikon ikon) {
+		this.ikon = ikon;
+	}
 
-  /**
-   * Returns the Ikonli icon associated with this button icon.
-   *
-   * @return The Ikonli icon instance
-   */
-  public Ikon getIkon() {
-    return ikon;
-  }
+	// ===============================================================================
+	// Public API
+	// ===============================================================================
+
+	/**
+	 * Returns the Ikonli icon associated with this button icon.
+	 *
+	 * @return The Ikonli icon instance
+	 */
+	public Ikon getIkon() {
+		return ikon;
+	}
 }

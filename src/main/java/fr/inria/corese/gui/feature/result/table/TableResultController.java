@@ -1,19 +1,33 @@
 package fr.inria.corese.gui.feature.result.table;
 
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.io.ExportHelper;
-import fr.inria.corese.gui.utils.AppExecutors;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
 import javafx.application.Platform;
+import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TablePosition;
+import javafx.scene.control.TableView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 
 /**
  * Controller for the tabular result view.
@@ -31,10 +45,14 @@ import javafx.scene.input.ClipboardContent;
 public class TableResultController {
 
 	private static final int DEFAULT_ROWS_PER_PAGE = 50;
+	private static final KeyCodeCombination COPY_COMBINATION = new KeyCodeCombination(KeyCode.C,
+			KeyCombination.SHORTCUT_DOWN);
 
 	private final TableResultView view;
 	private final List<String[]> allRows;
+	private String[] headers = new String[0];
 	private int rowsPerPage;
+	private TablePosition<String[], ?> dragAnchor;
 
 	// Function to request formatted content from the backend (e.g. QueryService)
 	private Function<SerializationFormat, String> formatProvider;
@@ -51,12 +69,33 @@ public class TableResultController {
 
 	private void initialize() {
 		// Setup Toolbar Actions
-		view.setToolbarActions(
-				List.of(ButtonFactory.copy(this::copyContent), ButtonFactory.export(this::exportContent)));
+		view.setToolbarActions(List.of(ButtonFactory.copySelection(this::copySelection),
+				ButtonFactory.custom(ButtonIcon.COPY, "Copy Table (TSV)", this::copyAll),
+				ButtonFactory.export(this::exportContent)));
+		view.setToolbarButtonDisabled(ButtonIcon.COPY_SELECTION, true);
 
 		// Setup Rows Per Page Listener
 		view.setRowsPerPageText(String.valueOf(DEFAULT_ROWS_PER_PAGE));
 		view.getRowsPerPageProperty().addListener((obs, oldVal, newVal) -> handleRowsPerPageChange(newVal));
+
+		TableView<String[]> tableView = view.getTableView();
+		tableView.setOnKeyPressed(event -> {
+			if (COPY_COMBINATION.match(event)) {
+				copySelectionOrAll();
+				event.consume();
+			} else if (event.getCode() == KeyCode.ESCAPE) {
+				tableView.getSelectionModel().clearSelection();
+				updateCopySelectionState();
+				event.consume();
+			}
+		});
+
+		tableView.getSelectionModel().getSelectedCells()
+				.addListener((ListChangeListener<TablePosition>) change -> updateCopySelectionState());
+
+		tableView.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> handleMousePressed(event, tableView));
+		tableView.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> handleMouseDragged(event, tableView));
+		tableView.addEventFilter(MouseEvent.MOUSE_RELEASED, event -> dragAnchor = null);
 	}
 
 	/**
@@ -87,6 +126,7 @@ public class TableResultController {
 	private void parseAndPopulate(String csvResult) {
 		allRows.clear();
 		view.clearTable();
+		headers = new String[0];
 
 		if (csvResult == null || csvResult.isEmpty()) {
 			updatePagination();
@@ -101,7 +141,8 @@ public class TableResultController {
 		}
 
 		// First line is headers
-		String[] headers = lines[0].split(",", -1);
+		headers = lines[0].split(",", -1);
+		this.headers = headers;
 		view.setColumns(headers);
 
 		// Subsequent lines are data
@@ -170,35 +211,48 @@ public class TableResultController {
 	// Actions
 	// ==============================================================================================
 
-	private void copyContent() {
-		if (allRows.isEmpty())
+	private void copySelectionOrAll() {
+		if (hasSelection()) {
+			copySelection();
 			return;
+		}
+		copyAll();
+	}
 
-		if (formatProvider == null) {
-			NotificationWidget.getInstance().showError("Copy failed: No data provider available.");
+	private void copySelection() {
+		if (allRows.isEmpty()) {
 			return;
 		}
 
-		AppExecutors.execute(() -> {
-			String content = formatProvider.apply(SerializationFormat.MARKDOWN);
-			Platform.runLater(() -> {
-				if (content == null || content.startsWith("Error")) {
-					NotificationWidget.getInstance().showError("Copy failed: " + content);
-					return;
-				}
+		String content = buildTsvFromSelection();
+		if (content == null || content.isBlank()) {
+			NotificationWidget.getInstance().showWarning("Copy failed: No selection.");
+			return;
+		}
 
-				ClipboardContent clipboardContent = new ClipboardContent();
-				clipboardContent.putString(content);
-				Clipboard.getSystemClipboard().setContent(clipboardContent);
+		writeClipboard(content);
+		NotificationWidget.getInstance().showSuccess("Selection copied (TSV)");
+	}
 
-				NotificationWidget.getInstance().showSuccess("Result copied to clipboard (Markdown)");
-			});
-		});
+	private void copyAll() {
+		if (allRows.isEmpty()) {
+			return;
+		}
+
+		String content = buildTsvFromAllRows();
+		if (content == null || content.isBlank()) {
+			NotificationWidget.getInstance().showWarning("Copy failed: No data available.");
+			return;
+		}
+
+		writeClipboard(content);
+		NotificationWidget.getInstance().showSuccess("Table copied (TSV)");
 	}
 
 	private void exportContent() {
-		if (allRows.isEmpty())
+		if (allRows.isEmpty()) {
 			return;
+		}
 
 		if (formatProvider == null) {
 			NotificationWidget.getInstance().showError("Export failed: No data provider available.");
@@ -206,9 +260,239 @@ public class TableResultController {
 		}
 
 		ExportHelper.exportResult(view.getRoot().getScene().getWindow(),
-				Arrays.asList(SerializationFormat.CSV, SerializationFormat.MARKDOWN, SerializationFormat.JSON,
-						SerializationFormat.XML, SerializationFormat.TSV),
+				List.of(SerializationFormat.CSV, SerializationFormat.TSV, SerializationFormat.MARKDOWN),
 				formatProvider);
+	}
+
+	private String buildTsvFromSelection() {
+		TableView<String[]> tableView = view.getTableView();
+		List<TablePosition> positions = tableView.getSelectionModel().getSelectedCells();
+		if (positions == null || positions.isEmpty()) {
+			return null;
+		}
+
+		List<TableColumn<String[], ?>> columns = tableView.getVisibleLeafColumns();
+		Set<Integer> rows = new TreeSet<>();
+		Set<Integer> cols = new TreeSet<>();
+		Map<Integer, Map<Integer, String>> values = new HashMap<>();
+
+		for (TablePosition position : positions) {
+			int colIndex = position.getColumn();
+			if (colIndex == 0) {
+				continue;
+			}
+			int rowIndex = position.getRow();
+			rows.add(rowIndex);
+			cols.add(colIndex);
+			String value = getCellValue(columns, rowIndex, colIndex);
+			values.computeIfAbsent(rowIndex, key -> new HashMap<>()).put(colIndex, value);
+		}
+
+		if (rows.isEmpty() || cols.isEmpty()) {
+			return null;
+		}
+
+		StringBuilder sb = new StringBuilder();
+		for (int rowIndex : rows) {
+			boolean first = true;
+			for (int colIndex : cols) {
+				if (!first) {
+					sb.append('\t');
+				}
+				first = false;
+				String value = values.getOrDefault(rowIndex, Map.of()).getOrDefault(colIndex, "");
+				sb.append(escapeTsv(value));
+			}
+			sb.append('\n');
+		}
+
+		return sb.toString();
+	}
+
+	private String buildTsvFromAllRows() {
+		if (allRows.isEmpty()) {
+			return null;
+		}
+
+		TableView<String[]> tableView = view.getTableView();
+		List<TableColumn<String[], ?>> columns = tableView.getVisibleLeafColumns();
+		List<Integer> columnIndices = new ArrayList<>();
+		List<String> columnLabels = new ArrayList<>();
+
+		for (int colIndex = 1; colIndex < columns.size(); colIndex++) {
+			TableColumn<String[], ?> column = columns.get(colIndex);
+			Integer dataIndex = extractDataIndex(column);
+			if (dataIndex == null) {
+				continue;
+			}
+			columnIndices.add(dataIndex);
+			columnLabels.add(column.getText());
+		}
+
+		if (columnIndices.isEmpty()) {
+			for (int colIndex = 0; colIndex < headers.length; colIndex++) {
+				columnIndices.add(colIndex);
+				columnLabels.add(headers[colIndex]);
+			}
+		}
+
+		if (columnIndices.isEmpty()) {
+			return null;
+		}
+
+		StringBuilder sb = new StringBuilder();
+		for (int colIndex = 0; colIndex < columnIndices.size(); colIndex++) {
+			if (colIndex > 0) {
+				sb.append('\t');
+			}
+			String header = colIndex < columnLabels.size() ? columnLabels.get(colIndex) : "";
+			sb.append(escapeTsv(header));
+		}
+		sb.append('\n');
+
+		for (String[] row : allRows) {
+			for (int colIndex = 0; colIndex < columnIndices.size(); colIndex++) {
+				if (colIndex > 0) {
+					sb.append('\t');
+				}
+				int dataIndex = columnIndices.get(colIndex);
+				String value = (row != null && dataIndex < row.length) ? row[dataIndex] : "";
+				sb.append(escapeTsv(value));
+			}
+			sb.append('\n');
+		}
+
+		return sb.toString();
+	}
+
+	private String[] getHeaderLabels() {
+		if (headers != null && headers.length > 0) {
+			return headers;
+		}
+		TableView<String[]> tableView = view.getTableView();
+		List<TableColumn<String[], ?>> columns = tableView.getVisibleLeafColumns();
+		if (columns.size() <= 1) {
+			return new String[0];
+		}
+		String[] labels = new String[columns.size() - 1];
+		for (int colIndex = 1; colIndex < columns.size(); colIndex++) {
+			labels[colIndex - 1] = columns.get(colIndex).getText();
+		}
+		return labels;
+	}
+
+	private Integer extractDataIndex(TableColumn<String[], ?> column) {
+		Object userData = column.getUserData();
+		if (userData instanceof Integer index) {
+			return index;
+		}
+		String header = column.getText();
+		for (int i = 0; i < headers.length; i++) {
+			if (Objects.equals(headers[i], header)) {
+				return i;
+			}
+		}
+		return null;
+	}
+
+	private static String getCellValue(List<TableColumn<String[], ?>> columns, int rowIndex, int colIndex) {
+		if (colIndex < 0 || colIndex >= columns.size()) {
+			return "";
+		}
+		Object value = columns.get(colIndex).getCellData(rowIndex);
+		return value != null ? value.toString() : "";
+	}
+
+	private static String escapeTsv(String value) {
+		if (value == null || value.isEmpty()) {
+			return "";
+		}
+		boolean needsQuotes = value.indexOf('\t') >= 0 || value.indexOf('\n') >= 0 || value.indexOf('\r') >= 0
+				|| value.indexOf('"') >= 0;
+		if (!needsQuotes) {
+			return value;
+		}
+		return "\"" + value.replace("\"", "\"\"") + "\"";
+	}
+
+	private void writeClipboard(String content) {
+		ClipboardContent clipboardContent = new ClipboardContent();
+		clipboardContent.putString(content);
+		Clipboard.getSystemClipboard().setContent(clipboardContent);
+	}
+
+	private boolean hasSelection() {
+		TableView<String[]> tableView = view.getTableView();
+		List<TablePosition> positions = tableView.getSelectionModel().getSelectedCells();
+		return positions != null && !positions.isEmpty();
+	}
+
+	private void updateCopySelectionState() {
+		view.setToolbarButtonDisabled(ButtonIcon.COPY_SELECTION, !hasSelection());
+	}
+
+	private void handleMousePressed(MouseEvent event, TableView<String[]> tableView) {
+		if (event.getButton() != MouseButton.PRIMARY) {
+			return;
+		}
+
+		TableCell<String[], ?> cell = findCell(event.getTarget());
+		if (cell == null || cell.isEmpty()) {
+			tableView.getSelectionModel().clearSelection();
+			updateCopySelectionState();
+			return;
+		}
+
+		if (!event.isShiftDown() && !event.isShortcutDown()) {
+			tableView.getSelectionModel().clearSelection();
+			tableView.getSelectionModel().select(cell.getIndex(), cell.getTableColumn());
+		}
+		dragAnchor = new TablePosition<>(tableView, cell.getIndex(), cell.getTableColumn());
+		updateCopySelectionState();
+	}
+
+	private void handleMouseDragged(MouseEvent event, TableView<String[]> tableView) {
+		if (dragAnchor == null || !event.isPrimaryButtonDown()) {
+			return;
+		}
+
+		TableCell<String[], ?> cell = findCell(event.getTarget());
+		if (cell == null || cell.isEmpty()) {
+			return;
+		}
+
+		List<TableColumn<String[], ?>> columns = tableView.getVisibleLeafColumns();
+		int anchorColIndex = columns.indexOf(dragAnchor.getTableColumn());
+		int currentColIndex = columns.indexOf(cell.getTableColumn());
+		if (anchorColIndex < 1 || currentColIndex < 1) {
+			return;
+		}
+
+		int startRow = Math.min(dragAnchor.getRow(), cell.getIndex());
+		int endRow = Math.max(dragAnchor.getRow(), cell.getIndex());
+		int startCol = Math.min(anchorColIndex, currentColIndex);
+		int endCol = Math.max(anchorColIndex, currentColIndex);
+
+		tableView.getSelectionModel().clearSelection();
+		tableView.getSelectionModel().selectRange(startRow, columns.get(startCol), endRow, columns.get(endCol));
+		updateCopySelectionState();
+		event.consume();
+	}
+
+	@SuppressWarnings("unchecked")
+	private TableCell<String[], ?> findCell(Object target) {
+		if (!(target instanceof Node node)) {
+			return null;
+		}
+		while (node != null && !(node instanceof TableCell)) {
+			node = node.getParent();
+		}
+		if (node instanceof TableCell<?, ?> cell) {
+			if (cell.getTableView() == view.getTableView()) {
+				return (TableCell<String[], ?>) cell;
+			}
+		}
+		return null;
 	}
 
 	// ==============================================================================================
