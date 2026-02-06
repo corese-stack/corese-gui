@@ -249,18 +249,42 @@ public class CodeMirrorWidget extends VBox {
   }
 
   private void updateEditorContent(String content) {
-    // Basic escaping strategy (No external dependencies)
-    String escapedContent = content
-        .replace("\\", "\\\\") // Escape backslashes first!
-        .replace("'", "'\\") // Escape single quotes
-        .replace("\n", "\\n") // Escape newlines
-        .replace("\r", "\\r"); // Escape carriage returns
-
-    // Call the JS function defined in editor.html
-    String script = "if (typeof window.setContent === 'function') { window.setContent('"
-        + escapedContent
-        + "'); }";
+    // Escape JS string safely for arbitrary content (queries, XML, etc.).
+    String script = "if (typeof window.setContent === 'function') { window.setContent("
+        + toJsString(content)
+        + "); }";
     executeScriptSafe(script);
+  }
+
+  private static String toJsString(String value) {
+    if (value == null) {
+      return "''";
+    }
+    StringBuilder sb = new StringBuilder(value.length() + 2);
+    sb.append('\'');
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      switch (c) {
+        case '\\' -> sb.append("\\\\");
+        case '\'' -> sb.append("\\'");
+        case '\n' -> sb.append("\\n");
+        case '\r' -> sb.append("\\r");
+        case '\t' -> sb.append("\\t");
+        case '\b' -> sb.append("\\b");
+        case '\f' -> sb.append("\\f");
+        case '\u2028' -> sb.append("\\u2028");
+        case '\u2029' -> sb.append("\\u2029");
+        default -> {
+          if (c < 0x20) {
+            sb.append(String.format("\\u%04x", (int) c));
+          } else {
+            sb.append(c);
+          }
+        }
+      }
+    }
+    sb.append('\'');
+    return sb.toString();
   }
 
   private void applyMode(SerializationFormat format) {
