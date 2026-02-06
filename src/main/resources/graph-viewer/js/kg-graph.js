@@ -705,6 +705,9 @@ class KGGraphVis extends HTMLElement {
 
         this.svg = d3.select(chartSvg);
         this.svg.selectAll("*").remove();
+        this.currentTransform = d3.zoomIdentity;
+        this.isInteracting = false;
+        this.labelsHiddenForInteraction = false;
 
         if (!this.jsonld) return;
 
@@ -766,11 +769,16 @@ class KGGraphVis extends HTMLElement {
                 this.currentTransform = transform;
                 this.updateLevelOfDetail(transform.k);
                 const sourceEvent = d3.event?.sourceEvent;
+                if (!sourceEvent) {
+                    this.scheduleLabelVisibilityUpdate();
+                    return;
+                }
                 const isWheel = sourceEvent?.type === 'wheel';
                 const isDblClick = sourceEvent?.type === 'dblclick';
                 this.onInteraction(!(isWheel || isDblClick));
             });
         this.svg.call(this.zoomBehavior);
+        this.svg.call(this.zoomBehavior.transform, d3.zoomIdentity);
 
         // Layers
         const linkGroup = gZoom.append("g").attr("class", "links-layer");
