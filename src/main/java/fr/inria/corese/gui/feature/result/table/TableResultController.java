@@ -4,6 +4,7 @@ import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.io.ExportHelper;
+import fr.inria.corese.gui.utils.AppExecutors;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -17,211 +18,216 @@ import javafx.scene.input.ClipboardContent;
 /**
  * Controller for the tabular result view.
  *
- * <p>This class manages the interaction between the data model (SPARQL results in CSV format)
- * and the {@link TableResultView}. It handles:
+ * <p>
+ * This class manages the interaction between the data model (SPARQL results in
+ * CSV format) and the {@link TableResultView}. It handles:
  * <ul>
- *   <li>Parsing raw result data (CSV) into a structured format.
- *   <li>Pagination logic (calculating pages and slicing data).
- *   <li>Handling user actions like "Copy" and "Export" via a provided format service.
+ * <li>Parsing raw result data (CSV) into a structured format.
+ * <li>Pagination logic (calculating pages and slicing data).
+ * <li>Handling user actions like "Copy" and "Export" via a provided format
+ * service.
  * </ul>
  */
 public class TableResultController {
 
-    private static final int DEFAULT_ROWS_PER_PAGE = 50;
+	private static final int DEFAULT_ROWS_PER_PAGE = 50;
 
-    private final TableResultView view;
-    private final List<String[]> allRows;
-    private int rowsPerPage;
-    
-    // Function to request formatted content from the backend (e.g. QueryService)
-    private Function<SerializationFormat, String> formatProvider;
+	private final TableResultView view;
+	private final List<String[]> allRows;
+	private int rowsPerPage;
 
-    /**
-     * Creates a new TableResultController.
-     */
-    public TableResultController() {
-        this.allRows = new ArrayList<>();
-        this.rowsPerPage = DEFAULT_ROWS_PER_PAGE;
-        this.view = new TableResultView(this::handlePageChange);
-        initialize();
-    }
+	// Function to request formatted content from the backend (e.g. QueryService)
+	private Function<SerializationFormat, String> formatProvider;
 
-    private void initialize() {
-        // Setup Toolbar Actions
-        view.setToolbarActions(List.of(
-            ButtonFactory.copy(this::copyContent),
-            ButtonFactory.export(this::exportContent)
-        ));
+	/**
+	 * Creates a new TableResultController.
+	 */
+	public TableResultController() {
+		this.allRows = new ArrayList<>();
+		this.rowsPerPage = DEFAULT_ROWS_PER_PAGE;
+		this.view = new TableResultView(this::handlePageChange);
+		initialize();
+	}
 
-        // Setup Rows Per Page Listener
-        view.setRowsPerPageText(String.valueOf(DEFAULT_ROWS_PER_PAGE));
-        view.getRowsPerPageProperty().addListener((obs, oldVal, newVal) -> handleRowsPerPageChange(newVal));
-    }
+	private void initialize() {
+		// Setup Toolbar Actions
+		view.setToolbarActions(
+				List.of(ButtonFactory.copy(this::copyContent), ButtonFactory.export(this::exportContent)));
 
-    /**
-     * Sets the provider for formatting results.
-     * Used for Copy and Export actions to retrieve the full result in desired formats.
-     *
-     * @param formatProvider A function that takes a format and returns the result string.
-     */
-    public void setFormatProvider(Function<SerializationFormat, String> formatProvider) {
-        this.formatProvider = formatProvider;
-    }
+		// Setup Rows Per Page Listener
+		view.setRowsPerPageText(String.valueOf(DEFAULT_ROWS_PER_PAGE));
+		view.getRowsPerPageProperty().addListener((obs, oldVal, newVal) -> handleRowsPerPageChange(newVal));
+	}
 
-    // ==============================================================================================
-    // Logic - Data Processing
-    // ==============================================================================================
+	/**
+	 * Sets the provider for formatting results. Used for Copy and Export actions to
+	 * retrieve the full result in desired formats.
+	 *
+	 * @param formatProvider
+	 *            A function that takes a format and returns the result string.
+	 */
+	public void setFormatProvider(Function<SerializationFormat, String> formatProvider) {
+		this.formatProvider = formatProvider;
+	}
 
-    /**
-     * Updates the table with new SPARQL CSV results.
-     * Can be called from any thread.
-     *
-     * @param csvResult The raw CSV string result from the SPARQL query.
-     */
-    public void updateTable(String csvResult) {
-        Platform.runLater(() -> parseAndPopulate(csvResult));
-    }
+	// ==============================================================================================
+	// Logic - Data Processing
+	// ==============================================================================================
 
-    private void parseAndPopulate(String csvResult) {
-        allRows.clear();
-        view.clearTable();
+	/**
+	 * Updates the table with new SPARQL CSV results. Can be called from any thread.
+	 *
+	 * @param csvResult
+	 *            The raw CSV string result from the SPARQL query.
+	 */
+	public void updateTable(String csvResult) {
+		Platform.runLater(() -> parseAndPopulate(csvResult));
+	}
 
-        if (csvResult == null || csvResult.isEmpty()) {
-            updatePagination();
-            return;
-        }
+	private void parseAndPopulate(String csvResult) {
+		allRows.clear();
+		view.clearTable();
 
-        // Split by line (handling both \r\n and \n)
-        String[] lines = csvResult.split("\\r?\\n");
-        if (lines.length == 0) {
-            updatePagination();
-            return;
-        }
+		if (csvResult == null || csvResult.isEmpty()) {
+			updatePagination();
+			return;
+		}
 
-        // First line is headers
-        String[] headers = lines[0].split(",", -1);
-        view.setColumns(headers);
+		// Split by line (handling both \r\n and \n)
+		String[] lines = csvResult.split("\\r?\\n");
+		if (lines.length == 0) {
+			updatePagination();
+			return;
+		}
 
-        // Subsequent lines are data
-        for (int i = 1; i < lines.length; i++) {
-            allRows.add(lines[i].split(",", -1));
-        }
+		// First line is headers
+		String[] headers = lines[0].split(",", -1);
+		view.setColumns(headers);
 
-        updatePagination();
-    }
+		// Subsequent lines are data
+		for (int i = 1; i < lines.length; i++) {
+			allRows.add(lines[i].split(",", -1));
+		}
 
-    // ==============================================================================================
-    // Logic - Pagination
-    // ==============================================================================================
+		updatePagination();
+	}
 
-    private void handlePageChange(int newPageIndex) {
-        updateTableForPage(newPageIndex);
-    }
+	// ==============================================================================================
+	// Logic - Pagination
+	// ==============================================================================================
 
-    private void handleRowsPerPageChange(String newValue) {
-        try {
-            int newRowsPerPage = Integer.parseInt(newValue);
-            if (newRowsPerPage > 0) {
-                this.rowsPerPage = newRowsPerPage;
-                updatePagination();
-            }
-        } catch (NumberFormatException _) {
-            // Ignore invalid input
-        }
-    }
+	private void handlePageChange(int newPageIndex) {
+		updateTableForPage(newPageIndex);
+	}
 
-    private void updatePagination() {
-        view.setTotalRowsLabel("Total rows: " + allRows.size());
+	private void handleRowsPerPageChange(String newValue) {
+		try {
+			int newRowsPerPage = Integer.parseInt(newValue);
+			if (newRowsPerPage > 0) {
+				this.rowsPerPage = newRowsPerPage;
+				updatePagination();
+			}
+		} catch (NumberFormatException _) {
+			// Ignore invalid input
+		}
+	}
 
-        if (allRows.isEmpty()) {
-            view.updatePagination(1);
-            view.setCurrentPageIndex(0);
-            view.setTableData(Collections.emptyList());
-            return;
-        }
+	private void updatePagination() {
+		view.setTotalRowsLabel("Total rows: " + allRows.size());
 
-        int pageCount = (int) Math.ceil((double) allRows.size() / rowsPerPage);
-        view.updatePagination(pageCount);
+		if (allRows.isEmpty()) {
+			view.updatePagination(1);
+			view.setCurrentPageIndex(0);
+			view.setTableData(Collections.emptyList());
+			return;
+		}
 
-        view.setCurrentPageIndex(0);
-        updateTableForPage(0);
-    }
+		int pageCount = (int) Math.ceil((double) allRows.size() / rowsPerPage);
+		view.updatePagination(pageCount);
 
-    private void updateTableForPage(int pageIndex) {
-        if (allRows.isEmpty()) {
-            view.setTableData(Collections.emptyList());
-            return;
-        }
+		view.setCurrentPageIndex(0);
+		updateTableForPage(0);
+	}
 
-        int fromIndex = pageIndex * rowsPerPage;
-        if (fromIndex >= allRows.size()) {
-             fromIndex = 0; 
-        }
-        
-        int toIndex = Math.min(fromIndex + rowsPerPage, allRows.size());
-        
-        view.setCurrentPageIndex(pageIndex);
-        view.setTableData(allRows.subList(fromIndex, toIndex));
-    }
+	private void updateTableForPage(int pageIndex) {
+		if (allRows.isEmpty()) {
+			view.setTableData(Collections.emptyList());
+			return;
+		}
 
-    // ==============================================================================================
-    // Actions
-    // ==============================================================================================
+		int fromIndex = pageIndex * rowsPerPage;
+		if (fromIndex >= allRows.size()) {
+			fromIndex = 0;
+		}
 
-    private void copyContent() {
-        if (allRows.isEmpty()) return;
-        
-        if (formatProvider == null) {
-            NotificationWidget.getInstance().showError("Copy failed: No data provider available.");
-            return;
-        }
+		int toIndex = Math.min(fromIndex + rowsPerPage, allRows.size());
 
-        // Use Corese's Markdown export by default for copy
-        String content = formatProvider.apply(SerializationFormat.MARKDOWN);
-        if (content == null || content.startsWith("Error")) {
-             NotificationWidget.getInstance().showError("Copy failed: " + content);
-             return;
-        }
+		view.setCurrentPageIndex(pageIndex);
+		view.setTableData(allRows.subList(fromIndex, toIndex));
+	}
 
-        ClipboardContent clipboardContent = new ClipboardContent();
-        clipboardContent.putString(content);
-        Clipboard.getSystemClipboard().setContent(clipboardContent);
-        
-        NotificationWidget.getInstance().showSuccess("Result copied to clipboard (Markdown)");
-    }
+	// ==============================================================================================
+	// Actions
+	// ==============================================================================================
 
-    private void exportContent() {
-        if (allRows.isEmpty()) return;
-        
-        if (formatProvider == null) {
-             NotificationWidget.getInstance().showError("Export failed: No data provider available.");
-             return;
-        }
-        
-        ExportHelper.exportResult(
-            view.getRoot().getScene().getWindow(),
-            Arrays.asList(SerializationFormat.CSV, SerializationFormat.MARKDOWN, SerializationFormat.JSON, SerializationFormat.XML, SerializationFormat.TSV),
-            formatProvider
-        );
-    }
+	private void copyContent() {
+		if (allRows.isEmpty())
+			return;
 
-    // ==============================================================================================
-    // Public API
-    // ==============================================================================================
+		if (formatProvider == null) {
+			NotificationWidget.getInstance().showError("Copy failed: No data provider available.");
+			return;
+		}
 
-    public Node getView() {
-        return view.getRoot();
-    }
+		AppExecutors.execute(() -> {
+			String content = formatProvider.apply(SerializationFormat.MARKDOWN);
+			Platform.runLater(() -> {
+				if (content == null || content.startsWith("Error")) {
+					NotificationWidget.getInstance().showError("Copy failed: " + content);
+					return;
+				}
 
-    public void clear() {
-        Platform.runLater(() -> {
-            allRows.clear();
-            view.clearTable();
-            updatePagination();
-        });
-    }
+				ClipboardContent clipboardContent = new ClipboardContent();
+				clipboardContent.putString(content);
+				Clipboard.getSystemClipboard().setContent(clipboardContent);
 
-    public int getRowCount() {
-        return allRows.size();
-    }
+				NotificationWidget.getInstance().showSuccess("Result copied to clipboard (Markdown)");
+			});
+		});
+	}
+
+	private void exportContent() {
+		if (allRows.isEmpty())
+			return;
+
+		if (formatProvider == null) {
+			NotificationWidget.getInstance().showError("Export failed: No data provider available.");
+			return;
+		}
+
+		ExportHelper.exportResult(view.getRoot().getScene().getWindow(),
+				Arrays.asList(SerializationFormat.CSV, SerializationFormat.MARKDOWN, SerializationFormat.JSON,
+						SerializationFormat.XML, SerializationFormat.TSV),
+				formatProvider);
+	}
+
+	// ==============================================================================================
+	// Public API
+	// ==============================================================================================
+
+	public Node getView() {
+		return view.getRoot();
+	}
+
+	public void clear() {
+		Platform.runLater(() -> {
+			allRows.clear();
+			view.clearTable();
+			updatePagination();
+		});
+	}
+
+	public int getRowCount() {
+		return allRows.size();
+	}
 }

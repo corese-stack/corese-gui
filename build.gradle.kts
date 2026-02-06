@@ -1,6 +1,7 @@
 plugins {
     application
     id("org.openjfx.javafxplugin") version "0.1.0"
+    id("com.diffplug.spotless") version "6.25.0"
 }
 
 group = "fr.inria.corese"
@@ -57,4 +58,40 @@ application {
 
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
+}
+
+spotless {
+    val maxFormattedFileSize = 200 * 1024L // 200 KB
+
+    java {
+        val javaTargets = fileTree("src/main/java") {
+            include("**/*.java")
+        }.filter { it.length() <= maxFormattedFileSize }
+
+        target(javaTargets)
+        eclipse()
+        trimTrailingWhitespace()
+        endWithNewline()
+        ratchetFrom("HEAD")
+    }
+
+    format("misc") {
+        target(
+            ".editorconfig",
+            "**/*.md",
+            "**/*.yml",
+            "**/*.yaml",
+            "**/*.gradle.kts",
+            "**/*.css",
+            "**/*.xml"
+        )
+        trimTrailingWhitespace()
+        endWithNewline()
+        indentWithSpaces(4)
+        ratchetFrom("HEAD")
+    }
+}
+
+tasks.named("check") {
+    dependsOn("spotlessCheck")
 }

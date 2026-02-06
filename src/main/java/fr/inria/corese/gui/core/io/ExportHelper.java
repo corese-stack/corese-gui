@@ -16,198 +16,207 @@ import javafx.stage.Window;
 /**
  * Utility class to handle common file export operations.
  *
- * <p>Standardizes the behavior of "Export" features across the application:
+ * <p>
+ * Standardizes the behavior of "Export" features across the application:
  *
  * <ul>
- *   <li>Consistent FileChooser configuration
- *   <li>Automatic extension handling
- *   <li>Asynchronous writing to prevent UI freezing
- *   <li>Standardized success/error feedback
+ * <li>Consistent FileChooser configuration
+ * <li>Automatic extension handling
+ * <li>Asynchronous writing to prevent UI freezing
+ * <li>Standardized success/error feedback
  * </ul>
  */
 public final class ExportHelper {
 
-  private ExportHelper() {
-    // Utility class
-  }
+	private ExportHelper() {
+		// Utility class
+	}
 
-  /**
-   * Prompts the user to save text content to a file with the specified format.
-   *
-   * @param window The parent window for the dialog
-   * @param content The text content to save
-   * @param format The target serialization format
-   */
-  public static void exportText(Window window, String content, SerializationFormat format) {
-    // Treat null as empty content and allow exporting empty files (valid use case)
-    String contentToExport = (content != null) ? content : "";
+	/**
+	 * Prompts the user to save text content to a file with the specified format.
+	 *
+	 * @param window
+	 *            The parent window for the dialog
+	 * @param content
+	 *            The text content to save
+	 * @param format
+	 *            The target serialization format
+	 */
+	public static void exportText(Window window, String content, SerializationFormat format) {
+		// Treat null as empty content and allow exporting empty files (valid use case)
+		String contentToExport = (content != null) ? content : "";
 
-    SerializationFormat safeFormat = (format != null) ? format : SerializationFormat.TURTLE;
+		SerializationFormat safeFormat = (format != null) ? format : SerializationFormat.TURTLE;
 
-    FileChooser fileChooser = new FileChooser();
-    fileChooser.setTitle("Export Result As");
+		FileChooser fileChooser = new FileChooser();
+		fileChooser.setTitle("Export Result As");
 
-    String extension = safeFormat.getExtension();
-    fileChooser.setInitialFileName("export" + extension);
+		String extension = safeFormat.getExtension();
+		fileChooser.setInitialFileName("export" + extension);
 
-    FileChooser.ExtensionFilter extFilter =
-        new FileChooser.ExtensionFilter(
-            safeFormat.getLabel() + " file (*" + extension + ")", "*" + extension);
+		FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter(
+				safeFormat.getLabel() + " file (*" + extension + ")", "*" + extension);
 
-    fileChooser.getExtensionFilters().add(extFilter);
-    fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
+		fileChooser.getExtensionFilters().add(extFilter);
+		fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
 
-    File file = fileChooser.showSaveDialog(window);
+		File file = fileChooser.showSaveDialog(window);
 
-    if (file != null) {
-      // Enforce extension
-      if (!file.getName().toLowerCase().endsWith(extension)) {
-        file = new File(file.getAbsolutePath() + extension);
-      }
+		if (file != null) {
+			// Enforce extension
+			if (!file.getName().toLowerCase().endsWith(extension)) {
+				file = new File(file.getAbsolutePath() + extension);
+			}
 
-      writeFileAsync(file, contentToExport);
-    }
-  }
+			writeFileAsync(file, contentToExport);
+		}
+	}
 
-  /**
-   * Prompts the user to save content, allowing selection from multiple supported formats.
-   *
-   * @param window The parent window for the dialog
-   * @param formats List of supported serialization formats
-   * @param contentProvider Function that generates the content string for a selected format
-   */
-  public static void exportResult(
-      Window window,
-      List<SerializationFormat> formats,
-      Function<SerializationFormat, String> contentProvider) {
+	/**
+	 * Prompts the user to save content, allowing selection from multiple supported
+	 * formats.
+	 *
+	 * @param window
+	 *            The parent window for the dialog
+	 * @param formats
+	 *            List of supported serialization formats
+	 * @param contentProvider
+	 *            Function that generates the content string for a selected format
+	 */
+	public static void exportResult(Window window, List<SerializationFormat> formats,
+			Function<SerializationFormat, String> contentProvider) {
 
-    if (formats == null || formats.isEmpty()) {
-      return;
-    }
+		if (formats == null || formats.isEmpty()) {
+			return;
+		}
 
-    FileChooser fileChooser = createFileChooser(formats);
-    File file = fileChooser.showSaveDialog(window);
+		FileChooser fileChooser = createFileChooser(formats);
+		File file = fileChooser.showSaveDialog(window);
 
-    if (file != null) {
-      SerializationFormat selectedFormat = determineFormat(file, fileChooser, formats);
-      File finalFile = enforceExtension(file, selectedFormat);
-      String content = contentProvider.apply(selectedFormat);
-      writeFileAsync(finalFile, content);
-    }
-  }
+		if (file != null) {
+			SerializationFormat selectedFormat = determineFormat(file, fileChooser, formats);
+			File finalFile = enforceExtension(file, selectedFormat);
+			AppExecutors.execute(() -> {
+				String content = contentProvider.apply(selectedFormat);
+				if (content == null) {
+					Platform.runLater(
+							() -> NotificationWidget.getInstance().showError("Export Failed: No content available."));
+					return;
+				}
+				writeFileAsync(finalFile, content);
+			});
+		}
+	}
 
-  private static FileChooser createFileChooser(List<SerializationFormat> formats) {
-    FileChooser fileChooser = new FileChooser();
-    fileChooser.setTitle("Export Result");
-    fileChooser.setInitialFileName("export");
+	private static FileChooser createFileChooser(List<SerializationFormat> formats) {
+		FileChooser fileChooser = new FileChooser();
+		fileChooser.setTitle("Export Result");
+		fileChooser.setInitialFileName("export");
 
-    for (SerializationFormat format : formats) {
-      String ext = format.getExtension();
-      FileChooser.ExtensionFilter filter =
-          new FileChooser.ExtensionFilter(format.getLabel() + " (*" + ext + ")", "*" + ext);
-      fileChooser.getExtensionFilters().add(filter);
-    }
+		for (SerializationFormat format : formats) {
+			String ext = format.getExtension();
+			FileChooser.ExtensionFilter filter = new FileChooser.ExtensionFilter(format.getLabel() + " (*" + ext + ")",
+					"*" + ext);
+			fileChooser.getExtensionFilters().add(filter);
+		}
 
-    return fileChooser;
-  }
+		return fileChooser;
+	}
 
-  private static SerializationFormat determineFormat(
-      File file, FileChooser fileChooser, List<SerializationFormat> formats) {
-    
-    FileChooser.ExtensionFilter selectedFilter = fileChooser.getSelectedExtensionFilter();
-    
-    if (selectedFilter != null) {
-      SerializationFormat formatFromFilter = findFormatByFilter(selectedFilter, formats);
-      if (formatFromFilter != null) {
-        return formatFromFilter;
-      }
-    }
-    
-    // Fallback: check extension
-    SerializationFormat formatFromExtension = findFormatByExtension(file.getName(), formats);
-    return formatFromExtension != null ? formatFromExtension : formats.get(0);
-  }
+	private static SerializationFormat determineFormat(File file, FileChooser fileChooser,
+			List<SerializationFormat> formats) {
 
-  private static SerializationFormat findFormatByFilter(
-      FileChooser.ExtensionFilter filter, List<SerializationFormat> formats) {
-    for (SerializationFormat fmt : formats) {
-      if (filter.getDescription().contains(fmt.getLabel())) {
-        return fmt;
-      }
-    }
-    return null;
-  }
+		FileChooser.ExtensionFilter selectedFilter = fileChooser.getSelectedExtensionFilter();
 
-  private static SerializationFormat findFormatByExtension(
-      String fileName, List<SerializationFormat> formats) {
-    String lowerName = fileName.toLowerCase();
-    for (SerializationFormat fmt : formats) {
-      if (lowerName.endsWith(fmt.getExtension())) {
-        return fmt;
-      }
-    }
-    return null;
-  }
+		if (selectedFilter != null) {
+			SerializationFormat formatFromFilter = findFormatByFilter(selectedFilter, formats);
+			if (formatFromFilter != null) {
+				return formatFromFilter;
+			}
+		}
 
-  private static File enforceExtension(File file, SerializationFormat format) {
-    if (!file.getName().toLowerCase().endsWith(format.getExtension())) {
-      return new File(file.getAbsolutePath() + format.getExtension());
-    }
-    return file;
-  }
+		// Fallback: check extension
+		SerializationFormat formatFromExtension = findFormatByExtension(file.getName(), formats);
+		return formatFromExtension != null ? formatFromExtension : formats.get(0);
+	}
 
-  /**
-   * Prompts the user to save SVG content to a file.
-   *
-   * @param window The parent window for the dialog
-   * @param svgContent The SVG content to save
-   */
-  public static void exportSvg(Window window, String svgContent) {
-    String contentToExport = (svgContent != null) ? svgContent : "";
+	private static SerializationFormat findFormatByFilter(FileChooser.ExtensionFilter filter,
+			List<SerializationFormat> formats) {
+		for (SerializationFormat fmt : formats) {
+			if (filter.getDescription().contains(fmt.getLabel())) {
+				return fmt;
+			}
+		}
+		return null;
+	}
 
-    FileChooser fileChooser = new FileChooser();
-    fileChooser.setTitle("Export Graph As SVG");
-    fileChooser.setInitialFileName("graph.svg");
+	private static SerializationFormat findFormatByExtension(String fileName, List<SerializationFormat> formats) {
+		String lowerName = fileName.toLowerCase();
+		for (SerializationFormat fmt : formats) {
+			if (lowerName.endsWith(fmt.getExtension())) {
+				return fmt;
+			}
+		}
+		return null;
+	}
 
-    FileChooser.ExtensionFilter extFilter =
-        new FileChooser.ExtensionFilter("SVG file (*.svg)", "*.svg");
+	private static File enforceExtension(File file, SerializationFormat format) {
+		if (!file.getName().toLowerCase().endsWith(format.getExtension())) {
+			return new File(file.getAbsolutePath() + format.getExtension());
+		}
+		return file;
+	}
 
-    fileChooser.getExtensionFilters().add(extFilter);
-    fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
+	/**
+	 * Prompts the user to save SVG content to a file.
+	 *
+	 * @param window
+	 *            The parent window for the dialog
+	 * @param svgContent
+	 *            The SVG content to save
+	 */
+	public static void exportSvg(Window window, String svgContent) {
+		String contentToExport = (svgContent != null) ? svgContent : "";
 
-    File file = fileChooser.showSaveDialog(window);
+		FileChooser fileChooser = new FileChooser();
+		fileChooser.setTitle("Export Graph As SVG");
+		fileChooser.setInitialFileName("graph.svg");
 
-    if (file != null) {
-      if (!file.getName().toLowerCase().endsWith(".svg")) {
-        file = new File(file.getAbsolutePath() + ".svg");
-      }
-      writeFileAsync(file, contentToExport);
-    }
-  }
+		FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter("SVG file (*.svg)", "*.svg");
 
-  private static void writeFileAsync(File file, String content) {
-    Task<Void> task =
-        new Task<>() {
-          @Override
-          protected Void call() throws Exception {
-            Files.writeString(file.toPath(), content, StandardCharsets.UTF_8);
-            return null;
-          }
+		fileChooser.getExtensionFilters().add(extFilter);
+		fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
 
-          @Override
-          protected void succeeded() {
-            Platform.runLater(() -> NotificationWidget.getInstance().showSuccess("File saved successfully"));
-          }
+		File file = fileChooser.showSaveDialog(window);
 
-          @Override
-          protected void failed() {
-            Platform.runLater(
-                () ->
-                    NotificationWidget.getInstance().showError(
-                        "Export Failed: " + getException().getMessage()));
-          }
-        };
+		if (file != null) {
+			if (!file.getName().toLowerCase().endsWith(".svg")) {
+				file = new File(file.getAbsolutePath() + ".svg");
+			}
+			writeFileAsync(file, contentToExport);
+		}
+	}
 
-    AppExecutors.execute(task);
-  }
+	private static void writeFileAsync(File file, String content) {
+		Task<Void> task = new Task<>() {
+			@Override
+			protected Void call() throws Exception {
+				Files.writeString(file.toPath(), content, StandardCharsets.UTF_8);
+				return null;
+			}
+
+			@Override
+			protected void succeeded() {
+				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess("File saved successfully"));
+			}
+
+			@Override
+			protected void failed() {
+				Platform.runLater(() -> NotificationWidget.getInstance()
+						.showError("Export Failed: " + getException().getMessage()));
+			}
+		};
+
+		AppExecutors.execute(task);
+	}
 }

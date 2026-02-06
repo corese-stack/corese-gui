@@ -27,9 +27,8 @@ import javafx.stage.FileChooser;
  *
  * <p>
  * This controller acts as the main orchestrator for the SHACL Validation
- * feature. It follows the
- * MVC pattern, mediating between the {@link ValidationView} and the
- * {@link ValidationModel}.
+ * feature. It follows the MVC pattern, mediating between the
+ * {@link ValidationView} and the {@link ValidationModel}.
  *
  * <p>
  * Responsibilities:
@@ -44,222 +43,208 @@ import javafx.stage.FileChooser;
  */
 public class ValidationController {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ValidationController.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(ValidationController.class);
 
-    // ==============================================================================================
-    // Fields
-    // ==============================================================================================
+	// ==============================================================================================
+	// Fields
+	// ==============================================================================================
 
-    private final ValidationView view;
-    private final Map<Tab, ValidationModel> tabModels = new HashMap<>();
-    private TabEditorController tabEditorController;
+	private final ValidationView view;
+	private final Map<Tab, ValidationModel> tabModels = new HashMap<>();
+	private TabEditorController tabEditorController;
 
-    // ==============================================================================================
-    // Constructor
-    // ==============================================================================================
+	// ==============================================================================================
+	// Constructor
+	// ==============================================================================================
 
-    public ValidationController(ValidationView view) {
-        this.view = view;
-        initialize();
-    }
+	public ValidationController(ValidationView view) {
+		this.view = view;
+		initialize();
+	}
 
-    // ==============================================================================================
-    // Initialization
-    // ==============================================================================================
+	// ==============================================================================================
+	// Initialization
+	// ==============================================================================================
 
-    private void initialize() {
-        configureEditor();
-        setupViewIntegration();
-    }
+	private void initialize() {
+		configureEditor();
+		setupViewIntegration();
+	}
 
-    private void configureEditor() {
-        // Configure empty state
-        Node emptyState = view.createEmptyState(this::onNewFileButtonClick, this::onOpenFilesButtonClick);
+	private void configureEditor() {
+		// Configure empty state
+		Node emptyState = view.createEmptyState(this::onNewFileButtonClick, this::onOpenFilesButtonClick);
 
-        // Build configuration
-        TabEditorConfig config = TabEditorConfig.builder()
-                .withEditorButtons(List.of(
-                        ButtonFactory.save(null),
-                        ButtonFactory.export(null),
-                        ButtonFactory.clear(null),
-                        ButtonFactory.undo(null),
-                        ButtonFactory.redo(null)))
-                .withExecution(
-                        ButtonFactory.custom(ButtonIcon.PLAY, view.getRunValidationLabel(), null),
-                        this::executeValidation)
-                .withResultView(
-                        view.getResultToolbarButtons(),
-                        ResultViewConfig.builder().withTextTab().build())
-                .withEmptyState(emptyState)
-                .withAllowedExtensions(List.of(
-                        ".ttl", ".n3", ".nt", ".rdf", ".owl", ".xml", ".jsonld", ".json", ".trig", ".shacl"))
-                .withMenuItems(List.of(
-                        new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
-                        new TabEditorConfig.MenuItem("Open File", this::onOpenFilesButtonClick)))
-                .build();
+		// Build configuration
+		TabEditorConfig config = TabEditorConfig.builder()
+				.withEditorButtons(List.of(ButtonFactory.save(null), ButtonFactory.export(null),
+						ButtonFactory.clear(null), ButtonFactory.undo(null), ButtonFactory.redo(null)))
+				.withExecution(ButtonFactory.custom(ButtonIcon.PLAY, view.getRunValidationLabel(), null),
+						this::executeValidation)
+				.withResultView(view.getResultToolbarButtons(), ResultViewConfig.builder().withTextTab().build())
+				.withEmptyState(emptyState)
+				.withAllowedExtensions(
+						List.of(".ttl", ".n3", ".nt", ".rdf", ".owl", ".xml", ".jsonld", ".json", ".trig", ".shacl"))
+				.withMenuItems(List.of(new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
+						new TabEditorConfig.MenuItem("Open File", this::onOpenFilesButtonClick)))
+				.build();
 
-        // Create controller
-        tabEditorController = new TabEditorController(config);
-    }
+		// Create controller
+		tabEditorController = new TabEditorController(config);
+	}
 
-    private void setupViewIntegration() {
-        // Embed the editor's view into the main ValidationView
-        view.setMainContent(tabEditorController.getViewRoot());
+	private void setupViewIntegration() {
+		// Embed the editor's view into the main ValidationView
+		view.setMainContent(tabEditorController.getViewRoot());
 
-        // Manage memory: Remove the model when a tab is closed
-        tabEditorController.addTabListener(this::onTabsChanged);
-    }
+		// Manage memory: Remove the model when a tab is closed
+		tabEditorController.addTabListener(this::onTabsChanged);
+	}
 
-    // ==============================================================================================
-    // Public Actions (User Interactions)
-    // ==============================================================================================
+	// ==============================================================================================
+	// Public Actions (User Interactions)
+	// ==============================================================================================
 
-    public void executeValidation() {
-        Tab selectedTab = tabEditorController.getSelectedTab();
-        if (selectedTab == null)
-            return;
+	public void executeValidation() {
+		Tab selectedTab = tabEditorController.getSelectedTab();
+		if (selectedTab == null)
+			return;
 
-        ResultController resultController = tabEditorController.getCurrentResultController();
-        if (resultController == null)
-            return;
+		ResultController resultController = tabEditorController.getCurrentResultController();
+		if (resultController == null)
+			return;
 
-        // Clear previous results
-        resultController.clearResults();
+		// Clear previous results
+		resultController.clearResults();
 
-        // Retrieve or create the model for the current tab
-        ValidationModel model = tabModels.computeIfAbsent(selectedTab, k -> new ValidationModel());
+		// Retrieve or create the model for the current tab
+		ValidationModel model = tabModels.computeIfAbsent(selectedTab, k -> new ValidationModel());
 
-        // Pre-check: Ensure data is loaded
-        if (!model.hasData()) {
-            tabEditorController.hideResultPane();
-            tabEditorController.showError(
-                    "No Data Loaded",
-                    "Validation requires an RDF graph to be loaded.\n"
-                            + "Please go to the 'Data' view and load an RDF file.");
-            return;
-        }
+		// Pre-check: Ensure data is loaded
+		if (!model.hasData()) {
+			tabEditorController.hideResultPane();
+			tabEditorController.showError("No Data Loaded", "Validation requires an RDF graph to be loaded.\n"
+					+ "Please go to the 'Data' view and load an RDF file.");
+			return;
+		}
 
-        // Retrieve shapes content from the editor
-        final String shapesContent = tabEditorController.getEditorContent(selectedTab);
-        if (shapesContent == null || shapesContent.trim().isEmpty()) {
-            tabEditorController.hideResultPane();
-            tabEditorController.showError(
-                    "Empty Shapes",
-                    "The shapes file is empty.\n"
-                            + "Please write or load SHACL shapes in the editor before validating.");
-            return;
-        }
+		// Retrieve shapes content from the editor
+		final String shapesContent = tabEditorController.getEditorContent(selectedTab);
+		if (shapesContent == null || shapesContent.trim().isEmpty()) {
+			tabEditorController.hideResultPane();
+			tabEditorController.showError("Empty Shapes", "The shapes file is empty.\n"
+					+ "Please write or load SHACL shapes in the editor before validating.");
+			return;
+		}
 
-        // UI: Indicate execution start
-        tabEditorController.setExecutionState(true);
+		// UI: Indicate execution start
+		tabEditorController.setExecutionState(true);
 
-        // Execute validation asynchronously
-        AppExecutors.execute(() -> runValidationTask(model, shapesContent, resultController));
-    }
+		// Execute validation asynchronously
+		AppExecutors.execute(() -> runValidationTask(model, shapesContent, resultController));
+	}
 
-    // ==============================================================================================
-    // Background Task & Callbacks
-    // ==============================================================================================
+	// ==============================================================================================
+	// Background Task & Callbacks
+	// ==============================================================================================
 
-    private void runValidationTask(ValidationModel model, String shapesContent, ResultController resultController) {
-        try {
-            // Perform validation logic
-            ValidationResult result = model.validate(shapesContent);
+	private void runValidationTask(ValidationModel model, String shapesContent, ResultController resultController) {
+		try {
+			// Perform validation logic
+			ValidationResult result = model.validate(shapesContent);
 
-            // Update UI on JavaFX Application Thread
-            Platform.runLater(() -> handleValidationResult(result, resultController));
-        } catch (Exception e) {
-            LOGGER.error("Error during validation", e);
-            Platform.runLater(() -> {
-                tabEditorController.setExecutionState(false);
-                tabEditorController.hideResultPane();
-                tabEditorController.showError(
-                        "Validation Error",
-                        "An unexpected error occurred during validation.\n"
-                                + "Please check the logs for more details.",
-                        e.getMessage());
-            });
-        }
-    }
+			// Update UI on JavaFX Application Thread
+			Platform.runLater(() -> handleValidationResult(result, resultController));
+		} catch (Exception e) {
+			LOGGER.error("Error during validation", e);
+			Platform.runLater(() -> {
+				tabEditorController.setExecutionState(false);
+				tabEditorController.hideResultPane();
+				tabEditorController.showError("Validation Error",
+						"An unexpected error occurred during validation.\n" + "Please check the logs for more details.",
+						e.getMessage());
+			});
+		}
+	}
 
-    private void handleValidationResult(ValidationResult result, ResultController resultController) {
-        tabEditorController.setExecutionState(false);
+	private void handleValidationResult(ValidationResult result, ResultController resultController) {
+		tabEditorController.setExecutionState(false);
 
-        if (result.getErrorMessage() != null) {
-            // Handle validation errors (e.g., syntax errors in shapes)
-            tabEditorController.hideResultPane();
-            tabEditorController.showError(
-                    "Invalid SHACL Syntax",
-                    "The SHACL shapes contain syntax errors.\nPlease correct the errors listed below:",
-                    result.getErrorMessage());
-        } else {
-            // Success: Display the report
-            Tab selectedTab = tabEditorController.getSelectedTab();
-            ValidationModel model = tabModels.get(selectedTab);
+		if (result.getErrorMessage() != null) {
+			// Handle validation errors (e.g., syntax errors in shapes)
+			tabEditorController.hideResultPane();
+			tabEditorController.showError("Invalid SHACL Syntax",
+					"The SHACL shapes contain syntax errors.\nPlease correct the errors listed below:",
+					result.getErrorMessage());
+		} else {
+			// Success: Display the report
+			Tab selectedTab = tabEditorController.getSelectedTab();
+			ValidationModel model = tabModels.get(selectedTab);
 
-            tabEditorController.showResultPane();
+			tabEditorController.showResultPane();
 
-            // Configure tabs: Validation results have text only
-            resultController.configureTabsForResult(
-                    true, // text: enabled (TURTLE/RDF/XML report)
-                    false, // table: disabled
-                    false // graph: disabled (not used for validation)
-            );
+			// Configure tabs: Validation results have text only
+			resultController.configureTabsForResult(true, // text: enabled (TURTLE/RDF/XML report)
+					false, // table: disabled
+					false // graph: disabled (not used for validation)
+			);
 
-            // Ensure the text tab is visible to show the report
-            resultController.selectTextTab();
+			// Ensure the text tab is visible to show the report
+			resultController.selectTextTab();
 
-            // Display initial report in TURTLE format
-            String initialReport = model.formatLastReport("TURTLE");
-            if (initialReport != null) {
-                resultController.updateText(initialReport);
-            }
+			// Display initial report in TURTLE format
+			AppExecutors.execute(() -> {
+				String initialReport = model.formatLastReport("TURTLE");
+				if (initialReport != null) {
+					Platform.runLater(() -> resultController.updateText(initialReport));
+				}
+			});
 
-            // Configure callback for format changes
-            resultController.setOnFormatChanged(format -> {
-                String formattedReport = model.formatLastReport(format.getLabel());
-                if (formattedReport != null) {
-                    resultController.updateText(formattedReport);
-                }
-            });
-        }
-    }
+			// Configure callback for format changes
+			resultController.setOnFormatChanged(format -> {
+				AppExecutors.execute(() -> {
+					String formattedReport = model.formatLastReport(format.getLabel());
+					if (formattedReport != null) {
+						Platform.runLater(() -> resultController.updateText(formattedReport));
+					}
+				});
+			});
+		}
+	}
 
-    // ==============================================================================================
-    // Helper Methods
-    // ==============================================================================================
+	// ==============================================================================================
+	// Helper Methods
+	// ==============================================================================================
 
-    private void onTabsChanged(ListChangeListener.Change<? extends Tab> change) {
-        while (change.next()) {
-            if (change.wasRemoved()) {
-                for (Tab tab : change.getRemoved()) {
-                    ValidationModel model = tabModels.remove(tab);
-                    if (model != null) {
-                        model.dispose();
-                    }
-                }
-            }
-        }
-    }
+	private void onTabsChanged(ListChangeListener.Change<? extends Tab> change) {
+		while (change.next()) {
+			if (change.wasRemoved()) {
+				for (Tab tab : change.getRemoved()) {
+					ValidationModel model = tabModels.remove(tab);
+					if (model != null) {
+						model.dispose();
+					}
+				}
+			}
+		}
+	}
 
-    private void onNewFileButtonClick() {
-        tabEditorController.createNewTab("untitled-shapes.ttl", "");
-    }
+	private void onNewFileButtonClick() {
+		tabEditorController.createNewTab("untitled-shapes.ttl", "");
+	}
 
-    private void onOpenFilesButtonClick() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Open Shapes File");
-        fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter(
-                        "RDF & SHACL Files",
-                        "*.ttl", "*.rdf", "*.n3", "*.shacl", "*.jsonld", "*.trig", "*.xml", "*.owl"));
+	private void onOpenFilesButtonClick() {
+		FileChooser fileChooser = new FileChooser();
+		fileChooser.setTitle("Open Shapes File");
+		fileChooser.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("RDF & SHACL Files", "*.ttl", "*.rdf",
+				"*.n3", "*.shacl", "*.jsonld", "*.trig", "*.xml", "*.owl"));
 
-        File file = fileChooser.showOpenDialog(
-                view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null);
+		File file = fileChooser
+				.showOpenDialog(view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null);
 
-        if (file != null) {
-            LOGGER.info("Loading SHACL file: {}", file.getAbsolutePath());
-            tabEditorController.openFile(file);
-        }
-    }
+		if (file != null) {
+			LOGGER.info("Loading SHACL file: {}", file.getAbsolutePath());
+			tabEditorController.openFile(file);
+		}
+	}
 }
