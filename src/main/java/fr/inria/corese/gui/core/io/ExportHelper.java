@@ -52,7 +52,9 @@ public final class ExportHelper {
 		fileChooser.setTitle("Export Result As");
 
 		String extension = safeFormat.getExtension();
-		fileChooser.setInitialFileName("export" + extension);
+		String baseName = defaultBaseName(safeFormat);
+		fileChooser.setInitialFileName(baseName);
+		FileDialogState.applyInitialDirectory(fileChooser);
 
 		FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter(
 				safeFormat.getLabel() + " file (*" + extension + ")", "*" + extension);
@@ -63,6 +65,7 @@ public final class ExportHelper {
 		File file = fileChooser.showSaveDialog(window);
 
 		if (file != null) {
+			FileDialogState.updateLastDirectory(file);
 			// Enforce extension
 			if (!file.getName().toLowerCase().endsWith(extension)) {
 				file = new File(file.getAbsolutePath() + extension);
@@ -94,6 +97,7 @@ public final class ExportHelper {
 		File file = fileChooser.showSaveDialog(window);
 
 		if (file != null) {
+			FileDialogState.updateLastDirectory(file);
 			SerializationFormat selectedFormat = determineFormat(file, fileChooser, formats);
 			File finalFile = enforceExtension(file, selectedFormat);
 			AppExecutors.execute(() -> {
@@ -111,7 +115,8 @@ public final class ExportHelper {
 	private static FileChooser createFileChooser(List<SerializationFormat> formats) {
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Export Result");
-		fileChooser.setInitialFileName("export");
+		fileChooser.setInitialFileName(defaultBaseName(formats));
+		FileDialogState.applyInitialDirectory(fileChooser);
 
 		for (SerializationFormat format : formats) {
 			String ext = format.getExtension();
@@ -180,7 +185,8 @@ public final class ExportHelper {
 
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Export Graph As SVG");
-		fileChooser.setInitialFileName("graph.svg");
+		fileChooser.setInitialFileName("graph");
+		FileDialogState.applyInitialDirectory(fileChooser);
 
 		FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter("SVG file (*.svg)", "*.svg");
 
@@ -190,6 +196,7 @@ public final class ExportHelper {
 		File file = fileChooser.showSaveDialog(window);
 
 		if (file != null) {
+			FileDialogState.updateLastDirectory(file);
 			if (!file.getName().toLowerCase().endsWith(".svg")) {
 				file = new File(file.getAbsolutePath() + ".svg");
 			}
@@ -218,5 +225,54 @@ public final class ExportHelper {
 		};
 
 		AppExecutors.execute(task);
+	}
+
+	private static String defaultBaseName(SerializationFormat format) {
+		if (format == null) {
+			return "export";
+		}
+		if (isSparqlResultFormat(format)) {
+			return "query-results";
+		}
+		if (isRdfGraphFormat(format)) {
+			return "graph";
+		}
+		return "export";
+	}
+
+	private static String defaultBaseName(List<SerializationFormat> formats) {
+		if (formats == null || formats.isEmpty()) {
+			return "export";
+		}
+		boolean hasSparql = false;
+		boolean hasRdf = false;
+		for (SerializationFormat format : formats) {
+			if (isSparqlResultFormat(format)) {
+				hasSparql = true;
+			} else if (isRdfGraphFormat(format)) {
+				hasRdf = true;
+			}
+		}
+		if (hasSparql && !hasRdf) {
+			return "query-results";
+		}
+		if (hasRdf && !hasSparql) {
+			return "graph";
+		}
+		return "export";
+	}
+
+	private static boolean isSparqlResultFormat(SerializationFormat format) {
+		return switch (format) {
+		case CSV, TSV, JSON, XML, MARKDOWN -> true;
+		default -> false;
+		};
+	}
+
+	private static boolean isRdfGraphFormat(SerializationFormat format) {
+		return switch (format) {
+		case TURTLE, RDF_XML, JSON_LD, N_TRIPLES, N_QUADS, TRIG, RDFC10, RDFC10_SHA384 -> true;
+		default -> false;
+		};
 	}
 }

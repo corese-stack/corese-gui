@@ -14,6 +14,7 @@ import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.model.QueryResultRef;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.service.QueryService;
+import fr.inria.corese.gui.core.io.FileDialogState;
 import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.editor.tab.TabContext;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
@@ -65,7 +66,7 @@ public class QueryViewController {
 				.withExecution(ButtonFactory.custom(ButtonIcon.PLAY, "Run Query", null), this::executeQuery)
 				.withResultView(List.of(ButtonFactory.copy(null), ButtonFactory.export(null)),
 						ResultViewConfig.builder().withTextTab().withTableTab().withGraphTab().build())
-				.withEmptyState(emptyState).withAllowedExtensions(List.of(".rq", ".sparql"))
+				.withEmptyState(emptyState).withAllowedExtensions(List.of(".rq"))
 				.withMenuItems(List.of(new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
 						new TabEditorConfig.MenuItem("Open File", this::onOpenFilesButtonClick)))
 				.withPreloadFirstTab().build();
@@ -325,12 +326,14 @@ public class QueryViewController {
 	private void onOpenFilesButtonClick() {
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Open Query File");
+		FileDialogState.applyInitialDirectory(fileChooser);
 		fileChooser.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("SPARQL Query", "*.rq", "*.sparql"),
 				new FileChooser.ExtensionFilter("All Files", "*.*"));
 
 		File file = fileChooser
 				.showOpenDialog(view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null);
 		if (file != null) {
+			FileDialogState.updateLastDirectory(file);
 			openQueryFile(file);
 		}
 	}

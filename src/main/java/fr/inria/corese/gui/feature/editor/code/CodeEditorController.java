@@ -6,15 +6,17 @@ import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.service.ModalService;
-import fr.inria.corese.gui.core.service.RdfSyntaxService;
+import fr.inria.corese.gui.core.io.FileDialogState;
+import fr.inria.corese.gui.core.service.RdfConversionService;
 import fr.inria.corese.gui.utils.AppExecutors;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -221,21 +223,68 @@ public class CodeEditorController {
             || lower.contains("@base")
             || lower.contains(" a ")
             || trimmed.endsWith("."))) {
-      return isModeAllowed(SerializationFormat.TRIG) ? SerializationFormat.TRIG : SerializationFormat.TURTLE;
+      boolean trigLike = isModeAllowed(SerializationFormat.TRIG) && looksLikeTrig(trimmed, lower);
+      if (trigLike) {
+        return SerializationFormat.TRIG;
+      }
+      return isModeAllowed(SerializationFormat.TURTLE) ? SerializationFormat.TURTLE : SerializationFormat.TRIG;
     }
 
-    // JSON
-    if (isModeAllowed(SerializationFormat.JSON) 
-        && (trimmed.startsWith("{") || trimmed.startsWith("["))) {
-      return SerializationFormat.JSON;
+    // N-Triples / N-Quads (heuristic)
+    if ((isModeAllowed(SerializationFormat.N_TRIPLES) || isModeAllowed(SerializationFormat.N_QUADS))
+        && looksLikeNTriplesOrQuads(trimmed)) {
+      return isModeAllowed(SerializationFormat.N_QUADS) ? SerializationFormat.N_QUADS
+          : SerializationFormat.N_TRIPLES;
     }
 
-    // XML
-    if (isModeAllowed(SerializationFormat.XML) && trimmed.startsWith("<")) {
-      return SerializationFormat.XML;
+    // JSON-LD / JSON
+    if ((trimmed.startsWith("{") || trimmed.startsWith("["))
+        && (isModeAllowed(SerializationFormat.JSON_LD) || isModeAllowed(SerializationFormat.JSON))) {
+      if (isModeAllowed(SerializationFormat.JSON_LD) && looksLikeJsonLd(trimmed)) {
+        return SerializationFormat.JSON_LD;
+      }
+      if (isModeAllowed(SerializationFormat.JSON)) {
+        return SerializationFormat.JSON;
+      }
+      return SerializationFormat.JSON_LD;
+    }
+
+    // RDF/XML / XML
+    if (trimmed.startsWith("<")) {
+      if (isModeAllowed(SerializationFormat.RDF_XML)) {
+        return SerializationFormat.RDF_XML;
+      }
+      if (isModeAllowed(SerializationFormat.XML)) {
+        return SerializationFormat.XML;
+      }
     }
 
     return SerializationFormat.TEXT;
+  }
+
+  private boolean looksLikeJsonLd(String trimmed) {
+    String lower = trimmed.toLowerCase();
+    return lower.contains("\"@context\"") || lower.contains("\"@id\"") || lower.contains("\"@graph\"");
+  }
+
+  private boolean looksLikeTrig(String trimmed, String lower) {
+    if (trimmed.isEmpty()) {
+      return false;
+    }
+    return lower.contains("graph ") || (trimmed.contains("{") && trimmed.contains("}"));
+  }
+
+  private boolean looksLikeNTriplesOrQuads(String trimmed) {
+    if (trimmed.isEmpty()) {
+      return false;
+    }
+    String firstLine = trimmed.split("\n", 2)[0].trim();
+    if (firstLine.isEmpty()) {
+      return false;
+    }
+    boolean startsLikeTriple = firstLine.startsWith("<") || firstLine.startsWith("_:");
+    boolean endsWithDot = firstLine.endsWith(".");
+    return startsLikeTriple && endsWithDot && !firstLine.contains("{") && !firstLine.contains("}");
   }
 
   private boolean isModeAllowed(SerializationFormat format) {
@@ -283,24 +332,13 @@ public class CodeEditorController {
   private void openFile() {
     FileChooser chooser = new FileChooser();
     chooser.setTitle("Open File");
+    FileDialogState.applyInitialDirectory(chooser);
 
-    // Add filters
-    chooser
-        .getExtensionFilters()
-        .add(
-            new FileChooser.ExtensionFilter(
-                "RDF and SPARQL",
-                "*.ttl",
-                "*.rdf",
-                "*.n3",
-                "*.rq",
-                "*.sparql",
-                "*.jsonld",
-                "*.trig"));
-    chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
+    addOpenFilters(chooser);
 
     File file = chooser.showOpenDialog(view.getRoot().getScene().getWindow());
     if (file != null) {
+      FileDialogState.updateLastDirectory(file);
       AppExecutors.execute(
           () -> {
             try {
@@ -323,12 +361,14 @@ public class CodeEditorController {
   private void importFile() {
     FileChooser chooser = new FileChooser();
     chooser.setTitle("Import File");
+    FileDialogState.applyInitialDirectory(chooser);
     chooser
         .getExtensionFilters()
         .add(new FileChooser.ExtensionFilter("Text Files", "*.txt", "*.md", "*.*"));
 
     File file = chooser.showOpenDialog(view.getRoot().getScene().getWindow());
     if (file != null) {
+      FileDialogState.updateLastDirectory(file);
       AppExecutors.execute(
           () -> {
             try {
@@ -355,7 +395,7 @@ public class CodeEditorController {
       saveFileAs();
     } else {
       File file = new File(model.getFilePath());
-      writeToFile(file);
+      writeToFile(file, true);
     }
   }
 
@@ -363,25 +403,17 @@ public class CodeEditorController {
     FileChooser chooser = new FileChooser();
     chooser.setTitle("Save File As");
 
-    // Common Filters
-    FileChooser.ExtensionFilter ttl = new FileChooser.ExtensionFilter("Turtle (*.ttl)", "*.ttl");
-    FileChooser.ExtensionFilter rq = new FileChooser.ExtensionFilter("SPARQL (*.rq)", "*.rq");
-    FileChooser.ExtensionFilter rdf = new FileChooser.ExtensionFilter("RDF/XML (*.rdf)", "*.rdf");
-    FileChooser.ExtensionFilter jsonld =
-        new FileChooser.ExtensionFilter("JSON-LD (*.jsonld)", "*.jsonld");
-    FileChooser.ExtensionFilter all = new FileChooser.ExtensionFilter("All Files", "*.*");
-
-    chooser.getExtensionFilters().addAll(ttl, rq, rdf, jsonld, all);
-
-    // Select default filter based on content mode if possible
-    // (Simple heuristic: default to TTL)
-    chooser.setSelectedExtensionFilter(ttl);
+    chooser.setInitialFileName(resolveDefaultBaseName(false));
+    FileDialogState.applyInitialDirectory(chooser, model.getFilePath());
+    addSaveFilters(chooser, true);
+    selectDefaultSaveFilter(chooser);
 
     File file = chooser.showSaveDialog(view.getRoot().getScene().getWindow());
     if (file != null) {
+      FileDialogState.updateLastDirectory(file);
       // Enforce extension if selected filter implies one
       file = enforceExtension(file, chooser.getSelectedExtensionFilter());
-      writeToFile(file);
+      writeToFile(file, true);
     }
   }
 
@@ -395,19 +427,28 @@ public class CodeEditorController {
     return file;
   }
 
-  private void writeToFile(File file) {
+  private void writeToFile(File file, boolean updateModel) {
     String contentSnapshot = model.getContent();
+    writeToFile(file, contentSnapshot, updateModel);
+  }
+
+  private void writeToFile(File file, String content, boolean updateModel) {
+    String contentSnapshot = content != null ? content : "";
     AppExecutors.execute(
         () -> {
           try {
             Files.writeString(file.toPath(), contentSnapshot, StandardCharsets.UTF_8);
             Platform.runLater(
                 () -> {
-                  model.setFilePath(file.getAbsolutePath());
-                  if (contentSnapshot.equals(model.getContent())) {
-                    model.markAsSaved();
+                  if (updateModel) {
+                    model.setFilePath(file.getAbsolutePath());
+                    if (contentSnapshot.equals(model.getContent())) {
+                      model.markAsSaved();
+                    }
+                    NotificationWidget.getInstance().showSuccess("Saved: " + file.getName());
+                  } else {
+                    NotificationWidget.getInstance().showSuccess("Exported: " + file.getName());
                   }
-                  NotificationWidget.getInstance().showSuccess("Saved: " + file.getName());
                 });
           } catch (IOException e) {
             LOGGER.error("Save failed", e);
@@ -426,18 +467,297 @@ public class CodeEditorController {
       return;
     }
 
-    // Validate before export logic (simulating validation check)
-    RdfSyntaxService.CheckResult result =
-        RdfSyntaxService.getInstance().checkTurtle(content);
-    if (result.valid()) {
-      // If parse succeeds, proceed to export (stub for now)
-      ModalService.getInstance().showInformation(
-          "Export", "Content is valid RDF. Export implementation pending.");
-    } else {
-      ModalService.getInstance().showError(
-          "Validation Error",
-          "Content is not valid RDF/Turtle:\n" + result.message());
+    if (isGraphEditor()) {
+      exportGraphContent(content);
+      return;
     }
+
+    FileChooser chooser = new FileChooser();
+    chooser.setTitle("Export File");
+    chooser.setInitialFileName(resolveDefaultBaseName(true));
+    FileDialogState.applyInitialDirectory(chooser, model.getFilePath());
+    addSaveFilters(chooser, false);
+    selectDefaultSaveFilter(chooser);
+
+    File file = chooser.showSaveDialog(view.getRoot().getScene().getWindow());
+    if (file != null) {
+      FileDialogState.updateLastDirectory(file);
+      file = enforceExtension(file, chooser.getSelectedExtensionFilter());
+      writeToFile(file, false);
+    }
+  }
+
+  private void exportGraphContent(String content) {
+    List<SerializationFormat> formats = getGraphExportFormats();
+    if (formats.isEmpty()) {
+      NotificationWidget.getInstance().showWarning("No export formats available");
+      return;
+    }
+
+    FileChooser chooser = new FileChooser();
+    chooser.setTitle("Export Graph");
+
+    String preferredExt = resolvePreferredSaveExtension();
+    String baseName = resolveDefaultBaseName(true);
+    chooser.setInitialFileName(baseName);
+    FileDialogState.applyInitialDirectory(chooser, model.getFilePath());
+
+    Map<FileChooser.ExtensionFilter, SerializationFormat> filterMap = new LinkedHashMap<>();
+    for (SerializationFormat format : formats) {
+      String ext = format.getExtension();
+      FileChooser.ExtensionFilter filter = new FileChooser.ExtensionFilter(
+          format.getLabel() + " (*" + ext + ")", "*" + ext);
+      chooser.getExtensionFilters().add(filter);
+      filterMap.put(filter, format);
+    }
+
+    if (preferredExt != null) {
+      for (FileChooser.ExtensionFilter filter : chooser.getExtensionFilters()) {
+        if (filter.getExtensions().contains("*" + preferredExt)) {
+          chooser.setSelectedExtensionFilter(filter);
+          break;
+        }
+      }
+    }
+
+    File file = chooser.showSaveDialog(view.getRoot().getScene().getWindow());
+    if (file == null) {
+      return;
+    }
+    FileDialogState.updateLastDirectory(file);
+
+    SerializationFormat targetFormat = filterMap.get(chooser.getSelectedExtensionFilter());
+    if (targetFormat == null) {
+      targetFormat = SerializationFormat.forExtension(extractExtension(file.getName()));
+    }
+    if (targetFormat == null) {
+      targetFormat = formats.get(0);
+    }
+
+    File finalFile = enforceExtension(file, chooser.getSelectedExtensionFilter());
+    if (chooser.getSelectedExtensionFilter() == null && targetFormat != null) {
+      if (!file.getName().toLowerCase().endsWith(targetFormat.getExtension())) {
+        finalFile = new File(file.getAbsolutePath() + targetFormat.getExtension());
+      } else {
+        finalFile = file;
+      }
+    }
+
+    SerializationFormat sourceFormat = resolveSourceGraphFormat();
+    if (sourceFormat == null) {
+      ModalService.getInstance().showError("Export Error", "Unable to detect the source RDF format.");
+      return;
+    }
+
+    try {
+      String converted = RdfConversionService.getInstance()
+          .convertGraphContent(content, sourceFormat, targetFormat);
+      writeToFile(finalFile, converted, false);
+    } catch (Exception e) {
+      LOGGER.error("Export conversion failed", e);
+      ModalService.getInstance().showError("Export Error", e.getMessage());
+    }
+  }
+
+  private SerializationFormat resolveSourceGraphFormat() {
+    SerializationFormat fromPath = SerializationFormat.forExtension(extractExtension(model.getFilePath()));
+    if (fromPath != null) {
+      return fromPath;
+    }
+    SerializationFormat fromContent = detectModeFromContent(model.getContent());
+    if (fromContent != null && fromContent != SerializationFormat.TEXT) {
+      return fromContent;
+    }
+    return SerializationFormat.TURTLE;
+  }
+
+  private List<SerializationFormat> getGraphExportFormats() {
+    List<SerializationFormat> formats = new ArrayList<>();
+    for (SerializationFormat format : SerializationFormat.rdfFormats()) {
+      formats.add(format);
+    }
+    return formats;
+  }
+
+  private void addOpenFilters(FileChooser chooser) {
+    List<String> allowed = getNormalizedAllowedExtensions();
+    if (allowed.isEmpty()) {
+      chooser
+          .getExtensionFilters()
+          .add(
+              new FileChooser.ExtensionFilter(
+                  "RDF and SPARQL",
+                  "*.ttl",
+                  "*.rdf",
+                  "*.n3",
+                  "*.rq",
+                  "*.sparql",
+                  "*.jsonld",
+                  "*.trig"));
+      chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
+      return;
+    }
+
+    List<String> patterns = new ArrayList<>();
+    for (String ext : allowed) {
+      patterns.add("*" + ext);
+    }
+    chooser
+        .getExtensionFilters()
+        .add(new FileChooser.ExtensionFilter("Allowed Files", patterns));
+  }
+
+  private void addSaveFilters(FileChooser chooser, boolean restrictToCurrentFormat) {
+    List<String> allowed = getNormalizedAllowedExtensions();
+    String preferred = resolvePreferredSaveExtension();
+
+    if (restrictToCurrentFormat
+        && preferred != null
+        && !preferred.equals(".txt")
+        && (allowed.isEmpty() || allowed.contains(preferred))) {
+      String label = formatLabelForExtension(preferred);
+      chooser
+          .getExtensionFilters()
+          .add(new FileChooser.ExtensionFilter(label + " (*" + preferred + ")", "*" + preferred));
+      return;
+    }
+
+    if (allowed.isEmpty()) {
+      // Default filters (backward compatible)
+      chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Turtle (*.ttl)", "*.ttl"));
+      chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("SPARQL (*.rq)", "*.rq"));
+      chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("RDF/XML (*.rdf)", "*.rdf"));
+      chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON-LD (*.jsonld)", "*.jsonld"));
+      chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
+      return;
+    }
+
+    for (String ext : allowed) {
+      String label = formatLabelForExtension(ext);
+      chooser
+          .getExtensionFilters()
+          .add(new FileChooser.ExtensionFilter(label + " (*" + ext + ")", "*" + ext));
+    }
+  }
+
+  private void selectDefaultSaveFilter(FileChooser chooser) {
+    if (chooser.getExtensionFilters().isEmpty()) {
+      return;
+    }
+    String preferred = resolvePreferredSaveExtension();
+    if (preferred != null) {
+      for (FileChooser.ExtensionFilter filter : chooser.getExtensionFilters()) {
+        if (filter.getExtensions().contains("*" + preferred)) {
+          chooser.setSelectedExtensionFilter(filter);
+          return;
+        }
+      }
+    }
+    chooser.setSelectedExtensionFilter(chooser.getExtensionFilters().get(0));
+  }
+
+  private String resolvePreferredSaveExtension() {
+    String fromPath = extractExtension(model.getFilePath());
+    if (fromPath == null || fromPath.isBlank()) {
+      SerializationFormat format = detectModeFromContent(model.getContent());
+      if (format != null) {
+        fromPath = format.getExtension();
+      }
+    }
+
+    List<String> allowed = getNormalizedAllowedExtensions();
+    if (!allowed.isEmpty()) {
+      if (fromPath == null || !allowed.contains(fromPath)) {
+        return allowed.get(0);
+      }
+    }
+
+    return fromPath != null ? fromPath : ".txt";
+  }
+
+  private String resolveDefaultBaseName(boolean forExport) {
+    String fileBase = extractBaseName(model.getFilePath());
+    if (fileBase != null && !fileBase.isBlank()) {
+      return forExport ? fileBase + "-export" : fileBase;
+    }
+
+    if (isSparqlOnlyEditor()) {
+      return forExport ? "query-export" : "query";
+    }
+
+    if (isGraphEditor()) {
+      return forExport ? "shapes-export" : "shapes";
+    }
+
+    return forExport ? "export" : "document";
+  }
+
+  private String extractExtension(String path) {
+    if (path == null || path.isBlank()) {
+      return null;
+    }
+    int dot = path.lastIndexOf('.');
+    if (dot < 0 || dot == path.length() - 1) {
+      return null;
+    }
+    return path.substring(dot).toLowerCase();
+  }
+
+  private String extractBaseName(String path) {
+    if (path == null || path.isBlank()) {
+      return null;
+    }
+    String fileName = new java.io.File(path).getName();
+    int dot = fileName.lastIndexOf('.');
+    if (dot <= 0) {
+      return fileName;
+    }
+    return fileName.substring(0, dot);
+  }
+
+  private String formatLabelForExtension(String extension) {
+    SerializationFormat format = SerializationFormat.forExtension(extension);
+    if (format != null) {
+      return format.getLabel();
+    }
+    String ext = extension.startsWith(".") ? extension.substring(1) : extension;
+    return ext.toUpperCase();
+  }
+
+  private boolean isSparqlOnlyEditor() {
+    List<String> allowed = getNormalizedAllowedExtensions();
+    return allowed.size() == 1 && ".rq".equals(allowed.get(0));
+  }
+
+  private boolean isGraphEditor() {
+    List<String> allowed = getNormalizedAllowedExtensions();
+    if (allowed.isEmpty()) {
+      return false;
+    }
+    for (String ext : allowed) {
+      SerializationFormat format = SerializationFormat.forExtension(ext);
+      if (format != null && format != SerializationFormat.SPARQL_QUERY && format != SerializationFormat.TEXT) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private List<String> getNormalizedAllowedExtensions() {
+    if (allowedExtensions == null || allowedExtensions.isEmpty()) {
+      return List.of();
+    }
+    List<String> normalized = new ArrayList<>();
+    for (String ext : allowedExtensions) {
+      if (ext == null || ext.isBlank()) {
+        continue;
+      }
+      String value = ext.startsWith(".") ? ext.toLowerCase() : ("." + ext.toLowerCase());
+      if (!normalized.contains(value)) {
+        normalized.add(value);
+      }
+    }
+    return normalized;
   }
 
   private void clearContent() {

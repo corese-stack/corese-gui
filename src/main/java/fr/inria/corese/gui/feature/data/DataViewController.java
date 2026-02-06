@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.feature.data;
 
 import fr.inria.corese.gui.component.notification.NotificationWidget;
+import fr.inria.corese.gui.core.io.FileDialogState;
 import fr.inria.corese.gui.core.service.RdfDataService;
 import fr.inria.corese.gui.utils.AppExecutors;
 
@@ -31,6 +32,7 @@ public class DataViewController {
     private void handleLoadFile() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open RDF Data File");
+        FileDialogState.applyInitialDirectory(fileChooser);
         fileChooser.getExtensionFilters().addAll(
             new FileChooser.ExtensionFilter("RDF Files", "*.ttl", "*.rdf", "*.xml", "*.jsonld", "*.nt", "*.nq", "*.trig"),
             new FileChooser.ExtensionFilter("All Files", "*.*")
@@ -39,6 +41,7 @@ public class DataViewController {
         List<File> files = fileChooser.showOpenMultipleDialog(view.getRoot().getScene().getWindow());
 
         if (files != null && !files.isEmpty()) {
+            FileDialogState.updateLastDirectory(files);
             AppExecutors.execute(() -> {
                 int successCount = 0;
 

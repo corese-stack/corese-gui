@@ -76,6 +76,7 @@ public final class ImportHelper {
     File file = fileChooser.showOpenDialog(window);
 
     if (file != null) {
+      FileDialogState.updateLastDirectory(file);
       loadFileAsync(file, onSuccess, onFailure);
     }
   }
@@ -92,7 +93,11 @@ public final class ImportHelper {
    */
   public static File selectFile(Window window, List<String> allowedExtensions) {
     FileChooser fileChooser = createFileChooser(allowedExtensions);
-    return fileChooser.showOpenDialog(window);
+    File file = fileChooser.showOpenDialog(window);
+    if (file != null) {
+      FileDialogState.updateLastDirectory(file);
+    }
+    return file;
   }
 
   /**
@@ -183,6 +188,7 @@ public final class ImportHelper {
   private static FileChooser createFileChooser(List<String> allowedExtensions) {
     FileChooser fileChooser = new FileChooser();
     fileChooser.setTitle("Open File");
+    FileDialogState.applyInitialDirectory(fileChooser);
 
     if (allowedExtensions != null && !allowedExtensions.isEmpty()) {
       // Create filter with all allowed extensions

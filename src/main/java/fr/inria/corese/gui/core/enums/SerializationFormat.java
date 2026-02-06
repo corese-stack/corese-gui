@@ -75,8 +75,12 @@ public enum SerializationFormat {
 	 */
 	public String getCodeMirrorMode() {
 		return switch (this) {
-			case TURTLE, TRIG, N_TRIPLES, N_QUADS, RDFC10, RDFC10_SHA384 -> "turtle";
-			case RDF_XML, XML -> "xml";
+			case TURTLE -> "turtle";
+			case TRIG -> "trig";
+			case N_TRIPLES -> "nt";
+			case N_QUADS, RDFC10, RDFC10_SHA384 -> "nq";
+			case RDF_XML -> "rdf";
+			case XML -> "xml";
 			case JSON_LD -> "json-ld";
 			case JSON -> "json";
 			case CSV -> "csv";

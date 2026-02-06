@@ -12,11 +12,13 @@ import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.model.ValidationResult;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
 import fr.inria.corese.gui.utils.AppExecutors;
+import fr.inria.corese.gui.core.io.FileDialogState;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
@@ -84,14 +86,24 @@ public class ValidationController {
 						this::executeValidation)
 				.withResultView(view.getResultToolbarButtons(), ResultViewConfig.builder().withTextTab().build())
 				.withEmptyState(emptyState)
-				.withAllowedExtensions(
-						List.of(".ttl", ".n3", ".nt", ".rdf", ".owl", ".xml", ".jsonld", ".json", ".trig", ".shacl"))
+				.withAllowedExtensions(buildValidationExtensions())
 				.withMenuItems(List.of(new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
 						new TabEditorConfig.MenuItem("Open File", this::onOpenFilesButtonClick)))
 				.build();
 
 		// Create controller
 		tabEditorController = new TabEditorController(config);
+	}
+
+	private static List<String> buildValidationExtensions() {
+		java.util.LinkedHashSet<String> extensions = new java.util.LinkedHashSet<>();
+		for (SerializationFormat format : SerializationFormat.rdfFormats()) {
+			String ext = format.getExtension();
+			if (ext != null && !ext.isBlank()) {
+				extensions.add(ext);
+			}
+		}
+		return List.copyOf(extensions);
 	}
 
 	private void setupViewIntegration() {
@@ -243,13 +255,17 @@ public class ValidationController {
 	private void onOpenFilesButtonClick() {
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Open Shapes File");
-		fileChooser.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("RDF & SHACL Files", "*.ttl", "*.rdf",
-				"*.n3", "*.shacl", "*.jsonld", "*.trig", "*.xml", "*.owl"));
+		FileDialogState.applyInitialDirectory(fileChooser);
+		List<String> extensions = buildValidationExtensions();
+		String[] patterns = extensions.stream().map(ext -> "*" + ext).toArray(String[]::new);
+		fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("RDF Files", patterns));
+		fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
 
 		File file = fileChooser
 				.showOpenDialog(view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null);
 
 		if (file != null) {
+			FileDialogState.updateLastDirectory(file);
 			LOGGER.info("Loading SHACL file: {}", file.getAbsolutePath());
 			tabEditorController.openFile(file);
 		}

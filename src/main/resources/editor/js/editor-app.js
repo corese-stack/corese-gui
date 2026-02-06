@@ -190,8 +190,18 @@ globalThis.setMode = function (modeName) {
         case "nq":
         case "trig":
             mime = "text/turtle";
-            displayName = "Turtle";
-            tooltip = "Trig, Turtle, N-Triples, N-Quads, N3";
+            if (mode === "trig") {
+                displayName = "TriG";
+            } else if (mode === "nt") {
+                displayName = "N-Triples";
+            } else if (mode === "nq") {
+                displayName = "N-Quads";
+            } else if (mode === "n3") {
+                displayName = "N3";
+            } else {
+                displayName = "Turtle";
+            }
+            tooltip = "TriG, Turtle, N-Triples, N-Quads, N3";
             break;
             
         case "sparql":
