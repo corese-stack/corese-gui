@@ -50,6 +50,9 @@ javafx {
 
 application {
     mainClass.set("fr.inria.corese.gui.App")
+    applicationDefaultJvmArgs = listOf(
+        "--enable-native-access=javafx.graphics,javafx.web"
+    )
 }
 
 tasks.withType<JavaCompile> {

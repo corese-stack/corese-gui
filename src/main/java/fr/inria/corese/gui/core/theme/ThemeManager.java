@@ -435,6 +435,11 @@ public final class ThemeManager {
       setSystemThemeEnabled(useSystem);
       setSidebarCollapsed(collapsed);
 
+      if (useSystem && getTheme() == null) {
+        // Provide a fast, safe fallback so CSS variables are available immediately.
+        setTheme(getFallbackSystemTheme());
+      }
+
       if (!useSystem) {
         if (themeName != null) {
           Theme loadedTheme = getThemeByName(themeName);
@@ -459,6 +464,14 @@ public final class ThemeManager {
     } finally {
       loadingPreferences = false;
     }
+  }
+
+  private Theme getFallbackSystemTheme() {
+    String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+    if (os.contains("mac")) {
+      return AppThemeRegistry.CUPERTINO_LIGHT.getTheme();
+    }
+    return AppThemeRegistry.PRIMER_LIGHT.getTheme();
   }
 
   private void savePreferences() {
