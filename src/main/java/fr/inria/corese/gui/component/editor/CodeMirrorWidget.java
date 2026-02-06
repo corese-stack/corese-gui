@@ -62,6 +62,7 @@ public class CodeMirrorWidget extends VBox {
   // State
   private final String editorHtmlPath;
   private final boolean readOnly;
+  private boolean autoFormat = false;
   private boolean initialized = false;
   private boolean isInternalUpdate = false;
 
@@ -92,6 +93,7 @@ public class CodeMirrorWidget extends VBox {
   public CodeMirrorWidget(String editorHtmlPath, boolean readOnly) {
     this.editorHtmlPath = editorHtmlPath;
     this.readOnly = readOnly;
+    this.autoFormat = readOnly;
     this.webView = new WebView();
     this.webEngine = webView.getEngine();
 
@@ -214,10 +216,24 @@ public class CodeMirrorWidget extends VBox {
 
       // Apply initial zoom (editor only)
       applyEditorZoom(zoomProperty.get());
+      applyAutoFormatSetting();
 
     } catch (Exception e) {
       LOGGER.error("Error during editor initialization", e);
     }
+  }
+
+  public void setAutoFormat(boolean enabled) {
+    this.autoFormat = enabled;
+    applyAutoFormatSetting();
+  }
+
+  private void applyAutoFormatSetting() {
+    if (!initialized) {
+      return;
+    }
+    executeScriptSafe(
+        "if (window.setAutoFormat) { window.setAutoFormat(" + autoFormat + "); }");
   }
 
   private void applyEditorZoom(double zoom) {

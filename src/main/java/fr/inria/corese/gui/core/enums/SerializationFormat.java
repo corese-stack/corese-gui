@@ -87,8 +87,12 @@ public enum SerializationFormat {
     return switch (this) {
       case TURTLE, TRIG, N_TRIPLES, N_QUADS, RDFC10, RDFC10_SHA384 -> "turtle";
       case RDF_XML, XML -> "xml";
-      case JSON_LD, JSON -> "json";
-      case CSV, TSV, MARKDOWN, TEXT -> "text/plain";
+      case JSON_LD -> "json-ld";
+      case JSON -> "json";
+      case CSV -> "csv";
+      case TSV -> "tsv";
+      case MARKDOWN -> "markdown";
+      case TEXT -> "text";
       case SPARQL_QUERY -> "sparql";
     };
   }

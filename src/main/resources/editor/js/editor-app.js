@@ -51,6 +51,62 @@ const cm = CodeMirror.fromTextArea(editorArea, {
 });
 
 /* =================================================================
+ * LIGHTWEIGHT MODES (CSV/TSV)
+ * ================================================================= */
+
+function countSeparators(stream, separator) {
+    const start = stream.lineStart || 0;
+    const upto = stream.string.slice(start, stream.start);
+    let count = 0;
+    for (let i = 0; i < upto.length; i++) {
+        if (upto[i] === separator) count++;
+    }
+    return count;
+}
+
+function defineSeparatedMode(name, separator) {
+    if (CodeMirror.modes[name]) {
+        return;
+    }
+    CodeMirror.defineMode(name, function () {
+        return {
+            token: function (stream) {
+                const col = countSeparators(stream, separator) % 7;
+                if (stream.eatSpace()) return null;
+                if (stream.eat(separator)) {
+                    return "punctuation";
+                }
+
+                let ch = stream.peek();
+                if (ch === '"') {
+                    stream.next();
+                    while ((ch = stream.next()) != null) {
+                        if (ch === '"') break;
+                        if (ch === "\\") stream.next();
+                    }
+                    return "string column-" + col;
+                }
+
+                stream.eatWhile(function (c) {
+                    return c !== separator && c !== "\n" && c !== "\r" && c !== "\t";
+                });
+
+                const cur = stream.current();
+                if (/^-?\d+(\.\d+)?$/.test(cur)) {
+                    return "number column-" + col;
+                }
+                return "atom column-" + col;
+            }
+        };
+    });
+}
+
+defineSeparatedMode("csv", ",");
+defineSeparatedMode("tsv", "\t");
+CodeMirror.defineMIME("text/x-csv", "csv");
+CodeMirror.defineMIME("text/x-tsv", "tsv");
+
+/* =================================================================
  * EVENT HANDLERS
  * ================================================================= */
 
@@ -92,6 +148,9 @@ globalThis.setContent = function (content) {
         cm.setValue(content || '');
         cm.clearHistory();
     }
+    if (autoFormatResults) {
+        formatContentIfPossible();
+    }
     updateStatusBar();
 };
 
@@ -121,6 +180,7 @@ globalThis.setMode = function (modeName) {
     let tooltip = "";
 
     const mode = (modeName || "").toLowerCase();
+    currentMode = mode;
 
     switch (mode) {
         case "turtle":
@@ -150,7 +210,10 @@ globalThis.setMode = function (modeName) {
             break;
             
         case "json":
-        case "jsonld":
+            mime = "application/json";
+            displayName = "JSON";
+            break;
+
         case "json-ld":
             mime = "application/ld+json";
             displayName = "JSON-LD";
@@ -161,9 +224,27 @@ globalThis.setMode = function (modeName) {
             mime = "text/javascript";
             displayName = "JavaScript";
             break;
+
+        case "csv":
+            mime = "text/x-csv";
+            displayName = "CSV";
+            break;
+
+        case "tsv":
+            mime = "text/x-tsv";
+            displayName = "TSV";
+            break;
+
+        case "markdown":
+            mime = "text/plain";
+            displayName = "Markdown";
+            break;
     }
 
     cm.setOption("mode", mime);
+    if (autoFormatResults) {
+        formatContentIfPossible();
+    }
     
     const modeDisplay = document.getElementById('mode-display');
     if (modeDisplay) {
@@ -181,6 +262,72 @@ globalThis.setEditorZoom = function (zoom) {
     const value = Number.isFinite(zoom) ? zoom : 1;
     root.style.setProperty('--editor-zoom', String(value));
 };
+
+/* =================================================================
+ * AUTO FORMAT (READ-ONLY RESULTS)
+ * ================================================================= */
+
+let autoFormatResults = false;
+let currentMode = "text";
+
+const MAX_AUTO_FORMAT_LENGTH = 200000;
+
+globalThis.setAutoFormat = function (enabled) {
+    autoFormatResults = Boolean(enabled);
+};
+
+function formatContentIfPossible() {
+    const content = cm.getValue();
+    if (!content || content.length > MAX_AUTO_FORMAT_LENGTH) {
+        return;
+    }
+    try {
+        if (currentMode === "json" || currentMode === "json-ld") {
+            const parsed = JSON.parse(content);
+            const pretty = JSON.stringify(parsed, null, 2);
+            if (pretty !== content) {
+                cm.setValue(pretty);
+                cm.clearHistory();
+            }
+            return;
+        }
+        if (currentMode === "xml") {
+            const pretty = formatXml(content);
+            if (pretty && pretty !== content) {
+                cm.setValue(pretty);
+                cm.clearHistory();
+            }
+            return;
+        }
+    } catch (e) {
+        // Ignore formatting failures and keep original content
+    }
+}
+
+function formatXml(xml) {
+    const input = xml.replace(/>\s+</g, "><").trim();
+    if (!input.startsWith("<")) {
+        return xml;
+    }
+    const PADDING = "  ";
+    let indent = 0;
+    return input
+        .replace(/</g, "\n<")
+        .split("\n")
+        .filter(line => line.trim().length > 0)
+        .map(line => {
+            let trimmed = line.trim();
+            if (trimmed.startsWith("</")) {
+                indent = Math.max(indent - 1, 0);
+            }
+            const pad = PADDING.repeat(indent);
+            if (trimmed.startsWith("<") && !trimmed.startsWith("</") && !trimmed.endsWith("/>") && !trimmed.startsWith("<?") && !trimmed.startsWith("<!")) {
+                indent += 1;
+            }
+            return pad + trimmed;
+        })
+        .join("\n");
+}
 
 /**
  * Set application theme

@@ -73,6 +73,7 @@ public class TextResultView extends AbstractView {
         this.formatLabel = new Label("Format:");
         this.formatChoiceBox = new ChoiceBox<>();
         this.editorWidget = new CodeMirrorWidget(true); // true = Read-only
+        this.editorWidget.setAutoFormat(true);
         this.toolbarWidget = new ToolbarWidget();
 
         setupLayout();
