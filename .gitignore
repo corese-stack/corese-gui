@@ -51,6 +51,7 @@ bin/
 
 # VS Code
 .vscode/
+!.vscode/settings.json
 
 # NetBeans
 nbproject/private/
