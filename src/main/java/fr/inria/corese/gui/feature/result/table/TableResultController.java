@@ -365,22 +365,6 @@ public class TableResultController {
 		return sb.toString();
 	}
 
-	private String[] getHeaderLabels() {
-		if (headers != null && headers.length > 0) {
-			return headers;
-		}
-		TableView<String[]> tableView = view.getTableView();
-		List<TableColumn<String[], ?>> columns = tableView.getVisibleLeafColumns();
-		if (columns.size() <= 1) {
-			return new String[0];
-		}
-		String[] labels = new String[columns.size() - 1];
-		for (int colIndex = 1; colIndex < columns.size(); colIndex++) {
-			labels[colIndex - 1] = columns.get(colIndex).getText();
-		}
-		return labels;
-	}
-
 	private Integer extractDataIndex(TableColumn<String[], ?> column) {
 		Object userData = column.getUserData();
 		if (userData instanceof Integer index) {

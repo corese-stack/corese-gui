@@ -142,13 +142,6 @@ public final class ButtonFactory {
 	// ===============================================================================
 
 	/**
-	 * Creates a standardized Clear button configuration.
-	 *
-	 * @param action
-	 *            The action to execute when clicked, or null if wired later
-	 * @return A configured ButtonConfig with clear icon and tooltip
-	 */
-	/**
 	 * Creates a standardized Undo button configuration.
 	 *
 	 * @param action
