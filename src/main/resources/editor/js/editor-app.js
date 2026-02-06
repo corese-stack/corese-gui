@@ -173,6 +173,16 @@ globalThis.setMode = function (modeName) {
 };
 
 /**
+ * Set editor zoom level (affects editor text only, not the status bar)
+ * @param {number} zoom - Zoom multiplier (e.g. 1.0, 1.1, 0.9)
+ */
+globalThis.setEditorZoom = function (zoom) {
+    const root = document.documentElement;
+    const value = Number.isFinite(zoom) ? zoom : 1;
+    root.style.setProperty('--editor-zoom', String(value));
+};
+
+/**
  * Set application theme
  * @param {boolean} isDark - Whether to use dark mode
  * @param {string} accentColor - Optional accent color override

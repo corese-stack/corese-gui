@@ -22,6 +22,7 @@
     --selection-bg: #b3d7ff;
     --accent-color: #0078D4;
     --active-line-bg: #f1f8ff;
+    --editor-zoom: 1;
 
     /* Syntax Highlighting */
     --syntax-keyword: #7f0055;
@@ -179,6 +180,7 @@ body {
     background-color: var(--bg-color);
     color: var(--text-color);
     transition: background-color 0.3s, color 0.3s;
+    font-family: "IBM Plex Sans", "Noto Sans", "Segoe UI", sans-serif;
 }
 
 .editor-container {
@@ -200,7 +202,7 @@ body {
 .CodeMirror {
     height: 100%;
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
-    font-size: 14px;
+    font-size: calc(14px * var(--editor-zoom));
     line-height: 1.6;
     background-color: var(--bg-color);
     color: var(--text-color);

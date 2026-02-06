@@ -134,8 +134,8 @@ public class CodeMirrorWidget extends VBox {
           }
         });
 
-    // Zoom synchronization
-    zoomProperty.addListener((obs, oldVal, newVal) -> webView.setZoom(newVal.doubleValue()));
+    // Zoom synchronization (editor text only, not the whole WebView)
+    zoomProperty.addListener((obs, oldVal, newVal) -> applyEditorZoom(newVal.doubleValue()));
 
     // Loading status listener
     webEngine
@@ -212,12 +212,20 @@ public class CodeMirrorWidget extends VBox {
       applyMode(modeProperty.get());
       updateTheme();
 
-      // Apply initial zoom
-      webView.setZoom(zoomProperty.get());
+      // Apply initial zoom (editor only)
+      applyEditorZoom(zoomProperty.get());
 
     } catch (Exception e) {
       LOGGER.error("Error during editor initialization", e);
     }
+  }
+
+  private void applyEditorZoom(double zoom) {
+    if (!initialized) {
+      return;
+    }
+    executeScriptSafe(
+        "if (window.setEditorZoom) { window.setEditorZoom(" + zoom + "); }");
   }
 
   // ==============================================================================================
