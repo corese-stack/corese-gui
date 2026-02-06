@@ -164,6 +164,10 @@ public class TextResultController {
 		Platform.runLater(() -> applyAvailableFormats(formats, defaultFormat));
 	}
 
+	public SerializationFormat getPreferredFormat(SerializationFormat[] formats, SerializationFormat defaultFormat) {
+		return pickRememberedFormat(formats, defaultFormat);
+	}
+
 	private void applyAvailableFormats(SerializationFormat[] formats, SerializationFormat defaultFormat) {
 		SerializationFormat effectiveDefault = pickRememberedFormat(formats, defaultFormat);
 		view.configureFormatSelector(formats, effectiveDefault);

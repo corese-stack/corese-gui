@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
+import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.model.ValidationResult;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
@@ -192,9 +193,15 @@ public class ValidationController {
 			// Ensure the text tab is visible to show the report
 			resultController.selectTextTab();
 
-			// Display initial report in TURTLE format
+			// Ensure text formats are configured for RDF outputs
+			SerializationFormat[] formats = SerializationFormat.rdfFormats();
+			resultController.configureTextFormats(formats, SerializationFormat.TURTLE);
+			SerializationFormat preferredFormat = resultController
+					.getPreferredTextFormat(formats, SerializationFormat.TURTLE);
+
+			// Display initial report using the preferred format
 			AppExecutors.execute(() -> {
-				String initialReport = model.formatLastReport("TURTLE");
+				String initialReport = model.formatLastReport(preferredFormat.getLabel());
 				if (initialReport != null) {
 					Platform.runLater(() -> resultController.updateText(initialReport));
 				}

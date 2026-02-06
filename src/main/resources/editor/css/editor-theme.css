@@ -300,23 +300,19 @@ body {
 .CodeMirror[data-mode="turtle"] .cm-atom {
     color: var(--text-color) !important;
 }
-.CodeMirror[data-mode="json"] .cm-property,
-.CodeMirror[data-mode="json-ld"] .cm-property {
+.CodeMirror[data-mode="json"] .cm-property {
     color: var(--json-key) !important;
 }
 
-.CodeMirror[data-mode="json"] .cm-string,
-.CodeMirror[data-mode="json-ld"] .cm-string {
+.CodeMirror[data-mode="json"] .cm-string {
     color: var(--json-string) !important;
 }
 
-.CodeMirror[data-mode="json"] .cm-number,
-.CodeMirror[data-mode="json-ld"] .cm-number {
+.CodeMirror[data-mode="json"] .cm-number {
     color: var(--json-number) !important;
 }
 
-.CodeMirror[data-mode="json"] .cm-atom,
-.CodeMirror[data-mode="json-ld"] .cm-atom {
+.CodeMirror[data-mode="json"] .cm-atom {
     color: var(--json-atom) !important;
 }
 

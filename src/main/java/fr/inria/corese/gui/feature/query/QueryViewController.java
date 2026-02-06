@@ -176,6 +176,8 @@ public class QueryViewController {
 		String resultId = resultRef.getId();
 		controller.configureTabsForResult(true, true, false); // Text + Table
 		controller.configureTextFormats(SerializationFormat.sparqlResultFormats(), SerializationFormat.XML);
+		SerializationFormat preferredFormat = controller
+				.getPreferredTextFormat(SerializationFormat.sparqlResultFormats(), SerializationFormat.XML);
 
 		controller.setOnFormatChanged(format -> {
 			AppExecutors.execute(() -> {
@@ -191,10 +193,10 @@ public class QueryViewController {
 		controller.selectTableTab();
 		AppExecutors.execute(() -> {
 			String csvResult = queryService.formatResult(resultId, SerializationFormat.CSV);
-			String xmlResult = queryService.formatResult(resultId, SerializationFormat.XML);
+			String textResult = queryService.formatResult(resultId, preferredFormat);
 			Platform.runLater(() -> {
 				controller.updateTableView(csvResult);
-				controller.updateText(xmlResult);
+				controller.updateText(textResult);
 			});
 		});
 	}
@@ -203,6 +205,8 @@ public class QueryViewController {
 		String resultId = resultRef.getId();
 		controller.configureTabsForResult(true, false, true); // Text + Graph
 		controller.configureTextFormats(SerializationFormat.rdfFormats(), SerializationFormat.TURTLE);
+		SerializationFormat preferredFormat = controller.getPreferredTextFormat(SerializationFormat.rdfFormats(),
+				SerializationFormat.TURTLE);
 
 		controller.setOnFormatChanged(format -> {
 			AppExecutors.execute(() -> {
@@ -215,10 +219,10 @@ public class QueryViewController {
 		controller.selectGraphTab();
 		AppExecutors.execute(() -> {
 			String jsonLdResult = queryService.formatResult(resultId, SerializationFormat.JSON_LD);
-			String turtleResult = queryService.formatResult(resultId, SerializationFormat.TURTLE);
+			String textResult = queryService.formatResult(resultId, preferredFormat);
 			Platform.runLater(() -> {
 				controller.displayGraph(jsonLdResult);
-				controller.updateText(turtleResult);
+				controller.updateText(textResult);
 			});
 		});
 	}
