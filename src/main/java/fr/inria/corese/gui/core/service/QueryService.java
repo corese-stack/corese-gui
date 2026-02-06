@@ -54,7 +54,7 @@ public class QueryService {
     // Fields
     // ==============================================================================================
 
-    private static final Logger logger = LoggerFactory.getLogger(QueryService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(QueryService.class);
     private static final QueryService INSTANCE = new QueryService();
 
     private final Map<String, CacheEntry> resultCache;
@@ -101,7 +101,7 @@ public class QueryService {
             throw new IllegalArgumentException("Query string cannot be empty.");
         }
 
-        logger.debug("Executing SPARQL query...");
+        LOGGER.debug("Executing SPARQL query...");
 
         try {
             Graph graph = GraphStoreService.getInstance().getGraph();
@@ -124,12 +124,12 @@ public class QueryService {
             CacheEntry entry = new CacheEntry(type, mappings, resultGraph);
             resultCache.put(id, entry);
 
-            logger.info("Query executed successfully. Type: {}, ID: {}, Results: {}", type, id, mappings.size());
+            LOGGER.info("Query executed successfully. Type: {}, ID: {}, Results: {}", type, id, mappings.size());
             return new QueryResultRef(id, type);
 
         } catch (Exception e) { // Generic catch is justified: Corese can throw various exception types
             String errorMsg = String.format("Query execution failed: %s", e.getMessage());
-            logger.error(errorMsg, e);
+            LOGGER.error(errorMsg, e);
             throw new QueryExecutionException(errorMsg, e);
         }
     }
@@ -168,7 +168,7 @@ public class QueryService {
     public void releaseResult(String resultId) {
         if (resultId != null) {
             resultCache.remove(resultId);
-            logger.debug("Released result ID: {}", resultId);
+            LOGGER.debug("Released result ID: {}", resultId);
         }
     }
 

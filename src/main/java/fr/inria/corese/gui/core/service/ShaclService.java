@@ -51,7 +51,7 @@ public class ShaclService {
     // Fields
     // ==============================================================================================
 
-    private static final Logger logger = LoggerFactory.getLogger(ShaclService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ShaclService.class);
     private static final ShaclService INSTANCE = new ShaclService();
 
     private final Map<String, Graph> reportCache;
@@ -108,11 +108,11 @@ public class ShaclService {
             String reportId = UUID.randomUUID().toString();
             reportCache.put(reportId, reportGraph);
 
-            logger.info("SHACL validation done. Conforms: {}, ReportID: {}", conforms, reportId);
+            LOGGER.info("SHACL validation done. Conforms: {}, ReportID: {}", conforms, reportId);
             return new ValidationResult(conforms, reportId, null);
 
         } catch (Exception e) {
-            logger.error("SHACL validation exception", e);
+            LOGGER.error("SHACL validation exception", e);
             return new ValidationResult(false, null, "Validation failed: " + e.getMessage());
         }
     }

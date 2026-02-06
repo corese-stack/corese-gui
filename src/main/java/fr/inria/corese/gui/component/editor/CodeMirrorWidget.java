@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
  * mode, and theme.
  */
 public class CodeMirrorWidget extends VBox {
-  private static final Logger logger = LoggerFactory.getLogger(CodeMirrorWidget.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(CodeMirrorWidget.class);
 
   // Constants
   private static final String DEFAULT_EDITOR_HTML_PATH = "/editor/code-editor.html";
@@ -146,7 +146,7 @@ public class CodeMirrorWidget extends VBox {
               if (newState == Worker.State.SUCCEEDED) {
                 onPageLoaded();
               } else if (newState == Worker.State.FAILED) {
-                logger.error("Failed to load editor from: {}", editorHtmlPath);
+                LOGGER.error("Failed to load editor from: {}", editorHtmlPath);
               }
             });
 
@@ -184,7 +184,7 @@ public class CodeMirrorWidget extends VBox {
   private void loadEditorUrl() {
     URL url = getClass().getResource(editorHtmlPath);
     if (url == null) {
-      logger.error("Resource not found: {}", editorHtmlPath);
+      LOGGER.error("Resource not found: {}", editorHtmlPath);
       return;
     }
     webEngine.load(url.toExternalForm());
@@ -216,7 +216,7 @@ public class CodeMirrorWidget extends VBox {
       webView.setZoom(zoomProperty.get());
 
     } catch (Exception e) {
-      logger.error("Error during editor initialization", e);
+      LOGGER.error("Error during editor initialization", e);
     }
   }
 
@@ -300,7 +300,7 @@ public class CodeMirrorWidget extends VBox {
     try {
       webEngine.executeScript(script);
     } catch (Exception e) {
-      logger.warn("JS Execution Warning: {}", e.getMessage());
+      LOGGER.warn("JS Execution Warning: {}", e.getMessage());
     }
   }
 
@@ -330,7 +330,7 @@ public class CodeMirrorWidget extends VBox {
           "typeof window.getContent === 'function' ? window.getContent() : ''");
       return result != null ? result.toString() : "";
     } catch (Exception e) {
-      logger.error("Error retrieving content", e);
+      LOGGER.error("Error retrieving content", e);
       return contentProperty.get();
     }
   }
@@ -396,7 +396,7 @@ public class CodeMirrorWidget extends VBox {
      * @param message The message to log
      */
     public void log(String message) {
-      logger.debug("[JS]: {}", message);
+      LOGGER.debug("[JS]: {}", message);
     }
   }
 }

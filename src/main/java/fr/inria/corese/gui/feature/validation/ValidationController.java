@@ -44,7 +44,7 @@ import javafx.stage.FileChooser;
  */
 public class ValidationController {
 
-    private static final Logger logger = LoggerFactory.getLogger(ValidationController.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ValidationController.class);
 
     // ==============================================================================================
     // Fields
@@ -169,7 +169,7 @@ public class ValidationController {
             // Update UI on JavaFX Application Thread
             Platform.runLater(() -> handleValidationResult(result, resultController));
         } catch (Exception e) {
-            logger.error("Error during validation", e);
+            LOGGER.error("Error during validation", e);
             Platform.runLater(() -> {
                 tabEditorController.setExecutionState(false);
                 tabEditorController.hideResultPane();
@@ -258,7 +258,7 @@ public class ValidationController {
                 view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null);
 
         if (file != null) {
-            logger.info("Loading SHACL file: {}", file.getAbsolutePath());
+            LOGGER.info("Loading SHACL file: {}", file.getAbsolutePath());
             tabEditorController.openFile(file);
         }
     }

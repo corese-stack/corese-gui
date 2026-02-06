@@ -48,7 +48,7 @@ public class TabEditorController {
   // ===============================================================================
 
   private static final String DEFAULT_TAB_TITLE = "untitled";
-  private static final Logger logger = LoggerFactory.getLogger(TabEditorController.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(TabEditorController.class);
 
   // ===============================================================================
   // Fields
@@ -391,7 +391,7 @@ public class TabEditorController {
    * {@link ImportHelper} and will automatically terminate when the application exits.
    */
   public void shutdown() {
-    logger.debug("TabEditorController shutdown initiated");
+    LOGGER.debug("TabEditorController shutdown initiated");
   }
 
   // ===============================================================================
@@ -588,11 +588,11 @@ public class TabEditorController {
         content -> {
           unlockTabUI(tab);
           updateTabContent(tab, content);
-          logger.info("File loaded: {}", file.getAbsolutePath());
+          LOGGER.info("File loaded: {}", file.getAbsolutePath());
         },
         ex -> {
           // Log full exception for debugging
-          logger.error("Failed to load file: {}", file.getAbsolutePath(), ex);
+          LOGGER.error("Failed to load file: {}", file.getAbsolutePath(), ex);
 
           // Show user-friendly error message
           String errorMsg = ex.getMessage() != null ? ex.getMessage() : "Unknown error";

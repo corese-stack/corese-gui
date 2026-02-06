@@ -42,7 +42,7 @@ public class RdfDataService {
     // Fields
     // ==============================================================================================
 
-    private static final Logger logger = LoggerFactory.getLogger(RdfDataService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RdfDataService.class);
     private static final RdfDataService INSTANCE = new RdfDataService();
 
     // ==============================================================================================
@@ -84,20 +84,20 @@ public class RdfDataService {
             throw new IllegalArgumentException("File does not exist: " + file.getAbsolutePath());
         }
 
-        logger.info("Loading RDF file: {}", file.getAbsolutePath());
+        LOGGER.info("Loading RDF file: {}", file.getAbsolutePath());
         
         fr.inria.corese.core.api.Loader.format format = LoadFormat.getFormat(file.getName());
         if (format == fr.inria.corese.core.api.Loader.format.UNDEF_FORMAT) {
-            logger.warn("Could not detect format from extension for {}, Corese will attempt auto-detection.", file.getName());
+            LOGGER.warn("Could not detect format from extension for {}, Corese will attempt auto-detection.", file.getName());
         }
 
         try (InputStream stream = new FileInputStream(file)) {
             Load loader = Load.create(GraphStoreService.getInstance().getGraph());
             loader.parse(stream, format);
-            logger.info("Successfully loaded {} triples from file.", GraphStoreService.getInstance().size());
+            LOGGER.info("Successfully loaded {} triples from file.", GraphStoreService.getInstance().size());
         } catch (Exception e) { // Generic catch is justified: Corese can throw various exception types
             String errorMsg = String.format("Failed to load RDF file '%s': %s", file.getName(), e.getMessage());
-            logger.error(errorMsg, e);
+            LOGGER.error(errorMsg, e);
             throw new RdfLoadException(errorMsg, e);
         }
     }
@@ -109,7 +109,7 @@ public class RdfDataService {
      * This operation removes all triples from the graph but keeps the graph instance intact.
      */
     public void clearData() {
-        logger.info("Clearing all RDF data from graph.");
+        LOGGER.info("Clearing all RDF data from graph.");
         GraphStoreService.getInstance().clear();
     }
 

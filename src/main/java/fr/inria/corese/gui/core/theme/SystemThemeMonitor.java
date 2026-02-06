@@ -20,7 +20,7 @@ import java.util.function.Consumer;
  * <p><b>Optimization:</b>
  * <ul>
  *   <li>Uses {@code scheduleWithFixedDelay} to prevent task overlapping.</li>
- *   <li>Polls every 2 seconds to balance responsiveness and CPU usage (process spawning).</li>
+ *   <li>Polls every 250ms to balance responsiveness and CPU usage (process spawning).</li>
  *   <li>Updates UI on the JavaFX Application Thread.</li>
  * </ul>
  */

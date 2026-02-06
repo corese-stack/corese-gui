@@ -1,16 +1,21 @@
 package fr.inria.corese.gui.core.theme;
 
 import atlantafx.base.theme.Theme;
-import java.util.*;
+import fr.inria.corese.gui.utils.AppExecutors;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
 import java.util.prefs.Preferences;
 import javafx.application.Application;
-import javafx.beans.property.*;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import fr.inria.corese.gui.utils.AppExecutors;
 
 /**
  * Manages the global visual theme and accent color of the Corese-GUI application.

@@ -38,7 +38,7 @@ import fr.inria.corese.gui.core.enums.SerializationFormat;
  * </ul>
  */
 public class CodeEditorController {
-  private static final Logger logger = LoggerFactory.getLogger(CodeEditorController.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(CodeEditorController.class);
 
   private final CodeEditorView view;
   private final CodeEditorModel model;
@@ -312,7 +312,7 @@ public class CodeEditorController {
                     model.markAsSaved();
                   });
             } catch (IOException e) {
-              logger.error("Failed to open file", e);
+              LOGGER.error("Failed to open file", e);
               Platform.runLater(
                   () -> ModalService.getInstance().showError("Error Opening File", e.getMessage()));
             }
@@ -340,7 +340,7 @@ public class CodeEditorController {
                     NotificationWidget.getInstance().showSuccess("Imported: " + file.getName());
                   });
             } catch (IOException e) {
-              logger.error("Failed to import file", e);
+              LOGGER.error("Failed to import file", e);
               Platform.runLater(
                   () ->
                       NotificationWidget.getInstance()
@@ -410,7 +410,7 @@ public class CodeEditorController {
                   NotificationWidget.getInstance().showSuccess("Saved: " + file.getName());
                 });
           } catch (IOException e) {
-            logger.error("Save failed", e);
+            LOGGER.error("Save failed", e);
             Platform.runLater(
                 () ->
                     ModalService.getInstance()

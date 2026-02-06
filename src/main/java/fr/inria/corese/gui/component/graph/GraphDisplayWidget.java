@@ -46,7 +46,7 @@ public class GraphDisplayWidget extends VBox {
   // Constants
   // ==============================================================================================
 
-  private static final Logger logger = LoggerFactory.getLogger(GraphDisplayWidget.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(GraphDisplayWidget.class);
   private static final String GRAPH_HTML_PATH = "/graph-viewer/graph-viewer.html";
 
   // ==============================================================================================
@@ -104,7 +104,7 @@ public class GraphDisplayWidget extends VBox {
 
   private void initializeListeners() {
     // Capture JavaScript alerts for debugging
-    webEngine.setOnAlert(event -> logger.debug("[JS Alert] {}", event.getData()));
+    webEngine.setOnAlert(event -> LOGGER.debug("[JS Alert] {}", event.getData()));
 
     webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
       if (newState == Worker.State.RUNNING || newState == Worker.State.SCHEDULED) {
@@ -112,14 +112,14 @@ public class GraphDisplayWidget extends VBox {
       } else if (newState == Worker.State.SUCCEEDED) {
         onPageLoaded();
       } else if (newState == Worker.State.FAILED) {
-        logger.error("Failed to load graph visualization");
+        LOGGER.error("Failed to load graph visualization");
         pageLoaded = false;
       }
     });
 
     webEngine.getLoadWorker().exceptionProperty().addListener((obs, old, newEx) -> {
       if (newEx != null) {
-        logger.error("WebView load error", newEx);
+        LOGGER.error("WebView load error", newEx);
       }
     });
 
@@ -148,7 +148,7 @@ public class GraphDisplayWidget extends VBox {
         pendingJsonLdData = null;
       }
     } catch (Exception e) {
-      logger.error("Error during graph page initialization", e);
+      LOGGER.error("Error during graph page initialization", e);
     }
   }
 
@@ -184,7 +184,7 @@ public class GraphDisplayWidget extends VBox {
       String htmlPath = getClass().getResource(GRAPH_HTML_PATH).toExternalForm();
       webEngine.load(htmlPath);
     } catch (Exception e) {
-      logger.error("Failed to load graph HTML resource", e);
+      LOGGER.error("Failed to load graph HTML resource", e);
     }
   }
 
@@ -261,7 +261,7 @@ public class GraphDisplayWidget extends VBox {
     try {
       webEngine.executeScript(script);
     } catch (Exception e) {
-      logger.error("JS Execution error: {}", e.getMessage(), e);
+      LOGGER.error("JS Execution error: {}", e.getMessage(), e);
     }
   }
 
@@ -277,7 +277,7 @@ public class GraphDisplayWidget extends VBox {
    */
   public String getSvgContent() {
     if (!pageLoaded) {
-      logger.warn("Cannot get SVG: page not loaded");
+      LOGGER.warn("Cannot get SVG: page not loaded");
       return null;
     }
     try {
@@ -313,7 +313,7 @@ public class GraphDisplayWidget extends VBox {
               "})();");
       return result != null ? result.toString() : null;
     } catch (Exception e) {
-      logger.error("Error getting SVG content: {}", e.getMessage(), e);
+      LOGGER.error("Error getting SVG content: {}", e.getMessage(), e);
       return null;
     }
   }
@@ -329,7 +329,7 @@ public class GraphDisplayWidget extends VBox {
      * @param message The message to log.
      */
     public void log(String message) {
-      logger.debug("[JS] {}", message);
+      LOGGER.debug("[JS] {}", message);
     }
 
     /**
@@ -338,7 +338,7 @@ public class GraphDisplayWidget extends VBox {
      * @param message The error message to log.
      */
     public void error(String message) {
-      logger.error("[JS] {}", message);
+      LOGGER.error("[JS] {}", message);
     }
   }
 }

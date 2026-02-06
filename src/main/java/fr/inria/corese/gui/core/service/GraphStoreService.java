@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * This class acts as the single source of truth for the RDF data within the GUI adapter layer.
  * It is intentionally package-private to prevent direct access to the {@code Graph} object
- * from outside the {@code adapter} package, enforcing strict encapsulation.
+ * from outside the {@code core.service} package, enforcing strict encapsulation.
  *
  * <p>
  * The Singleton pattern is justified here because:
@@ -35,7 +35,7 @@ class GraphStoreService {
     // Fields
     // ==============================================================================================
 
-    private static final Logger logger = LoggerFactory.getLogger(GraphStoreService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(GraphStoreService.class);
     private static final GraphStoreService INSTANCE = new GraphStoreService();
 
     private final Graph graph;
@@ -49,7 +49,7 @@ class GraphStoreService {
      */
     private GraphStoreService() {
         this.graph = Graph.create();
-        logger.debug("Corese Graph initialized.");
+        LOGGER.debug("Corese Graph initialized.");
     }
 
     // ==============================================================================================
@@ -80,9 +80,9 @@ class GraphStoreService {
     void clear() {
         try {
             graph.empty();
-            logger.debug("Graph data cleared.");
+            LOGGER.debug("Graph data cleared.");
         } catch (Exception e) {
-            logger.error("Failed to clear graph", e);
+            LOGGER.error("Failed to clear graph", e);
         }
     }
 

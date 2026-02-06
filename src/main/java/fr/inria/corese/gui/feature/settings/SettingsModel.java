@@ -1,7 +1,10 @@
 package fr.inria.corese.gui.feature.settings;
 
 import atlantafx.base.theme.Theme;
-import javafx.beans.property.*;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.paint.Color;
 
 /**

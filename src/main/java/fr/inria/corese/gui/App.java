@@ -6,6 +6,7 @@ import fr.inria.corese.gui.feature.main.navigation.NavigationBarController;
 import fr.inria.corese.gui.feature.main.ViewManager;
 import fr.inria.corese.gui.utils.fx.SvgImageLoader;
 import fr.inria.corese.gui.core.theme.ThemeManager;
+import fr.inria.corese.gui.utils.AppExecutors;
 
 
 
@@ -74,6 +75,11 @@ public final class App extends Application {
 
     primaryStage.setScene(scene);
     primaryStage.show();
+  }
+
+  @Override
+  public void stop() {
+    AppExecutors.shutdown();
   }
 
   public static void main(String[] args) {

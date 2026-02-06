@@ -37,4 +37,9 @@ public final class AppExecutors {
   public static void execute(Runnable task) {
     BACKGROUND.execute(task);
   }
+
+  /** Shuts down the background executor. */
+  public static void shutdown() {
+    BACKGROUND.shutdownNow();
+  }
 }

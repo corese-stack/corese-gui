@@ -36,7 +36,7 @@ import javafx.stage.FileChooser;
  */
 public class QueryViewController {
 
-    private static final Logger logger = LoggerFactory.getLogger(QueryViewController.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(QueryViewController.class);
 
     private final QueryView view;
     private final QueryService queryService = QueryService.getInstance();
@@ -151,7 +151,7 @@ public class QueryViewController {
                     tabEditorController.setExecutionState(false);
                     ModalService.getInstance().showError("Query Execution Error", e.getMessage());
                 });
-                logger.error("Error executing query", e);
+                LOGGER.error("Error executing query", e);
             }
         });
     }
@@ -253,7 +253,7 @@ public class QueryViewController {
                 return;
             }
         }
-        logger.info("Loading query file: {}", file.getAbsolutePath());
+        LOGGER.info("Loading query file: {}", file.getAbsolutePath());
         tabEditorController.openFile(file);
     }
 
