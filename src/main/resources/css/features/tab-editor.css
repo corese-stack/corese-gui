@@ -33,7 +33,7 @@
     -fx-background-color: -color-bg-subtle;
 }
 
-.add-tab-button:pressed { /* NOSONAR */
+.add-tab-button:pressed {
     -fx-background-color: -color-border-default;
     -fx-border-color: -color-accent-fg;
 }

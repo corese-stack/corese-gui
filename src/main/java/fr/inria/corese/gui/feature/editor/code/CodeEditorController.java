@@ -610,10 +610,10 @@ public class CodeEditorController {
   private File resolveExportFile(
       File file, FileChooser chooser, SerializationFormat targetFormat) {
     File finalFile = enforceExtension(file, chooser.getSelectedExtensionFilter());
-    if (chooser.getSelectedExtensionFilter() == null && targetFormat != null) {
-      if (!file.getName().toLowerCase().endsWith(targetFormat.getExtension())) {
-        return new File(file.getAbsolutePath() + targetFormat.getExtension());
-      }
+    if (chooser.getSelectedExtensionFilter() == null
+        && targetFormat != null
+        && !file.getName().toLowerCase().endsWith(targetFormat.getExtension())) {
+      return new File(file.getAbsolutePath() + targetFormat.getExtension());
     }
     return finalFile;
   }

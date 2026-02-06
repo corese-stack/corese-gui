@@ -18,6 +18,6 @@
     -fx-text-fill: -color-fg-default;
 }
 
-.square-text-field:focused { /* NOSONAR */
+.square-text-field:focused {
     -fx-border-color: -color-accent-fg;
 }
