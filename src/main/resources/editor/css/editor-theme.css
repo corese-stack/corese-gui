@@ -291,6 +291,15 @@ body {
 .cm-column-4 { color: var(--csv-col-4) !important; }
 .cm-column-5 { color: var(--csv-col-5) !important; }
 .cm-column-6 { color: var(--csv-col-6) !important; }
+.CodeMirror[data-mode="turtle"] .cm-meta,
+.CodeMirror[data-mode="turtle"] .cm-variable-3 {
+    color: var(--syntax-keyword) !important;
+    font-weight: 600;
+}
+
+.CodeMirror[data-mode="turtle"] .cm-atom {
+    color: var(--text-color) !important;
+}
 .CodeMirror[data-mode="json"] .cm-property,
 .CodeMirror[data-mode="json-ld"] .cm-property {
     color: var(--json-key) !important;
