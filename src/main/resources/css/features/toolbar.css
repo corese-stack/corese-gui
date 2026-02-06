@@ -18,24 +18,83 @@
 .app-toolbar {
     /* Theme-aware background color - subtle variant for visual separation */
     -fx-background-color: -color-bg-subtle;
-    
+
     /* Left border only to separate from main content area */
     -fx-border-color: -color-border-default;
     -fx-border-width: 0 0 0 1;
-    
+
     /* Compact padding for icon buttons */
     -fx-padding: 5px;
-    
+
     /* Fixed width to accommodate icon buttons consistently */
     -fx-min-width: 48px;
     -fx-pref-width: 48px;
-    
+
     /* Align buttons to the top center */
     -fx-alignment: top-center;
-    
+
     /* Vertical spacing between buttons */
     -fx-spacing: 10px;
-    
+
     /* Allow vertical expansion */
     -fx-max-height: Infinity;
+}
+
+/* ============================================================================= */
+/* Toolbar Buttons                                                              */
+/* ============================================================================= */
+
+.app-toolbar .button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8px;
+    -fx-padding: 6px;
+    -fx-pref-width: 36px;
+    -fx-pref-height: 36px;
+    -fx-alignment: center;
+    -fx-content-display: graphic-only;
+    -fx-text-fill: -color-fg-default;
+    -fx-cursor: hand;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.app-toolbar .button:hover {
+    -fx-background-color: -color-bg-subtle, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.08);
+    -fx-background-insets: 0, 0, 0;
+    -fx-background-radius: 8px, 8px, 8px;
+    -fx-text-fill: -color-fg-default;
+}
+
+.app-toolbar .button:pressed {
+    -fx-background-color: -color-bg-subtle, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18);
+    -fx-background-insets: 0, 0, 0;
+    -fx-background-radius: 8px, 8px, 8px;
+    -fx-text-fill: -color-fg-default;
+}
+
+.app-toolbar .button:focused {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 8px;
+    -fx-text-fill: -color-fg-default;
+}
+
+.app-toolbar .button:focused:hover {
+    -fx-background-color: -color-bg-subtle, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.08);
+    -fx-background-insets: 0, 0, 0;
+    -fx-background-radius: 8px, 8px, 8px;
+    -fx-text-fill: -color-fg-default;
+}
+
+.app-toolbar .button:focused:pressed {
+    -fx-background-color: -color-bg-subtle, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18);
+    -fx-background-insets: 0, 0, 0;
+    -fx-background-radius: 8px, 8px, 8px;
+    -fx-text-fill: -color-fg-default;
+}
+
+.app-toolbar .button:disabled {
+    -fx-opacity: 0.5;
+    -fx-text-fill: -color-fg-muted;
+    -fx-cursor: default;
 }

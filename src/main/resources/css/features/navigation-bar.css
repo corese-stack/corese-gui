@@ -52,7 +52,15 @@
 }
 
 .sidebar-toggle:hover {
-  -fx-background-color: -color-accent-muted;
+  -fx-background-color: rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.08);
+  -fx-background-insets: 0, 0;
+  -fx-background-radius: 4, 4;
+}
+
+.sidebar-toggle:pressed {
+  -fx-background-color: rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18);
+  -fx-background-insets: 0, 0;
+  -fx-background-radius: 4, 4;
 }
 
 /* ==========================================================================
@@ -70,11 +78,19 @@
 }
 
 .sidebar-button:hover {
-  -fx-background-color: -color-accent-muted;
+  -fx-background-color: rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.08);
+  -fx-background-insets: 0, 0;
+  -fx-background-radius: 4, 4;
+}
+
+.sidebar-button:pressed {
+  -fx-background-color: rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18);
+  -fx-background-insets: 0, 0;
+  -fx-background-radius: 4, 4;
 }
 
 .sidebar-button.accent {
-  -fx-background-color: -color-accent-emphasis
+  -fx-background-color: -color-accent-emphasis;
 }
 
 /* ==========================================================================
