@@ -34,8 +34,8 @@ class KGGraphVis extends HTMLElement {
         this.nodeLabelsVisible = true;
         this.edgeLabelsVisible = true;
         this.currentZoom = 1;
-        this.nodeLabelZoomThreshold = 0.4;
-        this.edgeLabelZoomThreshold = 0.4;
+        this.nodeLabelZoomThreshold = 0.2;
+        this.edgeLabelZoomThreshold = 0.2;
         this.labelCullEnabled = true;
         this.labelVisibilityThrottleMs = 80;
         this.lastLabelVisibilityUpdate = 0;
@@ -424,9 +424,9 @@ class KGGraphVis extends HTMLElement {
         }
     }
 
-    onInteraction() {
+    onInteraction(shouldHideLabels = true) {
         this.isInteracting = true;
-        if (this.shouldHideLabelsDuringInteraction()) {
+        if (shouldHideLabels && this.shouldHideLabelsDuringInteraction()) {
             this.hideLabelsForInteraction();
         }
         if (this.interactionTimer) {
@@ -765,7 +765,10 @@ class KGGraphVis extends HTMLElement {
                 gZoom.attr("transform", transform);
                 this.currentTransform = transform;
                 this.updateLevelOfDetail(transform.k);
-                this.onInteraction();
+                const sourceEvent = d3.event?.sourceEvent;
+                const isWheel = sourceEvent?.type === 'wheel';
+                const isDblClick = sourceEvent?.type === 'dblclick';
+                this.onInteraction(!(isWheel || isDblClick));
             });
         this.svg.call(this.zoomBehavior);
 
