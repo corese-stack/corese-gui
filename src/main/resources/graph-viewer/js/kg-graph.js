@@ -34,8 +34,8 @@ class KGGraphVis extends HTMLElement {
         this.nodeLabelsVisible = true;
         this.edgeLabelsVisible = true;
         this.currentZoom = 1;
-        this.nodeLabelZoomThreshold = 0.40;
-        this.edgeLabelZoomThreshold = 0.40;
+        this.nodeLabelZoomThreshold = 0.4;
+        this.edgeLabelZoomThreshold = 0.4;
         this.labelCullEnabled = true;
         this.labelVisibilityThrottleMs = 80;
         this.lastLabelVisibilityUpdate = 0;
@@ -203,10 +203,10 @@ class KGGraphVis extends HTMLElement {
      * LIFECYCLE METHODS
      * ------------------------------------------------------------- */
 
-    async connectedCallback() {
+    connectedCallback() {
         this.render();
         this.observeResize();
-        await this.updateSize();
+        this.updateSize();
     }
 
     disconnectedCallback() {
@@ -223,9 +223,8 @@ class KGGraphVis extends HTMLElement {
      * @param {string} graphId - Graph identifier.
      * @returns {string} Hex color code.
      */
-    getGraphColor(graphId) {
-        const gid = graphId || 'default';
-
+    getGraphColor(graphId = 'default') {
+        const gid = graphId ?? 'default';
         if (gid === 'default') {
             return this.defaultGraphColor;
         }
@@ -250,19 +249,42 @@ class KGGraphVis extends HTMLElement {
      * @returns {string} Hex color code.
      */
     hslToHex(h, s, l) {
-        s /= 100;
-        l /= 100;
-        const c = (1 - Math.abs(2 * l - 1)) * s;
-        const x = c * (1 - Math.abs((h / 60) % 2 - 1));
-        const m = l - c / 2;
-        let r = 0, g = 0, b = 0;
+        const hue = ((h % 360) + 360) % 360;
+        const sat = s / 100;
+        const light = l / 100;
+        const c = (1 - Math.abs(2 * light - 1)) * sat;
+        const x = c * (1 - Math.abs((hue / 60) % 2 - 1));
+        const m = light - c / 2;
+        let r = 0;
+        let g = 0;
+        let b = 0;
 
-        if (h >= 0 && h < 60) { r = c; g = x; b = 0; }
-        else if (h >= 60 && h < 120) { r = x; g = c; b = 0; }
-        else if (h >= 120 && h < 180) { r = 0; g = c; b = x; }
-        else if (h >= 180 && h < 240) { r = 0; g = x; b = c; }
-        else if (h >= 240 && h < 300) { r = x; g = 0; b = c; }
-        else if (h >= 300 && h < 360) { r = c; g = 0; b = x; }
+        switch (Math.floor(hue / 60)) {
+            case 0:
+                r = c;
+                g = x;
+                break;
+            case 1:
+                r = x;
+                g = c;
+                break;
+            case 2:
+                g = c;
+                b = x;
+                break;
+            case 3:
+                g = x;
+                b = c;
+                break;
+            case 4:
+                r = x;
+                b = c;
+                break;
+            case 5:
+                r = c;
+                b = x;
+                break;
+        }
 
         const toHex = val => {
             const hex = Math.round((val + m) * 255).toString(16);
@@ -276,8 +298,9 @@ class KGGraphVis extends HTMLElement {
      * @param {string} str - Input string.
      * @returns {string} Sanitized string.
      */
-    sanitizeId(str) {
-        return (str || 'default').replace(/[^a-zA-Z0-9-_]/g, '_');
+    sanitizeId(str = 'default') {
+        const safe = (str ?? 'default').toString();
+        return safe.replaceAll(/[^a-zA-Z0-9-_]/g, '_');
     }
 
     /* -------------------------------------------------------------
@@ -348,8 +371,8 @@ class KGGraphVis extends HTMLElement {
      * Setup resize observer to handle container size changes.
      */
     observeResize() {
-        this.resizeObserver = new ResizeObserver(async () => {
-            await this.updateSize();
+        this.resizeObserver = new ResizeObserver(() => {
+            this.updateSize();
             if (this.svg) {
                 this.svg.attr('width', this.width).attr('height', this.height);
                 if (this.simulation) {
@@ -365,14 +388,14 @@ class KGGraphVis extends HTMLElement {
     /**
      * Update component dimensions from bounding rect.
      */
-    async updateSize() {
+    updateSize() {
         const rect = this.getBoundingClientRect();
         this.width = rect.width || 800;
         this.height = rect.height || 600;
     }
 
-    updateLevelOfDetail(scale) {
-        const zoom = scale || 1;
+    updateLevelOfDetail(scale = 1) {
+        const zoom = scale;
         this.currentZoom = zoom;
         const showNodeLabels = zoom >= this.nodeLabelZoomThreshold;
         const showEdgeLabels = zoom >= this.edgeLabelZoomThreshold && this.showEdgeLabels;
@@ -387,9 +410,9 @@ class KGGraphVis extends HTMLElement {
     }
 
     shouldHideLabelsDuringInteraction() {
-        if (!this.interactionHideLabels || !this.graph) return false;
-        const nodeCount = this.graph.nodes ? this.graph.nodes.length : 0;
-        const linkCount = this.graph.links ? this.graph.links.length : 0;
+        if (!this.interactionHideLabels) return false;
+        const nodeCount = this.graph?.nodes?.length ?? 0;
+        const linkCount = this.graph?.links?.length ?? 0;
         return nodeCount >= this.interactionHideNodeThreshold
             || linkCount >= this.interactionHideLinkThreshold;
     }
@@ -472,11 +495,10 @@ class KGGraphVis extends HTMLElement {
 
         if (showEdgeLabels) {
             this.linkLabelSelection.style('display', d => {
-                if (!d || !d.source || !d.target) return 'none';
-                const sx = d.source.x;
-                const sy = d.source.y;
-                const tx = d.target.x;
-                const ty = d.target.y;
+                const sx = d?.source?.x;
+                const sy = d?.source?.y;
+                const tx = d?.target?.x;
+                const ty = d?.target?.y;
                 if (typeof sx !== 'number' || typeof sy !== 'number' || typeof tx !== 'number' || typeof ty !== 'number') {
                     return 'none';
                 }
@@ -495,123 +517,135 @@ class KGGraphVis extends HTMLElement {
      * Parse JSON-LD into graph structure (nodes and links).
      * @returns {Object} Graph object with nodes and links arrays.
      */
-    async createGraph() {
-        const graph = { nodes: [], links: [] };
+    createGraph() {
+        let graph = { nodes: [], links: [] };
         this.graphColorMap = new Map();
 
-        const addNode = (id, type, graphId, meta = {}, isSubject = false) => {
+        const normalizeArray = value => (Array.isArray(value) ? value : [value]);
+        const isObject = value => value !== null && typeof value === 'object';
+        const resolveGraphId = graphId => graphId || 'default';
+
+        const upsertNode = (id, type, graphId, meta = {}, isSubject = false) => {
             if (!id) return null;
-
-            let node = graph.nodes.find(n => n.id === id);
-            if (!node) {
-                // Create new node
-                node = {
-                    id,
-                    name: id,
-                    type,
-                    graph: graphId || 'default',
-                    graphs: new Set([graphId || 'default']),
-                    isDefinedAsSubject: isSubject,
-                    definitionGraph: isSubject ? (graphId || 'default') : null,
-                    ...meta
-                };
-                graph.nodes.push(node);
-            } else {
-                // Update existing node
+            const resolvedGraph = resolveGraphId(graphId);
+            const existing = graph.nodes.find(n => n.id === id);
+            if (existing) {
                 if (type === 'Blank' || type === 'Class') {
-                    node.type = type;
+                    existing.type = type;
                 }
 
-                if (!node.graphs) node.graphs = new Set([node.graph]);
-                node.graphs.add(graphId || 'default');
+                if (!existing.graphs) existing.graphs = new Set([existing.graph]);
+                existing.graphs.add(resolvedGraph);
 
-                // Determine primary graph based on subject definition
-                if (isSubject && graphId && graphId !== 'default') {
-                    if (!node.isDefinedAsSubject) {
-                        node.graph = graphId;
-                        node.isDefinedAsSubject = true;
-                        node.definitionGraph = graphId;
-                    }
-                } else if ((!node.graph || node.graph === 'default') && graphId && graphId !== 'default') {
-                    if (!node.isDefinedAsSubject) {
-                        node.graph = graphId;
-                    }
+                if (isSubject && resolvedGraph !== 'default' && !existing.isDefinedAsSubject) {
+                    existing.graph = resolvedGraph;
+                    existing.isDefinedAsSubject = true;
+                    existing.definitionGraph = resolvedGraph;
+                } else if ((!existing.graph || existing.graph === 'default')
+                    && resolvedGraph !== 'default'
+                    && !existing.isDefinedAsSubject) {
+                    existing.graph = resolvedGraph;
                 }
-                Object.assign(node, meta);
+
+                Object.assign(existing, meta);
+                return existing;
             }
+
+            const node = {
+                id,
+                name: id,
+                type,
+                graph: resolvedGraph,
+                graphs: new Set([resolvedGraph]),
+                isDefinedAsSubject: isSubject,
+                definitionGraph: isSubject ? resolvedGraph : null,
+                ...meta
+            };
+            graph.nodes.push(node);
             return node;
         };
 
-        const processItem = (item, currentGraph) => {
-            if (!item || typeof item !== 'object') return;
-
-            if (item['@graph']) {
-                const newGraph = item['@id'] || currentGraph;
-                const contents = Array.isArray(item['@graph']) ? item['@graph'] : [item['@graph']];
-                contents.forEach(child => processItem(child, newGraph));
-                return;
+        const resolveSubjectType = (item, subjectId) => {
+            const types = normalizeArray(item['@type'] ?? []);
+            if (types.some(t => t.includes('Class'))) {
+                return 'Class';
             }
+            if (subjectId.startsWith('_:')) {
+                return 'Blank';
+            }
+            return 'Resource';
+        };
+
+        const isSubstantialDefinition = item => {
+            const hasProperties = Object.keys(item).some(k => !k.startsWith('@'));
+            return hasProperties || !!item['@type'];
+        };
+
+        const addLink = (subj, pred, objId, objType, meta, currentGraph) => {
+            if (objId === undefined || objId === null || objId === 'undefined') return;
+            upsertNode(objId, objType, currentGraph, meta, false);
+            graph.links.push({
+                source: subj,
+                target: objId,
+                name: pred,
+                graph: currentGraph
+            });
+        };
+
+        const processObject = (obj, currentGraph) => {
+            if (obj && typeof obj === 'object') {
+                if (obj['@id']) {
+                    const objId = obj['@id'];
+                    const objType = objId.startsWith('_:') ? 'Blank' : 'Resource';
+                    processItem(obj, currentGraph);
+                    return { objId, objType, meta: {} };
+                }
+                if (obj['@value'] !== undefined) {
+                    const objId = String(obj['@value']);
+                    const meta = {};
+                    if (obj['@type']) meta.datatype = obj['@type'];
+                    if (obj['@language']) meta.language = obj['@language'];
+                    return { objId, objType: 'Literal', meta };
+                }
+            }
+            return { objId: String(obj), objType: 'Literal', meta: {} };
+        };
+
+        const processGraphContainer = (item, currentGraph) => {
+            if (!item['@graph']) return false;
+            const newGraph = item['@id'] || currentGraph;
+            normalizeArray(item['@graph']).forEach(child => processItem(child, newGraph));
+            return true;
+        };
+
+        const processPredicates = (item, subj, currentGraph) => {
+            Object.keys(item)
+                .filter(pred => !pred.startsWith('@'))
+                .forEach(pred => {
+                    normalizeArray(item[pred]).forEach(obj => {
+                        const { objId, objType, meta } = processObject(obj, currentGraph);
+                        addLink(subj, pred, objId, objType, meta, currentGraph);
+                    });
+                });
+        };
+
+        const processItem = (item, currentGraph) => {
+            if (!isObject(item)) return;
+            if (processGraphContainer(item, currentGraph)) return;
 
             const subj = item['@id'];
             if (!subj) return;
 
-            let subjType = 'Resource';
-            if (item['@type']) {
-                const types = Array.isArray(item['@type']) ? item['@type'] : [item['@type']];
-                if (types.some(t => t.includes('Class'))) subjType = 'Class';
-            } else if (subj.startsWith('_:')) {
-                subjType = 'Blank';
-            }
-
-            // Determine if this is a substantial definition (has properties or type)
-            // vs just a reference (only @id). This prevents references from hijacking the primary graph.
-            const hasProperties = Object.keys(item).some(k => !k.startsWith('@'));
-            const isSubstantial = hasProperties || !!item['@type'];
-
-            addNode(subj, subjType, currentGraph, {}, isSubstantial);
-
-            Object.keys(item).forEach(pred => {
-                if (pred.startsWith('@')) return;
-
-                const objs = Array.isArray(item[pred]) ? item[pred] : [item[pred]];
-                objs.forEach(obj => {
-                    let objId;
-                    let objType = 'Literal';
-                    let meta = {};
-
-                    if (typeof obj === 'object' && obj['@id']) {
-                        objId = obj['@id'];
-                        objType = objId.startsWith('_:') ? 'Blank' : 'Resource';
-                        processItem(obj, currentGraph);
-                    } else if (typeof obj === 'object' && obj['@value'] !== undefined) {
-                        objId = String(obj['@value']);
-                        if (obj['@type']) meta.datatype = obj['@type'];
-                        if (obj['@language']) meta.language = obj['@language'];
-                    } else {
-                        objId = String(obj);
-                    }
-
-                    if (objId !== undefined && objId !== "undefined") {
-                        addNode(objId, objType, currentGraph, meta, false);
-                        graph.links.push({
-                            source: subj,
-                            target: objId,
-                            name: pred,
-                            graph: currentGraph
-                        });
-                    }
-                });
-            });
+            const subjType = resolveSubjectType(item, subj);
+            const isSubstantial = isSubstantialDefinition(item);
+            upsertNode(subj, subjType, currentGraph, {}, isSubstantial);
+            processPredicates(item, subj, currentGraph);
         };
 
-        // Process root JSON-LD
         const root = this.jsonLDOntology;
-        const data = Array.isArray(root) ? root : [root];
-        data.forEach(d => processItem(d, 'default'));
+        normalizeArray(root).forEach(item => processItem(item, 'default'));
 
-        // Performance optimization: Sample large graphs
         if (graph.nodes.length > this.MAX_NODES) {
-            // Graph sampled for performance (keeping most important nodes)
             graph = this.sampleGraph(graph);
         }
 
@@ -662,8 +696,8 @@ class KGGraphVis extends HTMLElement {
      * Main drawing entry point.
      * Parses JSON-LD, initializes simulation, and renders SVG elements.
      */
-    async drawChart() {
-        if (!this.width || !this.height) await this.updateSize();
+    drawChart() {
+        if (!this.width || !this.height) this.updateSize();
         if (this.simulation) this.simulation.stop();
 
         const chartSvg = this.shadowRoot.querySelector("#chart-container");
@@ -676,7 +710,7 @@ class KGGraphVis extends HTMLElement {
 
         try {
             this.jsonLDOntology = JSON.parse(this.jsonld);
-            const graph = await this.createGraph();
+            const graph = this.createGraph();
             this.graph = graph;
 
             // Initialize node positions
@@ -697,8 +731,6 @@ class KGGraphVis extends HTMLElement {
      * Configures D3 forces, zoom, and appends visual elements.
      */
     renderGraph() {
-        const self = this;
-
         // Force Simulation Configuration with adaptive strength for large graphs
         const nodeCount = this.graph.nodes.length;
         const isLargeGraph = nodeCount > 200;
@@ -832,31 +864,31 @@ class KGGraphVis extends HTMLElement {
         this.nodeSelection = nodeGroup.selectAll("g")
             .data(this.graph.nodes).enter().append("g")
             .call(d3.drag()
-                .on("start", function (d) {
+                .on("start", (d) => {
                     if (!d3.event.active) {
-                        self.simulationStopped = false; // Re-enable ticking when dragging
-                        self.simulation.alphaTarget(0.3).restart();
+                        this.simulationStopped = false; // Re-enable ticking when dragging
+                        this.simulation.alphaTarget(0.3).restart();
                     }
                     d.fx = d.x;
                     d.fy = d.y;
                 })
-                .on("drag", function (d) {
+                .on("drag", (d) => {
                     d.fx = d3.event.x;
                     d.fy = d3.event.y;
                 })
-                .on("end", function (d) {
+                .on("end", (d) => {
                     if (!d3.event.active) {
-                        self.simulation.alphaTarget(0);
+                        this.simulation.alphaTarget(0);
                     }
                     d.fx = null;
                     d.fy = null;
                 }));
 
         // Node Shapes
-        this.nodeSelection.each(function (d) {
-            const el = d3.select(this);
+        this.nodeSelection.each((d, i, nodes) => {
+            const el = d3.select(nodes[i]);
             const size = 20;
-            const strokeColor = self.getGraphColor(d.graph);
+            const strokeColor = this.getGraphColor(d.graph);
 
             if (d.type === 'Literal') {
                 el.append("rect")
@@ -893,11 +925,11 @@ class KGGraphVis extends HTMLElement {
         // Throttle function to limit mousemove frequency
         let tooltipMoveTimer = null;
         const throttleTooltip = (callback, delay = 16) => { // ~60fps
-            return function(...args) {
+            return (...args) => {
                 const event = d3.event; // Capture event
                 if (!tooltipMoveTimer) {
                     tooltipMoveTimer = setTimeout(() => {
-                        callback.apply(this, [event, ...args]); // Pass event to callback
+                        callback(event, ...args);
                         tooltipMoveTimer = null;
                     }, delay);
                 }
@@ -905,14 +937,19 @@ class KGGraphVis extends HTMLElement {
         };
         
         this.nodeSelection
-            .on("mouseover", function(d) {
+            .on("mouseover", (d) => {
                 const isLiteral = d.type === 'Literal';
-                const title = isLiteral ? `"${self.formatLabel(d.id)}"` : self.formatLabel(d.id);
+                const title = isLiteral ? `"${this.formatLabel(d.id)}"` : this.formatLabel(d.id);
                 let content = `<div class="tooltip-title">${title}</div>`;
 
                 if (isLiteral) {
                     content += `<div class="tooltip-row"><strong>Value</strong> <span>"${d.id}"</span></div>`;
-                    let typeVal = d.datatype ? self.formatLabel(d.datatype) : (isNaN(d.id) ? 'xsd:string' : 'xsd:decimal');
+                    let typeVal = 'xsd:string';
+                    if (d.datatype) {
+                        typeVal = this.formatLabel(d.datatype);
+                    } else if (!Number.isNaN(Number(d.id))) {
+                        typeVal = 'xsd:decimal';
+                    }
                     content += `<div class="tooltip-row"><strong>Type</strong> <span>${typeVal}</span></div>`;
                     if (d.language) {
                         content += `<div class="tooltip-row"><strong>Lang</strong> <span>${d.language}</span></div>`;
@@ -925,8 +962,8 @@ class KGGraphVis extends HTMLElement {
                     content += `<div class="tooltip-row"><strong>Type</strong> <span>${d.type}</span></div>`;
                 }
 
-                if (d.graphs && d.graphs.size > 1) {
-                    const graphList = Array.from(d.graphs).join(', ');
+                if (d.graphs?.size > 1) {
+                    const graphList = Array.from(d.graphs ?? []).join(', ');
                     content += `<div class="tooltip-row"><strong>Graphs</strong> <span>${graphList}</span></div>`;
                     content += `<div class="tooltip-row"><strong>Primary</strong> <span>${d.graph || 'default'}</span></div>`;
                 } else {
@@ -936,18 +973,24 @@ class KGGraphVis extends HTMLElement {
                 tooltip.style("opacity", 1).html(content);
                 
                 // Attach mousemove only when hovering over node
-                d3.select(this).on("mousemove", throttleTooltip((event) => {
-                    if (event && event.pageX !== undefined && event.pageY !== undefined) {
-                        tooltip
-                            .style("left", (event.pageX + 15) + "px")
-                            .style("top", (event.pageY - 10) + "px");
-                    }
-                }));
+                const target = d3.event?.currentTarget;
+                if (target) {
+                    d3.select(target).on("mousemove", throttleTooltip((event) => {
+                        if (event?.pageX != null && event?.pageY != null) {
+                            tooltip
+                                .style("left", (event.pageX + 15) + "px")
+                                .style("top", (event.pageY - 10) + "px");
+                        }
+                    }));
+                }
             })
-            .on("mouseout", function() {
+            .on("mouseout", () => {
                 tooltip.style("opacity", 0);
                 // Remove mousemove listener when leaving node
-                d3.select(this).on("mousemove", null);
+                const target = d3.event?.currentTarget;
+                if (target) {
+                    d3.select(target).on("mousemove", null);
+                }
                 if (tooltipMoveTimer) {
                     clearTimeout(tooltipMoveTimer);
                     tooltipMoveTimer = null;
@@ -984,7 +1027,6 @@ class KGGraphVis extends HTMLElement {
      */
     ticked() {
         const hasPos = d => d && typeof d.x === 'number' && typeof d.y === 'number';
-        const self = this;
 
         // Update Links
         if (this.linkSelection) {
@@ -997,9 +1039,9 @@ class KGGraphVis extends HTMLElement {
             // Only update every 3rd tick for large graphs
             const shouldUpdateGradients = this.graph.nodes.length < 200 || (this.lastTickTime % 48) < this.TICK_THROTTLE;
             if (shouldUpdateGradients) {
-                this.linkSelection.each(function (d) {
+                this.linkSelection.each((d) => {
                     if (d.gradientId && hasPos(d.source) && hasPos(d.target)) {
-                        const gradient = self.svg.select(`#${d.gradientId}`);
+                        const gradient = this.svg.select(`#${d.gradientId}`);
                         if (!gradient.empty()) {
                             gradient
                                 .attr("x1", d.source.x)
@@ -1044,13 +1086,9 @@ class KGGraphVis extends HTMLElement {
     formatLabel(uri) {
         if (!uri) return "";
         if (uri.startsWith('_:')) return uri;
-        try {
-            const parts = uri.includes('#') ? uri.split('#') : uri.split('/');
-            const last = parts.pop();
-            return last || uri;
-        } catch (e) {
-            return uri;
-        }
+        const parts = uri.includes('#') ? uri.split('#') : uri.split('/');
+        const last = parts.pop();
+        return last || uri;
     }
 
     /**
