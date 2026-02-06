@@ -257,6 +257,7 @@ public class ValidationController {
                 view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null);
 
         if (file != null) {
+            logger.info("Loading SHACL file: {}", file.getAbsolutePath());
             tabEditorController.openFile(file);
         }
     }

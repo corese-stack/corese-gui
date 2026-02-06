@@ -53,7 +53,7 @@ public final class SystemThemeMonitor {
         this.lastDarkMode = SystemThemeDetector.isSystemDarkTheme();
         this.lastAccentColor = SystemThemeDetector.getSystemAccentColor();
 
-        LOGGER.info("Starting SystemThemeMonitor (Poll Interval: {}ms)", POLL_INTERVAL_MS);
+        LOGGER.debug("Starting SystemThemeMonitor (Poll Interval: {}ms)", POLL_INTERVAL_MS);
 
         scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "SystemThemeMonitor-Thread");
@@ -82,7 +82,7 @@ public final class SystemThemeMonitor {
             scheduler.shutdownNow();
             scheduler = null;
         }
-        LOGGER.info("SystemThemeMonitor stopped.");
+        LOGGER.debug("SystemThemeMonitor stopped.");
     }
 
     /**
@@ -112,7 +112,7 @@ public final class SystemThemeMonitor {
             boolean currentDarkMode = SystemThemeDetector.isSystemDarkTheme();
             if (currentDarkMode != lastDarkMode) {
                 lastDarkMode = currentDarkMode;
-                LOGGER.info("Detected Theme Change: {}", currentDarkMode ? "Dark" : "Light");
+                LOGGER.debug("Detected Theme Change: {}", currentDarkMode ? "Dark" : "Light");
                 notifyListener(themeChangeListener, currentDarkMode);
             }
 
@@ -120,7 +120,7 @@ public final class SystemThemeMonitor {
             Color currentAccentColor = SystemThemeDetector.getSystemAccentColor();
             if (!isSameColor(currentAccentColor, lastAccentColor)) {
                 lastAccentColor = currentAccentColor;
-                LOGGER.info("Detected Accent Color Change: {}", currentAccentColor);
+                LOGGER.debug("Detected Accent Color Change: {}", currentAccentColor);
                 notifyListener(accentColorChangeListener, currentAccentColor);
             }
 

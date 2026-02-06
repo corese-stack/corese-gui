@@ -251,6 +251,7 @@ public class QueryViewController {
                 return;
             }
         }
+        logger.info("Loading query file: {}", file.getAbsolutePath());
         tabEditorController.openFile(file);
     }
 

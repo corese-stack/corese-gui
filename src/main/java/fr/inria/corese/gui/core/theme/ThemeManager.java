@@ -77,7 +77,7 @@ public final class ThemeManager {
     systemThemeMonitor.setThemeChangeListener(
         isDark -> {
           if (isSystemThemeEnabled()) {
-            LOGGER.info("System theme changed: {}",
+            LOGGER.debug("System theme changed: {}",
                 Boolean.TRUE.equals(isDark) ? "Dark" : "Light");
             setTheme(SystemThemeDetector.getSystemTheme());
           }
@@ -86,7 +86,7 @@ public final class ThemeManager {
     systemThemeMonitor.setAccentColorChangeListener(
         color -> {
           if (isSystemThemeEnabled()) {
-            LOGGER.info("System accent color changed");
+            LOGGER.debug("System accent color changed");
             setAccentColor(color);
           }
         });

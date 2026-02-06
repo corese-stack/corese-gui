@@ -126,7 +126,7 @@ public final class NavigationBarView extends AbstractView {
         button.setGraphic(view);
       }
     } catch (Exception e) {
-      LOGGER.error("Failed to load logo image", e);
+      LOGGER.warn("Failed to load logo image", e);
     }
 
     button.setOnAction(

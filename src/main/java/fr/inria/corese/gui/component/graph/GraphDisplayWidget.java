@@ -104,7 +104,7 @@ public class GraphDisplayWidget extends VBox {
 
   private void initializeListeners() {
     // Capture JavaScript alerts for debugging
-    webEngine.setOnAlert(event -> logger.info("[JS Alert] {}", event.getData()));
+    webEngine.setOnAlert(event -> logger.debug("[JS Alert] {}", event.getData()));
 
     webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
       if (newState == Worker.State.RUNNING || newState == Worker.State.SCHEDULED) {
@@ -329,7 +329,7 @@ public class GraphDisplayWidget extends VBox {
      * @param message The message to log.
      */
     public void log(String message) {
-      logger.info("[JS] {}", message);
+      logger.debug("[JS] {}", message);
     }
 
     /**

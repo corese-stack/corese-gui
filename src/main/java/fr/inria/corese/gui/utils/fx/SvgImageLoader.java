@@ -29,7 +29,7 @@ public class SvgImageLoader {
   public static Image loadSvgImage(String resourcePath, double width, double height) {
     java.net.URL url = SvgImageLoader.class.getResource(resourcePath);
     if (url == null) {
-      LOGGER.error("SVG resource not found: {}", resourcePath);
+      LOGGER.warn("SVG resource not found: {}", resourcePath);
       return null;
     }
 
@@ -38,7 +38,7 @@ public class SvgImageLoader {
       SVGDocument svgDocument = loader.load(url);
 
       if (svgDocument == null) {
-        LOGGER.error("Failed to parse SVG document: {}", resourcePath);
+        LOGGER.warn("Failed to parse SVG document: {}", resourcePath);
         return null;
       }
 
@@ -83,7 +83,7 @@ public class SvgImageLoader {
       return SwingFXUtils.toFXImage(bufferedImage, null);
 
     } catch (Exception e) {
-      LOGGER.error("Error loading SVG image: " + resourcePath, e);
+      LOGGER.warn("Error loading SVG image: {}", resourcePath, e);
       return null;
     }
   }

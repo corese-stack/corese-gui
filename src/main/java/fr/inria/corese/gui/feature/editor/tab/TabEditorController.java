@@ -391,7 +391,7 @@ public class TabEditorController {
    * {@link ImportHelper} and will automatically terminate when the application exits.
    */
   public void shutdown() {
-    logger.info("TabEditorController shutdown initiated");
+    logger.debug("TabEditorController shutdown initiated");
   }
 
   // ===============================================================================
@@ -588,6 +588,7 @@ public class TabEditorController {
         content -> {
           unlockTabUI(tab);
           updateTabContent(tab, content);
+          logger.info("File loaded: {}", file.getAbsolutePath());
         },
         ex -> {
           // Log full exception for debugging

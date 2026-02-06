@@ -50,7 +50,7 @@ public final class SystemThemeDetector {
       if (IS_MACOS) return isMacOsDark();
       if (IS_LINUX) return isLinuxDark();
     } catch (Exception e) {
-      LOGGER.error("Failed to detect system theme", e);
+      LOGGER.warn("Failed to detect system theme", e);
     }
     return false; // Default to Light
   }
@@ -66,7 +66,7 @@ public final class SystemThemeDetector {
       if (IS_MACOS) return getMacOsAccentColor();
       if (IS_LINUX) return getLinuxAccentColor();
     } catch (Exception e) {
-      LOGGER.error("Failed to detect system accent color", e);
+      LOGGER.warn("Failed to detect system accent color", e);
     }
     return Color.web("#0078D4");
   }

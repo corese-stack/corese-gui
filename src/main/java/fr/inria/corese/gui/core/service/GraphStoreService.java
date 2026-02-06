@@ -80,7 +80,7 @@ class GraphStoreService {
     void clear() {
         try {
             graph.empty();
-            logger.info("Graph data cleared.");
+            logger.debug("Graph data cleared.");
         } catch (Exception e) {
             logger.error("Failed to clear graph", e);
         }

@@ -44,7 +44,6 @@
     </root>
 
     <!-- Package-specific logging levels -->
-    <logger name="fr.inria.corese.demo" level="DEBUG" />
     <logger name="org.apache.jena" level="WARN" />
     <logger name="javafx" level="WARN" />
 </configuration>
