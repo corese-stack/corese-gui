@@ -42,6 +42,11 @@ dependencies {
 
     // JSVG for SVG rendering
     implementation("com.github.weisj:jsvg:2.0.0")
+
+    // SVG -> PNG/PDF export
+    implementation("org.apache.xmlgraphics:batik-transcoder:1.17")
+    implementation("org.apache.xmlgraphics:batik-codec:1.17")
+    implementation("org.apache.xmlgraphics:fop-core:2.9")
 }
 
 javafx {

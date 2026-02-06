@@ -34,7 +34,7 @@ public class GraphResultController {
 	 * Initializes the controller by setting up the toolbar actions on the view.
 	 */
 	private void initialize() {
-		view.setToolbarActions(List.of(ButtonFactory.exportSvg(this::exportSvg),
+		view.setToolbarActions(List.of(ButtonFactory.export(this::exportGraph),
 				ButtonFactory.resetLayout(view.getGraphWidget()::resetLayout),
 				ButtonFactory.zoomIn(view.getGraphWidget()::zoomIn),
 				ButtonFactory.zoomOut(view.getGraphWidget()::zoomOut)));
@@ -44,10 +44,10 @@ public class GraphResultController {
 	 * Triggers the export process to save the current graph as an SVG file.
 	 * Delegates the file handling to {@link ExportHelper}.
 	 */
-	private void exportSvg() {
+	private void exportGraph() {
 		String svg = view.getGraphWidget().getSvgContent();
 		if (svg != null && !svg.isEmpty()) {
-			ExportHelper.exportSvg(view.getGraphWidget().getScene().getWindow(), svg);
+			ExportHelper.exportGraph(view.getGraphWidget().getScene().getWindow(), svg);
 		} else {
 			NotificationWidget.getInstance().showWarning(MSG_EXPORT_EMPTY);
 		}

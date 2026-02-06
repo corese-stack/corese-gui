@@ -4,6 +4,7 @@ import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.utils.AppExecutors;
 import java.io.File;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
@@ -12,6 +13,10 @@ import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
+import org.apache.batik.transcoder.TranscoderInput;
+import org.apache.batik.transcoder.TranscoderOutput;
+import org.apache.batik.transcoder.image.PNGTranscoder;
+import org.apache.fop.svg.PDFTranscoder;
 
 /**
  * Utility class to handle common file export operations.
@@ -204,6 +209,45 @@ public final class ExportHelper {
 		}
 	}
 
+	/**
+	 * Prompts the user to export the current graph in SVG, PNG, or PDF format.
+	 *
+	 * @param window
+	 *            The parent window for the dialog
+	 * @param svgContent
+	 *            The SVG content to export
+	 */
+	public static void exportGraph(Window window, String svgContent) {
+		String contentToExport = (svgContent != null) ? svgContent : "";
+
+		FileChooser fileChooser = new FileChooser();
+		fileChooser.setTitle("Export Graph");
+		fileChooser.setInitialFileName("graph");
+		FileDialogState.applyInitialDirectory(fileChooser);
+
+		FileChooser.ExtensionFilter svgFilter = new FileChooser.ExtensionFilter("SVG file (*.svg)", "*.svg");
+		FileChooser.ExtensionFilter pngFilter = new FileChooser.ExtensionFilter("PNG image (*.png)", "*.png");
+		FileChooser.ExtensionFilter pdfFilter = new FileChooser.ExtensionFilter("PDF document (*.pdf)", "*.pdf");
+		fileChooser.getExtensionFilters().addAll(svgFilter, pngFilter, pdfFilter,
+				new FileChooser.ExtensionFilter("All Files", "*.*"));
+
+		File file = fileChooser.showSaveDialog(window);
+		if (file == null) {
+			return;
+		}
+
+		FileDialogState.updateLastDirectory(file);
+		GraphExportFormat format = determineGraphFormat(file, fileChooser.getSelectedExtensionFilter(), svgFilter,
+				pngFilter, pdfFilter);
+		File finalFile = enforceExtension(file, format.extension);
+
+		switch (format) {
+			case SVG -> writeFileAsync(finalFile, contentToExport);
+			case PNG -> transcodeSvgToPng(finalFile, contentToExport);
+			case PDF -> transcodeSvgToPdf(finalFile, contentToExport);
+		}
+	}
+
 	private static void writeFileAsync(File file, String content) {
 		Task<Void> task = new Task<>() {
 			@Override
@@ -225,6 +269,132 @@ public final class ExportHelper {
 		};
 
 		AppExecutors.execute(task);
+	}
+
+	private static void transcodeSvgToPng(File file, String svgContent) {
+		Task<Void> task = new Task<>() {
+			@Override
+			protected Void call() throws Exception {
+				TranscoderInput input = new TranscoderInput(new StringReader(svgContent));
+				try (var outputStream = Files.newOutputStream(file.toPath())) {
+					TranscoderOutput output = new TranscoderOutput(outputStream);
+					PNGTranscoder transcoder = new PNGTranscoder();
+					SvgDimensions dims = parseSvgDimensions(svgContent);
+					if (dims != null) {
+						transcoder.addTranscodingHint(PNGTranscoder.KEY_WIDTH, dims.width * 2f);
+						transcoder.addTranscodingHint(PNGTranscoder.KEY_HEIGHT, dims.height * 2f);
+					}
+					transcoder.transcode(input, output);
+				}
+				return null;
+			}
+
+			@Override
+			protected void succeeded() {
+				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess("File saved successfully"));
+			}
+
+			@Override
+			protected void failed() {
+				Platform.runLater(() -> NotificationWidget.getInstance()
+						.showError("Export Failed: " + getException().getMessage()));
+			}
+		};
+
+		AppExecutors.execute(task);
+	}
+
+	private static void transcodeSvgToPdf(File file, String svgContent) {
+		Task<Void> task = new Task<>() {
+			@Override
+			protected Void call() throws Exception {
+				TranscoderInput input = new TranscoderInput(new StringReader(svgContent));
+				try (var outputStream = Files.newOutputStream(file.toPath())) {
+					TranscoderOutput output = new TranscoderOutput(outputStream);
+					PDFTranscoder transcoder = new PDFTranscoder();
+					transcoder.transcode(input, output);
+				}
+				return null;
+			}
+
+			@Override
+			protected void succeeded() {
+				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess("File saved successfully"));
+			}
+
+			@Override
+			protected void failed() {
+				Platform.runLater(() -> NotificationWidget.getInstance()
+						.showError("Export Failed: " + getException().getMessage()));
+			}
+		};
+
+		AppExecutors.execute(task);
+	}
+
+	private static GraphExportFormat determineGraphFormat(File file, FileChooser.ExtensionFilter selectedFilter,
+			FileChooser.ExtensionFilter svgFilter, FileChooser.ExtensionFilter pngFilter,
+			FileChooser.ExtensionFilter pdfFilter) {
+		if (selectedFilter != null) {
+			if (selectedFilter == pngFilter) {
+				return GraphExportFormat.PNG;
+			}
+			if (selectedFilter == pdfFilter) {
+				return GraphExportFormat.PDF;
+			}
+			if (selectedFilter == svgFilter) {
+				return GraphExportFormat.SVG;
+			}
+		}
+
+		String name = file.getName().toLowerCase();
+		if (name.endsWith(".png")) {
+			return GraphExportFormat.PNG;
+		}
+		if (name.endsWith(".pdf")) {
+			return GraphExportFormat.PDF;
+		}
+		return GraphExportFormat.SVG;
+	}
+
+	private static File enforceExtension(File file, String extension) {
+		if (!file.getName().toLowerCase().endsWith(extension)) {
+			return new File(file.getAbsolutePath() + extension);
+		}
+		return file;
+	}
+
+	private static SvgDimensions parseSvgDimensions(String svgContent) {
+		if (svgContent == null || svgContent.isBlank()) {
+			return null;
+		}
+		var widthMatch = java.util.regex.Pattern.compile("width=\\\"([0-9.]+)").matcher(svgContent);
+		var heightMatch = java.util.regex.Pattern.compile("height=\\\"([0-9.]+)").matcher(svgContent);
+		if (widthMatch.find() && heightMatch.find()) {
+			try {
+				float width = Float.parseFloat(widthMatch.group(1));
+				float height = Float.parseFloat(heightMatch.group(1));
+				if (width > 0 && height > 0) {
+					return new SvgDimensions(width, height);
+				}
+			} catch (NumberFormatException _) {
+				return null;
+			}
+		}
+		return null;
+	}
+
+	private record SvgDimensions(float width, float height) {
+	}
+
+	private enum GraphExportFormat {
+		SVG(".svg"), PNG(".png"), PDF(".pdf");
+
+		private final String extension;
+
+		GraphExportFormat(String extension) {
+			this.extension = extension;
+		}
 	}
 
 	private static String defaultBaseName(SerializationFormat format) {
@@ -264,15 +434,15 @@ public final class ExportHelper {
 
 	private static boolean isSparqlResultFormat(SerializationFormat format) {
 		return switch (format) {
-		case CSV, TSV, JSON, XML, MARKDOWN -> true;
-		default -> false;
+			case CSV, TSV, JSON, XML, MARKDOWN -> true;
+			default -> false;
 		};
 	}
 
 	private static boolean isRdfGraphFormat(SerializationFormat format) {
 		return switch (format) {
-		case TURTLE, RDF_XML, JSON_LD, N_TRIPLES, N_QUADS, TRIG, RDFC10, RDFC10_SHA384 -> true;
-		default -> false;
+			case TURTLE, RDF_XML, JSON_LD, N_TRIPLES, N_QUADS, TRIG, RDFC10, RDFC10_SHA384 -> true;
+			default -> false;
 		};
 	}
 }
