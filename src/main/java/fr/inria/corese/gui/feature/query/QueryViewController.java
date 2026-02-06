@@ -61,8 +61,7 @@ public class QueryViewController {
 
 		// 2. Configure Editor
 		TabEditorConfig config = TabEditorConfig.builder()
-				.withEditorButtons(List.of(ButtonFactory.save(null), ButtonFactory.clear(null),
-						ButtonFactory.undo(null), ButtonFactory.redo(null)))
+				.withEditorButtons(List.of(ButtonFactory.save(null), ButtonFactory.undo(null), ButtonFactory.redo(null)))
 				.withExecution(ButtonFactory.custom(ButtonIcon.PLAY, "Run Query", null), this::executeQuery)
 				.withResultView(List.of(ButtonFactory.copy(null), ButtonFactory.export(null)),
 						ResultViewConfig.builder().withTextTab().withTableTab().withGraphTab().build())

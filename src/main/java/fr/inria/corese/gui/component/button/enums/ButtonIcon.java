@@ -64,9 +64,6 @@ public enum ButtonIcon {
 	// Enum Constants - Editor Operations
 	// ===============================================================================
 
-	/** Icon for clearing/deleting content. */
-	CLEAR(MaterialDesignB.BROOM),
-
 	/** Icon for undo operations. */
 	UNDO(MaterialDesignU.UNDO),
 

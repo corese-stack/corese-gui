@@ -81,7 +81,7 @@ public class ValidationController {
 		// Build configuration
 		TabEditorConfig config = TabEditorConfig.builder()
 				.withEditorButtons(List.of(ButtonFactory.save(null), ButtonFactory.export(null),
-						ButtonFactory.clear(null), ButtonFactory.undo(null), ButtonFactory.redo(null)))
+						ButtonFactory.undo(null), ButtonFactory.redo(null)))
 				.withExecution(ButtonFactory.custom(ButtonIcon.PLAY, view.getRunValidationLabel(), null),
 						this::executeValidation)
 				.withResultView(view.getResultToolbarButtons(), ResultViewConfig.builder().withTextTab().build())

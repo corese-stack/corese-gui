@@ -148,10 +148,6 @@ public final class ButtonFactory {
 	 *            The action to execute when clicked, or null if wired later
 	 * @return A configured ButtonConfig with clear icon and tooltip
 	 */
-	public static ButtonConfig clear(Runnable action) {
-		return new ButtonConfig(ButtonIcon.CLEAR, "Clear Content", action);
-	}
-
 	/**
 	 * Creates a standardized Undo button configuration.
 	 *

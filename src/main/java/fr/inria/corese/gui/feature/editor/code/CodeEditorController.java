@@ -94,9 +94,7 @@ public class CodeEditorController {
       }
     }
 
-    // 2. Add Zoom controls if not present (logic could be refined, but safe to append)
-    // Check if zoom buttons are already added to avoid duplicates if user provided them?
-    // For simplicity, we append them as standard tools.
+    // Zoom controls in editor toolbar
     config.add(ButtonFactory.zoomIn(this::zoomIn));
     config.add(ButtonFactory.zoomOut(this::zoomOut));
 
@@ -141,14 +139,12 @@ public class CodeEditorController {
       saveBtn.disableProperty().bind(model.modifiedProperty().not().or(isEmpty));
     }
 
-    // Bind Clear/Export
-    toolbar.setButtonDisabled(ButtonIcon.CLEAR, isEmpty.get());
+    // Bind Export
     toolbar.setButtonDisabled(ButtonIcon.EXPORT, isEmpty.get());
 
     // Listen to isEmpty for dynamic updates
     isEmpty.addListener(
         (obs, old, empty) -> {
-          toolbar.setButtonDisabled(ButtonIcon.CLEAR, empty);
           toolbar.setButtonDisabled(ButtonIcon.EXPORT, empty);
         });
 
@@ -320,7 +316,6 @@ public class CodeEditorController {
       case OPEN_FILE -> this::openFile;
       case EXPORT -> this::exportContent;
       case IMPORT -> this::importFile;
-      case CLEAR -> this::clearContent;
       case UNDO -> this::undo;
       case REDO -> this::redo;
       case ZOOM_IN -> this::zoomIn;
@@ -758,10 +753,6 @@ public class CodeEditorController {
       }
     }
     return normalized;
-  }
-
-  private void clearContent() {
-    model.setContent("");
   }
 
   private void undo() {
