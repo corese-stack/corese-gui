@@ -143,10 +143,7 @@ public class CodeEditorController {
     toolbar.setButtonDisabled(ButtonIcon.EXPORT, isEmpty.get());
 
     // Listen to isEmpty for dynamic updates
-    isEmpty.addListener(
-        (obs, old, empty) -> {
-          toolbar.setButtonDisabled(ButtonIcon.EXPORT, empty);
-        });
+    isEmpty.addListener((obs, old, empty) -> toolbar.setButtonDisabled(ButtonIcon.EXPORT, empty));
 
     // Bind Undo/Redo
     model.contentProperty().addListener((obs, o, n) -> updateUndoRedoState());
@@ -202,60 +199,99 @@ public class CodeEditorController {
     String lower = content.toLowerCase();
     String trimmed = content.trim();
 
-    // SPARQL
-    if (isModeAllowed(SerializationFormat.SPARQL_QUERY)
-        && (lower.contains("select ")
-            || lower.contains("construct ")
-            || lower.contains("ask ")
-            || lower.contains("describe ")
-            || lower.startsWith("prefix ")
-            || lower.contains("\nprefix "))) {
-      return SerializationFormat.SPARQL_QUERY;
+    SerializationFormat format = detectSparqlFormat(lower);
+    if (format != null) {
+      return format;
     }
 
-    // Turtle / Trig
-    if ((isModeAllowed(SerializationFormat.TURTLE) || isModeAllowed(SerializationFormat.TRIG))
-        && (lower.contains("@prefix")
-            || lower.contains("@base")
-            || lower.contains(" a ")
-            || trimmed.endsWith("."))) {
-      boolean trigLike = isModeAllowed(SerializationFormat.TRIG) && looksLikeTrig(trimmed, lower);
-      if (trigLike) {
-        return SerializationFormat.TRIG;
-      }
-      return isModeAllowed(SerializationFormat.TURTLE) ? SerializationFormat.TURTLE : SerializationFormat.TRIG;
+    format = detectTurtleOrTrigFormat(trimmed, lower);
+    if (format != null) {
+      return format;
     }
 
-    // N-Triples / N-Quads (heuristic)
-    if ((isModeAllowed(SerializationFormat.N_TRIPLES) || isModeAllowed(SerializationFormat.N_QUADS))
-        && looksLikeNTriplesOrQuads(trimmed)) {
-      return isModeAllowed(SerializationFormat.N_QUADS) ? SerializationFormat.N_QUADS
-          : SerializationFormat.N_TRIPLES;
+    format = detectNTriplesOrQuadsFormat(trimmed);
+    if (format != null) {
+      return format;
     }
 
-    // JSON-LD / JSON
-    if ((trimmed.startsWith("{") || trimmed.startsWith("["))
-        && (isModeAllowed(SerializationFormat.JSON_LD) || isModeAllowed(SerializationFormat.JSON))) {
-      if (isModeAllowed(SerializationFormat.JSON_LD) && looksLikeJsonLd(trimmed)) {
-        return SerializationFormat.JSON_LD;
-      }
-      if (isModeAllowed(SerializationFormat.JSON)) {
-        return SerializationFormat.JSON;
-      }
+    format = detectJsonFormat(trimmed);
+    if (format != null) {
+      return format;
+    }
+
+    format = detectXmlFormat(trimmed);
+    return format != null ? format : SerializationFormat.TEXT;
+  }
+
+  private SerializationFormat detectSparqlFormat(String lower) {
+    if (!isModeAllowed(SerializationFormat.SPARQL_QUERY)) {
+      return null;
+    }
+    boolean looksLikeSparql = lower.contains("select ")
+        || lower.contains("construct ")
+        || lower.contains("ask ")
+        || lower.contains("describe ")
+        || lower.startsWith("prefix ")
+        || lower.contains("\nprefix ");
+    return looksLikeSparql ? SerializationFormat.SPARQL_QUERY : null;
+  }
+
+  private SerializationFormat detectTurtleOrTrigFormat(String trimmed, String lower) {
+    if (!(isModeAllowed(SerializationFormat.TURTLE) || isModeAllowed(SerializationFormat.TRIG))) {
+      return null;
+    }
+    boolean looksLikeTurtle = lower.contains("@prefix")
+        || lower.contains("@base")
+        || lower.contains(" a ")
+        || trimmed.endsWith(".");
+    if (!looksLikeTurtle) {
+      return null;
+    }
+    boolean trigLike = isModeAllowed(SerializationFormat.TRIG) && looksLikeTrig(trimmed, lower);
+    if (trigLike) {
+      return SerializationFormat.TRIG;
+    }
+    return isModeAllowed(SerializationFormat.TURTLE) ? SerializationFormat.TURTLE : SerializationFormat.TRIG;
+  }
+
+  private SerializationFormat detectNTriplesOrQuadsFormat(String trimmed) {
+    if (!(isModeAllowed(SerializationFormat.N_TRIPLES) || isModeAllowed(SerializationFormat.N_QUADS))) {
+      return null;
+    }
+    if (!looksLikeNTriplesOrQuads(trimmed)) {
+      return null;
+    }
+    return isModeAllowed(SerializationFormat.N_QUADS) ? SerializationFormat.N_QUADS
+        : SerializationFormat.N_TRIPLES;
+  }
+
+  private SerializationFormat detectJsonFormat(String trimmed) {
+    if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) {
+      return null;
+    }
+    if (!(isModeAllowed(SerializationFormat.JSON_LD) || isModeAllowed(SerializationFormat.JSON))) {
+      return null;
+    }
+    if (isModeAllowed(SerializationFormat.JSON_LD) && looksLikeJsonLd(trimmed)) {
       return SerializationFormat.JSON_LD;
     }
-
-    // RDF/XML / XML
-    if (trimmed.startsWith("<")) {
-      if (isModeAllowed(SerializationFormat.RDF_XML)) {
-        return SerializationFormat.RDF_XML;
-      }
-      if (isModeAllowed(SerializationFormat.XML)) {
-        return SerializationFormat.XML;
-      }
+    if (isModeAllowed(SerializationFormat.JSON)) {
+      return SerializationFormat.JSON;
     }
+    return SerializationFormat.JSON_LD;
+  }
 
-    return SerializationFormat.TEXT;
+  private SerializationFormat detectXmlFormat(String trimmed) {
+    if (!trimmed.startsWith("<")) {
+      return null;
+    }
+    if (isModeAllowed(SerializationFormat.RDF_XML)) {
+      return SerializationFormat.RDF_XML;
+    }
+    if (isModeAllowed(SerializationFormat.XML)) {
+      return SerializationFormat.XML;
+    }
+    return null;
   }
 
   private boolean looksLikeJsonLd(String trimmed) {
@@ -489,53 +525,9 @@ public class CodeEditorController {
       return;
     }
 
-    FileChooser chooser = new FileChooser();
-    chooser.setTitle("Export Graph");
-
-    String preferredExt = resolvePreferredSaveExtension();
-    String baseName = resolveDefaultBaseName(true);
-    chooser.setInitialFileName(baseName);
-    FileDialogState.applyInitialDirectory(chooser, model.getFilePath());
-
-    Map<FileChooser.ExtensionFilter, SerializationFormat> filterMap = new LinkedHashMap<>();
-    for (SerializationFormat format : formats) {
-      String ext = format.getExtension();
-      FileChooser.ExtensionFilter filter = new FileChooser.ExtensionFilter(
-          format.getLabel() + " (*" + ext + ")", "*" + ext);
-      chooser.getExtensionFilters().add(filter);
-      filterMap.put(filter, format);
-    }
-
-    if (preferredExt != null) {
-      for (FileChooser.ExtensionFilter filter : chooser.getExtensionFilters()) {
-        if (filter.getExtensions().contains("*" + preferredExt)) {
-          chooser.setSelectedExtensionFilter(filter);
-          break;
-        }
-      }
-    }
-
-    File file = chooser.showSaveDialog(view.getRoot().getScene().getWindow());
-    if (file == null) {
+    GraphExportSelection selection = promptGraphExportSelection(formats);
+    if (selection == null) {
       return;
-    }
-    FileDialogState.updateLastDirectory(file);
-
-    SerializationFormat targetFormat = filterMap.get(chooser.getSelectedExtensionFilter());
-    if (targetFormat == null) {
-      targetFormat = SerializationFormat.forExtension(extractExtension(file.getName()));
-    }
-    if (targetFormat == null) {
-      targetFormat = formats.get(0);
-    }
-
-    File finalFile = enforceExtension(file, chooser.getSelectedExtensionFilter());
-    if (chooser.getSelectedExtensionFilter() == null && targetFormat != null) {
-      if (!file.getName().toLowerCase().endsWith(targetFormat.getExtension())) {
-        finalFile = new File(file.getAbsolutePath() + targetFormat.getExtension());
-      } else {
-        finalFile = file;
-      }
     }
 
     SerializationFormat sourceFormat = resolveSourceGraphFormat();
@@ -545,14 +537,88 @@ public class CodeEditorController {
     }
 
     try {
-      String converted = RdfConversionService.getInstance()
-          .convertGraphContent(content, sourceFormat, targetFormat);
-      writeToFile(finalFile, converted, false);
+      String converted =
+          RdfConversionService.getInstance().convertGraphContent(content, sourceFormat, selection.format());
+      writeToFile(selection.file(), converted, false);
     } catch (Exception e) {
       LOGGER.error("Export conversion failed", e);
       ModalService.getInstance().showError("Export Error", e.getMessage());
     }
   }
+
+  private GraphExportSelection promptGraphExportSelection(List<SerializationFormat> formats) {
+    FileChooser chooser = new FileChooser();
+    chooser.setTitle("Export Graph");
+
+    String preferredExt = resolvePreferredSaveExtension();
+    chooser.setInitialFileName(resolveDefaultBaseName(true));
+    FileDialogState.applyInitialDirectory(chooser, model.getFilePath());
+
+    Map<FileChooser.ExtensionFilter, SerializationFormat> filterMap =
+        populateExportFilters(chooser, formats);
+    selectPreferredFilter(chooser, preferredExt);
+
+    File file = chooser.showSaveDialog(view.getRoot().getScene().getWindow());
+    if (file == null) {
+      return null;
+    }
+    FileDialogState.updateLastDirectory(file);
+
+    SerializationFormat targetFormat = resolveTargetFormat(chooser, filterMap, formats, file);
+    File finalFile = resolveExportFile(file, chooser, targetFormat);
+    return new GraphExportSelection(finalFile, targetFormat);
+  }
+
+  private Map<FileChooser.ExtensionFilter, SerializationFormat> populateExportFilters(
+      FileChooser chooser, List<SerializationFormat> formats) {
+    Map<FileChooser.ExtensionFilter, SerializationFormat> filterMap = new LinkedHashMap<>();
+    for (SerializationFormat format : formats) {
+      String ext = format.getExtension();
+      FileChooser.ExtensionFilter filter =
+          new FileChooser.ExtensionFilter(format.getLabel() + " (*" + ext + ")", "*" + ext);
+      chooser.getExtensionFilters().add(filter);
+      filterMap.put(filter, format);
+    }
+    return filterMap;
+  }
+
+  private void selectPreferredFilter(FileChooser chooser, String preferredExt) {
+    if (preferredExt == null) {
+      return;
+    }
+    for (FileChooser.ExtensionFilter filter : chooser.getExtensionFilters()) {
+      if (filter.getExtensions().contains("*" + preferredExt)) {
+        chooser.setSelectedExtensionFilter(filter);
+        return;
+      }
+    }
+  }
+
+  private SerializationFormat resolveTargetFormat(
+      FileChooser chooser,
+      Map<FileChooser.ExtensionFilter, SerializationFormat> filterMap,
+      List<SerializationFormat> formats,
+      File file) {
+    SerializationFormat targetFormat = filterMap.get(chooser.getSelectedExtensionFilter());
+    if (targetFormat != null) {
+      return targetFormat;
+    }
+    targetFormat = SerializationFormat.forExtension(extractExtension(file.getName()));
+    return targetFormat != null ? targetFormat : formats.get(0);
+  }
+
+  private File resolveExportFile(
+      File file, FileChooser chooser, SerializationFormat targetFormat) {
+    File finalFile = enforceExtension(file, chooser.getSelectedExtensionFilter());
+    if (chooser.getSelectedExtensionFilter() == null && targetFormat != null) {
+      if (!file.getName().toLowerCase().endsWith(targetFormat.getExtension())) {
+        return new File(file.getAbsolutePath() + targetFormat.getExtension());
+      }
+    }
+    return finalFile;
+  }
+
+  private record GraphExportSelection(File file, SerializationFormat format) {}
 
   private SerializationFormat resolveSourceGraphFormat() {
     SerializationFormat fromPath = SerializationFormat.forExtension(extractExtension(model.getFilePath()));
@@ -567,11 +633,7 @@ public class CodeEditorController {
   }
 
   private List<SerializationFormat> getGraphExportFormats() {
-    List<SerializationFormat> formats = new ArrayList<>();
-    for (SerializationFormat format : SerializationFormat.rdfFormats()) {
-      formats.add(format);
-    }
-    return formats;
+    return new ArrayList<>(List.of(SerializationFormat.rdfFormats()));
   }
 
   private void addOpenFilters(FileChooser chooser) {
@@ -661,10 +723,8 @@ public class CodeEditorController {
     }
 
     List<String> allowed = getNormalizedAllowedExtensions();
-    if (!allowed.isEmpty()) {
-      if (fromPath == null || !allowed.contains(fromPath)) {
-        return allowed.get(0);
-      }
+    if (!allowed.isEmpty() && (fromPath == null || !allowed.contains(fromPath))) {
+      return allowed.get(0);
     }
 
     return fromPath != null ? fromPath : ".txt";

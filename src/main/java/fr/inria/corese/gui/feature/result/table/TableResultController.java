@@ -16,6 +16,7 @@ import java.util.TreeSet;
 import java.util.function.Function;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -90,8 +91,8 @@ public class TableResultController {
 			}
 		});
 
-		tableView.getSelectionModel().getSelectedCells()
-				.addListener((ListChangeListener<TablePosition>) change -> updateCopySelectionState());
+		ListChangeListener<TablePosition<String[], ?>> selectionListener = change -> updateCopySelectionState();
+		getSelectedCells(tableView).addListener(selectionListener);
 
 		tableView.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> handleMousePressed(event, tableView));
 		tableView.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> handleMouseDragged(event, tableView));
@@ -142,7 +143,6 @@ public class TableResultController {
 
 		// First line is headers
 		headers = lines[0].split(",", -1);
-		this.headers = headers;
 		view.setColumns(headers);
 
 		// Subsequent lines are data
@@ -266,7 +266,7 @@ public class TableResultController {
 
 	private String buildTsvFromSelection() {
 		TableView<String[]> tableView = view.getTableView();
-		List<TablePosition> positions = tableView.getSelectionModel().getSelectedCells();
+		List<TablePosition<String[], ?>> positions = getSelectedCells(tableView);
 		if (positions == null || positions.isEmpty()) {
 			return null;
 		}
@@ -276,7 +276,7 @@ public class TableResultController {
 		Set<Integer> cols = new TreeSet<>();
 		Map<Integer, Map<Integer, String>> values = new HashMap<>();
 
-		for (TablePosition position : positions) {
+		for (TablePosition<String[], ?> position : positions) {
 			int colIndex = position.getColumn();
 			if (colIndex == 0) {
 				continue;
@@ -315,7 +315,19 @@ public class TableResultController {
 		}
 
 		TableView<String[]> tableView = view.getTableView();
-		List<TableColumn<String[], ?>> columns = tableView.getVisibleLeafColumns();
+		ColumnSelection selection = resolveColumnSelection(tableView.getVisibleLeafColumns());
+		if (selection == null) {
+			return null;
+		}
+
+		StringBuilder sb = new StringBuilder();
+		appendTsvHeaders(sb, selection);
+		appendTsvRows(sb, selection);
+
+		return sb.toString();
+	}
+
+	private ColumnSelection resolveColumnSelection(List<TableColumn<String[], ?>> columns) {
 		List<Integer> columnIndices = new ArrayList<>();
 		List<String> columnLabels = new ArrayList<>();
 
@@ -330,17 +342,22 @@ public class TableResultController {
 		}
 
 		if (columnIndices.isEmpty()) {
-			for (int colIndex = 0; colIndex < headers.length; colIndex++) {
-				columnIndices.add(colIndex);
-				columnLabels.add(headers[colIndex]);
-			}
+			appendAllHeaders(columnIndices, columnLabels);
 		}
 
-		if (columnIndices.isEmpty()) {
-			return null;
-		}
+		return columnIndices.isEmpty() ? null : new ColumnSelection(columnIndices, columnLabels);
+	}
 
-		StringBuilder sb = new StringBuilder();
+	private void appendAllHeaders(List<Integer> columnIndices, List<String> columnLabels) {
+		for (int colIndex = 0; colIndex < headers.length; colIndex++) {
+			columnIndices.add(colIndex);
+			columnLabels.add(headers[colIndex]);
+		}
+	}
+
+	private void appendTsvHeaders(StringBuilder sb, ColumnSelection selection) {
+		List<Integer> columnIndices = selection.indices();
+		List<String> columnLabels = selection.labels();
 		for (int colIndex = 0; colIndex < columnIndices.size(); colIndex++) {
 			if (colIndex > 0) {
 				sb.append('\t');
@@ -349,7 +366,10 @@ public class TableResultController {
 			sb.append(escapeTsv(header));
 		}
 		sb.append('\n');
+	}
 
+	private void appendTsvRows(StringBuilder sb, ColumnSelection selection) {
+		List<Integer> columnIndices = selection.indices();
 		for (String[] row : allRows) {
 			for (int colIndex = 0; colIndex < columnIndices.size(); colIndex++) {
 				if (colIndex > 0) {
@@ -361,8 +381,6 @@ public class TableResultController {
 			}
 			sb.append('\n');
 		}
-
-		return sb.toString();
 	}
 
 	private Integer extractDataIndex(TableColumn<String[], ?> column) {
@@ -407,7 +425,7 @@ public class TableResultController {
 
 	private boolean hasSelection() {
 		TableView<String[]> tableView = view.getTableView();
-		List<TablePosition> positions = tableView.getSelectionModel().getSelectedCells();
+		List<TablePosition<String[], ?>> positions = getSelectedCells(tableView);
 		return positions != null && !positions.isEmpty();
 	}
 
@@ -471,12 +489,19 @@ public class TableResultController {
 		while (node != null && !(node instanceof TableCell)) {
 			node = node.getParent();
 		}
-		if (node instanceof TableCell<?, ?> cell) {
-			if (cell.getTableView() == view.getTableView()) {
-				return (TableCell<String[], ?>) cell;
-			}
+		if (node instanceof TableCell<?, ?> cell && cell.getTableView() == view.getTableView()) {
+			return (TableCell<String[], ?>) cell;
 		}
 		return null;
+	}
+
+	private record ColumnSelection(List<Integer> indices, List<String> labels) {
+	}
+
+	@SuppressWarnings({"unchecked", "java:S3740"})
+	private static ObservableList<TablePosition<String[], ?>> getSelectedCells(TableView<String[]> tableView) {
+		return (ObservableList<TablePosition<String[], ?>>) (ObservableList<?>) tableView.getSelectionModel()
+				.getSelectedCells();
 	}
 
 	// ==============================================================================================

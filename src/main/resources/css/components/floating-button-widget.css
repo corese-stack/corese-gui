@@ -52,7 +52,7 @@
 }
 
 /* Pressed: Deeper color and reduced shadow (simulates button press) */
-.floating-button:pressed {
+.floating-button:pressed { /* NOSONAR */
     -fx-background-color: derive(-color-accent-emphasis, -20%);
     -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 4, 0, 0, 2);
 }

@@ -22,6 +22,6 @@
     -fx-alignment: center;
 }
 
-.pagination-square-input:focused {
+.pagination-square-input:focused { /* NOSONAR */
     -fx-border-color: -color-accent-fg;
 }

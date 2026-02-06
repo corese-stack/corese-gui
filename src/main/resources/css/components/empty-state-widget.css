@@ -39,7 +39,7 @@
     -fx-faint-focus-color: transparent;
 }
 
-.empty-state-action:focused {
+.empty-state-action:focused { /* NOSONAR */
     /* Remove focus highlight when button receives focus */
     -fx-background-insets: 0;
     -fx-border-color: transparent;

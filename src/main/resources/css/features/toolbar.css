@@ -65,28 +65,28 @@
     -fx-text-fill: -color-fg-default;
 }
 
-.app-toolbar .button:pressed {
+.app-toolbar .button:pressed { /* NOSONAR */
     -fx-background-color: -color-bg-subtle, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18);
     -fx-background-insets: 0, 0, 0;
     -fx-background-radius: 8px, 8px, 8px;
     -fx-text-fill: -color-fg-default;
 }
 
-.app-toolbar .button:focused {
+.app-toolbar .button:focused { /* NOSONAR */
     -fx-background-color: transparent;
     -fx-background-insets: 0;
     -fx-background-radius: 8px;
     -fx-text-fill: -color-fg-default;
 }
 
-.app-toolbar .button:focused:hover {
+.app-toolbar .button:focused:hover { /* NOSONAR */
     -fx-background-color: -color-bg-subtle, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.08);
     -fx-background-insets: 0, 0, 0;
     -fx-background-radius: 8px, 8px, 8px;
     -fx-text-fill: -color-fg-default;
 }
 
-.app-toolbar .button:focused:pressed {
+.app-toolbar .button:focused:pressed { /* NOSONAR */
     -fx-background-color: -color-bg-subtle, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18);
     -fx-background-insets: 0, 0, 0;
     -fx-background-radius: 8px, 8px, 8px;

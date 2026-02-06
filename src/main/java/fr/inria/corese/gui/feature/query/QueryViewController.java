@@ -203,12 +203,10 @@ public class QueryViewController {
 		SerializationFormat preferredFormat = controller
 				.getPreferredTextFormat(SerializationFormat.sparqlResultFormats(), SerializationFormat.XML);
 
-		controller.setOnFormatChanged(format -> {
-			AppExecutors.execute(() -> {
-				String formattedResult = queryService.formatResult(resultId, format);
-				Platform.runLater(() -> controller.updateText(formattedResult));
-			});
-		});
+		controller.setOnFormatChanged(format -> AppExecutors.execute(() -> {
+			String formattedResult = queryService.formatResult(resultId, format);
+			Platform.runLater(() -> controller.updateText(formattedResult));
+		}));
 
 		// Provide formatting capability to the table controller (for Export/Copy)
 		controller.setFormatProvider(format -> queryService.formatResult(resultId, format));
@@ -230,12 +228,10 @@ public class QueryViewController {
 		SerializationFormat preferredFormat = controller.getPreferredTextFormat(SerializationFormat.rdfFormats(),
 				SerializationFormat.TURTLE);
 
-		controller.setOnFormatChanged(format -> {
-			AppExecutors.execute(() -> {
-				String formattedResult = queryService.formatResult(resultId, format);
-				Platform.runLater(() -> controller.updateText(formattedResult));
-			});
-		});
+		controller.setOnFormatChanged(format -> AppExecutors.execute(() -> {
+			String formattedResult = queryService.formatResult(resultId, format);
+			Platform.runLater(() -> controller.updateText(formattedResult));
+		}));
 
 		AppExecutors.execute(() -> {
 			String jsonLdResult = queryService.formatResult(resultId, SerializationFormat.JSON_LD);
@@ -309,7 +305,7 @@ public class QueryViewController {
 		}
 		try {
 			return ResultViewConfig.TabType.valueOf(value);
-		} catch (IllegalArgumentException ex) {
+		} catch (IllegalArgumentException _) {
 			return null;
 		}
 	}

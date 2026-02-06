@@ -219,14 +219,12 @@ public class ValidationController {
 			});
 
 			// Configure callback for format changes
-			resultController.setOnFormatChanged(format -> {
-				AppExecutors.execute(() -> {
-					String formattedReport = model.formatLastReport(format.getLabel());
-					if (formattedReport != null) {
-						Platform.runLater(() -> resultController.updateText(formattedReport));
-					}
-				});
-			});
+			resultController.setOnFormatChanged(format -> AppExecutors.execute(() -> {
+				String formattedReport = model.formatLastReport(format.getLabel());
+				if (formattedReport != null) {
+					Platform.runLater(() -> resultController.updateText(formattedReport));
+				}
+			}));
 		}
 	}
 

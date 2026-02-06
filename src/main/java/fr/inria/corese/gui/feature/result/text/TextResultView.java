@@ -42,7 +42,9 @@ public class TextResultView extends AbstractView {
 	// Constants
 	// ==============================================================================================
 
+	@SuppressWarnings("java:S1075")
 	private static final String STYLESHEET_PATH = "/css/features/text-result.css";
+	@SuppressWarnings("java:S1075")
 	private static final String COMMON_STYLESHEET_PATH = "/css/common/common.css";
 
 	private static final String STYLE_CLASS_FLOATING_PANEL = "floating-panel";

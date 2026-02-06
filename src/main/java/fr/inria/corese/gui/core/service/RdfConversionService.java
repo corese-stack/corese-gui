@@ -56,7 +56,7 @@ public final class RdfConversionService {
       loader.parse(new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8)), loadFormat);
       return graph;
     } catch (Exception e) {
-      throw new RuntimeException("Failed to parse RDF content: " + e.getMessage(), e);
+      throw new RdfConversionException("Failed to parse RDF content: " + e.getMessage(), e);
     }
   }
 
