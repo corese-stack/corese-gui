@@ -15,147 +15,147 @@ import javafx.scene.input.ClipboardContent;
 /**
  * Controller for the text-based result view.
  *
- * <p>This controller manages:
+ * <p>
+ * This controller manages:
  * <ul>
- *   <li>The data flow of text results to the view.
- *   <li>Format selection and corresponding syntax highlighting updates.
- *   <li>User actions: Copy to Clipboard, Export to File, Zoom.
+ * <li>The data flow of text results to the view.
+ * <li>Format selection and corresponding syntax highlighting updates.
+ * <li>User actions: Copy to Clipboard, Export to File, Zoom.
  * </ul>
  */
 public class TextResultController {
 
-    private final TextResultView view;
-    private Consumer<SerializationFormat> onFormatChanged;
+	private final TextResultView view;
+	private Consumer<SerializationFormat> onFormatChanged;
 
-    /**
-     * Creates a new TextResultController.
-     */
-    public TextResultController() {
-        this.view = new TextResultView();
-        initialize();
-    }
+	/**
+	 * Creates a new TextResultController.
+	 */
+	public TextResultController() {
+		this.view = new TextResultView();
+		initialize();
+	}
 
-    private void initialize() {
-        // 1. Setup Toolbar Actions
-        view.setToolbarActions(List.of(
-            ButtonFactory.copy(this::copyContent),
-            ButtonFactory.export(this::exportContent),
-            ButtonFactory.zoomIn(view::zoomIn),
-            ButtonFactory.zoomOut(view::zoomOut)
-        ));
+	private void initialize() {
+		// 1. Setup Toolbar Actions
+		view.setToolbarActions(List.of(ButtonFactory.copy(this::copyContent), ButtonFactory.export(this::exportContent),
+				ButtonFactory.zoomIn(view::zoomIn), ButtonFactory.zoomOut(view::zoomOut)));
 
-        // 2. Configure Format Selector (Default to Turtle)
-        view.configureFormatSelector(SerializationFormat.rdfFormats(), SerializationFormat.TURTLE);
+		// 2. Configure Format Selector (Default to Turtle)
+		view.configureFormatSelector(SerializationFormat.rdfFormats(), SerializationFormat.TURTLE);
 
-        // 3. Setup Listeners
-        // When the user (or code) changes the format in the view, we update highlighting and notify listeners.
-        view.setOnFormatChanged((obs, oldVal, newVal) -> {
-            if (newVal != null) {
-                handleFormatChange(newVal);
-            }
-        });
+		// 3. Setup Listeners
+		// When the user (or code) changes the format in the view, we update
+		// highlighting and notify listeners.
+		view.setOnFormatChanged((obs, oldVal, newVal) -> {
+			if (newVal != null) {
+				handleFormatChange(newVal);
+			}
+		});
 
-        // 4. Initial State
-        updateSyntaxHighlighting(view.getFormat());
-    }
+		// 4. Initial State
+		updateSyntaxHighlighting(view.getFormat());
+	}
 
-    // ==============================================================================================
-    // Logic - Events & Updates
-    // ==============================================================================================
+	// ==============================================================================================
+	// Logic - Events & Updates
+	// ==============================================================================================
 
-    private void handleFormatChange(SerializationFormat newVal) {
-        updateSyntaxHighlighting(newVal);
-        if (onFormatChanged != null) {
-            onFormatChanged.accept(newVal);
-        }
-    }
+	private void handleFormatChange(SerializationFormat newVal) {
+		updateSyntaxHighlighting(newVal);
+		if (onFormatChanged != null) {
+			onFormatChanged.accept(newVal);
+		}
+	}
 
-    private void updateSyntaxHighlighting(SerializationFormat format) {
-        if (format == null) return;
-        view.setMode(format);
-    }
+	private void updateSyntaxHighlighting(SerializationFormat format) {
+		if (format == null)
+			return;
+		view.setMode(format);
+	}
 
-    // ==============================================================================================
-    // Actions
-    // ==============================================================================================
+	// ==============================================================================================
+	// Actions
+	// ==============================================================================================
 
-    private void copyContent() {
-        String text = view.getContent();
-        if (text == null || text.isEmpty()) return;
+	private void copyContent() {
+		String text = view.getContent();
+		if (text == null || text.isEmpty())
+			return;
 
-        ClipboardContent content = new ClipboardContent();
-        content.putString(text);
-        Clipboard.getSystemClipboard().setContent(content);
-        NotificationWidget.getInstance().showSuccess("Result copied to clipboard");
-    }
+		ClipboardContent content = new ClipboardContent();
+		content.putString(text);
+		Clipboard.getSystemClipboard().setContent(content);
+		NotificationWidget.getInstance().showSuccess("Result copied to clipboard");
+	}
 
-    private void exportContent() {
-        ExportHelper.exportText(
-            view.getRoot().getScene().getWindow(), 
-            view.getContent(), 
-            view.getFormat()
-        );
-    }
+	private void exportContent() {
+		ExportHelper.exportText(view.getRoot().getScene().getWindow(), view.getContent(), view.getFormat());
+	}
 
-    // ==============================================================================================
-    // Public API
-    // ==============================================================================================
+	// ==============================================================================================
+	// Public API
+	// ==============================================================================================
 
-    /**
-     * Sets the content of the text editor.
-     * Thread-safe: can be called from any thread.
-     *
-     * @param content The text content to display.
-     */
-    public void setContent(String content) {
-        Platform.runLater(() -> {
-            view.setContent(Objects.requireNonNullElse(content, ""));
-            // Re-apply highlighting for the current format to ensure the new content is styled
-            updateSyntaxHighlighting(view.getFormat());
-        });
-    }
+	/**
+	 * Sets the content of the text editor. Thread-safe: can be called from any
+	 * thread.
+	 *
+	 * @param content
+	 *            The text content to display.
+	 */
+	public void setContent(String content) {
+		Platform.runLater(() -> {
+			view.setContent(Objects.requireNonNullElse(content, ""));
+			// Re-apply highlighting for the current format to ensure the new content is
+			// styled
+			updateSyntaxHighlighting(view.getFormat());
+		});
+	}
 
-    /**
-     * Clears the editor content.
-     * Thread-safe.
-     */
-    public void clearContent() {
-        Platform.runLater(() -> view.setContent(""));
-    }
+	/**
+	 * Clears the editor content. Thread-safe.
+	 */
+	public void clearContent() {
+		Platform.runLater(() -> view.setContent(""));
+	}
 
-    /**
-     * Sets a listener to be notified when the serialization format changes.
-     *
-     * @param listener The listener consuming the new format.
-     */
-    public void setOnFormatChanged(Consumer<SerializationFormat> listener) {
-        this.onFormatChanged = listener;
-    }
+	/**
+	 * Sets a listener to be notified when the serialization format changes.
+	 *
+	 * @param listener
+	 *            The listener consuming the new format.
+	 */
+	public void setOnFormatChanged(Consumer<SerializationFormat> listener) {
+		this.onFormatChanged = listener;
+	}
 
-    /**
-     * Gets the root view node.
-     *
-     * @return The JavaFX node for this controller's view.
-     */
-    public Node getView() {
-        return view.getRoot();
-    }
+	/**
+	 * Gets the root view node.
+	 *
+	 * @return The JavaFX node for this controller's view.
+	 */
+	public Node getView() {
+		return view.getRoot();
+	}
 
-    /**
-     * Updates the list of available formats and sets the default selection.
-     * Thread-safe.
-     *
-     * @param formats       The available formats.
-     * @param defaultFormat The format to select.
-     */
-    public void setAvailableFormats(SerializationFormat[] formats, SerializationFormat defaultFormat) {
-        Platform.runLater(() -> {
-            view.configureFormatSelector(formats, defaultFormat);
-            // If the format didn't change (same as old value), the listener won't fire.
-            // We force an update to ensure consistency with the requested default.
-            if (view.getFormat() == defaultFormat) {
-                updateSyntaxHighlighting(defaultFormat);
-            }
-        });
-    }
+	/**
+	 * Updates the list of available formats and sets the default selection.
+	 * Thread-safe.
+	 *
+	 * @param formats
+	 *            The available formats.
+	 * @param defaultFormat
+	 *            The format to select.
+	 */
+	public void setAvailableFormats(SerializationFormat[] formats, SerializationFormat defaultFormat) {
+		Platform.runLater(() -> {
+			view.configureFormatSelector(formats, defaultFormat);
+			// If the format didn't change (same as old value), the listener won't fire.
+			// We force an update to ensure consistency with the requested default.
+			if (view.getFormat() == defaultFormat) {
+				updateSyntaxHighlighting(defaultFormat);
+			}
+		});
+	}
 }

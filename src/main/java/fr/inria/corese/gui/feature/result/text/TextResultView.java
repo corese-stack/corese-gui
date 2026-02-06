@@ -51,7 +51,7 @@ public class TextResultView extends AbstractView {
 
 	private static final double SELECTOR_TOP_MARGIN = 15.0;
 	private static final double SELECTOR_RIGHT_MARGIN = 20.0;
-	private static final double OPACITY_IDLE = 0.6;
+	private static final double OPACITY_IDLE = 0.7;
 	private static final double OPACITY_HOVER = 1.0;
 	private static final int FADE_DURATION_MS = 200;
 
