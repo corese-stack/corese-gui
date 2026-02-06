@@ -15,6 +15,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Window;
 import org.apache.batik.transcoder.TranscoderInput;
 import org.apache.batik.transcoder.TranscoderOutput;
+import org.apache.batik.transcoder.SVGAbstractTranscoder;
 import org.apache.batik.transcoder.image.PNGTranscoder;
 import org.apache.fop.svg.PDFTranscoder;
 
@@ -281,8 +282,8 @@ public final class ExportHelper {
 					PNGTranscoder transcoder = new PNGTranscoder();
 					SvgDimensions dims = parseSvgDimensions(svgContent);
 					if (dims != null) {
-						transcoder.addTranscodingHint(PNGTranscoder.KEY_WIDTH, dims.width * 2f);
-						transcoder.addTranscodingHint(PNGTranscoder.KEY_HEIGHT, dims.height * 2f);
+						transcoder.addTranscodingHint(SVGAbstractTranscoder.KEY_WIDTH, dims.width * 2f);
+						transcoder.addTranscodingHint(SVGAbstractTranscoder.KEY_HEIGHT, dims.height * 2f);
 					}
 					transcoder.transcode(input, output);
 				}
