@@ -1,8 +1,21 @@
 package fr.inria.corese.gui.component.tabstrip;
 
 import fr.inria.corese.gui.core.theme.CssUtils;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
+import javafx.animation.FadeTransition;
+import javafx.animation.Interpolator;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.ParallelTransition;
+import javafx.animation.PauseTransition;
+import javafx.animation.SequentialTransition;
+import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -16,6 +29,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 /** View for a reusable custom tab strip. */
@@ -28,12 +42,14 @@ public class TabStripView extends HBox {
   private static final String STYLE_CLASS_OVERFLOW_SHADOW_RIGHT = "right";
   private static final String STYLE_CLASS_TAB_SCROLL = "editor-tab-scroll";
   private static final String STYLE_CLASS_TAB_TRACK = "editor-tab-track";
+  private static final String STYLE_CLASS_TAB_BASELINE = "editor-tab-baseline";
   private static final String STYLE_CLASS_TAB_ITEM = "editor-tab-item";
   private static final String STYLE_CLASS_TAB_ITEM_SELECTED = "selected";
   private static final String STYLE_CLASS_TAB_TITLE = "editor-tab-title";
   private static final String STYLE_CLASS_TAB_CLOSE = "editor-tab-close";
   private static final String STYLE_CLASS_TAB_DIRTY = "editor-tab-dirty";
   private static final String STYLE_CLASS_TAB_ICON = "editor-tab-icon";
+
   private static final double HEADER_HEIGHT = 44.0;
   private static final double LEADING_SLOT_WIDTH = 14.0;
   private static final double MODIFIED_CIRCLE_RADIUS = 4.0;
@@ -43,21 +59,50 @@ public class TabStripView extends HBox {
   private static final double MIN_TAB_WIDTH = 180.0;
   private static final double SHADOW_WIDTH = 16.0;
   private static final double SCROLL_EPSILON = 0.001;
+  private static final double WIDTH_EPSILON = 0.5;
+  private static final double REVEAL_RIGHT_BIAS = 1.0;
 
+  private static final Duration WIDTH_ANIMATION_DURATION = Duration.millis(180);
+  private static final Duration CLOSE_TAB_DURATION = Duration.millis(130);
+  private static final Duration CLOSE_AFTER_PAUSE = Duration.millis(120);
+  private static final Duration OVERFLOW_SHADOW_SHOW_DELAY = Duration.millis(90);
+
+  private final boolean animationsEnabled;
   private final ScrollPane scrollPane;
   private final HBox tabTrack;
+  private final Region baseline;
   private final Region leftOverflowShadow;
   private final Region rightOverflowShadow;
+  private final PauseTransition leftOverflowShadowShowDelay;
+  private final PauseTransition rightOverflowShadowShowDelay;
+
+  private final Map<Tab, TabNode> tabNodes = new LinkedHashMap<>();
+  private final Map<HBox, Timeline> widthAnimations = new HashMap<>();
+
+  private boolean selectedTabEnsureScheduled = false;
+  private boolean forceRightRevealPending = false;
+  private boolean forceRightRevealScheduled = false;
   private int fullWildBaseWidth = 0;
   private int fullWildRemainder = 0;
+  private int lastRenderedTabCount = 0;
+  private boolean firstRenderDone = false;
+  private boolean deferredRenderScheduled = false;
+  private boolean closeAnimationInProgress = false;
+
   private List<Tab> currentTabs = List.of();
   private Tab currentSelectedTab;
   private Color currentAccentColor = Color.TRANSPARENT;
   private boolean currentShowCloseButton = true;
+  private boolean currentAnimateWidthChanges = true;
   private Consumer<Tab> currentOnSelect = tab -> {};
   private Consumer<Tab> currentOnCloseRequest = tab -> {};
 
   public TabStripView() {
+    this(true);
+  }
+
+  public TabStripView(boolean animationsEnabled) {
+    this.animationsEnabled = animationsEnabled;
     CssUtils.applyViewStyles(this, STYLESHEET);
     getStyleClass().add(STYLE_CLASS_TAB_STRIP);
     setMinWidth(0);
@@ -77,15 +122,28 @@ public class TabStripView extends HBox {
     scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
     scrollPane.setPannable(true);
     scrollPane.addEventFilter(ScrollEvent.SCROLL, this::handleHorizontalScroll);
+    scrollPane.hvalueProperty().addListener((obs, oldValue, newValue) -> updateOverflowState());
+    tabTrack.layoutBoundsProperty().addListener((obs, oldBounds, newBounds) -> updateOverflowState());
     scrollPane
         .viewportBoundsProperty()
         .addListener(
             (obs, oldBounds, newBounds) -> {
-              renderInternal();
               updateOverflowState();
+              if (newBounds == null || currentTabs.isEmpty() || closeAnimationInProgress) {
+                return;
+              }
+              double oldWidth = oldBounds == null ? -1.0 : oldBounds.getWidth();
+              if (Math.abs(newBounds.getWidth() - oldWidth) > WIDTH_EPSILON && !deferredRenderScheduled) {
+                scheduleDeferredRender();
+              }
             });
-    scrollPane.hvalueProperty().addListener((obs, oldValue, newValue) -> updateOverflowState());
-    tabTrack.layoutBoundsProperty().addListener((obs, oldBounds, newBounds) -> updateOverflowState());
+
+    baseline = new Region();
+    baseline.getStyleClass().add(STYLE_CLASS_TAB_BASELINE);
+    baseline.setMouseTransparent(true);
+    baseline.setMinHeight(1);
+    baseline.setPrefHeight(1);
+    baseline.setMaxHeight(1);
 
     leftOverflowShadow = new Region();
     leftOverflowShadow.getStyleClass().addAll(STYLE_CLASS_OVERFLOW_SHADOW, STYLE_CLASS_OVERFLOW_SHADOW_LEFT);
@@ -95,6 +153,8 @@ public class TabStripView extends HBox {
     leftOverflowShadow.setPrefWidth(SHADOW_WIDTH);
     leftOverflowShadow.setMaxWidth(SHADOW_WIDTH);
     leftOverflowShadow.setVisible(false);
+    leftOverflowShadowShowDelay = new PauseTransition(OVERFLOW_SHADOW_SHOW_DELAY);
+    leftOverflowShadowShowDelay.setOnFinished(e -> leftOverflowShadow.setVisible(true));
 
     rightOverflowShadow = new Region();
     rightOverflowShadow.getStyleClass().addAll(STYLE_CLASS_OVERFLOW_SHADOW, STYLE_CLASS_OVERFLOW_SHADOW_RIGHT);
@@ -104,8 +164,11 @@ public class TabStripView extends HBox {
     rightOverflowShadow.setPrefWidth(SHADOW_WIDTH);
     rightOverflowShadow.setMaxWidth(SHADOW_WIDTH);
     rightOverflowShadow.setVisible(false);
+    rightOverflowShadowShowDelay = new PauseTransition(OVERFLOW_SHADOW_SHOW_DELAY);
+    rightOverflowShadowShowDelay.setOnFinished(e -> rightOverflowShadow.setVisible(true));
 
-    StackPane scrollContainer = new StackPane(scrollPane, leftOverflowShadow, rightOverflowShadow);
+    StackPane scrollContainer = new StackPane(scrollPane, baseline, leftOverflowShadow, rightOverflowShadow);
+    StackPane.setAlignment(baseline, Pos.BOTTOM_CENTER);
     StackPane.setAlignment(leftOverflowShadow, Pos.CENTER_LEFT);
     StackPane.setAlignment(rightOverflowShadow, Pos.CENTER_RIGHT);
     getChildren().add(scrollContainer);
@@ -117,58 +180,285 @@ public class TabStripView extends HBox {
       Tab selectedTab,
       Color accentColor,
       boolean showCloseButton,
+      boolean animateWidthChanges,
       Consumer<Tab> onSelect,
       Consumer<Tab> onCloseRequest) {
     currentTabs = tabs;
     currentSelectedTab = selectedTab;
     currentAccentColor = accentColor;
     currentShowCloseButton = showCloseButton;
+    currentAnimateWidthChanges = animateWidthChanges;
     currentOnSelect = onSelect;
     currentOnCloseRequest = onCloseRequest;
     renderInternal();
   }
 
   private void renderInternal() {
-    tabTrack.getChildren().clear();
+    if (closeAnimationInProgress) {
+      return;
+    }
+    boolean tabCountIncreased = currentTabs.size() > lastRenderedTabCount;
+    if (tabCountIncreased) {
+      forceRightRevealPending = true;
+    }
+
     double tabWidth = computeTabWidth(currentTabs.size());
     boolean fullWild = !Double.isNaN(tabWidth);
-    if (fullWild) {
-      scrollPane.setHvalue(0);
+
+    if (!fullWild && !deferredRenderScheduled && !currentTabs.isEmpty()) {
+      double viewportWidth = resolveViewportWidth();
+      boolean firstTabShouldBeFullWild =
+          currentTabs.size() == 1 && viewportWidth > (MIN_TAB_WIDTH + WIDTH_EPSILON);
+      if (viewportWidth <= 0 || firstTabShouldBeFullWild) {
+        // At startup, viewport metrics can arrive late. Keep retrying until the first tab can
+        // expand to full width, without relying on a fixed retry budget.
+        scheduleDeferredRender();
+      }
     }
 
+    if (!fullWild
+        && currentTabs.size() == 1
+        && resolveViewportWidth() > (MIN_TAB_WIDTH + WIDTH_EPSILON)
+        && !deferredRenderScheduled) {
+      scheduleDeferredRender();
+    }
+
+    List<Tab> staleTabs = collectStaleTabs();
+    if (!staleTabs.isEmpty()) {
+      startCloseAnimation(staleTabs);
+      return;
+    }
+
+    double previousHValue = scrollPane.getHvalue();
+    List<javafx.scene.Node> orderedChildren = new ArrayList<>();
     for (int i = 0; i < currentTabs.size(); i++) {
       Tab tab = currentTabs.get(i);
-      HBox tabNode =
-          createTabNode(
-              tab,
-              tab == currentSelectedTab,
-              currentAccentColor,
-              currentShowCloseButton,
-              currentOnSelect,
-              currentOnCloseRequest);
-      double effectiveWidth = tabWidth;
-      if (fullWild) {
-        effectiveWidth = fullWildBaseWidth + (i < fullWildRemainder ? 1.0 : 0.0);
+      TabNode tabNode = tabNodes.computeIfAbsent(tab, this::createTabNode);
+      boolean isNew = tabNode.item.getParent() == null;
+      updateTabNode(tabNode, tab, tab == currentSelectedTab, currentAccentColor, currentShowCloseButton);
+
+      double targetWidth = fullWild ? fullWildBaseWidth + (i < fullWildRemainder ? 1.0 : 0.0) : MIN_TAB_WIDTH;
+      animateTabWidth(
+          tabNode.item,
+          targetWidth,
+          isNew,
+          currentAnimateWidthChanges);
+      orderedChildren.add(tabNode.item);
+    }
+
+    boolean trackChildrenReplaced = replaceTrackChildrenIfNeeded(orderedChildren);
+    if (fullWild) {
+      selectedTabEnsureScheduled = false;
+      forceRightRevealPending = false;
+      setScrollHValue(0.0);
+    } else {
+      if (trackChildrenReplaced) {
+        maybeRestoreScrollFromHValue(previousHValue);
+        Platform.runLater(() -> maybeRestoreScrollFromHValue(previousHValue));
       }
-      applyTabSizing(tabNode, effectiveWidth, fullWild);
-      tabTrack.getChildren().add(tabNode);
+      if (forceRightRevealPending) {
+        if (widthAnimations.isEmpty()) {
+          scheduleForceRightReveal();
+        }
+      } else {
+        scheduleEnsureSelectedTabVisible();
+        if (!widthAnimations.isEmpty()) {
+          Platform.runLater(this::scheduleEnsureSelectedTabVisible);
+        }
+      }
     }
     updateOverflowState();
+    lastRenderedTabCount = currentTabs.size();
+    firstRenderDone = true;
   }
 
-  private HBox createTabNode(
-      Tab tab,
-      boolean selected,
-      Color accentColor,
-      boolean showCloseButton,
-      Consumer<Tab> onSelect,
-      Consumer<Tab> onCloseRequest) {
+  private void ensureSelectedTabVisible() {
+    if (currentSelectedTab == null) {
+      return;
+    }
+    TabNode selectedNode = tabNodes.get(currentSelectedTab);
+    if (selectedNode == null || selectedNode.item.getParent() == null) {
+      return;
+    }
+
+    double scrollableWidth = getScrollableWidth();
+    if (scrollableWidth <= 0.5) {
+      forceRightRevealPending = false;
+      return;
+    }
+
+    if (forceRightRevealPending && isSelectedTabLast()) {
+      setScrollHValue(1.0);
+      forceRightRevealPending = false;
+      return;
+    }
+
+    double viewportWidth = scrollPane.getViewportBounds().getWidth();
+    if (viewportWidth <= 0) {
+      return;
+    }
+
+    double currentLeft = scrollPane.getHvalue() * scrollableWidth;
+    double effectiveLeft = currentLeft;
+    double effectiveRight = currentLeft + viewportWidth;
+    double selectedLeft = selectedNode.item.getBoundsInParent().getMinX();
+    double selectedRight = selectedNode.item.getBoundsInParent().getMaxX();
+
+    double targetLeft = currentLeft;
+    if (selectedLeft < effectiveLeft) {
+      targetLeft = selectedLeft;
+    } else if (selectedRight > effectiveRight) {
+      targetLeft = selectedRight - viewportWidth + REVEAL_RIGHT_BIAS;
+    } else {
+      return;
+    }
+
+    double clampedLeft = clamp(targetLeft, 0.0, scrollableWidth);
+    setScrollHValue(clampedLeft / scrollableWidth);
+  }
+
+  private void scheduleEnsureSelectedTabVisible() {
+    if (selectedTabEnsureScheduled) {
+      return;
+    }
+    selectedTabEnsureScheduled = true;
+    Platform.runLater(
+        () -> {
+          selectedTabEnsureScheduled = false;
+          ensureSelectedTabVisible();
+        });
+  }
+
+  private void setScrollHValue(double targetHValue) {
+    double clamped = clamp(targetHValue, 0.0, 1.0);
+    if (!firstRenderDone) {
+      scrollPane.setHvalue(clamped);
+      return;
+    }
+    if (Math.abs(scrollPane.getHvalue() - clamped) <= SCROLL_EPSILON) {
+      return;
+    }
+    scrollPane.setHvalue(clamped);
+  }
+
+  private boolean replaceTrackChildrenIfNeeded(List<javafx.scene.Node> orderedChildren) {
+    javafx.collections.ObservableList<javafx.scene.Node> currentChildren = tabTrack.getChildren();
+    if (currentChildren.size() == orderedChildren.size()) {
+      boolean identicalOrder = true;
+      for (int i = 0; i < orderedChildren.size(); i++) {
+        if (currentChildren.get(i) != orderedChildren.get(i)) {
+          identicalOrder = false;
+          break;
+        }
+      }
+      if (identicalOrder) {
+        return false;
+      }
+    }
+    currentChildren.setAll(orderedChildren);
+    return true;
+  }
+
+  private void maybeRestoreScrollFromHValue(double hValue) {
+    if (hValue <= SCROLL_EPSILON || scrollPane.getHvalue() > SCROLL_EPSILON) {
+      return;
+    }
+    scrollPane.setHvalue(clamp(hValue, 0.0, 1.0));
+  }
+
+  private List<Tab> collectStaleTabs() {
+    List<Tab> stale = new ArrayList<>();
+    for (Tab tab : tabNodes.keySet()) {
+      if (!currentTabs.contains(tab)) {
+        stale.add(tab);
+      }
+    }
+    return stale;
+  }
+
+  private void startCloseAnimation(List<Tab> staleTabs) {
+    if (!animationsEnabled || !firstRenderDone || tabTrack.getChildren().isEmpty()) {
+      removeTabsImmediately(staleTabs);
+      renderInternal();
+      return;
+    }
+
+    closeAnimationInProgress = true;
+    ParallelTransition parallelClose = new ParallelTransition();
+
+    for (Tab tab : staleTabs) {
+      TabNode node = tabNodes.get(tab);
+      if (node == null) {
+        continue;
+      }
+
+      Timeline existing = widthAnimations.remove(node.item);
+      if (existing != null) {
+        existing.stop();
+      }
+
+      node.item.setMouseTransparent(true);
+      double fromWidth = getCurrentNodeWidth(node.item);
+      Timeline collapse =
+          new Timeline(
+              new KeyFrame(
+                  CLOSE_TAB_DURATION,
+                  new KeyValue(node.item.minWidthProperty(), 0.0, Interpolator.EASE_BOTH),
+                  new KeyValue(node.item.prefWidthProperty(), 0.0, Interpolator.EASE_BOTH),
+                  new KeyValue(node.item.maxWidthProperty(), 0.0, Interpolator.EASE_BOTH)));
+      if (fromWidth <= WIDTH_EPSILON) {
+        setTabWidth(node.item, 0.0);
+      } else {
+        setTabWidth(node.item, fromWidth);
+      }
+
+      FadeTransition fade = new FadeTransition(CLOSE_TAB_DURATION, node.item);
+      fade.setToValue(0.0);
+
+      ParallelTransition perTab = new ParallelTransition(collapse, fade);
+      parallelClose.getChildren().add(perTab);
+    }
+
+    SequentialTransition sequence = new SequentialTransition(parallelClose, new PauseTransition(CLOSE_AFTER_PAUSE));
+    sequence.setOnFinished(
+        e -> {
+          removeTabsImmediately(staleTabs);
+          closeAnimationInProgress = false;
+          renderInternal();
+        });
+    sequence.play();
+  }
+
+  private double getCurrentNodeWidth(HBox node) {
+    double width = node.getPrefWidth();
+    if (width > 0) {
+      return width;
+    }
+    width = node.getWidth();
+    if (width > 0) {
+      return width;
+    }
+    width = node.getLayoutBounds().getWidth();
+    return Math.max(width, 0.0);
+  }
+
+  private void removeTabsImmediately(List<Tab> tabs) {
+    for (Tab tab : tabs) {
+      TabNode node = tabNodes.remove(tab);
+      if (node == null) {
+        continue;
+      }
+      Timeline timeline = widthAnimations.remove(node.item);
+      if (timeline != null) {
+        timeline.stop();
+      }
+      tabTrack.getChildren().remove(node.item);
+    }
+  }
+
+  private TabNode createTabNode(Tab tab) {
     HBox item = new HBox();
     item.getStyleClass().add(STYLE_CLASS_TAB_ITEM);
-    if (selected) {
-      item.getStyleClass().add(STYLE_CLASS_TAB_ITEM_SELECTED);
-    }
-    item.setDisable(tab.isDisable());
     item.setAlignment(Pos.CENTER);
     item.setMaxWidth(Region.USE_COMPUTED_SIZE);
 
@@ -176,83 +466,191 @@ public class TabStripView extends HBox {
     title.textProperty().bind(tab.textProperty());
     title.getStyleClass().add(STYLE_CLASS_TAB_TITLE);
 
-    HBox titleWithGraphic = new HBox(6);
-    titleWithGraphic.setAlignment(Pos.CENTER);
-    Circle dirtyMarker = createDirtyMarker(tab, accentColor);
-    FontIcon icon = createTabIcon(tab);
     StackPane leadingSlot = new StackPane();
     leadingSlot.setMinWidth(LEADING_SLOT_WIDTH);
     leadingSlot.setPrefWidth(LEADING_SLOT_WIDTH);
     leadingSlot.setMaxWidth(LEADING_SLOT_WIDTH);
-    if (dirtyMarker != null) {
-      leadingSlot.getChildren().add(dirtyMarker);
-    } else if (icon != null) {
-      leadingSlot.getChildren().add(icon);
-    }
-    titleWithGraphic.getChildren().add(leadingSlot);
-    titleWithGraphic.getChildren().add(title);
+
+    HBox titleWithGraphic = new HBox(6, leadingSlot, title);
+    titleWithGraphic.setAlignment(Pos.CENTER);
 
     StackPane centerLayer = new StackPane(titleWithGraphic);
     centerLayer.setMinWidth(0);
     HBox.setHgrow(centerLayer, Priority.ALWAYS);
 
     HBox rightControls = new HBox(6);
-    if (showCloseButton) {
-      Button close = new Button("×");
-      close.getStyleClass().add(STYLE_CLASS_TAB_CLOSE);
-      close.setDisable(tab.isDisable());
-      close.setOnAction(
-          e -> {
-            e.consume();
-            onCloseRequest.accept(tab);
-          });
-      rightControls.getChildren().add(close);
-    }
     rightControls.setAlignment(Pos.CENTER_RIGHT);
-    double sideAreaWidth = showCloseButton ? CLOSE_AREA_WIDTH : NO_ACTIONS_AREA_WIDTH;
-    rightControls.setMinWidth(sideAreaWidth);
-    rightControls.setPrefWidth(sideAreaWidth);
-
-    Region leftPad = new Region();
-    leftPad.setMinWidth(sideAreaWidth);
-    leftPad.setPrefWidth(sideAreaWidth);
 
     StackPane controlsLayer = new StackPane(rightControls);
-    controlsLayer.setMinWidth(sideAreaWidth);
-    controlsLayer.setPrefWidth(sideAreaWidth);
 
-    item.setOnMouseClicked(
+    Region leftPad = new Region();
+
+    item.getChildren().addAll(leftPad, centerLayer, controlsLayer);
+    return new TabNode(item, leadingSlot, rightControls, controlsLayer, leftPad);
+  }
+
+  private void updateTabNode(
+      TabNode tabNode, Tab tab, boolean selected, Color accentColor, boolean showCloseButton) {
+    if (selected) {
+      if (!tabNode.item.getStyleClass().contains(STYLE_CLASS_TAB_ITEM_SELECTED)) {
+        tabNode.item.getStyleClass().add(STYLE_CLASS_TAB_ITEM_SELECTED);
+      }
+    } else {
+      tabNode.item.getStyleClass().remove(STYLE_CLASS_TAB_ITEM_SELECTED);
+    }
+
+    tabNode.item.setDisable(tab.isDisable());
+    tabNode.leadingSlot.getChildren().setAll(createLeadingGraphic(tab, accentColor));
+    updateCloseControl(tabNode.rightControls, tab, showCloseButton);
+
+    double sideAreaWidth = showCloseButton ? CLOSE_AREA_WIDTH : NO_ACTIONS_AREA_WIDTH;
+    tabNode.rightControls.setMinWidth(sideAreaWidth);
+    tabNode.rightControls.setPrefWidth(sideAreaWidth);
+    tabNode.controlsLayer.setMinWidth(sideAreaWidth);
+    tabNode.controlsLayer.setPrefWidth(sideAreaWidth);
+    tabNode.leftPad.setMinWidth(sideAreaWidth);
+    tabNode.leftPad.setPrefWidth(sideAreaWidth);
+
+    tabNode.item.setOnMouseClicked(
         event -> {
           if (tab.isDisable()) {
             return;
           }
           if (event.getButton() == MouseButton.PRIMARY) {
-            onSelect.accept(tab);
+            currentOnSelect.accept(tab);
             return;
           }
           if (event.getButton() == MouseButton.MIDDLE && showCloseButton && tab.isClosable()) {
-            onCloseRequest.accept(tab);
+            currentOnCloseRequest.accept(tab);
             event.consume();
           }
         });
-
-    item.getChildren().addAll(leftPad, centerLayer, controlsLayer);
-    return item;
   }
 
-  private void applyTabSizing(HBox tabNode, double tabWidth, boolean fullWild) {
-    if (fullWild) {
-      tabNode.setMinWidth(tabWidth);
-      tabNode.setPrefWidth(tabWidth);
-      tabNode.setMaxWidth(tabWidth);
-      HBox.setHgrow(tabNode, Priority.NEVER);
+  private javafx.scene.Node createLeadingGraphic(Tab tab, Color accentColor) {
+    if (tab.getGraphic() instanceof Circle) {
+      Circle dirty = new Circle(MODIFIED_CIRCLE_RADIUS);
+      dirty.getStyleClass().add(STYLE_CLASS_TAB_DIRTY);
+      dirty.setFill(accentColor);
+      return dirty;
+    }
+
+    if (tab.getGraphic() instanceof FontIcon sourceIcon) {
+      FontIcon icon = new FontIcon(sourceIcon.getIconCode());
+      icon.setIconSize(sourceIcon.getIconSize());
+      icon.setOpacity(tab.isDisable() ? 0.45 : 1.0);
+      icon.getStyleClass().add(STYLE_CLASS_TAB_ICON);
+      icon.getStyleClass().addAll(sourceIcon.getStyleClass());
+      return icon;
+    }
+
+    return new Region();
+  }
+
+  private void updateCloseControl(HBox rightControls, Tab tab, boolean showCloseButton) {
+    rightControls.getChildren().clear();
+    if (!showCloseButton) {
       return;
     }
 
-    tabNode.setMinWidth(MIN_TAB_WIDTH);
-    tabNode.setPrefWidth(MIN_TAB_WIDTH);
-    tabNode.setMaxWidth(Region.USE_PREF_SIZE);
+    Button close = new Button("×");
+    close.getStyleClass().add(STYLE_CLASS_TAB_CLOSE);
+    close.setDisable(tab.isDisable());
+    close.setOnAction(
+        e -> {
+          e.consume();
+          currentOnCloseRequest.accept(tab);
+        });
+    rightControls.getChildren().add(close);
+  }
+
+  private void animateTabWidth(
+      HBox tabNode, double targetWidth, boolean isNew, boolean animateWidthChanges) {
+    double currentWidth = tabNode.getPrefWidth();
+    if (currentWidth <= 0) {
+      currentWidth = targetWidth;
+    }
+
+    if (!firstRenderDone) {
+      setTabWidth(tabNode, targetWidth);
+      return;
+    }
+    if (!animationsEnabled) {
+      setTabWidth(tabNode, targetWidth);
+      tabNode.setOpacity(1.0);
+      tabNode.setScaleX(1.0);
+      tabNode.setScaleY(1.0);
+      Timeline existing = widthAnimations.remove(tabNode);
+      if (existing != null) {
+        existing.stop();
+      }
+      return;
+    }
+    if (!animateWidthChanges && !isNew) {
+      setTabWidth(tabNode, targetWidth);
+      Timeline existing = widthAnimations.remove(tabNode);
+      if (existing != null) {
+        existing.stop();
+      }
+      return;
+    }
+
+    if (isNew) {
+      Timeline existing = widthAnimations.remove(tabNode);
+      if (existing != null) {
+        existing.stop();
+      }
+      // Keep new-tab layout deterministic: no opening animation.
+      // This avoids intermediate widths that can produce mid-strip reveal.
+      setTabWidth(tabNode, targetWidth);
+      tabNode.setOpacity(1.0);
+      tabNode.setScaleX(1.0);
+      tabNode.setScaleY(1.0);
+      return;
+    }
+
+    if (Math.abs(currentWidth - targetWidth) <= WIDTH_EPSILON) {
+      setTabWidth(tabNode, targetWidth);
+      return;
+    }
+
+    Timeline existing = widthAnimations.remove(tabNode);
+    if (existing != null) {
+      existing.stop();
+    }
+
+    Timeline timeline =
+        new Timeline(
+            new KeyFrame(
+                WIDTH_ANIMATION_DURATION,
+                new KeyValue(tabNode.minWidthProperty(), targetWidth, Interpolator.EASE_BOTH),
+                new KeyValue(tabNode.prefWidthProperty(), targetWidth, Interpolator.EASE_BOTH),
+                new KeyValue(tabNode.maxWidthProperty(), targetWidth, Interpolator.EASE_BOTH)));
+    widthAnimations.put(tabNode, timeline);
+    timeline.setOnFinished(
+        e -> {
+          widthAnimations.remove(tabNode);
+          if (forceRightRevealPending && widthAnimations.isEmpty()) {
+            scheduleForceRightReveal();
+          }
+        });
+    timeline.play();
+  }
+
+  private void setTabWidth(HBox tabNode, double width) {
+    tabNode.setMinWidth(width);
+    tabNode.setPrefWidth(width);
+    tabNode.setMaxWidth(width);
     HBox.setHgrow(tabNode, Priority.NEVER);
+  }
+
+  private void scheduleDeferredRender() {
+    deferredRenderScheduled = true;
+    Platform.runLater(
+        () -> {
+          deferredRenderScheduled = false;
+          renderInternal();
+        });
   }
 
   private double computeTabWidth(int tabCount) {
@@ -262,6 +660,18 @@ public class TabStripView extends HBox {
       return Double.NaN;
     }
 
+    double viewportWidth = resolveViewportWidth();
+    if (viewportWidth <= 0) {
+      return Double.NaN;
+    }
+
+    int availablePixels = Math.max(0, (int) Math.floor(viewportWidth));
+    fullWildBaseWidth = availablePixels / tabCount;
+    fullWildRemainder = availablePixels % tabCount;
+    return fullWildBaseWidth >= MIN_TAB_WIDTH ? fullWildBaseWidth : Double.NaN;
+  }
+
+  private double resolveViewportWidth() {
     double viewportWidth = scrollPane.getViewportBounds().getWidth();
     if (viewportWidth <= 0) {
       viewportWidth = scrollPane.getWidth();
@@ -269,23 +679,11 @@ public class TabStripView extends HBox {
     if (viewportWidth <= 0) {
       viewportWidth = getWidth();
     }
-    if (viewportWidth <= 0) {
-      return Double.NaN;
-    }
-
-    // In JavaFX Region sizing, border is included in the node width (not added on top),
-    // so we must use the full viewport width here.
-    int availablePixels = Math.max(0, (int) Math.round(viewportWidth));
-    fullWildBaseWidth = availablePixels / tabCount;
-    fullWildRemainder = availablePixels % tabCount;
-    double candidate = fullWildBaseWidth;
-    return candidate >= MIN_TAB_WIDTH ? candidate : Double.NaN;
+    return viewportWidth;
   }
 
   private void handleHorizontalScroll(ScrollEvent event) {
-    double viewportWidth = scrollPane.getViewportBounds().getWidth();
-    double contentWidth = tabTrack.getLayoutBounds().getWidth();
-    double scrollableWidth = contentWidth - viewportWidth;
+    double scrollableWidth = getScrollableWidth();
     if (scrollableWidth <= 0) {
       scrollPane.setHvalue(0);
       scrollPane.setVvalue(0);
@@ -293,7 +691,8 @@ public class TabStripView extends HBox {
       return;
     }
 
-    double delta = Math.abs(event.getDeltaX()) > Math.abs(event.getDeltaY()) ? -event.getDeltaX() : -event.getDeltaY();
+    double delta =
+        Math.abs(event.getDeltaX()) > Math.abs(event.getDeltaY()) ? -event.getDeltaX() : -event.getDeltaY();
     if (delta == 0) {
       return;
     }
@@ -309,43 +708,78 @@ public class TabStripView extends HBox {
     return Math.max(min, Math.min(max, value));
   }
 
+  private boolean isSelectedTabLast() {
+    return !currentTabs.isEmpty()
+        && currentSelectedTab != null
+        && currentSelectedTab == currentTabs.get(currentTabs.size() - 1);
+  }
+
+  private void scheduleForceRightReveal() {
+    if (forceRightRevealScheduled) {
+      return;
+    }
+    forceRightRevealScheduled = true;
+    // Wait until track/viewport bounds are stable, then force rightmost position.
+    Platform.runLater(
+        () ->
+            Platform.runLater(
+                () -> {
+                  forceRightRevealScheduled = false;
+                  if (!forceRightRevealPending || currentTabs.isEmpty()) {
+                    return;
+                  }
+                  setScrollHValue(1.0);
+                  forceRightRevealPending = false;
+                }));
+  }
+
   private void updateOverflowState() {
     double scrollableWidth = getScrollableWidth();
     if (scrollableWidth <= 0.5) {
-      leftOverflowShadow.setVisible(false);
-      rightOverflowShadow.setVisible(false);
+      hideOverflowShadow(leftOverflowShadow, leftOverflowShadowShowDelay);
+      hideOverflowShadow(rightOverflowShadow, rightOverflowShadowShowDelay);
       return;
     }
 
     boolean canScrollLeft = scrollPane.getHvalue() > SCROLL_EPSILON;
     boolean canScrollRight = scrollPane.getHvalue() < (1.0 - SCROLL_EPSILON);
-    leftOverflowShadow.setVisible(canScrollLeft);
-    rightOverflowShadow.setVisible(canScrollRight);
+    updateOverflowShadow(leftOverflowShadow, leftOverflowShadowShowDelay, canScrollLeft);
+    updateOverflowShadow(rightOverflowShadow, rightOverflowShadowShowDelay, canScrollRight);
+  }
+
+  private void updateOverflowShadow(Region shadow, PauseTransition showDelay, boolean shouldBeVisible) {
+    if (shouldBeVisible) {
+      if (!shadow.isVisible()) {
+        showDelay.playFromStart();
+      }
+      return;
+    }
+    hideOverflowShadow(shadow, showDelay);
+  }
+
+  private void hideOverflowShadow(Region shadow, PauseTransition showDelay) {
+    showDelay.stop();
+    shadow.setVisible(false);
   }
 
   private double getScrollableWidth() {
     return tabTrack.getLayoutBounds().getWidth() - scrollPane.getViewportBounds().getWidth();
   }
 
-  private Circle createDirtyMarker(Tab tab, Color accentColor) {
-    if (!(tab.getGraphic() instanceof Circle)) {
-      return null;
-    }
-    Circle dirty = new Circle(MODIFIED_CIRCLE_RADIUS);
-    dirty.getStyleClass().add(STYLE_CLASS_TAB_DIRTY);
-    dirty.setFill(accentColor);
-    return dirty;
-  }
+  private static final class TabNode {
+    private final HBox item;
+    private final StackPane leadingSlot;
+    private final HBox rightControls;
+    private final StackPane controlsLayer;
+    private final Region leftPad;
 
-  private FontIcon createTabIcon(Tab tab) {
-    if (!(tab.getGraphic() instanceof FontIcon sourceIcon)) {
-      return null;
+    private TabNode(
+        HBox item, StackPane leadingSlot, HBox rightControls, StackPane controlsLayer, Region leftPad) {
+      this.item = item;
+      this.leadingSlot = leadingSlot;
+      this.rightControls = rightControls;
+      this.controlsLayer = controlsLayer;
+      this.leftPad = leftPad;
     }
-    FontIcon icon = new FontIcon(sourceIcon.getIconCode());
-    icon.setIconSize(sourceIcon.getIconSize());
-    icon.setOpacity(tab.isDisable() ? 0.45 : 1.0);
-    icon.getStyleClass().add(STYLE_CLASS_TAB_ICON);
-    icon.getStyleClass().addAll(sourceIcon.getStyleClass());
-    return icon;
   }
 }

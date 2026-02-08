@@ -10,6 +10,7 @@ import fr.inria.corese.gui.core.view.AbstractView;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
+import javafx.animation.FadeTransition;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
@@ -58,9 +59,11 @@ public class TabEditorView extends AbstractView {
   private static final String EMPTY_STATE_VIEW_ID = "empty-state-widget";
   private static final String STYLE_CLASS_TAB_ACTIONS = "tab-header-toolbar";
   private static final String STYLE_CLASS_TAB_HEADER = "tab-header";
+  private static final String STYLE_CLASS_EDITOR_CONTENT_FADE_MASK = "editor-content-fade-mask";
 
   // Result Pane Animation
   private static final Duration SPLIT_ANIMATION_DURATION = Duration.millis(300);
+  private static final Duration EDITOR_CONTENT_FADE_IN_DURATION = Duration.millis(240);
   private static final double RESULT_PANE_VISIBLE_POSITION = 0.6;
   private static final double RESULT_PANE_HIDDEN_POSITION = 1.0;
 
@@ -170,7 +173,10 @@ public class TabEditorView extends AbstractView {
   }
 
   private void setupTabSelectionListener() {
-    tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> showContentForTab(newTab));
+    tabPane
+        .getSelectionModel()
+        .selectedItemProperty()
+        .addListener((obs, oldTab, newTab) -> showContentForTab(newTab, false));
   }
 
   private void setupTabListChangeListener() {
@@ -185,13 +191,13 @@ public class TabEditorView extends AbstractView {
         if (change.wasAdded()) {
           Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
           if (selectedTab != null && change.getAddedSubList().contains(selectedTab)) {
-            Platform.runLater(() -> showContentForTab(selectedTab));
+            Platform.runLater(() -> showContentForTab(selectedTab, false));
           }
         }
       }
 
       if (tabPane.getTabs().isEmpty()) {
-        showContentForTab(null);
+        showContentForTab(null, false);
       }
     });
   }
@@ -212,7 +218,7 @@ public class TabEditorView extends AbstractView {
   // Content Management
   // ==============================================================================================
 
-  private void showContentForTab(Tab selectedTab) {
+  private void showContentForTab(Tab selectedTab, boolean animateOnOpen) {
     contentContainer.getChildren().removeIf(node -> TAB_CONTENT_WRAPPER_ID.equals(node.getId()));
 
     if (selectedTab != null) {
@@ -221,8 +227,24 @@ public class TabEditorView extends AbstractView {
         StackPane wrapper = new StackPane(content);
         wrapper.setId(TAB_CONTENT_WRAPPER_ID);
         contentContainer.getChildren().add(0, wrapper);
+        if (animateOnOpen) {
+          playEditorContentFadeIn(wrapper);
+        }
       }
     }
+  }
+
+  private void playEditorContentFadeIn(StackPane wrapper) {
+    Region fadeMask = new Region();
+    fadeMask.getStyleClass().add(STYLE_CLASS_EDITOR_CONTENT_FADE_MASK);
+    fadeMask.setMouseTransparent(true);
+    wrapper.getChildren().add(fadeMask);
+
+    FadeTransition fadeOut = new FadeTransition(EDITOR_CONTENT_FADE_IN_DURATION, fadeMask);
+    fadeOut.setFromValue(1.0);
+    fadeOut.setToValue(0.0);
+    fadeOut.setOnFinished(e -> wrapper.getChildren().remove(fadeMask));
+    fadeOut.play();
   }
 
   private Node getTabContent(Tab tab) {
@@ -247,7 +269,7 @@ public class TabEditorView extends AbstractView {
   public void addNewEditorTab(Tab tab) {
     tabPane.getTabs().add(tab);
     tabPane.getSelectionModel().select(tab);
-    showContentForTab(tab);
+    showContentForTab(tab, true);
   }
 
   public void selectTab(Tab tab) {

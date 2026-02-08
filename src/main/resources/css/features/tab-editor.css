@@ -76,3 +76,7 @@
     -fx-text-fill: -color-fg-muted;
     -fx-cursor: default;
 }
+
+.editor-content-fade-mask {
+    -fx-background-color: -color-bg-default;
+}

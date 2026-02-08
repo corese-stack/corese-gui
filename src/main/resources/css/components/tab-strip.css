@@ -5,8 +5,6 @@
     -fx-min-height: 44px;
     -fx-max-height: 44px;
     -fx-background-color: -color-bg-subtle;
-    -fx-border-color: -color-border-default;
-    -fx-border-width: 0 0 1 0;
     -fx-spacing: 0;
 }
 
@@ -25,6 +23,10 @@
 
 .editor-tab-track {
     -fx-spacing: 0;
+}
+
+.editor-tab-baseline {
+    -fx-background-color: -color-border-default;
 }
 
 .editor-tab-overflow-shadow {
@@ -48,16 +50,18 @@
     -fx-pref-height: 44px;
     -fx-min-height: 44px;
     -fx-max-height: 44px;
-    -fx-border-width: 0 1 1 0;
+    -fx-border-width: 0 1 0 0;
     -fx-border-color: -color-border-default;
     -fx-background-color: -color-bg-subtle;
+    -fx-background-insets: 0 0 1 0;
 }
 
 .editor-tab-item.selected {
-    -fx-background-color: -color-bg-default;
-    -fx-border-width: 0 1 2 0;
+    -fx-background-color: -color-bg-default, -color-accent-fg;
+    -fx-background-insets: 0 0 1 0, 42 0 0 0;
+    -fx-border-width: 0 1 0 0;
     -fx-border-insets: 0;
-    -fx-border-color: transparent -color-border-default -color-accent-fg transparent;
+    -fx-border-color: transparent -color-border-default transparent transparent;
 }
 
 .editor-tab-title {

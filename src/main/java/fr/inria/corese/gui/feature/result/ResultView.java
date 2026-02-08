@@ -48,7 +48,7 @@ public class ResultView extends AbstractView {
 
 		tabPane = new TabPane();
 		tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-		tabStripController = new TabStripController(tabPane, ThemeManager.getInstance(), false);
+		tabStripController = new TabStripController(tabPane, ThemeManager.getInstance(), false, false);
 		contentContainer = new StackPane();
 		textTab = new Tab(ResultViewConfig.TabType.TEXT.getLabel());
 		tableTab = new Tab(ResultViewConfig.TabType.TABLE.getLabel());
