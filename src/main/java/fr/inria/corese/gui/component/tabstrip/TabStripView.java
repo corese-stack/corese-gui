@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import javafx.animation.Animation;
 import javafx.animation.FadeTransition;
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
@@ -66,6 +67,8 @@ public class TabStripView extends HBox {
   private static final Duration CLOSE_TAB_DURATION = Duration.millis(130);
   private static final Duration CLOSE_AFTER_PAUSE = Duration.millis(120);
   private static final Duration OVERFLOW_SHADOW_SHOW_DELAY = Duration.millis(28);
+  private static final Duration OVERFLOW_SHADOW_FADE_IN_DURATION = Duration.millis(180);
+  private static final Duration OVERFLOW_SHADOW_FADE_OUT_DURATION = Duration.millis(220);
 
   private final boolean animationsEnabled;
   private final ScrollPane scrollPane;
@@ -75,6 +78,10 @@ public class TabStripView extends HBox {
   private final Region rightOverflowShadow;
   private final PauseTransition leftOverflowShadowShowDelay;
   private final PauseTransition rightOverflowShadowShowDelay;
+  private final FadeTransition leftOverflowShadowFadeIn;
+  private final FadeTransition leftOverflowShadowFadeOut;
+  private final FadeTransition rightOverflowShadowFadeIn;
+  private final FadeTransition rightOverflowShadowFadeOut;
 
   private final Map<Tab, TabNode> tabNodes = new LinkedHashMap<>();
   private final Map<HBox, Timeline> widthAnimations = new HashMap<>();
@@ -152,9 +159,19 @@ public class TabStripView extends HBox {
     leftOverflowShadow.setMinWidth(SHADOW_WIDTH);
     leftOverflowShadow.setPrefWidth(SHADOW_WIDTH);
     leftOverflowShadow.setMaxWidth(SHADOW_WIDTH);
+    leftOverflowShadow.setOpacity(0.0);
     leftOverflowShadow.setVisible(false);
+    leftOverflowShadowFadeIn = createOverflowFade(leftOverflowShadow, OVERFLOW_SHADOW_FADE_IN_DURATION, 1.0);
+    leftOverflowShadowFadeOut = createOverflowFade(leftOverflowShadow, OVERFLOW_SHADOW_FADE_OUT_DURATION, 0.0);
+    leftOverflowShadowFadeOut.setOnFinished(
+        e -> {
+          if (leftOverflowShadow.getOpacity() <= SCROLL_EPSILON) {
+            leftOverflowShadow.setVisible(false);
+          }
+        });
     leftOverflowShadowShowDelay = new PauseTransition(OVERFLOW_SHADOW_SHOW_DELAY);
-    leftOverflowShadowShowDelay.setOnFinished(e -> leftOverflowShadow.setVisible(true));
+    leftOverflowShadowShowDelay.setOnFinished(
+        e -> showOverflowShadow(leftOverflowShadow, leftOverflowShadowFadeIn, leftOverflowShadowFadeOut));
 
     rightOverflowShadow = new Region();
     rightOverflowShadow.getStyleClass().addAll(STYLE_CLASS_OVERFLOW_SHADOW, STYLE_CLASS_OVERFLOW_SHADOW_RIGHT);
@@ -163,9 +180,21 @@ public class TabStripView extends HBox {
     rightOverflowShadow.setMinWidth(SHADOW_WIDTH);
     rightOverflowShadow.setPrefWidth(SHADOW_WIDTH);
     rightOverflowShadow.setMaxWidth(SHADOW_WIDTH);
+    rightOverflowShadow.setOpacity(0.0);
     rightOverflowShadow.setVisible(false);
+    rightOverflowShadowFadeIn =
+        createOverflowFade(rightOverflowShadow, OVERFLOW_SHADOW_FADE_IN_DURATION, 1.0);
+    rightOverflowShadowFadeOut =
+        createOverflowFade(rightOverflowShadow, OVERFLOW_SHADOW_FADE_OUT_DURATION, 0.0);
+    rightOverflowShadowFadeOut.setOnFinished(
+        e -> {
+          if (rightOverflowShadow.getOpacity() <= SCROLL_EPSILON) {
+            rightOverflowShadow.setVisible(false);
+          }
+        });
     rightOverflowShadowShowDelay = new PauseTransition(OVERFLOW_SHADOW_SHOW_DELAY);
-    rightOverflowShadowShowDelay.setOnFinished(e -> rightOverflowShadow.setVisible(true));
+    rightOverflowShadowShowDelay.setOnFinished(
+        e -> showOverflowShadow(rightOverflowShadow, rightOverflowShadowFadeIn, rightOverflowShadowFadeOut));
 
     StackPane scrollContainer = new StackPane(scrollPane, baseline, leftOverflowShadow, rightOverflowShadow);
     StackPane.setAlignment(baseline, Pos.BOTTOM_CENTER);
@@ -736,30 +765,77 @@ public class TabStripView extends HBox {
   private void updateOverflowState() {
     double scrollableWidth = getScrollableWidth();
     if (scrollableWidth <= 0.5) {
-      hideOverflowShadow(leftOverflowShadow, leftOverflowShadowShowDelay);
-      hideOverflowShadow(rightOverflowShadow, rightOverflowShadowShowDelay);
+      hideOverflowShadow(
+          leftOverflowShadow, leftOverflowShadowShowDelay, leftOverflowShadowFadeIn, leftOverflowShadowFadeOut);
+      hideOverflowShadow(
+          rightOverflowShadow,
+          rightOverflowShadowShowDelay,
+          rightOverflowShadowFadeIn,
+          rightOverflowShadowFadeOut);
       return;
     }
 
     boolean canScrollLeft = scrollPane.getHvalue() > SCROLL_EPSILON;
     boolean canScrollRight = scrollPane.getHvalue() < (1.0 - SCROLL_EPSILON);
-    updateOverflowShadow(leftOverflowShadow, leftOverflowShadowShowDelay, canScrollLeft);
-    updateOverflowShadow(rightOverflowShadow, rightOverflowShadowShowDelay, canScrollRight);
+    updateOverflowShadow(
+        leftOverflowShadow,
+        leftOverflowShadowShowDelay,
+        leftOverflowShadowFadeIn,
+        leftOverflowShadowFadeOut,
+        canScrollLeft);
+    updateOverflowShadow(
+        rightOverflowShadow,
+        rightOverflowShadowShowDelay,
+        rightOverflowShadowFadeIn,
+        rightOverflowShadowFadeOut,
+        canScrollRight);
   }
 
-  private void updateOverflowShadow(Region shadow, PauseTransition showDelay, boolean shouldBeVisible) {
+  private void updateOverflowShadow(
+      Region shadow,
+      PauseTransition showDelay,
+      FadeTransition fadeIn,
+      FadeTransition fadeOut,
+      boolean shouldBeVisible) {
     if (shouldBeVisible) {
-      if (!shadow.isVisible()) {
+      if (!shadow.isVisible() && showDelay.getStatus() != Animation.Status.RUNNING) {
         showDelay.playFromStart();
       }
       return;
     }
-    hideOverflowShadow(shadow, showDelay);
+    hideOverflowShadow(shadow, showDelay, fadeIn, fadeOut);
   }
 
-  private void hideOverflowShadow(Region shadow, PauseTransition showDelay) {
+  private void hideOverflowShadow(
+      Region shadow, PauseTransition showDelay, FadeTransition fadeIn, FadeTransition fadeOut) {
     showDelay.stop();
-    shadow.setVisible(false);
+    fadeIn.stop();
+    if (!shadow.isVisible() || shadow.getOpacity() <= SCROLL_EPSILON) {
+      shadow.setOpacity(0.0);
+      shadow.setVisible(false);
+      return;
+    }
+    fadeOut.stop();
+    fadeOut.setFromValue(shadow.getOpacity());
+    fadeOut.playFromStart();
+  }
+
+  private void showOverflowShadow(Region shadow, FadeTransition fadeIn, FadeTransition fadeOut) {
+    fadeOut.stop();
+    if (!shadow.isVisible()) {
+      shadow.setVisible(true);
+      shadow.setOpacity(0.0);
+    }
+    fadeIn.stop();
+    fadeIn.setFromValue(shadow.getOpacity());
+    fadeIn.playFromStart();
+  }
+
+  private FadeTransition createOverflowFade(Region shadow, Duration duration, double toValue) {
+    FadeTransition fadeTransition = new FadeTransition(duration, shadow);
+    fadeTransition.setInterpolator(Interpolator.EASE_BOTH);
+    fadeTransition.setToValue(toValue);
+    return fadeTransition;
   }
 
   private double getScrollableWidth() {

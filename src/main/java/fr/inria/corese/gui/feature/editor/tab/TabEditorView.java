@@ -3,6 +3,7 @@ package fr.inria.corese.gui.feature.editor.tab;
 import fr.inria.corese.gui.component.button.IconButtonWidget;
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
+import fr.inria.corese.gui.component.editor.CodeMirrorWidget;
 import fr.inria.corese.gui.component.tabstrip.TabStripController;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.theme.ThemeManager;
@@ -24,7 +25,7 @@ import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.layout.BorderPane;
+import javafx.scene.Parent;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -238,18 +239,39 @@ public class TabEditorView extends AbstractView {
     TabContext context = TabContext.get(tab);
     if (context != null && context.getEditorController() != null) {
       Node editorRoot = context.getEditorController().getViewRoot();
-      if (editorRoot instanceof BorderPane borderPane && borderPane.getCenter() != null) {
-        return borderPane.getCenter();
-      }
-      if (editorRoot != null) {
-        return editorRoot;
+      Node codeMirror = findCodeMirrorNode(editorRoot);
+      if (codeMirror != null) {
+        return codeMirror;
       }
     }
 
-    if (tabContent instanceof SplitPane splitPane && !splitPane.getItems().isEmpty()) {
-      return splitPane.getItems().get(0);
+    return findCodeMirrorNode(tabContent);
+  }
+
+  private Node findCodeMirrorNode(Node node) {
+    if (node == null) {
+      return null;
     }
-    return tabContent;
+    if (node instanceof CodeMirrorWidget) {
+      return node;
+    }
+    if (node instanceof SplitPane splitPane) {
+      for (Node item : splitPane.getItems()) {
+        Node found = findCodeMirrorNode(item);
+        if (found != null) {
+          return found;
+        }
+      }
+    }
+    if (node instanceof Parent parent) {
+      for (Node child : parent.getChildrenUnmodifiable()) {
+        Node found = findCodeMirrorNode(child);
+        if (found != null) {
+          return found;
+        }
+      }
+    }
+    return null;
   }
 
   private void playEditorContentFadeIn(Node editorTarget) {

@@ -288,13 +288,17 @@ public final class ThemeManager {
     Node root = primaryStage.getScene().getRoot();
     String cssColor = toCssColor(color);
 
-    // Determine shadow color based on current theme
-    String shadowColor = "rgba(0, 0, 0, 0.25)"; // Default light
+    // Determine theme-aware shadows based on current theme.
+    String logoShadowColor = "rgba(0, 0, 0, 0.25)";
+    String tabOverflowShadow = "rgba(0, 0, 0, 0.16)";
+    String tabOverflowShadowTransparent = "rgba(0, 0, 0, 0.00)";
     Theme currentTheme = getTheme();
     if (currentTheme != null) {
       AppThemeRegistry appTheme = AppThemeRegistry.fromTheme(currentTheme);
       if (appTheme != null && appTheme.isDark()) {
-        shadowColor = "rgba(255, 255, 255, 0.25)";
+        logoShadowColor = "rgba(255, 255, 255, 0.25)";
+        tabOverflowShadow = "rgba(255, 255, 255, 0.12)";
+        tabOverflowShadowTransparent = "rgba(255, 255, 255, 0.00)";
       }
     }
 
@@ -304,19 +308,29 @@ public final class ThemeManager {
                 + "-color-accent-fg: %s; "
                 + "-color-accent-subtle: %s; "
                 + "-color-accent-muted: %s; "
-                + "-color-logo-shadow: %s;",
+                + "-color-logo-shadow: %s; "
+                + "-color-tab-overflow-shadow: %s; "
+                + "-color-tab-overflow-shadow-transparent: %s;",
             cssColor,
             cssColor,
             toCssColor(color.deriveColor(0, 0.3, 1.0, 0.3)),
             toCssColor(color.deriveColor(0, 0.5, 1.0, 0.5)),
-            shadowColor);
+            logoShadowColor,
+            tabOverflowShadow,
+            tabOverflowShadowTransparent);
 
     // Get existing styles
     String currentStyle = root.getStyle();
     if (currentStyle == null) currentStyle = "";
 
-    // Remove old accent color definitions if present to avoid duplicates
-    String cleanedStyle = currentStyle.replaceAll("-color-accent-[a-z]+:[^;]+;", "").trim();
+    // Remove old theme-managed color definitions to avoid duplicates.
+    String cleanedStyle =
+        currentStyle
+            .replaceAll("-color-accent-[a-z-]+\\s*:[^;]+;?", "")
+            .replaceAll("-color-logo-shadow\\s*:[^;]+;?", "")
+            .replaceAll("-color-tab-overflow-shadow\\s*:[^;]+;?", "")
+            .replaceAll("-color-tab-overflow-shadow-transparent\\s*:[^;]+;?", "")
+            .trim();
 
     // Append new styles
     if (!cleanedStyle.isEmpty() && !cleanedStyle.endsWith(";")) {
