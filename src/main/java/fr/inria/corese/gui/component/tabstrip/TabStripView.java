@@ -65,7 +65,7 @@ public class TabStripView extends HBox {
   private static final Duration WIDTH_ANIMATION_DURATION = Duration.millis(180);
   private static final Duration CLOSE_TAB_DURATION = Duration.millis(130);
   private static final Duration CLOSE_AFTER_PAUSE = Duration.millis(120);
-  private static final Duration OVERFLOW_SHADOW_SHOW_DELAY = Duration.millis(90);
+  private static final Duration OVERFLOW_SHADOW_SHOW_DELAY = Duration.millis(28);
 
   private final boolean animationsEnabled;
   private final ScrollPane scrollPane;
