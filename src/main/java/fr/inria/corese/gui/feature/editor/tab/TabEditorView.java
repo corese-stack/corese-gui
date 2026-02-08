@@ -24,6 +24,7 @@ import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -59,7 +60,6 @@ public class TabEditorView extends AbstractView {
   private static final String EMPTY_STATE_VIEW_ID = "empty-state-widget";
   private static final String STYLE_CLASS_TAB_ACTIONS = "tab-header-toolbar";
   private static final String STYLE_CLASS_TAB_HEADER = "tab-header";
-  private static final String STYLE_CLASS_EDITOR_CONTENT_FADE_MASK = "editor-content-fade-mask";
 
   // Result Pane Animation
   private static final Duration SPLIT_ANIMATION_DURATION = Duration.millis(300);
@@ -228,23 +228,39 @@ public class TabEditorView extends AbstractView {
         wrapper.setId(TAB_CONTENT_WRAPPER_ID);
         contentContainer.getChildren().add(0, wrapper);
         if (animateOnOpen) {
-          playEditorContentFadeIn(wrapper);
+          playEditorContentFadeIn(resolveEditorFadeTarget(selectedTab, content));
         }
       }
     }
   }
 
-  private void playEditorContentFadeIn(StackPane wrapper) {
-    Region fadeMask = new Region();
-    fadeMask.getStyleClass().add(STYLE_CLASS_EDITOR_CONTENT_FADE_MASK);
-    fadeMask.setMouseTransparent(true);
-    wrapper.getChildren().add(fadeMask);
+  private Node resolveEditorFadeTarget(Tab tab, Node tabContent) {
+    TabContext context = TabContext.get(tab);
+    if (context != null && context.getEditorController() != null) {
+      Node editorRoot = context.getEditorController().getViewRoot();
+      if (editorRoot instanceof BorderPane borderPane && borderPane.getCenter() != null) {
+        return borderPane.getCenter();
+      }
+      if (editorRoot != null) {
+        return editorRoot;
+      }
+    }
 
-    FadeTransition fadeOut = new FadeTransition(EDITOR_CONTENT_FADE_IN_DURATION, fadeMask);
-    fadeOut.setFromValue(1.0);
-    fadeOut.setToValue(0.0);
-    fadeOut.setOnFinished(e -> wrapper.getChildren().remove(fadeMask));
-    fadeOut.play();
+    if (tabContent instanceof SplitPane splitPane && !splitPane.getItems().isEmpty()) {
+      return splitPane.getItems().get(0);
+    }
+    return tabContent;
+  }
+
+  private void playEditorContentFadeIn(Node editorTarget) {
+    if (editorTarget == null) {
+      return;
+    }
+    editorTarget.setOpacity(0.0);
+    FadeTransition fadeIn = new FadeTransition(EDITOR_CONTENT_FADE_IN_DURATION, editorTarget);
+    fadeIn.setFromValue(0.0);
+    fadeIn.setToValue(1.0);
+    fadeIn.play();
   }
 
   private Node getTabContent(Tab tab) {
