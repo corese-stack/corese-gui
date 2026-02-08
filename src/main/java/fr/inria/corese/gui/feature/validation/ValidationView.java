@@ -55,8 +55,8 @@ public class ValidationView extends AbstractView {
      */
     public List<ButtonConfig> getResultToolbarButtons() {
         return List.of(
-            ButtonFactory.copy(null),
-            ButtonFactory.export(null)
+            ButtonFactory.copy(),
+            ButtonFactory.export()
         );
     }
 

@@ -75,19 +75,18 @@ public class ValidationController {
 
 	private void configureEditor() {
 		// Configure empty state
-		Node emptyState = view.createEmptyState(this::onNewFileButtonClick, this::onOpenFilesButtonClick);
+		Node emptyState = view.createEmptyState(this::onNewTabButtonClick, this::onOpenFileButtonClick);
 
 		// Build configuration
 		TabEditorConfig config = TabEditorConfig.builder()
-				.withEditorButtons(List.of(ButtonFactory.save(null), ButtonFactory.export(null),
-						ButtonFactory.undo(null), ButtonFactory.redo(null)))
-				.withExecution(ButtonFactory.custom(ButtonIcon.PLAY, view.getRunValidationLabel(), null),
+				.withEditorButtons(List.of(ButtonFactory.save(), ButtonFactory.export(),
+						ButtonFactory.undo(), ButtonFactory.redo()))
+				.withExecution(ButtonFactory.custom(ButtonIcon.PLAY, view.getRunValidationLabel()),
 						this::executeValidation)
 				.withResultView(view.getResultToolbarButtons(), ResultViewConfig.builder().withTextTab().build())
 				.withEmptyState(emptyState)
 				.withAllowedExtensions(buildValidationExtensions())
-				.withMenuItems(List.of(new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
-						new TabEditorConfig.MenuItem("Open File", this::onOpenFilesButtonClick)))
+				.withOpenFileAction(this::onOpenFileButtonClick)
 				.build();
 
 		// Create controller
@@ -245,11 +244,11 @@ public class ValidationController {
 		}
 	}
 
-	private void onNewFileButtonClick() {
+	private void onNewTabButtonClick() {
 		tabEditorController.createNewTab();
 	}
 
-	private void onOpenFilesButtonClick() {
+	private void onOpenFileButtonClick() {
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Open Shapes File");
 		FileDialogState.applyInitialDirectory(fileChooser);

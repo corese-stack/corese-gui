@@ -33,6 +33,9 @@ public class TabEditorConfig {
   private final List<ButtonConfig> resultViewButtons;
   private final ResultViewConfig resultViewConfig;
   private final Node emptyStateWidget;
+  private final Runnable openFileAction;
+  // Legacy extension point kept for backward compatibility.
+  // Prefer withOpenFileAction(...) for the tab-header open action.
   private final List<MenuItem> menuItems;
   private final boolean preloadFirstTab;
   private final List<String> allowedExtensions;
@@ -48,6 +51,7 @@ public class TabEditorConfig {
     this.resultViewButtons = builder.resultViewButtons != null ? List.copyOf(builder.resultViewButtons) : null;
     this.resultViewConfig = builder.resultViewConfig;
     this.emptyStateWidget = builder.emptyStateWidget;
+    this.openFileAction = builder.openFileAction;
     this.menuItems = builder.menuItems != null ? List.copyOf(builder.menuItems) : new ArrayList<>();
     this.preloadFirstTab = builder.preloadFirstTab;
     this.allowedExtensions = builder.allowedExtensions != null ? List.copyOf(builder.allowedExtensions) : List.of();
@@ -93,6 +97,12 @@ public class TabEditorConfig {
     return emptyStateWidget;
   }
 
+  public Runnable getOpenFileAction() {
+    return openFileAction;
+  }
+
+  /** @deprecated Prefer {@link #getOpenFileAction()} for the tab-header open action. */
+  @Deprecated
   public List<MenuItem> getMenuItems() {
     return menuItems;
   }
@@ -141,6 +151,8 @@ public class TabEditorConfig {
     private List<ButtonConfig> resultViewButtons;
     private ResultViewConfig resultViewConfig;
     private Node emptyStateWidget;
+    private Runnable openFileAction;
+    // Legacy extension point kept for backward compatibility.
     private List<MenuItem> menuItems;
     private boolean preloadFirstTab = false;
     private List<String> allowedExtensions;
@@ -174,6 +186,15 @@ public class TabEditorConfig {
       return this;
     }
 
+    public Builder withOpenFileAction(Runnable action) {
+      this.openFileAction = action;
+      return this;
+    }
+
+    /**
+     * @deprecated Prefer {@link #withOpenFileAction(Runnable)} for the tab-header open action.
+     */
+    @Deprecated
     public Builder withMenuItems(List<MenuItem> items) {
       this.menuItems = items;
       return this;
@@ -193,5 +214,7 @@ public class TabEditorConfig {
   // MenuItem Record
   // ===============================================================================
 
+  /** @deprecated Legacy menu item mapping kept for backward compatibility. */
+  @Deprecated
   public record MenuItem(String text, Runnable action) {}
 }

@@ -8,6 +8,7 @@ import fr.inria.corese.gui.core.io.ImportHelper;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.function.Supplier;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -120,13 +121,13 @@ public class TabEditorController {
       view.setEmptyStateWidget(config.getEmptyStateWidget());
     }
 
-    // Setup menu items
-    setupMenuItems();
+    // Setup open-file action
+    setupOpenFileAction();
 
     // Setup listeners
     view.subscribeToTabChanges(
         (ListChangeListener<Tab>) c -> Platform.runLater(this::updateEmptyStateVisibility));
-    view.setOnAddTabAction(e -> createNewTab());
+    view.setOnNewTabAction(e -> createNewTab());
 
     // Preload first tab in background if configured
     // Tab is created but not added to the view, eliminating first-open delay
@@ -138,17 +139,29 @@ public class TabEditorController {
     updateEmptyStateVisibility();
   }
 
-  /** Configures menu items from config */
-  private void setupMenuItems() {
-    view.clearMenuItems();
-    if (config.getMenuItems().isEmpty()) {
-      // Default: just "New File"
-      view.addMenuItem("New File", e -> createNewTab());
-    } else {
-      for (TabEditorConfig.MenuItem item : config.getMenuItems()) {
-        view.addMenuItem(item.text(), e -> item.action().run());
-      }
+  /** Configures the Open File button action from config. */
+  private void setupOpenFileAction() {
+    Runnable openFileAction = resolveOpenFileAction();
+    if (openFileAction == null) {
+      view.setOnOpenFileAction(null);
+      return;
     }
+    view.setOnOpenFileAction(e -> openFileAction.run());
+  }
+
+  @SuppressWarnings("deprecation")
+  private Runnable resolveOpenFileAction() {
+    if (config.getOpenFileAction() != null) {
+      return config.getOpenFileAction();
+    }
+    Optional<TabEditorConfig.MenuItem> fallback = config.getMenuItems().stream()
+        .filter(item -> item.text() != null)
+        .filter(item -> item.text().toLowerCase().contains("open"))
+        .findFirst()
+        .or(() -> config.getMenuItems().size() > 1
+            ? Optional.of(config.getMenuItems().get(1))
+            : Optional.empty());
+    return fallback.map(TabEditorConfig.MenuItem::action).orElse(null);
   }
 
   // ===============================================================================

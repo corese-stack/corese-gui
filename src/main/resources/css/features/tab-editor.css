@@ -5,6 +5,16 @@
     -fx-spacing: 0;
 }
 
+/* Keep a consistent header height between tabs and action buttons */
+.tab-header .tab-pane > .tab-header-area {
+    -fx-pref-height: 44px;
+}
+
+.tab-header .tab-pane > .tab-header-area > .headers-region > .tab {
+    -fx-pref-height: 44px;
+    -fx-min-height: 44px;
+}
+
 /* Tab separator - applies to individual tabs within TabPane */
 .tab-pane > .tab-header-area > .headers-region > .tab {
     -fx-border-width: 0 1 0 0;
@@ -21,19 +31,69 @@
     -fx-border-width: 0;
 }
 
-/* Add tab button styling */
-.add-tab-button {
-    -fx-background-color: transparent;
-    -fx-border-width: 0 0 2 0;
-    -fx-border-color: -color-border-default;
-
-}
-
-.add-tab-button:hover {
+/* Tab header toolbar (horizontal, toolbar-like) */
+.tab-header-toolbar {
     -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 0 0 1 1;
+    -fx-padding: 4px 6px;
+    -fx-pref-height: 44px;
+    -fx-min-height: 44px;
+    -fx-alignment: center-left;
+    -fx-spacing: 6px;
 }
 
-.add-tab-button:pressed {
-    -fx-background-color: -color-border-default;
-    -fx-border-color: -color-accent-fg;
+.tab-header-toolbar .button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8px;
+    -fx-padding: 6px;
+    -fx-pref-width: 36px;
+    -fx-pref-height: 36px;
+    -fx-alignment: center;
+    -fx-content-display: graphic-only;
+    -fx-text-fill: -color-fg-default;
+    -fx-cursor: hand;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.tab-header-toolbar .button:hover {
+    -fx-background-color: -color-bg-subtle, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.08);
+    -fx-background-insets: 0, 0, 0;
+    -fx-background-radius: 8px, 8px, 8px;
+    -fx-text-fill: -color-fg-default;
+}
+
+.tab-header-toolbar .button:pressed {
+    -fx-background-color: -color-bg-subtle, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18);
+    -fx-background-insets: 0, 0, 0;
+    -fx-background-radius: 8px, 8px, 8px;
+    -fx-text-fill: -color-fg-default;
+}
+
+.tab-header-toolbar .button:focused {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 8px;
+    -fx-text-fill: -color-fg-default;
+}
+
+.tab-header-toolbar .button:focused:hover {
+    -fx-background-color: -color-bg-subtle, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.08);
+    -fx-background-insets: 0, 0, 0;
+    -fx-background-radius: 8px, 8px, 8px;
+    -fx-text-fill: -color-fg-default;
+}
+
+.tab-header-toolbar .button:focused:pressed {
+    -fx-background-color: -color-bg-subtle, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18);
+    -fx-background-insets: 0, 0, 0;
+    -fx-background-radius: 8px, 8px, 8px;
+    -fx-text-fill: -color-fg-default;
+}
+
+.tab-header-toolbar .button:disabled {
+    -fx-opacity: 0.5;
+    -fx-text-fill: -color-fg-muted;
+    -fx-cursor: default;
 }

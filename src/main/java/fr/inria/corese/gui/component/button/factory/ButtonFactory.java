@@ -75,6 +75,11 @@ public final class ButtonFactory {
         return new ButtonConfig(icon, tooltip, action);
     }
 
+    /** Creates a custom button configuration with no action bound yet. */
+    public static ButtonConfig custom(ButtonIcon icon, String tooltip) {
+        return custom(icon, tooltip, null);
+    }
+
     // ===============================================================================
     // File Operations
     // ===============================================================================
@@ -88,6 +93,11 @@ public final class ButtonFactory {
      */
     public static ButtonConfig save(Runnable action) {
         return new ButtonConfig(ButtonIcon.SAVE, "Save", action);
+    }
+
+    /** Creates a Save button configuration with no action bound yet. */
+    public static ButtonConfig save() {
+        return save(null);
     }
 
     /**
@@ -110,6 +120,11 @@ public final class ButtonFactory {
      */
     public static ButtonConfig export(Runnable action) {
         return new ButtonConfig(ButtonIcon.EXPORT, "Export to File", action);
+    }
+
+    /** Creates an Export button configuration with no action bound yet. */
+    public static ButtonConfig export() {
+        return export(null);
     }
 
     /**
@@ -137,6 +152,27 @@ public final class ButtonFactory {
         return new ButtonConfig(ButtonIcon.OPEN_FILE, "Open File", action);
     }
 
+    /** Creates an Open File button configuration with no action bound yet. */
+    public static ButtonConfig openFile() {
+        return openFile(null);
+    }
+
+    /**
+     * Creates a standardized New Tab button configuration.
+     *
+     * @param action
+     *            The action to execute when clicked, or null if wired later
+     * @return A configured ButtonConfig with new tab icon and tooltip
+     */
+    public static ButtonConfig newTab(Runnable action) {
+        return new ButtonConfig(ButtonIcon.NEW_TAB, "New Tab", action);
+    }
+
+    /** Creates a New Tab button configuration with no action bound yet. */
+    public static ButtonConfig newTab() {
+        return newTab(null);
+    }
+
     // ===============================================================================
     // Editor Operations
     // ===============================================================================
@@ -152,6 +188,11 @@ public final class ButtonFactory {
         return new ButtonConfig(ButtonIcon.UNDO, "Undo", action);
     }
 
+    /** Creates an Undo button configuration with no action bound yet. */
+    public static ButtonConfig undo() {
+        return undo(null);
+    }
+
     /**
      * Creates a standardized Redo button configuration.
      *
@@ -163,6 +204,11 @@ public final class ButtonFactory {
         return new ButtonConfig(ButtonIcon.REDO, "Redo", action);
     }
 
+    /** Creates a Redo button configuration with no action bound yet. */
+    public static ButtonConfig redo() {
+        return redo(null);
+    }
+
     /**
      * Creates a standardized Copy to Clipboard button configuration.
      *
@@ -172,6 +218,11 @@ public final class ButtonFactory {
      */
     public static ButtonConfig copy(Runnable action) {
         return new ButtonConfig(ButtonIcon.COPY, "Copy to Clipboard", action);
+    }
+
+    /** Creates a Copy button configuration with no action bound yet. */
+    public static ButtonConfig copy() {
+        return copy(null);
     }
 
     /**

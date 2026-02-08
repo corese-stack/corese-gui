@@ -55,19 +55,18 @@ public class QueryViewController {
 
 	private void initialize() {
 		// 1. Configure Empty State
-		Node emptyState = view.createEmptyState(() -> tabEditorController.createNewTab("untitled", ""),
-				this::onOpenFilesButtonClick, null // Template action not yet implemented
+		Node emptyState = view.createEmptyState(() -> tabEditorController.createNewTab(),
+				this::onOpenFileButtonClick, null // Reserved for future template action
 		);
 
 		// 2. Configure Editor
 		TabEditorConfig config = TabEditorConfig.builder()
-				.withEditorButtons(List.of(ButtonFactory.save(null), ButtonFactory.undo(null), ButtonFactory.redo(null)))
-				.withExecution(ButtonFactory.custom(ButtonIcon.PLAY, "Run Query", null), this::executeQuery)
-				.withResultView(List.of(ButtonFactory.copy(null), ButtonFactory.export(null)),
+				.withEditorButtons(List.of(ButtonFactory.save(), ButtonFactory.undo(), ButtonFactory.redo()))
+				.withExecution(ButtonFactory.custom(ButtonIcon.PLAY, "Run Query"), this::executeQuery)
+				.withResultView(List.of(ButtonFactory.copy(), ButtonFactory.export()),
 						ResultViewConfig.builder().withTextTab().withTableTab().withGraphTab().build())
 				.withEmptyState(emptyState).withAllowedExtensions(List.of(".rq"))
-				.withMenuItems(List.of(new TabEditorConfig.MenuItem("New File", this::onNewFileButtonClick),
-						new TabEditorConfig.MenuItem("Open File", this::onOpenFilesButtonClick)))
+				.withOpenFileAction(this::onOpenFileButtonClick)
 				.withPreloadFirstTab().build();
 
 		// 3. Create Controller
@@ -314,11 +313,7 @@ public class QueryViewController {
 	// Logic - Actions
 	// ==============================================================================================
 
-	private void onNewFileButtonClick() {
-		tabEditorController.createNewTab("untitled", "");
-	}
-
-	private void onOpenFilesButtonClick() {
+	private void onOpenFileButtonClick() {
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Open Query File");
 		FileDialogState.applyInitialDirectory(fileChooser);

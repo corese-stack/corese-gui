@@ -52,7 +52,10 @@ public enum ButtonIcon {
     SAVE(MaterialDesignC.CONTENT_SAVE_OUTLINE),
 
     /** Icon for opening files. */
-    OPEN_FILE(MaterialDesignF.FILE),
+    OPEN_FILE(MaterialDesignF.FOLDER_OPEN_OUTLINE),
+
+    /** Icon for creating a new editor tab. */
+    NEW_TAB(MaterialDesignP.PLUS),
 
     /** Icon for importing data/files. */
     IMPORT(MaterialDesignI.IMPORT),

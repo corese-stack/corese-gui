@@ -1,10 +1,12 @@
 package fr.inria.corese.gui.feature.editor.tab;
 
+import fr.inria.corese.gui.component.button.IconButtonWidget;
+import fr.inria.corese.gui.component.button.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.core.theme.ThemeManager;
 import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.utils.fx.TabPaneUtils;
-import fr.inria.corese.gui.core.theme.ThemeManager;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -20,8 +22,6 @@ import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.SplitMenuButton;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -33,15 +33,13 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.util.Duration;
-import org.kordamp.ikonli.javafx.FontIcon;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 
 /**
  * View component for the tabbed editor interface.
  *
  * <p>Manages the visual representation of code editor tabs, including:
  * <ul>
- *   <li>The tab bar with a custom "Add Tab" split button.</li>
+ *   <li>The tab bar with "New tab" and "Open file" actions.</li>
  *   <li>The content area, decoupled from the tab headers for flexibility.</li>
  *   <li>Visual indicators for modified tabs (dirty state).</li>
  *   <li>Empty state display when no tabs are open.</li>
@@ -57,7 +55,7 @@ public class TabEditorView extends AbstractView {
     private static final String STYLESHEET = "/css/features/tab-editor.css";
     private static final String TAB_CONTENT_WRAPPER_ID = "tab-content-wrapper";
     private static final String EMPTY_STATE_VIEW_ID = "empty-state-widget";
-    private static final String STYLE_CLASS_ADD_BUTTON = "add-tab-button";
+    private static final String STYLE_CLASS_TAB_ACTIONS = "tab-header-toolbar";
     private static final String STYLE_CLASS_TAB_HEADER = "tab-header";
 
     // Result Pane Animation
@@ -79,7 +77,8 @@ public class TabEditorView extends AbstractView {
     private final Map<Tab, Node> tabContentMap;
 
     private final TabPane tabPane;
-    private final SplitMenuButton addTabButton;
+    private final IconButtonWidget newTabButton;
+    private final IconButtonWidget openFileButton;
     private final StackPane contentContainer;
     private final VBox mainContent;
 
@@ -94,7 +93,8 @@ public class TabEditorView extends AbstractView {
 
         // Initialize UI components
         this.tabPane = createTabPane();
-        this.addTabButton = createAddTabButton();
+        this.newTabButton = createNewTabButton();
+        this.openFileButton = createOpenFileButton();
         this.contentContainer = new StackPane();
         this.mainContent = new VBox();
 
@@ -113,11 +113,18 @@ public class TabEditorView extends AbstractView {
         return pane;
     }
 
-    private SplitMenuButton createAddTabButton() {
-        SplitMenuButton button = new SplitMenuButton();
-        button.setGraphic(new FontIcon(MaterialDesignP.PLUS));
-        button.getStyleClass().add(STYLE_CLASS_ADD_BUTTON);
+    private IconButtonWidget createNewTabButton() {
+        return createHeaderActionButton(ButtonFactory.newTab());
+    }
+
+    private IconButtonWidget createOpenFileButton() {
+        IconButtonWidget button = createHeaderActionButton(ButtonFactory.openFile());
+        button.setDisable(true);
         return button;
+    }
+
+    private IconButtonWidget createHeaderActionButton(ButtonConfig config) {
+        return new IconButtonWidget(config);
     }
 
     private void initializeLayout() {
@@ -138,12 +145,22 @@ public class TabEditorView extends AbstractView {
         header.getStyleClass().add(STYLE_CLASS_TAB_HEADER);
         header.setAlignment(Pos.BOTTOM_LEFT);
 
-        // Bind visibility of add button to tab pane
-        addTabButton.visibleProperty().bind(tabPane.visibleProperty());
-        addTabButton.managedProperty().bind(tabPane.managedProperty());
+        HBox actionToolbar = createActionToolbar();
+        // Bind visibility of action toolbar to tab pane
+        actionToolbar.visibleProperty().bind(tabPane.visibleProperty());
+        actionToolbar.managedProperty().bind(tabPane.managedProperty());
 
-        header.getChildren().addAll(tabPane, addTabButton);
+        HBox.setHgrow(tabPane, Priority.ALWAYS);
+        header.getChildren().addAll(tabPane, actionToolbar);
         return header;
+    }
+
+    private HBox createActionToolbar() {
+        HBox toolbar = new HBox(6);
+        toolbar.getStyleClass().add(STYLE_CLASS_TAB_ACTIONS);
+        toolbar.setAlignment(Pos.CENTER_LEFT);
+        toolbar.getChildren().addAll(newTabButton, openFileButton);
+        return toolbar;
     }
 
     private void setupListeners() {
@@ -358,22 +375,16 @@ public class TabEditorView extends AbstractView {
     }
 
     // ==============================================================================================
-    // Public API - Menu
+    // Public API - Actions
     // ==============================================================================================
 
-    public MenuItem addMenuItem(String text, EventHandler<ActionEvent> action) {
-        MenuItem item = new MenuItem(text);
-        item.setOnAction(action);
-        addTabButton.getItems().add(item);
-        return item;
+    public void setOnNewTabAction(EventHandler<ActionEvent> action) {
+        newTabButton.setOnAction(action);
     }
 
-    public void clearMenuItems() {
-        addTabButton.getItems().clear();
-    }
-
-    public void setOnAddTabAction(EventHandler<ActionEvent> action) {
-        addTabButton.setOnAction(action);
+    public void setOnOpenFileAction(EventHandler<ActionEvent> action) {
+        openFileButton.setOnAction(action);
+        openFileButton.setDisable(action == null);
     }
 
     public void subscribeToTabChanges(ListChangeListener<Tab> listener) {
