@@ -5,50 +5,29 @@
     -fx-spacing: 0;
 }
 
-/* Keep a consistent header height between tabs and action buttons */
-.tab-header .tab-pane > .tab-header-area {
-    -fx-pref-height: 44px;
-}
-
-.tab-header .tab-pane > .tab-header-area > .headers-region > .tab {
-    -fx-pref-height: 44px;
-    -fx-min-height: 44px;
-}
-
-/* Tab separator - applies to individual tabs within TabPane */
-.tab-pane > .tab-header-area > .headers-region > .tab {
-    -fx-border-width: 0 1 0 0;
-    -fx-border-color: linear-gradient(
-        to bottom, 
-        transparent 25%, 
-        -color-border-default 25%, 
-        -color-border-default 75%, 
-        transparent 75%
-    );
-}
-
-.tab-pane > .tab-header-area > .headers-region > .tab:last-child {
-    -fx-border-width: 0;
-}
-
 /* Tab header toolbar (horizontal, toolbar-like) */
 .tab-header-toolbar {
     -fx-background-color: -color-bg-subtle;
     -fx-border-color: -color-border-default;
-    -fx-border-width: 0 0 1 1;
-    -fx-padding: 4px 6px;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 0 4 0 4;
     -fx-pref-height: 44px;
     -fx-min-height: 44px;
+    -fx-max-height: 44px;
     -fx-alignment: center-left;
-    -fx-spacing: 6px;
+    -fx-spacing: 4px;
 }
 
 .tab-header-toolbar .button {
     -fx-background-color: transparent;
     -fx-background-radius: 8px;
     -fx-padding: 6px;
+    -fx-min-width: 36px;
     -fx-pref-width: 36px;
+    -fx-max-width: 36px;
+    -fx-min-height: 36px;
     -fx-pref-height: 36px;
+    -fx-max-height: 36px;
     -fx-alignment: center;
     -fx-content-display: graphic-only;
     -fx-text-fill: -color-fg-default;

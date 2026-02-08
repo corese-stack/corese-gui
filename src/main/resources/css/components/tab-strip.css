@@ -1,0 +1,132 @@
+/* Reusable custom tab strip */
+
+.editor-tab-strip {
+    -fx-pref-height: 44px;
+    -fx-min-height: 44px;
+    -fx-max-height: 44px;
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 0 0 1 0;
+    -fx-spacing: 0;
+}
+
+.editor-tab-scroll {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.editor-tab-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.editor-tab-scroll > .corner {
+    -fx-background-color: transparent;
+}
+
+.editor-tab-track {
+    -fx-spacing: 0;
+}
+
+.editor-tab-overflow-shadow {
+    -fx-min-width: 16px;
+    -fx-pref-width: 16px;
+    -fx-max-width: 16px;
+    -fx-background-insets: 0;
+}
+
+.editor-tab-overflow-shadow.left {
+    -fx-background-color: linear-gradient(to right, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0));
+}
+
+.editor-tab-overflow-shadow.right {
+    -fx-background-color: linear-gradient(to left, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0));
+}
+
+.editor-tab-item {
+    -fx-alignment: center;
+    -fx-padding: 0 12 0 12;
+    -fx-pref-height: 44px;
+    -fx-min-height: 44px;
+    -fx-max-height: 44px;
+    -fx-border-width: 0 1 1 0;
+    -fx-border-color: -color-border-default;
+    -fx-background-color: -color-bg-subtle;
+}
+
+.editor-tab-item.selected {
+    -fx-background-color: -color-bg-default;
+    -fx-border-width: 0 1 2 0;
+    -fx-border-insets: 0;
+    -fx-border-color: transparent -color-border-default -color-accent-fg transparent;
+}
+
+.editor-tab-title {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.editor-tab-icon {
+    -fx-icon-color: -color-fg-muted;
+    -fx-fill: -color-fg-muted;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.editor-tab-item.selected .editor-tab-title {
+    -fx-text-fill: -color-fg-default;
+}
+
+.editor-tab-item.selected .editor-tab-icon {
+    -fx-icon-color: -color-fg-default;
+    -fx-fill: -color-fg-default;
+    -fx-text-fill: -color-fg-default;
+}
+
+.editor-tab-close {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-min-width: 18px;
+    -fx-pref-width: 18px;
+    -fx-min-height: 18px;
+    -fx-pref-height: 18px;
+    -fx-text-fill: -color-fg-muted;
+    -fx-cursor: hand;
+    -fx-background-radius: 9px;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+}
+
+.editor-tab-item.selected .editor-tab-close {
+    -fx-text-fill: -color-fg-default;
+}
+
+.editor-tab-close:hover {
+    -fx-background-color: rgba(0, 0, 0, 0.12);
+}
+
+.editor-tab-dirty {
+    -fx-stroke: transparent;
+}
+
+.editor-tab-item:disabled {
+    -fx-opacity: 1;
+    -fx-background-color: derive(-color-bg-subtle, -4%);
+}
+
+.editor-tab-item:disabled .editor-tab-title {
+    -fx-text-fill: derive(-color-fg-muted, -20%) !important;
+}
+
+.editor-tab-item:disabled .editor-tab-icon {
+    -fx-icon-color: derive(-color-fg-muted, -20%) !important;
+    -fx-fill: derive(-color-fg-muted, -20%) !important;
+    -fx-text-fill: derive(-color-fg-muted, -20%) !important;
+}
+
+.editor-tab-item:disabled .result-tab-icon {
+    -fx-icon-color: derive(-color-fg-muted, -20%) !important;
+    -fx-fill: derive(-color-fg-muted, -20%) !important;
+    -fx-text-fill: derive(-color-fg-muted, -20%) !important;
+}
+
+.editor-tab-item:disabled .editor-tab-close {
+    -fx-text-fill: derive(-color-fg-muted, -20%) !important;
+}

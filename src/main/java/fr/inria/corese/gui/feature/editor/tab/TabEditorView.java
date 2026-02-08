@@ -3,10 +3,10 @@ package fr.inria.corese.gui.feature.editor.tab;
 import fr.inria.corese.gui.component.button.IconButtonWidget;
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
+import fr.inria.corese.gui.component.tabstrip.TabStripController;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.theme.ThemeManager;
 import fr.inria.corese.gui.core.view.AbstractView;
-import fr.inria.corese.gui.utils.fx.TabPaneUtils;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -18,6 +18,7 @@ import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
+import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -30,7 +31,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.util.Duration;
 
@@ -38,364 +38,359 @@ import javafx.util.Duration;
  * View component for the tabbed editor interface.
  *
  * <p>Manages the visual representation of code editor tabs, including:
+ *
  * <ul>
- *   <li>The tab bar with "New tab" and "Open file" actions.</li>
- *   <li>The content area, decoupled from the tab headers for flexibility.</li>
- *   <li>Visual indicators for modified tabs (dirty state).</li>
- *   <li>Empty state display when no tabs are open.</li>
- *   <li>Animation for showing/hiding result panes.</li>
+ *   <li>Custom tab strip with "New tab" and "Open file" actions.
+ *   <li>The content area, decoupled from tab headers for flexibility.
+ *   <li>Visual indicators for modified tabs (dirty state).
+ *   <li>Empty state display when no tabs are open.
+ *   <li>Animation for showing/hiding result panes.
  * </ul>
  */
 public class TabEditorView extends AbstractView {
 
-    // ==============================================================================================
-    // Constants
-    // ==============================================================================================
+  // ==============================================================================================
+  // Constants
+  // ==============================================================================================
 
-    private static final String STYLESHEET = "/css/features/tab-editor.css";
-    private static final String TAB_CONTENT_WRAPPER_ID = "tab-content-wrapper";
-    private static final String EMPTY_STATE_VIEW_ID = "empty-state-widget";
-    private static final String STYLE_CLASS_TAB_ACTIONS = "tab-header-toolbar";
-    private static final String STYLE_CLASS_TAB_HEADER = "tab-header";
+  private static final String STYLESHEET = "/css/features/tab-editor.css";
+  private static final String TAB_CONTENT_WRAPPER_ID = "tab-content-wrapper";
+  private static final String EMPTY_STATE_VIEW_ID = "empty-state-widget";
+  private static final String STYLE_CLASS_TAB_ACTIONS = "tab-header-toolbar";
+  private static final String STYLE_CLASS_TAB_HEADER = "tab-header";
 
-    // Result Pane Animation
-    private static final Duration SPLIT_ANIMATION_DURATION = Duration.millis(300);
-    private static final double RESULT_PANE_VISIBLE_POSITION = 0.6;
-    private static final double RESULT_PANE_HIDDEN_POSITION = 1.0;
+  // Result Pane Animation
+  private static final Duration SPLIT_ANIMATION_DURATION = Duration.millis(300);
+  private static final double RESULT_PANE_VISIBLE_POSITION = 0.6;
+  private static final double RESULT_PANE_HIDDEN_POSITION = 1.0;
 
-    // Modified Tab Icon
-    private static final double MODIFIED_CIRCLE_RADIUS = 4.0;
+  // Modified Tab Icon
+  private static final double MODIFIED_CIRCLE_RADIUS = 4.0;
 
-    // Execution Button Layout
-    private static final Insets EXECUTION_BUTTON_MARGIN = new Insets(0, 60, 40, 0);
+  // Execution Button Layout
+  private static final Insets EXECUTION_BUTTON_MARGIN = new Insets(0, 60, 40, 0);
 
-    // ==============================================================================================
-    // Fields
-    // ==============================================================================================
+  // ==============================================================================================
+  // Fields
+  // ==============================================================================================
 
-    private final ThemeManager themeManager;
-    private final Map<Tab, Node> tabContentMap;
+  private final ThemeManager themeManager;
+  private final Map<Tab, Node> tabContentMap;
 
-    private final TabPane tabPane;
-    private final IconButtonWidget newTabButton;
-    private final IconButtonWidget openFileButton;
-    private final StackPane contentContainer;
-    private final VBox mainContent;
+  // TabPane is kept as the internal model (selection/list), not rendered as header.
+  private final TabPane tabPane;
+  private final TabStripController tabStripController;
+  private final IconButtonWidget newTabButton;
+  private final IconButtonWidget openFileButton;
+  private final HBox headerBar;
+  private final StackPane contentContainer;
+  private final VBox mainContent;
 
-    // ==============================================================================================
-    // Constructor
-    // ==============================================================================================
+  // ==============================================================================================
+  // Constructor
+  // ==============================================================================================
 
-    public TabEditorView() {
-        super(new StackPane(), STYLESHEET);
-        this.themeManager = ThemeManager.getInstance();
-        this.tabContentMap = new HashMap<>();
+  public TabEditorView() {
+    super(new StackPane(), STYLESHEET);
+    this.themeManager = ThemeManager.getInstance();
+    this.tabContentMap = new HashMap<>();
 
-        // Initialize UI components
-        this.tabPane = createTabPane();
-        this.newTabButton = createNewTabButton();
-        this.openFileButton = createOpenFileButton();
-        this.contentContainer = new StackPane();
-        this.mainContent = new VBox();
+    this.tabPane = createTabPane();
+    this.tabStripController = new TabStripController(tabPane, themeManager);
+    this.tabStripController.setOnCloseRequest(this::requestCloseTab);
+    this.newTabButton = createNewTabButton();
+    this.openFileButton = createOpenFileButton();
+    this.headerBar = createTabHeader();
+    this.contentContainer = new StackPane();
+    this.mainContent = new VBox();
 
-        initializeLayout();
-        setupListeners();
-    }
+    initializeLayout();
+    setupListeners();
+  }
 
-    // ==============================================================================================
-    // Initialization
-    // ==============================================================================================
+  // ==============================================================================================
+  // Initialization
+  // ==============================================================================================
 
-    private TabPane createTabPane() {
-        TabPane pane = new TabPane();
-        pane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
-        TabPaneUtils.enableFullWidthTabs(pane);
-        return pane;
-    }
+  private TabPane createTabPane() {
+    TabPane pane = new TabPane();
+    pane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+    return pane;
+  }
 
-    private IconButtonWidget createNewTabButton() {
-        return createHeaderActionButton(ButtonFactory.newTab());
-    }
+  private IconButtonWidget createNewTabButton() {
+    return createHeaderActionButton(ButtonFactory.newTab());
+  }
 
-    private IconButtonWidget createOpenFileButton() {
-        IconButtonWidget button = createHeaderActionButton(ButtonFactory.openFile());
-        button.setDisable(true);
-        return button;
-    }
+  private IconButtonWidget createOpenFileButton() {
+    IconButtonWidget button = createHeaderActionButton(ButtonFactory.openFile());
+    button.setDisable(true);
+    return button;
+  }
 
-    private IconButtonWidget createHeaderActionButton(ButtonConfig config) {
-        return new IconButtonWidget(config);
-    }
+  private IconButtonWidget createHeaderActionButton(ButtonConfig config) {
+    return new IconButtonWidget(config);
+  }
 
-    private void initializeLayout() {
-        mainContent.setMinHeight(0);
+  private void initializeLayout() {
+    mainContent.setMinHeight(0);
+    mainContent.getChildren().addAll(headerBar, contentContainer);
+    VBox.setVgrow(contentContainer, Priority.ALWAYS);
 
-        HBox tabHeader = createTabHeader();
-        mainContent.getChildren().addAll(tabHeader, contentContainer);
-        VBox.setVgrow(contentContainer, Priority.ALWAYS);
+    StackPane rootStack = (StackPane) getRoot();
+    rootStack.getChildren().add(mainContent);
 
-        StackPane rootStack = (StackPane) getRoot();
-        rootStack.getChildren().addAll(mainContent);
+    contentContainer.setId(TAB_CONTENT_WRAPPER_ID);
+  }
 
-        contentContainer.setId(TAB_CONTENT_WRAPPER_ID);
-    }
+  private HBox createTabHeader() {
+    HBox header = new HBox();
+    header.getStyleClass().add(STYLE_CLASS_TAB_HEADER);
+    header.setAlignment(Pos.BOTTOM_LEFT);
 
-    private HBox createTabHeader() {
-        HBox header = new HBox();
-        header.getStyleClass().add(STYLE_CLASS_TAB_HEADER);
-        header.setAlignment(Pos.BOTTOM_LEFT);
+    HBox actionToolbar = createActionToolbar();
+    HBox.setHgrow(tabStripController.getView(), Priority.ALWAYS);
+    header.getChildren().addAll(tabStripController.getView(), actionToolbar);
+    return header;
+  }
 
-        HBox actionToolbar = createActionToolbar();
-        // Bind visibility of action toolbar to tab pane
-        actionToolbar.visibleProperty().bind(tabPane.visibleProperty());
-        actionToolbar.managedProperty().bind(tabPane.managedProperty());
+  private HBox createActionToolbar() {
+    HBox toolbar = new HBox(6);
+    toolbar.getStyleClass().add(STYLE_CLASS_TAB_ACTIONS);
+    toolbar.setAlignment(Pos.CENTER_LEFT);
+    toolbar.getChildren().addAll(newTabButton, openFileButton);
+    toolbar.setMinWidth(Region.USE_PREF_SIZE);
+    return toolbar;
+  }
 
-        HBox.setHgrow(tabPane, Priority.ALWAYS);
-        header.getChildren().addAll(tabPane, actionToolbar);
-        return header;
-    }
+  private void setupListeners() {
+    setupTabSelectionListener();
+    setupTabListChangeListener();
+    setupThemeListener();
+  }
 
-    private HBox createActionToolbar() {
-        HBox toolbar = new HBox(6);
-        toolbar.getStyleClass().add(STYLE_CLASS_TAB_ACTIONS);
-        toolbar.setAlignment(Pos.CENTER_LEFT);
-        toolbar.getChildren().addAll(newTabButton, openFileButton);
-        return toolbar;
-    }
+  private void setupTabSelectionListener() {
+    tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> showContentForTab(newTab));
+  }
 
-    private void setupListeners() {
-        setupTabSelectionListener();
-        setupTabListChangeListener();
-        setupThemeListener();
-    }
-
-    private void setupTabSelectionListener() {
-        tabPane.getSelectionModel().selectedItemProperty()
-            .addListener((obs, oldTab, newTab) -> showContentForTab(newTab));
-    }
-
-    private void setupTabListChangeListener() {
-        tabPane.getTabs().addListener((ListChangeListener<Tab>) change -> {
-            while (change.next()) {
-                handleTabsRemoved(change);
-                handleTabsAdded(change);
-            }
-            handleAllTabsRemoved();
-        });
-    }
-
-    private void handleTabsRemoved(ListChangeListener.Change<? extends Tab> change) {
+  private void setupTabListChangeListener() {
+    tabPane.getTabs().addListener((ListChangeListener<Tab>) change -> {
+      while (change.next()) {
         if (change.wasRemoved()) {
-            change.getRemoved().forEach(tabContentMap::remove);
+          for (Tab tab : change.getRemoved()) {
+            tabContentMap.remove(tab);
+          }
         }
-    }
 
-    private void handleTabsAdded(ListChangeListener.Change<? extends Tab> change) {
         if (change.wasAdded()) {
-            Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
-            if (selectedTab != null && change.getAddedSubList().contains(selectedTab)) {
-                Platform.runLater(() -> showContentForTab(selectedTab));
-            }
+          Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+          if (selectedTab != null && change.getAddedSubList().contains(selectedTab)) {
+            Platform.runLater(() -> showContentForTab(selectedTab));
+          }
         }
+      }
+
+      if (tabPane.getTabs().isEmpty()) {
+        showContentForTab(null);
+      }
+    });
+  }
+
+  private void setupThemeListener() {
+    themeManager.accentColorProperty().addListener((obs, oldColor, newColor) -> tabStripController.refresh());
+  }
+
+  private void requestCloseTab(Tab tab) {
+    Event closeEvent = new Event(tab, tab, Tab.TAB_CLOSE_REQUEST_EVENT);
+    Event.fireEvent(tab, closeEvent);
+    if (!closeEvent.isConsumed()) {
+      tabPane.getTabs().remove(tab);
     }
+  }
 
-    private void handleAllTabsRemoved() {
-        if (tabPane.getTabs().isEmpty()) {
-            showContentForTab(null);
-        }
+  // ==============================================================================================
+  // Content Management
+  // ==============================================================================================
+
+  private void showContentForTab(Tab selectedTab) {
+    contentContainer.getChildren().removeIf(node -> TAB_CONTENT_WRAPPER_ID.equals(node.getId()));
+
+    if (selectedTab != null) {
+      Node content = tabContentMap.get(selectedTab);
+      if (content != null) {
+        StackPane wrapper = new StackPane(content);
+        wrapper.setId(TAB_CONTENT_WRAPPER_ID);
+        contentContainer.getChildren().add(0, wrapper);
+      }
     }
+  }
 
-    private void setupThemeListener() {
-        themeManager.accentColorProperty()
-            .addListener((obs, oldColor, newColor) -> refreshModifiedTabIcons());
+  private Node getTabContent(Tab tab) {
+    return tabContentMap.get(tab);
+  }
+
+  // ==============================================================================================
+  // Public API - Tabs
+  // ==============================================================================================
+
+  /** Creates a configured Tab with the associated content. */
+  public Tab createEditorTab(String title, Node content) {
+    Tab tab = new Tab(title);
+    if (content instanceof Region region) {
+      region.setMaxWidth(Double.MAX_VALUE);
+      region.setMaxHeight(Double.MAX_VALUE);
     }
+    tabContentMap.put(tab, content);
+    return tab;
+  }
 
-    // ==============================================================================================
-    // Content Management
-    // ==============================================================================================
+  public void addNewEditorTab(Tab tab) {
+    tabPane.getTabs().add(tab);
+    tabPane.getSelectionModel().select(tab);
+    showContentForTab(tab);
+  }
 
-    private void showContentForTab(Tab selectedTab) {
-        // Remove existing content
-        contentContainer.getChildren().removeIf(node -> TAB_CONTENT_WRAPPER_ID.equals(node.getId()));
+  public void selectTab(Tab tab) {
+    tabPane.getSelectionModel().select(tab);
+  }
 
-        if (selectedTab != null) {
-            Node content = tabContentMap.get(selectedTab);
-            if (content != null) {
-                StackPane wrapper = new StackPane(content);
-                wrapper.setId(TAB_CONTENT_WRAPPER_ID);
-                // Add at index 0 (below floating nodes) or handle z-order
-                contentContainer.getChildren().add(0, wrapper);
-            }
-        }
+  public Tab getSelectedTab() {
+    return tabPane.getSelectionModel().getSelectedItem();
+  }
+
+  public ObservableList<Tab> getTabs() {
+    return tabPane.getTabs();
+  }
+
+  // ==============================================================================================
+  // Public API - State & UI
+  // ==============================================================================================
+
+  public void updateTabIcon(Tab tab, boolean isModified) {
+    if (isModified) {
+      Circle circle = new Circle(MODIFIED_CIRCLE_RADIUS, themeManager.getAccentColor());
+      tab.setGraphic(circle);
+    } else {
+      tab.setGraphic(null);
     }
+    tabStripController.refresh();
+  }
 
-    private void refreshModifiedTabIcons() {
-        Color accentColor = themeManager.getAccentColor();
-        if (accentColor == null) return;
-        
-        tabPane.getTabs().stream()
-            .filter(tab -> tab.getGraphic() instanceof Circle)
-            .forEach(tab -> ((Circle) tab.getGraphic()).setFill(accentColor));
+  public void setTabsVisible(boolean visible) {
+    headerBar.setVisible(visible);
+    headerBar.setManaged(visible);
+    if (visible) {
+      // First display can occur before layout metrics are stable.
+      // Refresh again on next pulses to get correct full-width tab sizing.
+      Platform.runLater(tabStripController::refresh);
+      Platform.runLater(() -> Platform.runLater(tabStripController::refresh));
     }
+  }
 
-    private Node getTabContent(Tab tab) {
-        return tabContentMap.get(tab);
-    }
+  public void setEmptyStateWidget(Node emptyStateWidget) {
+    emptyStateWidget.setId(EMPTY_STATE_VIEW_ID);
+    contentContainer.getChildren().removeIf(node -> EMPTY_STATE_VIEW_ID.equals(node.getId()));
+    contentContainer.getChildren().add(0, emptyStateWidget);
+  }
 
-    // ==============================================================================================
-    // Public API - Tabs
-    // ==============================================================================================
-
-    /**
-     * Creates a configured Tab with the associated content.
-     * The content is stored internally and displayed when the tab is selected.
-     */
-    public Tab createEditorTab(String title, Node content) {
-        Tab tab = new Tab(title);
-        if (content instanceof Region region) {
-            region.setMaxWidth(Double.MAX_VALUE);
-            region.setMaxHeight(Double.MAX_VALUE);
-        }
-        tabContentMap.put(tab, content);
-        return tab;
-    }
-
-    public void addNewEditorTab(Tab tab) {
-        tabPane.getTabs().add(tab);
-        tabPane.getSelectionModel().select(tab);
-        showContentForTab(tab);
-    }
-
-    public void selectTab(Tab tab) {
-        tabPane.getSelectionModel().select(tab);
-    }
-
-    public Tab getSelectedTab() {
-        return tabPane.getSelectionModel().getSelectedItem();
-    }
-
-    public ObservableList<Tab> getTabs() {
-        return tabPane.getTabs();
-    }
-
-    // ==============================================================================================
-    // Public API - State & UI
-    // ==============================================================================================
-
-    public void updateTabIcon(Tab tab, boolean isModified) {
-        if (isModified) {
-            Circle circle = new Circle(MODIFIED_CIRCLE_RADIUS, themeManager.getAccentColor());
-            tab.setGraphic(circle);
-        } else {
-            tab.setGraphic(null);
-        }
-    }
-
-    public void setTabsVisible(boolean visible) {
-        tabPane.setVisible(visible);
-        tabPane.setManaged(visible);
-    }
-
-    public void setEmptyStateWidget(Node emptyStateWidget) {
-        emptyStateWidget.setId(EMPTY_STATE_VIEW_ID);
-        contentContainer.getChildren().removeIf(node -> EMPTY_STATE_VIEW_ID.equals(node.getId()));
-        contentContainer.getChildren().add(0, emptyStateWidget);
-    }
-
-    public void updateEmptyStateVisibility(boolean visible) {
-        contentContainer.getChildren().stream()
-            .filter(node -> EMPTY_STATE_VIEW_ID.equals(node.getId()))
-            .findFirst()
-            .ifPresent(node -> {
-                node.setVisible(visible);
-                node.setManaged(visible);
+  public void updateEmptyStateVisibility(boolean visible) {
+    contentContainer.getChildren().stream()
+        .filter(node -> EMPTY_STATE_VIEW_ID.equals(node.getId()))
+        .findFirst()
+        .ifPresent(
+            node -> {
+              node.setVisible(visible);
+              node.setManaged(visible);
             });
+  }
+
+  public void addFloatingNode(Node node, Pos position, Insets margin) {
+    StackPane.setAlignment(node, position);
+    StackPane.setMargin(node, margin);
+    contentContainer.getChildren().add(node);
+  }
+
+  // ==============================================================================================
+  // Public API - Dialogs
+  // ==============================================================================================
+
+  public void showError(String title, String message) {
+    ModalService.getInstance().showError(title, message);
+  }
+
+  public void showError(String title, String message, String details) {
+    ModalService.getInstance().showError(title, message, details);
+  }
+
+  public void showUnsavedChangesDialog(String fileName, Consumer<ModalService.UnsavedChangesResult> callback) {
+    ModalService.getInstance().showUnsavedChangesDialog(fileName, callback);
+  }
+
+  // ==============================================================================================
+  // Public API - Results Pane
+  // ==============================================================================================
+
+  public void showResultPane(Node resultNode) {
+    Tab selectedTab = getSelectedTab();
+    if (selectedTab == null || resultNode == null) return;
+
+    Node content = getTabContent(selectedTab);
+    if (content instanceof SplitPane splitPane && splitPane.getItems().size() < 2) {
+      splitPane.getItems().add(resultNode);
+      splitPane.setDividerPositions(RESULT_PANE_HIDDEN_POSITION);
+
+      Timeline timeline =
+          new Timeline(
+              new KeyFrame(
+                  SPLIT_ANIMATION_DURATION,
+                  new KeyValue(splitPane.getDividers().get(0).positionProperty(), RESULT_PANE_VISIBLE_POSITION)));
+      timeline.play();
     }
+  }
 
-    public void addFloatingNode(Node node, Pos position, Insets margin) {
-        StackPane.setAlignment(node, position);
-        StackPane.setMargin(node, margin);
-        contentContainer.getChildren().add(node);
+  public void hideResultPane() {
+    Tab selectedTab = getSelectedTab();
+    if (selectedTab == null) return;
+
+    Node content = getTabContent(selectedTab);
+    if (content instanceof SplitPane splitPane && splitPane.getItems().size() > 1) {
+      Timeline timeline =
+          new Timeline(
+              new KeyFrame(
+                  SPLIT_ANIMATION_DURATION,
+                  new KeyValue(splitPane.getDividers().get(0).positionProperty(), RESULT_PANE_HIDDEN_POSITION)));
+      timeline.setOnFinished(
+          e -> {
+            if (splitPane.getItems().size() > 1) {
+              splitPane.getItems().remove(1);
+            }
+          });
+      timeline.play();
     }
+  }
 
-    // ==============================================================================================
-    // Public API - Dialogs
-    // ==============================================================================================
+  // ==============================================================================================
+  // Public API - Actions
+  // ==============================================================================================
 
-    public void showError(String title, String message) {
-        ModalService.getInstance().showError(title, message);
-    }
+  public void setOnNewTabAction(EventHandler<ActionEvent> action) {
+    newTabButton.setOnAction(action);
+  }
 
-    public void showError(String title, String message, String details) {
-        ModalService.getInstance().showError(title, message, details);
-    }
+  public void setOnOpenFileAction(EventHandler<ActionEvent> action) {
+    openFileButton.setOnAction(action);
+    openFileButton.setDisable(action == null);
+  }
 
-    public void showUnsavedChangesDialog(String fileName, Consumer<ModalService.UnsavedChangesResult> callback) {
-        ModalService.getInstance().showUnsavedChangesDialog(fileName, callback);
-    }
+  public void subscribeToTabChanges(ListChangeListener<Tab> listener) {
+    tabPane.getTabs().addListener(listener);
+  }
 
-    // ==============================================================================================
-    // Public API - Results Pane
-    // ==============================================================================================
+  public void addSelectionListener(ChangeListener<Tab> listener) {
+    tabPane.getSelectionModel().selectedItemProperty().addListener(listener);
+  }
 
-    public void showResultPane(Node resultNode) {
-        Tab selectedTab = getSelectedTab();
-        if (selectedTab == null || resultNode == null) return;
-
-        Node content = getTabContent(selectedTab);
-        if (content instanceof SplitPane splitPane && splitPane.getItems().size() < 2) {
-            splitPane.getItems().add(resultNode);
-            splitPane.setDividerPositions(RESULT_PANE_HIDDEN_POSITION);
-
-            Timeline timeline = new Timeline(
-                new KeyFrame(SPLIT_ANIMATION_DURATION,
-                    new KeyValue(splitPane.getDividers().get(0).positionProperty(), RESULT_PANE_VISIBLE_POSITION))
-            );
-            timeline.play();
-        }
-    }
-
-    public void hideResultPane() {
-        Tab selectedTab = getSelectedTab();
-        if (selectedTab == null) return;
-
-        Node content = getTabContent(selectedTab);
-        if (content instanceof SplitPane splitPane && splitPane.getItems().size() > 1) {
-            Timeline timeline = new Timeline(
-                new KeyFrame(SPLIT_ANIMATION_DURATION,
-                    new KeyValue(splitPane.getDividers().get(0).positionProperty(), RESULT_PANE_HIDDEN_POSITION))
-            );
-            timeline.setOnFinished(e -> {
-                if (splitPane.getItems().size() > 1) {
-                    splitPane.getItems().remove(1);
-                }
-            });
-            timeline.play();
-        }
-    }
-
-    // ==============================================================================================
-    // Public API - Actions
-    // ==============================================================================================
-
-    public void setOnNewTabAction(EventHandler<ActionEvent> action) {
-        newTabButton.setOnAction(action);
-    }
-
-    public void setOnOpenFileAction(EventHandler<ActionEvent> action) {
-        openFileButton.setOnAction(action);
-        openFileButton.setDisable(action == null);
-    }
-
-    public void subscribeToTabChanges(ListChangeListener<Tab> listener) {
-        tabPane.getTabs().addListener(listener);
-    }
-
-    public void addSelectionListener(ChangeListener<Tab> listener) {
-        tabPane.getSelectionModel().selectedItemProperty().addListener(listener);
-    }
-
-    public static Insets getExecutionButtonMargin() {
-        return EXECUTION_BUTTON_MARGIN;
-    }
+  public static Insets getExecutionButtonMargin() {
+    return EXECUTION_BUTTON_MARGIN;
+  }
 }

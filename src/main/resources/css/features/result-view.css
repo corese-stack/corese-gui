@@ -1,15 +1,1 @@
-/* ==========================================================================
-   Result View Tabs
-   ========================================================================== */
-
-.result-tab-icon {
-    -fx-icon-color: -color-fg-default;
-}
-
-.tab-pane.result-tab-pane .tab-label {
-    -fx-graphic-text-gap: 6px;
-}
-
-.tab:disabled .result-tab-icon {
-    -fx-icon-color: -color-fg-muted;
-}
+/* Result tab icons are styled by the shared tab-strip component. */

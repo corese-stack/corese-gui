@@ -1,17 +1,16 @@
 package fr.inria.corese.gui.feature.result;
 
+import fr.inria.corese.gui.component.tabstrip.TabStripController;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
+import fr.inria.corese.gui.core.theme.ThemeManager;
 import fr.inria.corese.gui.core.view.AbstractView;
-import fr.inria.corese.gui.utils.fx.TabPaneUtils;
-import javafx.scene.Node;
-import org.kordamp.ikonli.javafx.FontIcon;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignG;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignT;
-
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import org.kordamp.ikonli.feather.Feather;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 /**
  * Main view for displaying query results with multiple tab types (Text, Table,
@@ -38,6 +37,8 @@ public class ResultView extends AbstractView {
 	// ==============================================================================================
 
 	private final TabPane tabPane;
+	private final TabStripController tabStripController;
+	private final StackPane contentContainer;
 	private final Tab textTab;
 	private final Tab tableTab;
 	private final Tab graphTab;
@@ -46,21 +47,23 @@ public class ResultView extends AbstractView {
 		super(new BorderPane(), "/css/features/result-view.css");
 
 		tabPane = new TabPane();
-		tabPane.getStyleClass().add("result-tab-pane");
+		tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+		tabStripController = new TabStripController(tabPane, ThemeManager.getInstance(), false);
+		contentContainer = new StackPane();
 		textTab = new Tab(ResultViewConfig.TabType.TEXT.getLabel());
 		tableTab = new Tab(ResultViewConfig.TabType.TABLE.getLabel());
 		graphTab = new Tab(ResultViewConfig.TabType.GRAPH.getLabel());
+		textTab.setGraphic(createTabIcon(Feather.FILE_TEXT));
+		tableTab.setGraphic(createTabIcon(Feather.GRID));
+		graphTab.setGraphic(createTabIcon(Feather.SHARE_2));
 
-		textTab.setGraphic(createTabIcon(MaterialDesignF.FILE_DOCUMENT_OUTLINE));
-		tableTab.setGraphic(createTabIcon(MaterialDesignT.TABLE));
-		graphTab.setGraphic(createTabIcon(MaterialDesignG.GRAPH));
-
-		// Tab pane starts empty - controller will add configured tabs
-		tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-		TabPaneUtils.enableFullWidthTabs(tabPane);
+		setupModelListeners();
 
 		BorderPane root = (BorderPane) getRoot();
-		root.setCenter(tabPane);
+		VBox layout = new VBox(tabStripController.getView(), contentContainer);
+		contentContainer.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		VBox.setVgrow(contentContainer, javafx.scene.layout.Priority.ALWAYS);
+		root.setCenter(layout);
 	}
 
 	// ==============================================================================================
@@ -102,6 +105,7 @@ public class ResultView extends AbstractView {
 	 */
 	public void clearAllTabs() {
 		tabPane.getTabs().clear();
+		showTabContent(null);
 	}
 
 	/**
@@ -187,6 +191,7 @@ public class ResultView extends AbstractView {
 	public void setTabEnabled(Tab tab, boolean enabled) {
 		if (tab != null) {
 			tab.setDisable(!enabled);
+			tabStripController.refresh();
 		}
 	}
 
@@ -210,9 +215,26 @@ public class ResultView extends AbstractView {
 		};
 	}
 
-	private Node createTabIcon(org.kordamp.ikonli.Ikon ikon) {
-		FontIcon icon = new FontIcon(ikon);
-		icon.setIconSize(12);
+	private void setupModelListeners() {
+		tabPane.getSelectionModel().selectedItemProperty()
+				.addListener((obs, oldTab, newTab) -> showTabContent(newTab));
+		tabPane.getTabs().addListener((javafx.collections.ListChangeListener<Tab>) c -> {
+			if (tabPane.getSelectionModel().getSelectedItem() == null && !tabPane.getTabs().isEmpty()) {
+				tabPane.getSelectionModel().select(tabPane.getTabs().get(0));
+			}
+			showTabContent(tabPane.getSelectionModel().getSelectedItem());
+		});
+	}
+
+	private void showTabContent(Tab tab) {
+		contentContainer.getChildren().clear();
+		if (tab != null && tab.getContent() != null) {
+			contentContainer.getChildren().add(tab.getContent());
+		}
+	}
+
+	private FontIcon createTabIcon(Feather iconCode) {
+		FontIcon icon = new FontIcon(iconCode);
 		icon.getStyleClass().add("result-tab-icon");
 		return icon;
 	}
