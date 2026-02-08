@@ -105,6 +105,7 @@ public class QueryService {
 
         try {
             Graph graph = GraphStoreService.getInstance().getGraph();
+            int graphSizeBefore = graph.size();
             QueryProcess exec = QueryProcess.create(graph);
 
             Mappings mappings = exec.query(queryString);
@@ -112,6 +113,28 @@ public class QueryService {
 
             QueryType type = detectType(ast);
             String id = UUID.randomUUID().toString();
+            Boolean askResult = null;
+            int insertedTriples = 0;
+            int deletedTriples = 0;
+
+            if (type == QueryType.ASK) {
+                // In Corese ASK is represented as non-empty mappings=true, empty=false.
+                askResult = mappings.size() > 0;
+            } else if (type == QueryType.UPDATE) {
+                // Corese tracks update impact directly on Mappings when available.
+                insertedTriples = Math.max(0, mappings.nbInsert());
+                deletedTriples = Math.max(0, mappings.nbDelete());
+
+                // Fallback for update operations that do not expose fine-grained counters.
+                if (insertedTriples == 0 && deletedTriples == 0) {
+                    int delta = graph.size() - graphSizeBefore;
+                    if (delta > 0) {
+                        insertedTriples = delta;
+                    } else if (delta < 0) {
+                        deletedTriples = -delta;
+                    }
+                }
+            }
 
             Graph resultGraph = null;
             if (type == QueryType.CONSTRUCT || type == QueryType.DESCRIBE) {
@@ -125,7 +148,7 @@ public class QueryService {
             resultCache.put(id, entry);
 
             LOGGER.info("Query executed successfully. Type: {}, ID: {}, Results: {}", type, id, mappings.size());
-            return new QueryResultRef(id, type);
+            return new QueryResultRef(id, type, askResult, insertedTriples, deletedTriples);
 
         } catch (Exception e) { // Generic catch is justified: Corese can throw various exception types
             String errorMsg = String.format("Query execution failed: %s", e.getMessage());

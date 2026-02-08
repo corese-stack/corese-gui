@@ -8,12 +8,14 @@ import org.slf4j.LoggerFactory;
 
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
+import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.QueryType;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.model.QueryResultRef;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.service.QueryService;
+import fr.inria.corese.gui.core.service.RdfDataService;
 import fr.inria.corese.gui.core.io.FileDialogState;
 import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.editor.tab.TabContext;
@@ -122,6 +124,13 @@ public class QueryViewController {
 			return;
 
 		final String queryContent = codeEditor.getContent();
+		if (!RdfDataService.getInstance().hasData() && looksLikeReadQuery(queryContent)) {
+			resultController.clearResults();
+			tabEditorController.hideResultPane();
+			tabEditorController.showError("No Data Loaded", "Query execution requires an RDF graph to be loaded.\n"
+					+ "Please go to the 'Data' view and load an RDF file.");
+			return;
+		}
 
 		// Release previous result for this tab if any
 		QueryResultRef previousRef = context.getQueryResultRef();
@@ -144,8 +153,6 @@ public class QueryViewController {
 					if (resultRef != null) {
 						// Store result in context (Single Source of Truth)
 						context.setQueryResultRef(resultRef);
-
-						tabEditorController.showResultPane();
 						updateResultsForSelectedQueryTab(selectedTab, true);
 					}
 				});
@@ -182,13 +189,27 @@ public class QueryViewController {
 		resultController.clearResults();
 
 		QueryType queryType = resultRef.getQueryType();
-		// Configure view based on query type (SELECT/ASK vs CONSTRUCT/DESCRIBE)
+		// Configure results by query family.
 		switch (queryType) {
-			case SELECT, ASK -> configureForTableResult(resultController, resultRef);
-			case CONSTRUCT, DESCRIBE -> configureForGraphResult(resultController, resultRef);
-			default -> {
-				resultController.configureTabsForResult(true, false, false, ResultViewConfig.TabType.TEXT);
-				resultController.updateText("No result available for this query type.");
+			case SELECT -> {
+				tabEditorController.showResultPane();
+				configureForTableResult(resultController, resultRef);
+			}
+			case ASK -> {
+				tabEditorController.hideResultPane();
+				showAskOutcomeNotification(resultRef);
+			}
+			case CONSTRUCT, DESCRIBE -> {
+				tabEditorController.showResultPane();
+				configureForGraphResult(resultController, resultRef);
+			}
+			case UPDATE -> {
+				tabEditorController.hideResultPane();
+				showUpdateSummaryNotification(resultRef);
+			}
+			case UNKNOWN -> {
+				tabEditorController.hideResultPane();
+				NotificationWidget.getInstance().showWarning("Query executed, but result type is unknown.");
 			}
 		}
 
@@ -240,6 +261,38 @@ public class QueryViewController {
 				controller.updateText(textResult);
 			});
 		});
+	}
+
+	private void showAskOutcomeNotification(QueryResultRef resultRef) {
+		Boolean askResult = resultRef.getAskResult();
+		if (Boolean.TRUE.equals(askResult)) {
+			NotificationWidget.getInstance().showSuccess("ASK", "True");
+			return;
+		}
+		if (Boolean.FALSE.equals(askResult)) {
+			NotificationWidget.getInstance().showError("ASK", "False");
+			return;
+		}
+		NotificationWidget.getInstance().showWarning("ASK", "Result unavailable");
+	}
+
+	private void showUpdateSummaryNotification(QueryResultRef resultRef) {
+		int inserted = resultRef.getInsertedTriples();
+		int deleted = resultRef.getDeletedTriples();
+		if (inserted > 0 && deleted > 0) {
+			NotificationWidget.getInstance().showSuccess("Update",
+					String.format("%d triple(s) inserted, %d triple(s) deleted.", inserted, deleted));
+			return;
+		}
+		if (inserted > 0) {
+			NotificationWidget.getInstance().showSuccess("Insert", String.format("%d triple(s) inserted.", inserted));
+			return;
+		}
+		if (deleted > 0) {
+			NotificationWidget.getInstance().showSuccess("Delete", String.format("%d triple(s) deleted.", deleted));
+			return;
+		}
+		NotificationWidget.getInstance().showSuccess("Update", "No graph change detected.");
 	}
 
 	private void registerResultTabPreference(Tab tab) {
@@ -295,6 +348,16 @@ public class QueryViewController {
 
 	private static boolean isGraphTab(ResultViewConfig.TabType tabType) {
 		return tabType == ResultViewConfig.TabType.GRAPH || tabType == ResultViewConfig.TabType.TEXT;
+	}
+
+	private static boolean looksLikeReadQuery(String queryContent) {
+		if (queryContent == null || queryContent.isBlank()) {
+			return false;
+		}
+		String normalized = " " + queryContent.toLowerCase().replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+				+ " ";
+		return normalized.contains(" select ") || normalized.contains(" ask ") || normalized.contains(" construct ")
+				|| normalized.contains(" describe ");
 	}
 
 	private static ResultViewConfig.TabType loadTabPreference(String key) {

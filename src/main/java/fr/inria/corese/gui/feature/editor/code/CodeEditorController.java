@@ -227,12 +227,25 @@ public class CodeEditorController {
     if (!isModeAllowed(SerializationFormat.SPARQL_QUERY)) {
       return null;
     }
-    boolean looksLikeSparql = lower.contains("select ")
-        || lower.contains("construct ")
-        || lower.contains("ask ")
-        || lower.contains("describe ")
-        || lower.startsWith("prefix ")
-        || lower.contains("\nprefix ");
+
+    String normalized = " " + lower.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ') + " ";
+    boolean looksLikeSparql = normalized.contains(" select ")
+        || normalized.contains(" construct ")
+        || normalized.contains(" ask ")
+        || normalized.contains(" describe ")
+        || normalized.contains(" prefix ")
+        || normalized.contains(" base ")
+        || normalized.contains(" insert ")
+        || normalized.contains(" delete ")
+        || normalized.contains(" load ")
+        || normalized.contains(" clear ")
+        || normalized.contains(" create ")
+        || normalized.contains(" drop ")
+        || normalized.contains(" move ")
+        || normalized.contains(" copy ")
+        || normalized.contains(" add ")
+        || normalized.contains(" with ")
+        || normalized.contains(" using ");
     return looksLikeSparql ? SerializationFormat.SPARQL_QUERY : null;
   }
 

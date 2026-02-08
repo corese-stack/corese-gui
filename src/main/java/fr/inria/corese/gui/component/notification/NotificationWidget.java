@@ -14,6 +14,7 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Singleton manager for displaying toast-style notifications.
@@ -57,12 +58,16 @@ public class NotificationWidget {
     private static final String STYLE_CLASS_TOAST = "notification-toast";
     private static final String STYLE_CLASS_ICON = "notification-icon";
     private static final String STYLE_CLASS_LABEL = "notification-label";
+    private static final String STYLE_CLASS_TITLE = "notification-title";
+    private static final String STYLE_CLASS_MESSAGE = "notification-message";
+    private static final String STYLE_CLASS_TEXTS = "notification-texts";
 
     private static final int ANIMATION_DURATION_MS = 300;
     private static final int DISPLAY_DURATION_SEC = 3;
     private static final int TOAST_SLIDE_OFFSET = 20;
     private static final int TOAST_MIN_WIDTH = 300;
     private static final int TOAST_MAX_WIDTH = 300;
+    private static final int CLICK_DISMISS_DURATION_MS = 160;
 
     private VBox container;
 
@@ -106,7 +111,17 @@ public class NotificationWidget {
      * @param message The message to display.
      */
     public void showInfo(String message) {
-        show(message, Styles.ACCENT, Feather.INFO);
+        show(null, message, Styles.ACCENT, Feather.INFO);
+    }
+
+    /**
+     * Displays an informational notification with title and message.
+     *
+     * @param title   Short title.
+     * @param message Detailed message.
+     */
+    public void showInfo(String title, String message) {
+        show(title, message, Styles.ACCENT, Feather.INFO);
     }
 
     /**
@@ -115,7 +130,17 @@ public class NotificationWidget {
      * @param message The message to display.
      */
     public void showSuccess(String message) {
-        show(message, Styles.SUCCESS, Feather.CHECK_CIRCLE);
+        show(null, message, Styles.SUCCESS, Feather.CHECK_CIRCLE);
+    }
+
+    /**
+     * Displays a success notification with title and message.
+     *
+     * @param title   Short title.
+     * @param message Detailed message.
+     */
+    public void showSuccess(String title, String message) {
+        show(title, message, Styles.SUCCESS, Feather.CHECK_CIRCLE);
     }
 
     /**
@@ -124,7 +149,17 @@ public class NotificationWidget {
      * @param message The message to display.
      */
     public void showWarning(String message) {
-        show(message, Styles.WARNING, Feather.ALERT_TRIANGLE);
+        show(null, message, Styles.WARNING, Feather.ALERT_TRIANGLE);
+    }
+
+    /**
+     * Displays a warning notification with title and message.
+     *
+     * @param title   Short title.
+     * @param message Detailed message.
+     */
+    public void showWarning(String title, String message) {
+        show(title, message, Styles.WARNING, Feather.ALERT_TRIANGLE);
     }
 
     /**
@@ -133,7 +168,17 @@ public class NotificationWidget {
      * @param message The message to display.
      */
     public void showError(String message) {
-        show(message, Styles.DANGER, Feather.X_CIRCLE);
+        show(null, message, Styles.DANGER, Feather.X_CIRCLE);
+    }
+
+    /**
+     * Displays an error notification with title and message.
+     *
+     * @param title   Short title.
+     * @param message Detailed message.
+     */
+    public void showError(String title, String message) {
+        show(title, message, Styles.DANGER, Feather.X_CIRCLE);
     }
 
     // ==============================================================================================
@@ -143,16 +188,17 @@ public class NotificationWidget {
     /**
      * Creates and displays a notification with the specified styling.
      * 
+     * @param title      Optional title.
      * @param message    The message to display.
      * @param styleClass The AtlantaFX style class for coloring.
      * @param icon       The icon to display.
      */
-    private void show(String message, String styleClass, Feather icon) {
+    private void show(String title, String message, String styleClass, Feather icon) {
         if (container == null) {
             return;
         }
 
-        HBox toast = createToast(message, styleClass, icon);
+        HBox toast = createToast(title, message, styleClass, icon);
         container.getChildren().add(toast);
 
         playAnimation(toast);
@@ -161,21 +207,22 @@ public class NotificationWidget {
     /**
      * Creates the visual toast notification component.
      * 
+     * @param title      Optional title.
      * @param message    The message to display.
      * @param styleClass The AtlantaFX style class for coloring.
      * @param iconCode   The icon to display.
      * @return The configured HBox toast component.
      */
-    private HBox createToast(String message, String styleClass, Feather iconCode) {
-    HBox toast = new HBox(10);
-    toast.getStylesheets().add(getClass().getResource(STYLESHEET).toExternalForm());
-    toast.getStyleClass().addAll(Styles.ELEVATED_2, STYLE_CLASS_TOAST);
-    if (styleClass != null && !styleClass.isBlank()) {
-        toast.getStyleClass().add(styleClass);
-    }
-    toast.setAlignment(Pos.CENTER_LEFT);
-    toast.setMinWidth(TOAST_MIN_WIDTH);
-    toast.setMaxWidth(TOAST_MAX_WIDTH);
+    private HBox createToast(String title, String message, String styleClass, Feather iconCode) {
+        HBox toast = new HBox(10);
+        toast.getStylesheets().add(getClass().getResource(STYLESHEET).toExternalForm());
+        toast.getStyleClass().addAll(Styles.ELEVATED_2, STYLE_CLASS_TOAST);
+        if (styleClass != null && !styleClass.isBlank()) {
+            toast.getStyleClass().add(styleClass);
+        }
+        toast.setAlignment(Pos.CENTER_LEFT);
+        toast.setMinWidth(TOAST_MIN_WIDTH);
+        toast.setMaxWidth(TOAST_MAX_WIDTH);
 
         FontIcon icon = new FontIcon(iconCode);
         icon.getStyleClass().add(STYLE_CLASS_ICON);
@@ -184,14 +231,36 @@ public class NotificationWidget {
             icon.getStyleClass().add(styleClass);
         }
 
-        Label label = new Label(message);
-        label.getStyleClass().addAll(STYLE_CLASS_LABEL, Styles.TEXT_BOLD);
-    label.setWrapText(true);
+        VBox texts = new VBox(2);
+        texts.getStyleClass().add(STYLE_CLASS_TEXTS);
 
-    toast.getChildren().addAll(icon, label);
+        if (title != null && !title.isBlank()) {
+            Label titleLabel = new Label(title);
+            titleLabel.getStyleClass().addAll(STYLE_CLASS_TITLE, STYLE_CLASS_LABEL, Styles.TEXT_BOLD);
+            titleLabel.setWrapText(true);
+            texts.getChildren().add(titleLabel);
+        }
 
-    return toast;
-  }
+        if (message != null && !message.isBlank()) {
+            Label messageLabel = new Label(message);
+            messageLabel.getStyleClass().addAll(STYLE_CLASS_MESSAGE, STYLE_CLASS_LABEL);
+            if (title == null || title.isBlank()) {
+                messageLabel.getStyleClass().add(Styles.TEXT_BOLD);
+            }
+            messageLabel.setWrapText(true);
+            texts.getChildren().add(messageLabel);
+        }
+
+        if (texts.getChildren().isEmpty()) {
+            Label fallback = new Label("");
+            fallback.getStyleClass().add(STYLE_CLASS_LABEL);
+            texts.getChildren().add(fallback);
+        }
+
+        toast.getChildren().addAll(icon, texts);
+
+        return toast;
+    }
 
     /**
      * Plays the entrance, display, and exit animation for a toast notification.
@@ -219,13 +288,42 @@ public class NotificationWidget {
 
         // Create exit animation (fade out)
         FadeTransition fadeOut = new FadeTransition(Duration.millis(ANIMATION_DURATION_MS), toast);
-        fadeOut.setFromValue(1);
         fadeOut.setToValue(0);
 
         // Play full animation sequence
         SequentialTransition animation = new SequentialTransition(entrance, display, fadeOut);
-        animation.setOnFinished(e -> container.getChildren().remove(toast));
+        AtomicBoolean dismissing = new AtomicBoolean(false);
+        toast.setOnMouseClicked(e -> dismissToast(toast, animation, dismissing));
+        animation.setOnFinished(e -> {
+            cleanupToastHandlers(toast);
+            removeToast(toast);
+        });
         animation.play();
+    }
+
+    private void dismissToast(HBox toast, SequentialTransition animation, AtomicBoolean dismissing) {
+        if (!dismissing.compareAndSet(false, true)) {
+            return;
+        }
+        animation.stop();
+        FadeTransition fadeOut = new FadeTransition(Duration.millis(CLICK_DISMISS_DURATION_MS), toast);
+        fadeOut.setFromValue(toast.getOpacity());
+        fadeOut.setToValue(0);
+        fadeOut.setOnFinished(e -> {
+            cleanupToastHandlers(toast);
+            removeToast(toast);
+        });
+        fadeOut.play();
+    }
+
+    private void cleanupToastHandlers(HBox toast) {
+        toast.setOnMouseClicked(null);
+    }
+
+    private void removeToast(HBox toast) {
+        if (container != null) {
+            container.getChildren().remove(toast);
+        }
     }
 
 }

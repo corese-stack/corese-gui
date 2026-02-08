@@ -79,6 +79,7 @@ public final class App extends Application {
 
   @Override
   public void stop() {
+    ThemeManager.getInstance().shutdown();
     AppExecutors.shutdown();
   }
 

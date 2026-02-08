@@ -35,3 +35,15 @@
 .notification-label {
     -fx-text-fill: -color-fg-default;
 }
+
+.notification-texts {
+    -fx-alignment: center-left;
+}
+
+.notification-title {
+    -fx-text-fill: -color-fg-default;
+}
+
+.notification-message {
+    -fx-text-fill: -color-fg-muted;
+}

@@ -253,6 +253,11 @@ public final class ThemeManager {
     this.sidebarCollapsed.set(collapsed);
   }
 
+  /** Releases background theme monitoring resources. */
+  public void shutdown() {
+    systemThemeMonitor.stop();
+  }
+
   // ===== Internal Application Logic =====
 
   /**

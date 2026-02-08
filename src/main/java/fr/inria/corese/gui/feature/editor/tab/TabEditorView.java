@@ -10,8 +10,10 @@ import fr.inria.corese.gui.core.theme.ThemeManager;
 import fr.inria.corese.gui.core.view.AbstractView;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.function.Consumer;
 import javafx.animation.FadeTransition;
+import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
@@ -67,6 +69,7 @@ public class TabEditorView extends AbstractView {
   private static final Duration EDITOR_CONTENT_FADE_IN_DURATION = Duration.millis(240);
   private static final double RESULT_PANE_VISIBLE_POSITION = 0.6;
   private static final double RESULT_PANE_HIDDEN_POSITION = 1.0;
+  private static final double RESULT_DIVIDER_EPSILON = 0.001;
 
   // Modified Tab Icon
   private static final double MODIFIED_CIRCLE_RADIUS = 4.0;
@@ -80,6 +83,8 @@ public class TabEditorView extends AbstractView {
 
   private final ThemeManager themeManager;
   private final Map<Tab, Node> tabContentMap;
+  private final Map<SplitPane, Timeline> resultPaneAnimations;
+  private final Map<SplitPane, Boolean> resultPaneTargetVisibility;
 
   // TabPane is kept as the internal model (selection/list), not rendered as header.
   private final TabPane tabPane;
@@ -98,6 +103,8 @@ public class TabEditorView extends AbstractView {
     super(new StackPane(), STYLESHEET);
     this.themeManager = ThemeManager.getInstance();
     this.tabContentMap = new HashMap<>();
+    this.resultPaneAnimations = new WeakHashMap<>();
+    this.resultPaneTargetVisibility = new WeakHashMap<>();
 
     this.tabPane = createTabPane();
     this.tabStripController = new TabStripController(tabPane, themeManager);
@@ -395,17 +402,53 @@ public class TabEditorView extends AbstractView {
     if (selectedTab == null || resultNode == null) return;
 
     Node content = getTabContent(selectedTab);
-    if (content instanceof SplitPane splitPane && splitPane.getItems().size() < 2) {
-      splitPane.getItems().add(resultNode);
-      splitPane.setDividerPositions(RESULT_PANE_HIDDEN_POSITION);
-
-      Timeline timeline =
-          new Timeline(
-              new KeyFrame(
-                  SPLIT_ANIMATION_DURATION,
-                  new KeyValue(splitPane.getDividers().get(0).positionProperty(), RESULT_PANE_VISIBLE_POSITION)));
-      timeline.play();
+    if (!(content instanceof SplitPane splitPane)) {
+      return;
     }
+
+    stopResultPaneAnimation(splitPane);
+    if (Boolean.TRUE.equals(resultPaneTargetVisibility.get(splitPane))) {
+      splitPane.setDividerPositions(RESULT_PANE_VISIBLE_POSITION);
+      return;
+    }
+    resultPaneTargetVisibility.put(splitPane, true);
+    prepareResultNodeForSlide(resultNode);
+
+    if (splitPane.getItems().size() < 2) {
+      splitPane.getItems().add(resultNode);
+    }
+
+    resultNode.setVisible(false);
+    splitPane.setDividerPositions(RESULT_PANE_HIDDEN_POSITION);
+    splitPane.applyCss();
+    splitPane.layout();
+
+    Platform.runLater(
+        () -> {
+          if (!splitPane.getItems().contains(resultNode)) {
+            return;
+          }
+          resultNode.setVisible(true);
+          splitPane.setDividerPositions(RESULT_PANE_HIDDEN_POSITION);
+
+          Timeline timeline =
+              new Timeline(
+                  new KeyFrame(
+                      Duration.ZERO,
+                      new KeyValue(
+                          splitPane.getDividers().get(0).positionProperty(),
+                          splitPane.getDividers().get(0).getPosition(),
+                          Interpolator.EASE_BOTH)),
+                  new KeyFrame(
+                      SPLIT_ANIMATION_DURATION,
+                      new KeyValue(
+                          splitPane.getDividers().get(0).positionProperty(),
+                          RESULT_PANE_VISIBLE_POSITION,
+                          Interpolator.EASE_BOTH)));
+          timeline.setOnFinished(e -> resultPaneAnimations.remove(splitPane));
+          resultPaneAnimations.put(splitPane, timeline);
+          timeline.play();
+        });
   }
 
   public void hideResultPane() {
@@ -413,20 +456,65 @@ public class TabEditorView extends AbstractView {
     if (selectedTab == null) return;
 
     Node content = getTabContent(selectedTab);
-    if (content instanceof SplitPane splitPane && splitPane.getItems().size() > 1) {
-      Timeline timeline =
-          new Timeline(
-              new KeyFrame(
-                  SPLIT_ANIMATION_DURATION,
-                  new KeyValue(splitPane.getDividers().get(0).positionProperty(), RESULT_PANE_HIDDEN_POSITION)));
-      timeline.setOnFinished(
-          e -> {
-            if (splitPane.getItems().size() > 1) {
-              splitPane.getItems().remove(1);
-            }
-          });
-      timeline.play();
+    if (!(content instanceof SplitPane splitPane)) {
+      return;
     }
+    if (splitPane.getItems().size() <= 1) {
+      resultPaneTargetVisibility.put(splitPane, false);
+      return;
+    }
+
+    stopResultPaneAnimation(splitPane);
+    if (Boolean.FALSE.equals(resultPaneTargetVisibility.get(splitPane))) {
+      // Already hidden (or already animating towards hidden): avoid replaying collapse animation.
+      return;
+    }
+    resultPaneTargetVisibility.put(splitPane, false);
+
+    Node resultNode = splitPane.getItems().get(1);
+    double currentPosition = splitPane.getDividers().get(0).getPosition();
+    if (Math.abs(currentPosition - RESULT_PANE_HIDDEN_POSITION) <= RESULT_DIVIDER_EPSILON) {
+      splitPane.getItems().remove(1);
+      return;
+    }
+    Timeline timeline =
+        new Timeline(
+            new KeyFrame(
+                Duration.ZERO,
+                new KeyValue(
+                    splitPane.getDividers().get(0).positionProperty(),
+                    splitPane.getDividers().get(0).getPosition(),
+                    Interpolator.EASE_BOTH)),
+            new KeyFrame(
+                SPLIT_ANIMATION_DURATION,
+                new KeyValue(
+                    splitPane.getDividers().get(0).positionProperty(),
+                    RESULT_PANE_HIDDEN_POSITION,
+                    Interpolator.EASE_BOTH)));
+    timeline.setOnFinished(
+        e -> {
+          if (splitPane.getItems().size() > 1) {
+            splitPane.getItems().remove(1);
+          }
+          resultPaneTargetVisibility.put(splitPane, false);
+          resultPaneAnimations.remove(splitPane);
+        });
+    resultPaneAnimations.put(splitPane, timeline);
+    timeline.play();
+  }
+
+  private void stopResultPaneAnimation(SplitPane splitPane) {
+    Timeline activeAnimation = resultPaneAnimations.remove(splitPane);
+    if (activeAnimation != null) {
+      activeAnimation.stop();
+    }
+  }
+
+  private void prepareResultNodeForSlide(Node resultNode) {
+    if (resultNode instanceof Region region) {
+      region.setMinHeight(0);
+    }
+    SplitPane.setResizableWithParent(resultNode, Boolean.TRUE);
   }
 
   // ==============================================================================================

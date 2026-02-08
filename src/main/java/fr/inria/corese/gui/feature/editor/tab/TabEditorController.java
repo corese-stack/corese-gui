@@ -570,8 +570,10 @@ public class TabEditorController {
       return editorWrapper;
     }
 
+    editorWrapper.setMinHeight(0);
     SplitPane splitPane = new SplitPane();
     splitPane.setOrientation(Orientation.VERTICAL);
+    splitPane.setMinHeight(0);
     splitPane.getItems().add(editorWrapper);
     return splitPane;
   }
