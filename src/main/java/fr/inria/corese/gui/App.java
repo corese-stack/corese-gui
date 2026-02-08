@@ -1,25 +1,20 @@
 package fr.inria.corese.gui;
 
+import fr.inria.corese.gui.core.theme.ThemeManager;
 import fr.inria.corese.gui.feature.main.MainController;
 import fr.inria.corese.gui.feature.main.MainView;
-import fr.inria.corese.gui.feature.main.navigation.NavigationBarController;
 import fr.inria.corese.gui.feature.main.ViewManager;
-import fr.inria.corese.gui.utils.fx.SvgImageLoader;
-import fr.inria.corese.gui.core.theme.ThemeManager;
+import fr.inria.corese.gui.feature.main.navigation.NavigationBarController;
 import fr.inria.corese.gui.utils.AppExecutors;
-
-
-
-
-
-
+import fr.inria.corese.gui.utils.fx.SvgImageLoader;
 import java.util.Objects;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Entry point of the Corese-GUI application.
@@ -33,6 +28,8 @@ public final class App extends Application {
 
   @Override
   public void start(Stage primaryStage) {
+    Platform.setImplicitExit(true);
+
     // === Apply global theme ===
     ThemeManager themeManager = ThemeManager.getInstance();
     themeManager.setPrimaryStage(primaryStage);
@@ -74,6 +71,7 @@ public final class App extends Application {
     }
 
     primaryStage.setScene(scene);
+    primaryStage.setOnCloseRequest(event -> Platform.exit());
     primaryStage.show();
   }
 
@@ -85,5 +83,7 @@ public final class App extends Application {
 
   public static void main(String[] args) {
     launch(args);
+    // Ensure the process exits even if a third-party non-daemon thread remains alive.
+    System.exit(0);
   }
 }
