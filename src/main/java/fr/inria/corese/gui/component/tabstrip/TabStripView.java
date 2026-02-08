@@ -34,13 +34,14 @@ public class TabStripView extends HBox {
   private static final String STYLE_CLASS_TAB_CLOSE = "editor-tab-close";
   private static final String STYLE_CLASS_TAB_DIRTY = "editor-tab-dirty";
   private static final String STYLE_CLASS_TAB_ICON = "editor-tab-icon";
+  private static final double HEADER_HEIGHT = 44.0;
   private static final double LEADING_SLOT_WIDTH = 14.0;
   private static final double MODIFIED_CIRCLE_RADIUS = 4.0;
   private static final double CLOSE_AREA_WIDTH = 30.0;
   private static final double NO_ACTIONS_AREA_WIDTH = 0.0;
   private static final double SCROLL_STEP_PIXELS = 32.0;
   private static final double MIN_TAB_WIDTH = 180.0;
-  private static final double SHADOW_WIDTH = 12.0;
+  private static final double SHADOW_WIDTH = 16.0;
   private static final double SCROLL_EPSILON = 0.001;
 
   private final ScrollPane scrollPane;
@@ -64,9 +65,9 @@ public class TabStripView extends HBox {
 
     tabTrack = new HBox();
     tabTrack.getStyleClass().add(STYLE_CLASS_TAB_TRACK);
-    tabTrack.setMinHeight(44);
-    tabTrack.setPrefHeight(44);
-    tabTrack.setMaxHeight(44);
+    tabTrack.setMinHeight(HEADER_HEIGHT);
+    tabTrack.setPrefHeight(HEADER_HEIGHT);
+    tabTrack.setMaxHeight(HEADER_HEIGHT);
 
     scrollPane = new ScrollPane(tabTrack);
     scrollPane.getStyleClass().add(STYLE_CLASS_TAB_SCROLL);
@@ -90,14 +91,18 @@ public class TabStripView extends HBox {
     leftOverflowShadow.getStyleClass().addAll(STYLE_CLASS_OVERFLOW_SHADOW, STYLE_CLASS_OVERFLOW_SHADOW_LEFT);
     leftOverflowShadow.prefHeightProperty().bind(heightProperty());
     leftOverflowShadow.setMouseTransparent(true);
+    leftOverflowShadow.setMinWidth(SHADOW_WIDTH);
     leftOverflowShadow.setPrefWidth(SHADOW_WIDTH);
+    leftOverflowShadow.setMaxWidth(SHADOW_WIDTH);
     leftOverflowShadow.setVisible(false);
 
     rightOverflowShadow = new Region();
     rightOverflowShadow.getStyleClass().addAll(STYLE_CLASS_OVERFLOW_SHADOW, STYLE_CLASS_OVERFLOW_SHADOW_RIGHT);
     rightOverflowShadow.prefHeightProperty().bind(heightProperty());
     rightOverflowShadow.setMouseTransparent(true);
+    rightOverflowShadow.setMinWidth(SHADOW_WIDTH);
     rightOverflowShadow.setPrefWidth(SHADOW_WIDTH);
+    rightOverflowShadow.setMaxWidth(SHADOW_WIDTH);
     rightOverflowShadow.setVisible(false);
 
     StackPane scrollContainer = new StackPane(scrollPane, leftOverflowShadow, rightOverflowShadow);

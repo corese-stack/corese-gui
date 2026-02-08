@@ -49,7 +49,7 @@ public class TabStripController {
         accent,
         showCloseButton,
         tab -> tabPane.getSelectionModel().select(tab),
-        tab -> onCloseRequest.accept(tab));
+        onCloseRequest);
   }
 
   private void setupListeners() {
