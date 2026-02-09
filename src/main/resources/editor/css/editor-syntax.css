@@ -1,0 +1,99 @@
+/* =================================================================
+ * CORESE CODE EDITOR - SYNTAX HIGHLIGHTING
+ * =================================================================
+ * Token palette + per-format harmonization.
+ * This file is intentionally separated from editor-theme.css so mode
+ * coloring can evolve without touching layout/theming structure.
+ * ================================================================= */
+
+/* =================================================================
+ * BASE TOKEN PALETTE (all modes)
+ * ================================================================= */
+
+.cm-keyword { color: var(--syntax-keyword) !important; }
+.cm-atom { color: var(--syntax-atom) !important; }
+.cm-number { color: var(--syntax-number) !important; }
+.cm-def { color: var(--syntax-def) !important; }
+.cm-variable { color: var(--syntax-variable) !important; }
+.cm-variable-2 { color: var(--syntax-variable-2) !important; }
+.cm-variable-3 { color: var(--syntax-variable-3) !important; }
+.cm-property { color: var(--syntax-property) !important; }
+.cm-operator { color: var(--syntax-operator) !important; }
+.cm-comment { color: var(--syntax-comment) !important; }
+.cm-string { color: var(--syntax-string) !important; }
+.cm-string-2 { color: var(--syntax-string) !important; }
+.cm-meta { color: var(--syntax-meta) !important; }
+.cm-qualifier { color: var(--syntax-qualifier) !important; }
+.cm-builtin { color: var(--syntax-builtin) !important; }
+.cm-bracket { color: var(--syntax-bracket) !important; }
+.cm-tag { color: var(--syntax-tag) !important; }
+.cm-attribute { color: var(--syntax-attribute) !important; }
+.cm-link { color: var(--syntax-link) !important; }
+.cm-error { color: var(--syntax-error) !important; }
+.cm-header { color: var(--syntax-keyword) !important; font-weight: 600; }
+.cm-strong { color: var(--syntax-def) !important; font-weight: 600; }
+.cm-em { color: var(--syntax-atom) !important; font-style: italic; }
+.cm-punctuation { color: var(--syntax-operator) !important; }
+
+/* =================================================================
+ * MODE FAMILY COHERENCE
+ * ================================================================= */
+
+/* RDF textual family: Turtle, TriG, N-Triples, N-Quads, N3 */
+.CodeMirror[data-mode="turtle"] .cm-meta,
+.CodeMirror[data-mode="trig"] .cm-meta,
+.CodeMirror[data-mode="nt"] .cm-meta,
+.CodeMirror[data-mode="nq"] .cm-meta,
+.CodeMirror[data-mode="n3"] .cm-meta {
+    color: var(--syntax-meta) !important;
+    font-weight: 400;
+}
+
+.CodeMirror[data-mode="turtle"] .cm-variable-3,
+.CodeMirror[data-mode="trig"] .cm-variable-3,
+.CodeMirror[data-mode="nt"] .cm-variable-3,
+.CodeMirror[data-mode="nq"] .cm-variable-3,
+.CodeMirror[data-mode="n3"] .cm-variable-3 {
+    color: var(--syntax-variable-3) !important;
+    font-weight: 400;
+}
+
+.CodeMirror[data-mode="turtle"] .cm-atom,
+.CodeMirror[data-mode="trig"] .cm-atom,
+.CodeMirror[data-mode="nt"] .cm-atom,
+.CodeMirror[data-mode="nq"] .cm-atom,
+.CodeMirror[data-mode="n3"] .cm-atom {
+    color: var(--syntax-atom) !important;
+}
+
+/* JSON family: JSON + JSON-LD */
+.CodeMirror[data-mode="json"] .cm-property,
+.CodeMirror[data-mode="json"] .cm-string.cm-property,
+.CodeMirror[data-mode="json-ld"] .cm-property,
+.CodeMirror[data-mode="json-ld"] .cm-string.cm-property {
+    color: var(--json-key) !important;
+}
+
+.CodeMirror[data-mode="json"] .cm-string:not(.cm-property),
+.CodeMirror[data-mode="json-ld"] .cm-string:not(.cm-property) {
+    color: var(--json-string) !important;
+}
+
+.CodeMirror[data-mode="json"] .cm-number,
+.CodeMirror[data-mode="json-ld"] .cm-number {
+    color: var(--json-number) !important;
+}
+
+.CodeMirror[data-mode="json"] .cm-atom,
+.CodeMirror[data-mode="json-ld"] .cm-atom {
+    color: var(--json-atom) !important;
+}
+
+/* CSV/TSV lightweight modes */
+.cm-column-0 { color: var(--csv-col-0) !important; }
+.cm-column-1 { color: var(--csv-col-1) !important; }
+.cm-column-2 { color: var(--csv-col-2) !important; }
+.cm-column-3 { color: var(--csv-col-3) !important; }
+.cm-column-4 { color: var(--csv-col-4) !important; }
+.cm-column-5 { color: var(--csv-col-5) !important; }
+.cm-column-6 { color: var(--csv-col-6) !important; }
