@@ -15,7 +15,7 @@ import javafx.scene.Node;
  * Zoom, Reset) and delegates the actual graph rendering to the view's widget.
  * </p>
  */
-public class GraphResultController {
+public class GraphResultController implements AutoCloseable {
 
 	private static final String MSG_EXPORT_EMPTY = "No graph to export";
 
@@ -79,5 +79,10 @@ public class GraphResultController {
 	 */
 	public Node getView() {
 		return view.getRoot();
+	}
+
+	@Override
+	public void close() {
+		view.getGraphWidget().close();
 	}
 }

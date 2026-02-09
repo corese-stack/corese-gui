@@ -23,7 +23,7 @@ import javafx.scene.control.Tab;
  * <p>
  * It implements the "Composite Controller" pattern.
  */
-public class ResultController {
+public class ResultController implements AutoCloseable {
 
 	// ==============================================================================================
 	// Fields
@@ -313,6 +313,22 @@ public class ResultController {
 
 	public Parent getViewRoot() {
 		return view.getRoot();
+	}
+
+	@Override
+	public void close() {
+		setOnTabSelected(null);
+		if (textController != null) {
+			textController.setOnFormatChanged(null);
+			textController.clearContent();
+		}
+		if (tableController != null) {
+			tableController.setFormatProvider(null);
+			tableController.clear();
+		}
+		if (graphController != null) {
+			graphController.close();
+		}
 	}
 
 }

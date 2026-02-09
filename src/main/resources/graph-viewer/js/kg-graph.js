@@ -56,8 +56,6 @@ class KGGraphVis extends HTMLElement {
         this.defaultGraphColor = '#6B7280';
 
         // Performance optimization
-        this.MAX_NODES = 1000;  // Maximum nodes to display
-        this.MAX_LINKS = 2000;  // Maximum links to display
         this.TICK_THROTTLE = 16; // ~60fps throttle for ticked()
         this.lastTickTime = 0;
         this.LABEL_TICK_THROTTLE = 50; // Throttle label position updates
@@ -518,8 +516,9 @@ class KGGraphVis extends HTMLElement {
      * @returns {Object} Graph object with nodes and links arrays.
      */
     createGraph() {
-        let graph = { nodes: [], links: [] };
+        const graph = { nodes: [], links: [] };
         this.graphColorMap = new Map();
+        const nodeById = new Map();
 
         const normalizeArray = value => (Array.isArray(value) ? value : [value]);
         const isObject = value => value !== null && typeof value === 'object';
@@ -528,7 +527,7 @@ class KGGraphVis extends HTMLElement {
         const upsertNode = (id, type, graphId, meta = {}, isSubject = false) => {
             if (!id) return null;
             const resolvedGraph = resolveGraphId(graphId);
-            const existing = graph.nodes.find(n => n.id === id);
+            const existing = nodeById.get(id);
             if (existing) {
                 if (type === 'Blank' || type === 'Class') {
                     existing.type = type;
@@ -562,6 +561,7 @@ class KGGraphVis extends HTMLElement {
                 ...meta
             };
             graph.nodes.push(node);
+            nodeById.set(id, node);
             return node;
         };
 
@@ -644,48 +644,7 @@ class KGGraphVis extends HTMLElement {
 
         const root = this.jsonLDOntology;
         normalizeArray(root).forEach(item => processItem(item, 'default'));
-
-        if (graph.nodes.length > this.MAX_NODES) {
-            graph = this.sampleGraph(graph);
-        }
-
         return graph;
-    }
-
-    /**
-     * Sample a large graph to a manageable size while preserving structure.
-     * Uses degree-based importance sampling.
-     * @param {Object} graph - The full graph.
-     * @returns {Object} Sampled graph.
-     */
-    sampleGraph(graph) {
-        // Calculate node degrees (importance)
-        const nodeDegree = new Map();
-        graph.nodes.forEach(n => nodeDegree.set(n.id, 0));
-        graph.links.forEach(l => {
-            const src = typeof l.source === 'object' ? l.source.id : l.source;
-            const tgt = typeof l.target === 'object' ? l.target.id : l.target;
-            nodeDegree.set(src, (nodeDegree.get(src) || 0) + 1);
-            nodeDegree.set(tgt, (nodeDegree.get(tgt) || 0) + 1);
-        });
-
-        // Sort by degree and take top nodes
-        const sortedNodes = [...graph.nodes].sort((a, b) => 
-            (nodeDegree.get(b.id) || 0) - (nodeDegree.get(a.id) || 0)
-        );
-        const selectedNodes = new Set(sortedNodes.slice(0, this.MAX_NODES).map(n => n.id));
-
-        // Filter links to only include selected nodes
-        const sampledLinks = graph.links.filter(l => {
-            const src = typeof l.source === 'object' ? l.source.id : l.source;
-            const tgt = typeof l.target === 'object' ? l.target.id : l.target;
-            return selectedNodes.has(src) && selectedNodes.has(tgt);
-        }).slice(0, this.MAX_LINKS);
-
-        return {
-            nodes: sortedNodes.slice(0, this.MAX_NODES),
-            links: sampledLinks
-        };
     }
 
     /* -------------------------------------------------------------
@@ -737,6 +696,9 @@ class KGGraphVis extends HTMLElement {
         // Force Simulation Configuration with adaptive strength for large graphs
         const nodeCount = this.graph.nodes.length;
         const isLargeGraph = nodeCount > 200;
+        const nodeById = new Map(this.graph.nodes.map(node => [node.id, node]));
+        const getSourceId = link => (link.source && link.source.id) ? link.source.id : link.source;
+        const getTargetId = link => (link.target && link.target.id) ? link.target.id : link.target;
         
         // Adjust forces based on graph size
         const chargeStrength = isLargeGraph ? -800 : -1500;
@@ -806,12 +768,8 @@ class KGGraphVis extends HTMLElement {
 
         // Create Gradients
         this.graph.links.forEach((link, i) => {
-            // Helper to find node (D3 replaces IDs with objects, but initially they are IDs)
-            const getSrc = (l) => l.source.id || l.source;
-            const getTgt = (l) => l.target.id || l.target;
-
-            const sourceNode = this.graph.nodes.find(n => n.id === getSrc(link));
-            const targetNode = this.graph.nodes.find(n => n.id === getTgt(link));
+            const sourceNode = nodeById.get(getSourceId(link));
+            const targetNode = nodeById.get(getTargetId(link));
 
             if (sourceNode && targetNode && sourceNode.graph !== targetNode.graph) {
                 const gradId = `gradient-${i}`;
@@ -840,10 +798,8 @@ class KGGraphVis extends HTMLElement {
             .data(this.graph.links).enter().append("path")
             .attr("class", "edge-path")
             .attr("stroke", d => {
-                const getSrc = (l) => l.source.id || l.source;
-                const getTgt = (l) => l.target.id || l.target;
-                const sNode = this.graph.nodes.find(n => n.id === getSrc(d));
-                const tNode = this.graph.nodes.find(n => n.id === getTgt(d));
+                const sNode = nodeById.get(getSourceId(d));
+                const tNode = nodeById.get(getTargetId(d));
 
                 if (sNode && tNode) {
                     if (sNode.graph === tNode.graph) {
@@ -856,8 +812,7 @@ class KGGraphVis extends HTMLElement {
             })
             .attr("stroke-width", 2)
             .attr("marker-end", d => {
-                const getTgt = (l) => l.target.id || l.target;
-                const tNode = this.graph.nodes.find(n => n.id === getTgt(d));
+                const tNode = nodeById.get(getTargetId(d));
                 if (tNode) {
                     return `url(#arrow-${this.sanitizeId(tNode.graph)})`;
                 }

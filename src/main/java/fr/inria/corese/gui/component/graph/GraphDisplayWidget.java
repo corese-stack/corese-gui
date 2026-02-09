@@ -8,10 +8,12 @@ import fr.inria.corese.gui.utils.AppExecutors;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.concurrent.atomic.AtomicLong;
+import javafx.beans.value.ChangeListener;
 import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.concurrent.Worker;
 import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
@@ -27,6 +29,7 @@ import javafx.util.Duration;
 import netscape.javascript.JSObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import atlantafx.base.theme.Theme;
 
 /**
  * A reusable JavaFX widget for visualizing RDF graphs.
@@ -51,7 +54,7 @@ import org.slf4j.LoggerFactory;
  * widget.resetLayout();
  * }</pre>
  */
-public class GraphDisplayWidget extends VBox {
+public class GraphDisplayWidget extends VBox implements AutoCloseable {
 
 	// ==============================================================================================
 	// Constants
@@ -96,6 +99,26 @@ public class GraphDisplayWidget extends VBox {
 	private final Button safetyActionButton;
 	private final JavaBridge bridge = new JavaBridge();
 	private final AtomicLong renderRequestCounter = new AtomicLong();
+	private boolean disposed = false;
+	private final ChangeListener<Scene> sceneAttachmentListener = (obs, oldScene,
+			newScene) -> handleSceneAttachment(newScene);
+	private final ChangeListener<Worker.State> loadStateListener = (obs, oldState,
+			newState) -> handleLoadStateChange(newState);
+	private final ChangeListener<Throwable> loadExceptionListener = (obs, oldEx, newEx) -> {
+		if (newEx != null && !disposed) {
+			LOGGER.error("WebView load error", newEx);
+		}
+	};
+	private final ChangeListener<Theme> themeChangeListener = (obs, oldTheme, newTheme) -> {
+		if (!disposed) {
+			Platform.runLater(this::updateTheme);
+		}
+	};
+	private final ChangeListener<Color> accentColorChangeListener = (obs, oldColor, newColor) -> {
+		if (!disposed) {
+			Platform.runLater(this::updateTheme);
+		}
+	};
 
 	private boolean pageLoaded = false;
 	private String pendingJsonLdData = null;
@@ -123,13 +146,7 @@ public class GraphDisplayWidget extends VBox {
 		initializeListeners();
 
 		// Wait for the widget to be attached to a scene before loading
-		sceneProperty().addListener((obs, oldScene, newScene) -> {
-			Worker.State currentState = webEngine.getLoadWorker().getState();
-			if (newScene != null && !pageLoaded && blockedJsonLdData == null && currentState != Worker.State.RUNNING
-					&& currentState != Worker.State.SUCCEEDED) {
-				Platform.runLater(this::loadGraphPage);
-			}
-		});
+		sceneProperty().addListener(sceneAttachmentListener);
 	}
 
 	// ==============================================================================================
@@ -213,34 +230,46 @@ public class GraphDisplayWidget extends VBox {
 		// Capture JavaScript alerts for debugging
 		webEngine.setOnAlert(event -> LOGGER.debug("[JS Alert] {}", event.getData()));
 
-		webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
-			if (newState == Worker.State.RUNNING || newState == Worker.State.SCHEDULED) {
-				pageLoaded = false;
-				showLoadingOverlay();
-			} else if (newState == Worker.State.SUCCEEDED) {
-				onPageLoaded();
-			} else if (newState == Worker.State.FAILED) {
-				LOGGER.error("Failed to load graph visualization");
-				pageLoaded = false;
-				showLoadingOverlay();
-			}
-		});
+		webEngine.getLoadWorker().stateProperty().addListener(loadStateListener);
+		webEngine.getLoadWorker().exceptionProperty().addListener(loadExceptionListener);
 
-		webEngine.getLoadWorker().exceptionProperty().addListener((obs, old, newEx) -> {
-			if (newEx != null) {
-				LOGGER.error("WebView load error", newEx);
-			}
-		});
+		ThemeManager tm = ThemeManager.getInstance();
+		tm.themeProperty().addListener(themeChangeListener);
+		tm.accentColorProperty().addListener(accentColorChangeListener);
+	}
 
-		ThemeManager.getInstance().themeProperty()
-				.addListener((obs, old, newVal) -> Platform.runLater(this::updateTheme));
+	private void handleSceneAttachment(Scene newScene) {
+		if (disposed) {
+			return;
+		}
+		Worker.State currentState = webEngine.getLoadWorker().getState();
+		if (newScene != null && !pageLoaded && blockedJsonLdData == null && currentState != Worker.State.RUNNING
+				&& currentState != Worker.State.SUCCEEDED) {
+			Platform.runLater(this::loadGraphPage);
+		}
+	}
 
-		ThemeManager.getInstance().accentColorProperty()
-				.addListener((obs, old, newVal) -> Platform.runLater(this::updateTheme));
+	private void handleLoadStateChange(Worker.State newState) {
+		if (disposed) {
+			return;
+		}
+		if (newState == Worker.State.RUNNING || newState == Worker.State.SCHEDULED) {
+			pageLoaded = false;
+			showLoadingOverlay();
+		} else if (newState == Worker.State.SUCCEEDED) {
+			onPageLoaded();
+		} else if (newState == Worker.State.FAILED) {
+			LOGGER.error("Failed to load graph visualization");
+			pageLoaded = false;
+			showLoadingOverlay();
+		}
 	}
 
 	@SuppressWarnings("removal")
 	private void onPageLoaded() {
+		if (disposed) {
+			return;
+		}
 		try {
 			// Inject Java Bridge into JavaScript
 			// Using deprecated JSObject as there's no official alternative yet
@@ -275,6 +304,9 @@ public class GraphDisplayWidget extends VBox {
 	 *            The RDF data in JSON-LD format (null or empty clears the view)
 	 */
 	public void displayGraph(String jsonLdData) {
+		if (disposed) {
+			return;
+		}
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> displayGraph(jsonLdData));
 			return;
@@ -294,6 +326,9 @@ public class GraphDisplayWidget extends VBox {
 	}
 
 	private void renderGraph(String jsonLdData) {
+		if (disposed) {
+			return;
+		}
 		hideSafetyOverlay();
 		blockedJsonLdData = null;
 		long requestId = renderRequestCounter.incrementAndGet();
@@ -315,6 +350,9 @@ public class GraphDisplayWidget extends VBox {
 	}
 
 	private void deferGraphRendering(String jsonLdData) {
+		if (disposed) {
+			return;
+		}
 		renderRequestCounter.incrementAndGet();
 		blockedJsonLdData = jsonLdData;
 		pendingJsonLdData = null;
@@ -324,6 +362,9 @@ public class GraphDisplayWidget extends VBox {
 	}
 
 	private void renderBlockedGraph() {
+		if (disposed) {
+			return;
+		}
 		if (blockedJsonLdData == null || blockedJsonLdData.isBlank()) {
 			return;
 		}
@@ -343,6 +384,9 @@ public class GraphDisplayWidget extends VBox {
 	}
 
 	private void loadGraphPage() {
+		if (disposed) {
+			return;
+		}
 		try {
 			String htmlPath = getClass().getResource(GRAPH_HTML_PATH).toExternalForm();
 			showLoadingOverlay();
@@ -375,11 +419,18 @@ public class GraphDisplayWidget extends VBox {
 	private void prepareGraphInjectionAsync(long requestId, String jsonLdData) {
 		AppExecutors.execute(() -> {
 			String base64Json = Base64.getEncoder().encodeToString(jsonLdData.getBytes(StandardCharsets.UTF_8));
-			Platform.runLater(() -> injectGraphData(requestId, jsonLdData, base64Json));
+			Platform.runLater(() -> {
+				if (!disposed) {
+					injectGraphData(requestId, jsonLdData, base64Json);
+				}
+			});
 		});
 	}
 
 	private void injectGraphData(long requestId, String jsonLdData, String base64Json) {
+		if (disposed) {
+			return;
+		}
 		if (requestId != renderRequestCounter.get()) {
 			return;
 		}
@@ -434,6 +485,9 @@ public class GraphDisplayWidget extends VBox {
 	}
 
 	private void updateTheme() {
+		if (disposed) {
+			return;
+		}
 		ThemeManager tm = ThemeManager.getInstance();
 		boolean isDark = false;
 		String themeName = "default";
@@ -460,7 +514,7 @@ public class GraphDisplayWidget extends VBox {
 	}
 
 	private boolean executeScriptSafe(String script) {
-		if (!pageLoaded) {
+		if (disposed || !pageLoaded) {
 			return false;
 		}
 		try {
@@ -502,6 +556,47 @@ public class GraphDisplayWidget extends VBox {
 
 	public int getMaxAutoRenderChars() {
 		return maxAutoRenderChars;
+	}
+
+	/** Releases WebView resources and detaches global listeners. */
+	@Override
+	public void close() {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(this::close);
+			return;
+		}
+		if (disposed) {
+			return;
+		}
+
+		disposed = true;
+		renderRequestCounter.incrementAndGet();
+		pendingJsonLdData = null;
+		blockedJsonLdData = null;
+		hideSafetyOverlay();
+		loadingOverlay.setVisible(false);
+		loadingOverlay.setManaged(false);
+		loadingOverlay.setOpacity(0);
+		unregisterListeners();
+		webEngine.setOnAlert(null);
+
+		// Stop graph rendering and release heavy page resources.
+		try {
+			webEngine.load("about:blank");
+		} catch (Exception e) {
+			LOGGER.debug("Unable to unload graph web view", e);
+		}
+		pageLoaded = false;
+	}
+
+	private void unregisterListeners() {
+		sceneProperty().removeListener(sceneAttachmentListener);
+		webEngine.getLoadWorker().stateProperty().removeListener(loadStateListener);
+		webEngine.getLoadWorker().exceptionProperty().removeListener(loadExceptionListener);
+
+		ThemeManager tm = ThemeManager.getInstance();
+		tm.themeProperty().removeListener(themeChangeListener);
+		tm.accentColorProperty().removeListener(accentColorChangeListener);
 	}
 
 	/**
@@ -586,6 +681,9 @@ public class GraphDisplayWidget extends VBox {
 		}
 
 		public void onGraphRenderComplete(String requestId) {
+			if (disposed) {
+				return;
+			}
 			if (!isCurrentRenderRequest(requestId)) {
 				return;
 			}
@@ -593,6 +691,9 @@ public class GraphDisplayWidget extends VBox {
 		}
 
 		public void onGraphRenderFailed(String requestId, String message) {
+			if (disposed) {
+				return;
+			}
 			if (!isCurrentRenderRequest(requestId)) {
 				return;
 			}
