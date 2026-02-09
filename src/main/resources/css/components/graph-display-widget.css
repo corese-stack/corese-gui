@@ -11,7 +11,30 @@
 }
 
 .graph-loading-mask {
+    -fx-background-color: rgba(0, 0, 0, 0.12);
+}
+
+.graph-loading-overlay {
+    -fx-alignment: center;
+}
+
+.graph-loading-content {
+    -fx-alignment: center;
+    -fx-spacing: 8px;
+    -fx-padding: 12px 16px;
     -fx-background-color: -color-bg-default;
+    -fx-background-radius: 10px;
+    -fx-border-color: -color-border-muted;
+    -fx-border-radius: 10px;
+}
+
+.graph-loading-indicator {
+    -fx-progress-color: -color-accent-emphasis;
+}
+
+.graph-loading-label {
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-size: 12px;
 }
 
 .graph-safety-overlay {

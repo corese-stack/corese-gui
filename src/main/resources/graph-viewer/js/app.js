@@ -62,6 +62,55 @@ if (window.bridge) {
     setupBridge();
 }
 
+function notifyBridge(method, ...args) {
+    if (!window.bridge || typeof window.bridge[method] !== 'function') {
+        return;
+    }
+    try {
+        window.bridge[method](...args);
+    } catch (err) {
+        // Ignore bridge callback errors to avoid breaking rendering flow.
+    }
+}
+
+function asErrorMessage(error) {
+    return String(error && error.message ? error.message : error);
+}
+
+/**
+ * Inject graph content from Base64-encoded JSON-LD.
+ * Rendering is scheduled asynchronously to keep JavaFX calls lightweight.
+ *
+ * @param {string} base64Json - Base64 encoded JSON-LD payload.
+ * @param {string} requestId - Render request identifier from Java.
+ */
+window.renderGraphFromBase64 = function (base64Json, requestId) {
+    const renderId = requestId == null ? "" : String(requestId);
+    const graphElement = document.getElementById('myGraph');
+    if (!graphElement) {
+        notifyBridge('onGraphRenderFailed', renderId, 'Graph component not available.');
+        return;
+    }
+
+    let decoded;
+    try {
+        decoded = decodeURIComponent(escape(window.atob(base64Json)));
+    } catch (error) {
+        notifyBridge('onGraphRenderFailed', renderId, asErrorMessage(error));
+        return;
+    }
+
+    setTimeout(() => {
+        try {
+            graphElement.jsonld = decoded;
+            notifyBridge('onGraphRenderComplete', renderId);
+        } catch (error) {
+            console.error("Graph rendering failed:", error);
+            notifyBridge('onGraphRenderFailed', renderId, asErrorMessage(error));
+        }
+    }, 0);
+};
+
 /* =================================================================
  * GLOBAL API - THEME MANAGEMENT
  * =================================================================

@@ -4,14 +4,17 @@ import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.core.theme.AppThemeRegistry;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.theme.ThemeManager;
+import fr.inria.corese.gui.utils.AppExecutors;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.concurrent.atomic.AtomicLong;
 import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.concurrent.Worker;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -20,10 +23,10 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
+import javafx.util.Duration;
 import netscape.javascript.JSObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import javafx.util.Duration;
 
 /**
  * A reusable JavaFX widget for visualizing RDF graphs.
@@ -60,7 +63,11 @@ public class GraphDisplayWidget extends VBox {
 	private static final String GRAPH_HTML_PATH = "/graph-viewer/graph-viewer.html";
 	private static final String STYLE_CLASS_CONTAINER = "graph-display-container";
 	private static final String STYLE_CLASS_WEBVIEW = "graph-display-webview";
+	private static final String STYLE_CLASS_LOADING_OVERLAY = "graph-loading-overlay";
 	private static final String STYLE_CLASS_LOADING_MASK = "graph-loading-mask";
+	private static final String STYLE_CLASS_LOADING_CONTENT = "graph-loading-content";
+	private static final String STYLE_CLASS_LOADING_INDICATOR = "graph-loading-indicator";
+	private static final String STYLE_CLASS_LOADING_LABEL = "graph-loading-label";
 	private static final String STYLE_CLASS_SAFETY_OVERLAY = "graph-safety-overlay";
 	private static final String STYLE_CLASS_SAFETY_CARD = "graph-safety-card";
 	private static final String STYLE_CLASS_SAFETY_TITLE = "graph-safety-title";
@@ -71,7 +78,10 @@ public class GraphDisplayWidget extends VBox {
 	private static final int DEFAULT_MAX_AUTO_RENDER_CHARS = 1_500_000;
 	private static final String SAFETY_TITLE = "Graph preview paused";
 	private static final String SAFETY_ACTION = "Display anyway";
-	private static final String SAFETY_HINT = "The graph is large and automatic rendering is disabled to keep the application responsive.";
+	private static final String SAFETY_HINT = "A large graph was detected and automatic preview is paused to keep the application responsive.";
+	private static final String SAFETY_RISK_HINT = "Manual rendering can freeze the interface or exhaust available memory.";
+	private static final String LOADING_HINT = "Rendering graph preview...";
+	private static final double LOADING_INDICATOR_SIZE = 36;
 
 	// ==============================================================================================
 	// Fields
@@ -80,11 +90,12 @@ public class GraphDisplayWidget extends VBox {
 	private final WebView webView;
 	private final WebEngine webEngine;
 	private final StackPane container;
-	private final Region loadingMask;
+	private final StackPane loadingOverlay;
 	private final StackPane safetyOverlay;
 	private final Label safetyMessageLabel;
 	private final Button safetyActionButton;
 	private final JavaBridge bridge = new JavaBridge();
+	private final AtomicLong renderRequestCounter = new AtomicLong();
 
 	private boolean pageLoaded = false;
 	private String pendingJsonLdData = null;
@@ -103,7 +114,7 @@ public class GraphDisplayWidget extends VBox {
 		this.webView = new WebView();
 		this.webEngine = webView.getEngine();
 		this.container = new StackPane();
-		this.loadingMask = new Region();
+		this.loadingOverlay = createLoadingOverlay();
 		this.safetyMessageLabel = new Label();
 		this.safetyActionButton = new Button(SAFETY_ACTION);
 		this.safetyOverlay = createSafetyOverlay();
@@ -137,15 +148,37 @@ public class GraphDisplayWidget extends VBox {
 
 		container.getStyleClass().add(STYLE_CLASS_CONTAINER);
 		webView.getStyleClass().add(STYLE_CLASS_WEBVIEW);
-		loadingMask.getStyleClass().add(STYLE_CLASS_LOADING_MASK);
-		loadingMask.setOpacity(1);
-		loadingMask.setVisible(true);
-		loadingMask.setMouseTransparent(true);
-
-		container.getChildren().addAll(webView, loadingMask, safetyOverlay);
+		container.getChildren().addAll(webView, loadingOverlay, safetyOverlay);
 
 		setVgrow(container, Priority.ALWAYS);
 		getChildren().add(container);
+	}
+
+	private StackPane createLoadingOverlay() {
+		Region backdrop = new Region();
+		backdrop.getStyleClass().add(STYLE_CLASS_LOADING_MASK);
+		backdrop.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		backdrop.setMouseTransparent(true);
+
+		ProgressIndicator progressIndicator = new ProgressIndicator();
+		progressIndicator.getStyleClass().add(STYLE_CLASS_LOADING_INDICATOR);
+		progressIndicator.setMaxSize(LOADING_INDICATOR_SIZE, LOADING_INDICATOR_SIZE);
+		progressIndicator.setPrefSize(LOADING_INDICATOR_SIZE, LOADING_INDICATOR_SIZE);
+
+		Label loadingLabel = new Label(LOADING_HINT);
+		loadingLabel.getStyleClass().add(STYLE_CLASS_LOADING_LABEL);
+
+		VBox content = new VBox(8, progressIndicator, loadingLabel);
+		content.getStyleClass().add(STYLE_CLASS_LOADING_CONTENT);
+		content.setAlignment(Pos.CENTER);
+		content.setMouseTransparent(true);
+
+		StackPane overlay = new StackPane(backdrop, content);
+		overlay.getStyleClass().add(STYLE_CLASS_LOADING_OVERLAY);
+		overlay.setVisible(true);
+		overlay.setManaged(true);
+		overlay.setOpacity(1);
+		return overlay;
 	}
 
 	private StackPane createSafetyOverlay() {
@@ -155,7 +188,7 @@ public class GraphDisplayWidget extends VBox {
 		safetyMessageLabel.getStyleClass().add(STYLE_CLASS_SAFETY_MESSAGE);
 		safetyMessageLabel.setWrapText(true);
 
-		safetyActionButton.getStyleClass().addAll(STYLE_CLASS_SAFETY_ACTION, Styles.ACCENT);
+		safetyActionButton.getStyleClass().addAll(STYLE_CLASS_SAFETY_ACTION, Styles.DANGER);
 		safetyActionButton.setOnAction(event -> renderBlockedGraph());
 		HBox actions = new HBox(safetyActionButton);
 		actions.getStyleClass().add(STYLE_CLASS_SAFETY_ACTIONS);
@@ -183,13 +216,13 @@ public class GraphDisplayWidget extends VBox {
 		webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
 			if (newState == Worker.State.RUNNING || newState == Worker.State.SCHEDULED) {
 				pageLoaded = false;
-				showLoadingMask();
+				showLoadingOverlay();
 			} else if (newState == Worker.State.SUCCEEDED) {
 				onPageLoaded();
 			} else if (newState == Worker.State.FAILED) {
 				LOGGER.error("Failed to load graph visualization");
 				pageLoaded = false;
-				showLoadingMask();
+				showLoadingOverlay();
 			}
 		});
 
@@ -220,10 +253,12 @@ public class GraphDisplayWidget extends VBox {
 			webEngine.executeScript("if(window.setupBridge) window.setupBridge();");
 
 			if (pendingJsonLdData != null) {
-				displayGraph(pendingJsonLdData);
+				String jsonLdData = pendingJsonLdData;
 				pendingJsonLdData = null;
+				displayGraph(jsonLdData);
+			} else {
+				hideLoadingOverlay();
 			}
-			hideLoadingMask();
 		} catch (Exception e) {
 			LOGGER.error("Error during graph page initialization", e);
 		}
@@ -240,6 +275,11 @@ public class GraphDisplayWidget extends VBox {
 	 *            The RDF data in JSON-LD format (null or empty clears the view)
 	 */
 	public void displayGraph(String jsonLdData) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> displayGraph(jsonLdData));
+			return;
+		}
+
 		if (jsonLdData == null || jsonLdData.isBlank()) {
 			clear();
 			return;
@@ -256,6 +296,8 @@ public class GraphDisplayWidget extends VBox {
 	private void renderGraph(String jsonLdData) {
 		hideSafetyOverlay();
 		blockedJsonLdData = null;
+		long requestId = renderRequestCounter.incrementAndGet();
+		showLoadingOverlay();
 
 		if (!pageLoaded) {
 			pendingJsonLdData = jsonLdData;
@@ -265,7 +307,7 @@ public class GraphDisplayWidget extends VBox {
 			return;
 		}
 
-		Platform.runLater(() -> injectGraphData(jsonLdData));
+		prepareGraphInjectionAsync(requestId, jsonLdData);
 	}
 
 	private boolean shouldDeferAutomaticRender(String jsonLdData) {
@@ -273,10 +315,12 @@ public class GraphDisplayWidget extends VBox {
 	}
 
 	private void deferGraphRendering(String jsonLdData) {
+		renderRequestCounter.incrementAndGet();
 		blockedJsonLdData = jsonLdData;
 		pendingJsonLdData = null;
+		hideLoadingOverlay();
 		clearRenderedGraph();
-		showSafetyOverlay(jsonLdData.length());
+		showSafetyOverlay();
 	}
 
 	private void renderBlockedGraph() {
@@ -287,11 +331,8 @@ public class GraphDisplayWidget extends VBox {
 		renderGraph(jsonLdData);
 	}
 
-	private void showSafetyOverlay(int payloadLength) {
-		String formattedSize = String.format("%,d", payloadLength);
-		String formattedThreshold = String.format("%,d", maxAutoRenderChars);
-		safetyMessageLabel.setText(String.format("%s%nPayload size: %s chars (limit: %s chars).", SAFETY_HINT,
-				formattedSize, formattedThreshold));
+	private void showSafetyOverlay() {
+		safetyMessageLabel.setText(String.format("%s%n%s", SAFETY_HINT, SAFETY_RISK_HINT));
 		safetyOverlay.setManaged(true);
 		safetyOverlay.setVisible(true);
 	}
@@ -304,46 +345,77 @@ public class GraphDisplayWidget extends VBox {
 	private void loadGraphPage() {
 		try {
 			String htmlPath = getClass().getResource(GRAPH_HTML_PATH).toExternalForm();
-			showLoadingMask();
+			showLoadingOverlay();
 			webEngine.load(htmlPath);
 		} catch (Exception e) {
 			LOGGER.error("Failed to load graph HTML resource", e);
 		}
 	}
 
-	private void showLoadingMask() {
-		loadingMask.setOpacity(1);
-		loadingMask.setVisible(true);
+	private void showLoadingOverlay() {
+		loadingOverlay.setOpacity(1);
+		loadingOverlay.setVisible(true);
+		loadingOverlay.setManaged(true);
 	}
 
-	private void hideLoadingMask() {
-		FadeTransition fade = new FadeTransition(Duration.millis(MASK_FADE_MS), loadingMask);
-		fade.setFromValue(loadingMask.getOpacity());
+	private void hideLoadingOverlay() {
+		if (!loadingOverlay.isVisible()) {
+			return;
+		}
+		FadeTransition fade = new FadeTransition(Duration.millis(MASK_FADE_MS), loadingOverlay);
+		fade.setFromValue(loadingOverlay.getOpacity());
 		fade.setToValue(0);
-		fade.setOnFinished(event -> loadingMask.setVisible(false));
+		fade.setOnFinished(event -> {
+			loadingOverlay.setVisible(false);
+			loadingOverlay.setManaged(false);
+		});
 		fade.play();
 	}
 
-	private void injectGraphData(String jsonLdData) {
+	private void prepareGraphInjectionAsync(long requestId, String jsonLdData) {
+		AppExecutors.execute(() -> {
+			String base64Json = Base64.getEncoder().encodeToString(jsonLdData.getBytes(StandardCharsets.UTF_8));
+			Platform.runLater(() -> injectGraphData(requestId, jsonLdData, base64Json));
+		});
+	}
+
+	private void injectGraphData(long requestId, String jsonLdData, String base64Json) {
+		if (requestId != renderRequestCounter.get()) {
+			return;
+		}
+
 		// Double-check page is still loaded and is the correct page
 		if (!pageLoaded) {
+			pendingJsonLdData = jsonLdData;
 			return;
 		}
 
 		String currentLocation = webEngine.getLocation();
 		if (currentLocation == null || currentLocation.contains("about:blank")) {
+			pendingJsonLdData = jsonLdData;
 			return;
 		}
 
-		// Use Base64 encoding to avoid escaping issues with JSON data
-		String base64Json = Base64.getEncoder().encodeToString(jsonLdData.getBytes(StandardCharsets.UTF_8));
+		String renderRequestId = String.valueOf(requestId);
+		String script = buildGraphInjectionScript(base64Json, renderRequestId);
 
-		String script = "(function() {" + "  try {" + "    var el = document.getElementById('myGraph');"
-				+ "    if (!el) return;" + "    var decoded = decodeURIComponent(escape(window.atob('" + base64Json
-				+ "')));" + "    el.jsonld = decoded;" + "  } catch(e) { console.error('Graph injection error:', e); }"
-				+ "})();";
+		if (!executeScriptSafe(script)) {
+			hideLoadingOverlay();
+		}
+	}
 
-		executeScriptSafe(script);
+	private static String buildGraphInjectionScript(String base64Json, String requestId) {
+		return "(function() {" + "  if (window.renderGraphFromBase64) {" + "    window.renderGraphFromBase64('"
+				+ base64Json + "', '" + requestId + "');" + "    return;" + "  }" + "  try {"
+				+ "    var el = document.getElementById('myGraph');"
+				+ "    if (!el) throw new Error('Graph component not found');"
+				+ "    var decoded = decodeURIComponent(escape(window.atob('" + base64Json + "')));"
+				+ "    el.jsonld = decoded;"
+				+ "    if (window.bridge && typeof window.bridge.onGraphRenderComplete === 'function') {"
+				+ "      window.bridge.onGraphRenderComplete('" + requestId + "');" + "    }" + "  } catch(e) {"
+				+ "    if (window.bridge && typeof window.bridge.onGraphRenderFailed === 'function') {"
+				+ "      window.bridge.onGraphRenderFailed('" + requestId
+				+ "', String(e && e.message ? e.message : e));" + "    }" + "  }" + "})();";
 	}
 
 	/** Resets the graph layout to its initial state. */
@@ -387,22 +459,37 @@ public class GraphDisplayWidget extends VBox {
 		executeScriptSafe(script);
 	}
 
-	private void executeScriptSafe(String script) {
+	private boolean executeScriptSafe(String script) {
 		if (!pageLoaded) {
-			return;
+			return false;
 		}
 		try {
 			webEngine.executeScript(script);
+			return true;
 		} catch (Exception e) {
 			LOGGER.error("JS Execution error: {}", e.getMessage(), e);
+			return false;
 		}
 	}
 
 	public void clear() {
+		renderRequestCounter.incrementAndGet();
 		hideSafetyOverlay();
 		blockedJsonLdData = null;
 		pendingJsonLdData = null;
+		hideLoadingOverlay();
 		clearRenderedGraph();
+	}
+
+	private boolean isCurrentRenderRequest(String requestId) {
+		if (requestId == null || requestId.isBlank()) {
+			return false;
+		}
+		try {
+			return Long.parseLong(requestId) == renderRequestCounter.get();
+		} catch (NumberFormatException ignored) {
+			return false;
+		}
 	}
 
 	private void clearRenderedGraph() {
@@ -496,6 +583,21 @@ public class GraphDisplayWidget extends VBox {
 		 */
 		public void error(String message) {
 			LOGGER.error("[JS] {}", message);
+		}
+
+		public void onGraphRenderComplete(String requestId) {
+			if (!isCurrentRenderRequest(requestId)) {
+				return;
+			}
+			Platform.runLater(GraphDisplayWidget.this::hideLoadingOverlay);
+		}
+
+		public void onGraphRenderFailed(String requestId, String message) {
+			if (!isCurrentRenderRequest(requestId)) {
+				return;
+			}
+			LOGGER.warn("Graph rendering failed: {}", message);
+			Platform.runLater(GraphDisplayWidget.this::hideLoadingOverlay);
 		}
 	}
 }
