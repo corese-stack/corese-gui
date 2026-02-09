@@ -96,6 +96,7 @@ public class TabStripView extends HBox {
   private boolean firstRenderDone = false;
   private boolean deferredRenderScheduled = false;
   private boolean closeAnimationInProgress = false;
+  private boolean noOverflowExpected = false;
   private Timeline autoScrollAnimation;
   private double autoScrollTargetHValue = Double.NaN;
 
@@ -236,6 +237,7 @@ public class TabStripView extends HBox {
 
     double tabWidth = computeTabWidth(currentTabs.size());
     boolean fullWild = !Double.isNaN(tabWidth);
+    noOverflowExpected = fullWild;
 
     if (!fullWild && !deferredRenderScheduled && !currentTabs.isEmpty()) {
       double viewportWidth = resolveViewportWidth();
@@ -398,8 +400,10 @@ public class TabStripView extends HBox {
         e -> {
           autoScrollAnimation = null;
           autoScrollTargetHValue = Double.NaN;
+          updateOverflowState();
         });
     autoScrollAnimation.play();
+    updateOverflowState();
   }
 
   private void stopAutoScrollAnimation() {
@@ -805,6 +809,17 @@ public class TabStripView extends HBox {
   }
 
   private void updateOverflowState() {
+    if (noOverflowExpected) {
+      hideOverflowShadow(
+          leftOverflowShadow, leftOverflowShadowShowDelay, leftOverflowShadowFadeIn, leftOverflowShadowFadeOut);
+      hideOverflowShadow(
+          rightOverflowShadow,
+          rightOverflowShadowShowDelay,
+          rightOverflowShadowFadeIn,
+          rightOverflowShadowFadeOut);
+      return;
+    }
+
     double scrollableWidth = getScrollableWidth();
     if (scrollableWidth <= 0.5) {
       hideOverflowShadow(
@@ -818,7 +833,8 @@ public class TabStripView extends HBox {
     }
 
     boolean canScrollLeft = scrollPane.getHvalue() > SCROLL_EPSILON;
-    boolean canScrollRight = scrollPane.getHvalue() < (1.0 - SCROLL_EPSILON);
+    boolean canScrollRight =
+        !isAutoScrollingToRightEdge() && scrollPane.getHvalue() < (1.0 - SCROLL_EPSILON);
     updateOverflowShadow(
         leftOverflowShadow,
         leftOverflowShadowShowDelay,
@@ -831,6 +847,12 @@ public class TabStripView extends HBox {
         rightOverflowShadowFadeIn,
         rightOverflowShadowFadeOut,
         canScrollRight);
+  }
+
+  private boolean isAutoScrollingToRightEdge() {
+    return autoScrollAnimation != null
+        && autoScrollAnimation.getStatus() == Animation.Status.RUNNING
+        && autoScrollTargetHValue >= (1.0 - SCROLL_EPSILON);
   }
 
   private void updateOverflowShadow(
