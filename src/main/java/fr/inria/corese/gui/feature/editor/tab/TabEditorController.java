@@ -129,6 +129,7 @@ public class TabEditorController {
 
 		// Setup open-file action
 		setupOpenFileAction();
+		setupTemplateAction();
 		setupFileDropSupport();
 
 		// Setup listeners
@@ -157,6 +158,16 @@ public class TabEditorController {
 
 	private void setupFileDropSupport() {
 		view.setOnFilesDropped(this::handleDroppedFiles);
+	}
+
+	/** Configures the Query Template button action from config. */
+	private void setupTemplateAction() {
+		Runnable templateAction = config.getTemplateAction();
+		if (templateAction == null) {
+			view.setOnTemplateAction(null);
+			return;
+		}
+		view.setOnTemplateAction(e -> templateAction.run());
 	}
 
 	/**

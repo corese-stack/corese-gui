@@ -48,9 +48,46 @@ const cm = CodeMirror.fromTextArea(editorArea, {
     extraKeys: {
         "Ctrl-Space": "autocomplete",
         "Cmd-/": "toggleComment",
-        "Ctrl-/": "toggleComment"
+        "Ctrl-/": "toggleComment",
+        "Ctrl-C": () => copySelectionToClipboard(),
+        "Cmd-C": () => copySelectionToClipboard(),
+        "Ctrl-X": () => cutSelectionToClipboard(),
+        "Cmd-X": () => cutSelectionToClipboard()
     }
 });
+
+function copySelectionToClipboard() {
+    return copySelectionUsingBridge() ? undefined : CodeMirror.Pass;
+}
+
+function cutSelectionToClipboard() {
+    if (cm.getOption("readOnly")) {
+        return CodeMirror.Pass;
+    }
+
+    if (!copySelectionUsingBridge()) {
+        return CodeMirror.Pass;
+    }
+    cm.replaceSelection("");
+    return undefined;
+}
+
+function copySelectionUsingBridge() {
+    const selection = cm.getSelection();
+    if (!selection) {
+        return false;
+    }
+    const bridge = globalThis.bridge;
+    if (!bridge || typeof bridge.copyToClipboard !== "function") {
+        return false;
+    }
+
+    try {
+        return bridge.copyToClipboard(selection) !== false;
+    } catch (e) {
+        return false;
+    }
+}
 
 /* =================================================================
  * LIGHTWEIGHT MODES (CSV/TSV)

@@ -5,6 +5,7 @@ import fr.inria.corese.gui.core.theme.AppThemeRegistry;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.theme.ThemeManager;
 import java.net.URL;
+import java.util.prefs.Preferences;
 import javafx.application.Platform;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
@@ -14,6 +15,8 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.concurrent.Worker;
 import javafx.scene.input.ScrollEvent;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
@@ -45,6 +48,8 @@ public class CodeMirrorWidget extends VBox {
 	private static final double MAX_ZOOM = 3.0;
 	private static final double ZOOM_STEP = 0.1;
 	private static final double DEFAULT_ZOOM = 1.0;
+	private static final String PREF_EDITOR_ZOOM = "editor.zoom";
+	private static final Preferences PREFS = Preferences.userNodeForPackage(CodeMirrorWidget.class);
 
 	// Components
 	private final WebView webView;
@@ -53,7 +58,7 @@ public class CodeMirrorWidget extends VBox {
 	// Properties
 	private final StringProperty contentProperty = new SimpleStringProperty("");
 	private final ObjectProperty<SerializationFormat> modeProperty = new SimpleObjectProperty<>(DEFAULT_MODE);
-	private final DoubleProperty zoomProperty = new SimpleDoubleProperty(DEFAULT_ZOOM);
+	private final DoubleProperty zoomProperty = new SimpleDoubleProperty(loadSavedZoom());
 
 	// Bridge
 	private final JavaBridge bridge = new JavaBridge();
@@ -373,16 +378,51 @@ public class CodeMirrorWidget extends VBox {
 	// ==============================================================================================
 
 	public void zoomIn() {
-		setZoom(zoomProperty.get() + ZOOM_STEP);
+		setZoom(zoomProperty.get() + ZOOM_STEP, true);
 	}
 
 	public void zoomOut() {
-		setZoom(zoomProperty.get() - ZOOM_STEP);
+		setZoom(zoomProperty.get() - ZOOM_STEP, true);
 	}
 
-	private void setZoom(double value) {
-		double clamped = Math.clamp(value, MIN_ZOOM, MAX_ZOOM);
+	/**
+	 * Applies zoom only to this widget instance without updating the global
+	 * persisted user preference.
+	 */
+	public void zoomInForCurrentEditorOnly() {
+		setZoom(zoomProperty.get() + ZOOM_STEP, false);
+	}
+
+	private void setZoom(double value, boolean persistPreference) {
+		double clamped = clampZoom(value);
 		zoomProperty.set(clamped);
+		if (persistPreference) {
+			saveZoom(clamped);
+		}
+	}
+
+	private static double loadSavedZoom() {
+		try {
+			return clampZoom(PREFS.getDouble(PREF_EDITOR_ZOOM, DEFAULT_ZOOM));
+		} catch (SecurityException e) {
+			LOGGER.debug("Unable to read editor zoom preference", e);
+			return DEFAULT_ZOOM;
+		}
+	}
+
+	private static void saveZoom(double zoom) {
+		try {
+			PREFS.putDouble(PREF_EDITOR_ZOOM, clampZoom(zoom));
+		} catch (SecurityException e) {
+			LOGGER.debug("Unable to persist editor zoom preference", e);
+		}
+	}
+
+	private static double clampZoom(double value) {
+		if (Double.isNaN(value) || Double.isInfinite(value)) {
+			return DEFAULT_ZOOM;
+		}
+		return Math.clamp(value, MIN_ZOOM, MAX_ZOOM);
 	}
 
 	// ==============================================================================================
@@ -413,6 +453,27 @@ public class CodeMirrorWidget extends VBox {
 		 */
 		public void log(String message) {
 			LOGGER.debug("[JS]: {}", message);
+		}
+
+		/**
+		 * Copies the provided text to the system clipboard.
+		 *
+		 * <p>
+		 * This provides a reliable clipboard fallback for environments where WebView
+		 * does not correctly propagate native copy shortcuts.
+		 *
+		 * @param text
+		 *            text to copy
+		 * @return true if the request was accepted
+		 */
+		public boolean copyToClipboard(String text) {
+			String safeText = text != null ? text : "";
+			Platform.runLater(() -> {
+				ClipboardContent clipboardContent = new ClipboardContent();
+				clipboardContent.putString(safeText);
+				Clipboard.getSystemClipboard().setContent(clipboardContent);
+			});
+			return true;
 		}
 	}
 }

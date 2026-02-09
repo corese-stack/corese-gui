@@ -26,7 +26,7 @@ import fr.inria.corese.gui.component.button.enums.ButtonIcon;
  *
  * <pre>{@code
  * List<ButtonConfig> buttons = List.of(AppButtons.save(() -> saveFile()), AppButtons.undo(() -> undo()),
- *         AppButtons.redo(() -> redo()));
+ * 		AppButtons.redo(() -> redo()));
  *
  * // Or with null action to be wired later by controller
  * ButtonConfig config = AppButtons.save(null);
@@ -37,258 +37,274 @@ import fr.inria.corese.gui.component.button.enums.ButtonIcon;
  */
 public final class ButtonFactory {
 
-    // ===============================================================================
-    // Constructor
-    // ===============================================================================
+	// ===============================================================================
+	// Constructor
+	// ===============================================================================
 
-    /** Private constructor to prevent instantiation of this utility class. */
-    private ButtonFactory() {
-        throw new AssertionError("Utility class - do not instantiate");
-    }
+	/** Private constructor to prevent instantiation of this utility class. */
+	private ButtonFactory() {
+		throw new AssertionError("Utility class - do not instantiate");
+	}
 
-    // ===============================================================================
-    // Custom Configuration
-    // ===============================================================================
+	// ===============================================================================
+	// Custom Configuration
+	// ===============================================================================
 
-    /**
-     * Creates a custom button configuration with non-standard icon/tooltip
-     * combination.
-     *
-     * <p>
-     * Use this method when you need a button that doesn't fit the standard factory
-     * methods (e.g., context-specific tooltips like "Copy SVG" instead of "Copy to
-     * Clipboard").
-     *
-     * <p>
-     * <b>Note:</b> Prefer using standard factory methods when possible to maintain
-     * consistency.
-     *
-     * @param icon
-     *            The icon to display
-     * @param tooltip
-     *            The custom tooltip text
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with custom settings
-     */
-    public static ButtonConfig custom(ButtonIcon icon, String tooltip, Runnable action) {
-        return new ButtonConfig(icon, tooltip, action);
-    }
+	/**
+	 * Creates a custom button configuration with non-standard icon/tooltip
+	 * combination.
+	 *
+	 * <p>
+	 * Use this method when you need a button that doesn't fit the standard factory
+	 * methods (e.g., context-specific tooltips like "Copy SVG" instead of "Copy to
+	 * Clipboard").
+	 *
+	 * <p>
+	 * <b>Note:</b> Prefer using standard factory methods when possible to maintain
+	 * consistency.
+	 *
+	 * @param icon
+	 *            The icon to display
+	 * @param tooltip
+	 *            The custom tooltip text
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with custom settings
+	 */
+	public static ButtonConfig custom(ButtonIcon icon, String tooltip, Runnable action) {
+		return new ButtonConfig(icon, tooltip, action);
+	}
 
-    /** Creates a custom button configuration with no action bound yet. */
-    public static ButtonConfig custom(ButtonIcon icon, String tooltip) {
-        return custom(icon, tooltip, null);
-    }
+	/** Creates a custom button configuration with no action bound yet. */
+	public static ButtonConfig custom(ButtonIcon icon, String tooltip) {
+		return custom(icon, tooltip, null);
+	}
 
-    // ===============================================================================
-    // File Operations
-    // ===============================================================================
+	// ===============================================================================
+	// File Operations
+	// ===============================================================================
 
-    /**
-     * Creates a standardized Save button configuration.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with save icon and tooltip
-     */
-    public static ButtonConfig save(Runnable action) {
-        return new ButtonConfig(ButtonIcon.SAVE, "Save", action);
-    }
+	/**
+	 * Creates a standardized Save button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with save icon and tooltip
+	 */
+	public static ButtonConfig save(Runnable action) {
+		return new ButtonConfig(ButtonIcon.SAVE, "Save", action);
+	}
 
-    /** Creates a Save button configuration with no action bound yet. */
-    public static ButtonConfig save() {
-        return save(null);
-    }
+	/** Creates a Save button configuration with no action bound yet. */
+	public static ButtonConfig save() {
+		return save(null);
+	}
 
-    /**
-     * Creates a standardized Export button configuration.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with export icon and tooltip
-     */
-    public static ButtonConfig export(Runnable action) {
-        return new ButtonConfig(ButtonIcon.EXPORT, "Export to File", action);
-    }
+	/**
+	 * Creates a standardized Export button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with export icon and tooltip
+	 */
+	public static ButtonConfig export(Runnable action) {
+		return new ButtonConfig(ButtonIcon.EXPORT, "Export to File", action);
+	}
 
-    /** Creates an Export button configuration with no action bound yet. */
-    public static ButtonConfig export() {
-        return export(null);
-    }
+	/** Creates an Export button configuration with no action bound yet. */
+	public static ButtonConfig export() {
+		return export(null);
+	}
 
-    /**
-     * Creates an Export SVG button configuration.
-     *
-     * <p>
-     * Specialized variant for exporting SVG content specifically.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with export icon and SVG-specific tooltip
-     */
-    public static ButtonConfig exportSvg(Runnable action) {
-        return new ButtonConfig(ButtonIcon.EXPORT, "Export SVG", action);
-    }
+	/**
+	 * Creates an Export SVG button configuration.
+	 *
+	 * <p>
+	 * Specialized variant for exporting SVG content specifically.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with export icon and SVG-specific tooltip
+	 */
+	public static ButtonConfig exportSvg(Runnable action) {
+		return new ButtonConfig(ButtonIcon.EXPORT, "Export SVG", action);
+	}
 
-    /**
-     * Creates a standardized Open File button configuration.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with open file icon and tooltip
-     */
-    public static ButtonConfig openFile(Runnable action) {
-        return new ButtonConfig(ButtonIcon.OPEN_FILE, "Open File", action);
-    }
+	/**
+	 * Creates a standardized Open File button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with open file icon and tooltip
+	 */
+	public static ButtonConfig openFile(Runnable action) {
+		return new ButtonConfig(ButtonIcon.OPEN_FILE, "Open File", action);
+	}
 
-    /** Creates an Open File button configuration with no action bound yet. */
-    public static ButtonConfig openFile() {
-        return openFile(null);
-    }
+	/** Creates an Open File button configuration with no action bound yet. */
+	public static ButtonConfig openFile() {
+		return openFile(null);
+	}
 
-    /**
-     * Creates a standardized New Tab button configuration.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with new tab icon and tooltip
-     */
-    public static ButtonConfig newTab(Runnable action) {
-        return new ButtonConfig(ButtonIcon.NEW_TAB, "New Tab", action);
-    }
+	/**
+	 * Creates a standardized New Tab button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with new tab icon and tooltip
+	 */
+	public static ButtonConfig newTab(Runnable action) {
+		return new ButtonConfig(ButtonIcon.NEW_TAB, "New Tab", action);
+	}
 
-    /** Creates a New Tab button configuration with no action bound yet. */
-    public static ButtonConfig newTab() {
-        return newTab(null);
-    }
+	/** Creates a New Tab button configuration with no action bound yet. */
+	public static ButtonConfig newTab() {
+		return newTab(null);
+	}
 
-    // ===============================================================================
-    // Editor Operations
-    // ===============================================================================
+	/**
+	 * Creates a standardized Query Template button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with template icon and tooltip
+	 */
+	public static ButtonConfig template(Runnable action) {
+		return new ButtonConfig(ButtonIcon.TEMPLATE, "Query Templates", action);
+	}
 
-    /**
-     * Creates a standardized Undo button configuration.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with undo icon and tooltip
-     */
-    public static ButtonConfig undo(Runnable action) {
-        return new ButtonConfig(ButtonIcon.UNDO, "Undo", action);
-    }
+	/** Creates a Query Template button configuration with no action bound yet. */
+	public static ButtonConfig template() {
+		return template(null);
+	}
 
-    /** Creates an Undo button configuration with no action bound yet. */
-    public static ButtonConfig undo() {
-        return undo(null);
-    }
+	// ===============================================================================
+	// Editor Operations
+	// ===============================================================================
 
-    /**
-     * Creates a standardized Redo button configuration.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with redo icon and tooltip
-     */
-    public static ButtonConfig redo(Runnable action) {
-        return new ButtonConfig(ButtonIcon.REDO, "Redo", action);
-    }
+	/**
+	 * Creates a standardized Undo button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with undo icon and tooltip
+	 */
+	public static ButtonConfig undo(Runnable action) {
+		return new ButtonConfig(ButtonIcon.UNDO, "Undo", action);
+	}
 
-    /** Creates a Redo button configuration with no action bound yet. */
-    public static ButtonConfig redo() {
-        return redo(null);
-    }
+	/** Creates an Undo button configuration with no action bound yet. */
+	public static ButtonConfig undo() {
+		return undo(null);
+	}
 
-    /**
-     * Creates a standardized Copy to Clipboard button configuration.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with copy icon and tooltip
-     */
-    public static ButtonConfig copy(Runnable action) {
-        return new ButtonConfig(ButtonIcon.COPY, "Copy to Clipboard", action);
-    }
+	/**
+	 * Creates a standardized Redo button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with redo icon and tooltip
+	 */
+	public static ButtonConfig redo(Runnable action) {
+		return new ButtonConfig(ButtonIcon.REDO, "Redo", action);
+	}
 
-    /** Creates a Copy button configuration with no action bound yet. */
-    public static ButtonConfig copy() {
-        return copy(null);
-    }
+	/** Creates a Redo button configuration with no action bound yet. */
+	public static ButtonConfig redo() {
+		return redo(null);
+	}
 
-    /**
-     * Creates a standardized Copy Selection button configuration.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with copy-selection icon and tooltip
-     */
-    public static ButtonConfig copySelection(Runnable action) {
-        return new ButtonConfig(ButtonIcon.COPY_SELECTION, "Copy Selection", action);
-    }
+	/**
+	 * Creates a standardized Copy to Clipboard button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with copy icon and tooltip
+	 */
+	public static ButtonConfig copy(Runnable action) {
+		return new ButtonConfig(ButtonIcon.COPY, "Copy to Clipboard", action);
+	}
 
-    /**
-     * Creates a Copy SVG button configuration.
-     *
-     * <p>
-     * Specialized variant for copying SVG content specifically.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with copy icon and SVG-specific tooltip
-     */
-    public static ButtonConfig copySvg(Runnable action) {
-        return new ButtonConfig(ButtonIcon.COPY, "Copy SVG", action);
-    }
+	/** Creates a Copy button configuration with no action bound yet. */
+	public static ButtonConfig copy() {
+		return copy(null);
+	}
 
-    /**
-     * Creates a standardized Zoom In button configuration.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with zoom in icon and tooltip
-     */
-    public static ButtonConfig zoomIn(Runnable action) {
-        return new ButtonConfig(ButtonIcon.ZOOM_IN, "Zoom In", action);
-    }
+	/**
+	 * Creates a standardized Copy Selection button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with copy-selection icon and tooltip
+	 */
+	public static ButtonConfig copySelection(Runnable action) {
+		return new ButtonConfig(ButtonIcon.COPY_SELECTION, "Copy Selection", action);
+	}
 
-    /**
-     * Creates a standardized Zoom Out button configuration.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with zoom out icon and tooltip
-     */
-    public static ButtonConfig zoomOut(Runnable action) {
-        return new ButtonConfig(ButtonIcon.ZOOM_OUT, "Zoom Out", action);
-    }
+	/**
+	 * Creates a Copy SVG button configuration.
+	 *
+	 * <p>
+	 * Specialized variant for copying SVG content specifically.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with copy icon and SVG-specific tooltip
+	 */
+	public static ButtonConfig copySvg(Runnable action) {
+		return new ButtonConfig(ButtonIcon.COPY, "Copy SVG", action);
+	}
 
-    /**
-     * Creates a Reset Layout button configuration.
-     *
-     * <p>
-     * Specialized variant for resetting graph layouts.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with reload icon and layout-specific
-     *         tooltip
-     */
-    public static ButtonConfig resetLayout(Runnable action) {
-        return new ButtonConfig(ButtonIcon.LAYOUT_FORCE, "Re-energize Layout", action);
-    }
+	/**
+	 * Creates a standardized Zoom In button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with zoom in icon and tooltip
+	 */
+	public static ButtonConfig zoomIn(Runnable action) {
+		return new ButtonConfig(ButtonIcon.ZOOM_IN, "Zoom In", action);
+	}
 
-    // ===============================================================================
-    // Execution Operations
-    // ===============================================================================
+	/**
+	 * Creates a standardized Zoom Out button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with zoom out icon and tooltip
+	 */
+	public static ButtonConfig zoomOut(Runnable action) {
+		return new ButtonConfig(ButtonIcon.ZOOM_OUT, "Zoom Out", action);
+	}
 
-    /**
-     * Creates a standardized Play/Run button configuration.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with play icon and tooltip
-     */
-    public static ButtonConfig play(Runnable action) {
-        return new ButtonConfig(ButtonIcon.PLAY, "Run", action);
-    }
+	/**
+	 * Creates a Reset Layout button configuration.
+	 *
+	 * <p>
+	 * Specialized variant for resetting graph layouts.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with reload icon and layout-specific
+	 *         tooltip
+	 */
+	public static ButtonConfig resetLayout(Runnable action) {
+		return new ButtonConfig(ButtonIcon.LAYOUT_FORCE, "Re-energize Layout", action);
+	}
+
+	// ===============================================================================
+	// Execution Operations
+	// ===============================================================================
+
+	/**
+	 * Creates a standardized Play/Run button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with play icon and tooltip
+	 */
+	public static ButtonConfig play(Runnable action) {
+		return new ButtonConfig(ButtonIcon.PLAY, "Run", action);
+	}
 
 }

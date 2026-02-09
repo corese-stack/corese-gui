@@ -49,7 +49,7 @@ public class QueryView extends AbstractView {
 		actions.add(EmptyStateWidget.createAction("Load Query", ButtonIcon.EMPTY_ACTION_OPEN, onLoadAction));
 
 		if (onTemplateAction != null) {
-			actions.add(EmptyStateWidget.createAction("Templates", ButtonIcon.TEMPLATE, onTemplateAction));
+			actions.add(EmptyStateWidget.createAction("Templates", ButtonIcon.EMPTY_ACTION_TEMPLATE, onTemplateAction));
 		}
 
 		return new EmptyStateWidget(ButtonIcon.EMPTY_QUERY, "No queries open",

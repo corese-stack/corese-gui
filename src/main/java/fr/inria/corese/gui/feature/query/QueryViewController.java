@@ -23,6 +23,7 @@ import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.editor.tab.TabContext;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
+import fr.inria.corese.gui.feature.query.template.QueryTemplateDialog;
 import fr.inria.corese.gui.feature.result.ResultController;
 import fr.inria.corese.gui.utils.AppExecutors;
 import javafx.application.Platform;
@@ -62,8 +63,7 @@ public class QueryViewController {
 	private void initialize() {
 		// 1. Configure Empty State
 		Node emptyState = view.createEmptyState(() -> tabEditorController.createNewTab(), this::onOpenFileButtonClick,
-				null // Reserved for future template action
-		);
+				this::onTemplateButtonClick);
 
 		// 2. Configure Editor
 		TabEditorConfig config = TabEditorConfig.builder()
@@ -72,7 +72,8 @@ public class QueryViewController {
 				.withResultView(List.of(ButtonFactory.copy(), ButtonFactory.export()),
 						ResultViewConfig.builder().withTextTab().withTableTab().withGraphTab().build())
 				.withEmptyState(emptyState).withAllowedExtensions(FileTypeSupport.queryExtensions())
-				.withOpenFileAction(this::onOpenFileButtonClick).withPreloadFirstTab().build();
+				.withOpenFileAction(this::onOpenFileButtonClick).withTemplateAction(this::onTemplateButtonClick)
+				.withPreloadFirstTab().build();
 
 		// 3. Create Controller
 		this.tabEditorController = new TabEditorController(config);
@@ -416,15 +417,30 @@ public class QueryViewController {
 		}
 	}
 
-	private void openQueryFile(File file) {
-		// Check if already open
-		for (Tab tab : tabEditorController.getTabs()) {
-			String filePath = tabEditorController.getFilePathForTab(tab);
-			if (filePath != null && file.getAbsolutePath().equals(filePath)) {
-				tabEditorController.selectTab(tab);
-				return;
-			}
+	private void onTemplateButtonClick() {
+		QueryTemplateDialog.show(this::insertTemplateInNewTab);
+	}
+
+	private void insertTemplateInNewTab(String queryText) {
+		if (queryText == null || queryText.isBlank()) {
+			return;
 		}
+		Tab tab = tabEditorController.createNewTab();
+		updateTabContent(tab, queryText);
+	}
+
+	private void updateTabContent(Tab tab, String content) {
+		if (tab == null || content == null) {
+			return;
+		}
+		CodeEditorController editorController = tabEditorController.getEditorControllerForTab(tab);
+		if (editorController == null) {
+			return;
+		}
+		editorController.setContent(content);
+	}
+
+	private void openQueryFile(File file) {
 		LOGGER.info("Loading query file: {}", file.getAbsolutePath());
 		tabEditorController.openFile(file);
 	}

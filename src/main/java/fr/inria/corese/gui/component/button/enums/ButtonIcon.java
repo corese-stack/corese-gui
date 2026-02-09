@@ -47,180 +47,183 @@ import fr.inria.corese.gui.component.button.config.ButtonConfig;
  */
 public enum ButtonIcon {
 
-    // ===============================================================================
-    // Enum Constants - File Operations
-    // ===============================================================================
+	// ===============================================================================
+	// Enum Constants - File Operations
+	// ===============================================================================
 
-    /** Icon for save/save-as operations. */
-    SAVE(MaterialDesignC.CONTENT_SAVE_OUTLINE),
+	/** Icon for save/save-as operations. */
+	SAVE(MaterialDesignC.CONTENT_SAVE_OUTLINE),
 
-    /** Icon for opening files. */
-    OPEN_FILE(MaterialDesignF.FOLDER_OPEN_OUTLINE),
+	/** Icon for opening files. */
+	OPEN_FILE(MaterialDesignF.FOLDER_OPEN_OUTLINE),
 
-    /** Icon for creating a new editor tab. */
-    NEW_TAB(MaterialDesignP.PLUS),
+	/** Icon for creating a new editor tab. */
+	NEW_TAB(MaterialDesignP.PLUS),
 
-    /** Icon for importing data/files. */
-    IMPORT(MaterialDesignI.IMPORT),
+	/** Icon for importing data/files. */
+	IMPORT(MaterialDesignI.IMPORT),
 
-    /** Icon for exporting data/files. */
-    EXPORT(MaterialDesignE.EXPORT),
+	/** Icon for exporting data/files. */
+	EXPORT(MaterialDesignE.EXPORT),
 
-    // ===============================================================================
-    // Enum Constants - Editor Operations
-    // ===============================================================================
+	// ===============================================================================
+	// Enum Constants - Editor Operations
+	// ===============================================================================
 
-    /** Icon for undo operations. */
-    UNDO(MaterialDesignU.UNDO),
+	/** Icon for undo operations. */
+	UNDO(MaterialDesignU.UNDO),
 
-    /** Icon for redo operations. */
-    REDO(MaterialDesignR.REDO),
+	/** Icon for redo operations. */
+	REDO(MaterialDesignR.REDO),
 
-    /** Icon for zoom in operations. */
-    ZOOM_IN(MaterialDesignM.MAGNIFY_PLUS_OUTLINE),
+	/** Icon for zoom in operations. */
+	ZOOM_IN(MaterialDesignM.MAGNIFY_PLUS_OUTLINE),
 
-    /** Icon for zoom out operations. */
-    ZOOM_OUT(MaterialDesignM.MAGNIFY_MINUS_OUTLINE),
+	/** Icon for zoom out operations. */
+	ZOOM_OUT(MaterialDesignM.MAGNIFY_MINUS_OUTLINE),
 
-    // ===============================================================================
-    // Enum Constants - Navigation & Information
-    // ===============================================================================
+	// ===============================================================================
+	// Enum Constants - Navigation & Information
+	// ===============================================================================
 
-    /** Icon for re-energizing graph layout forces. */
-    LAYOUT_FORCE(MaterialDesignL.LIGHTNING_BOLT_OUTLINE),
+	/** Icon for re-energizing graph layout forces. */
+	LAYOUT_FORCE(MaterialDesignL.LIGHTNING_BOLT_OUTLINE),
 
-    /** Icon for navigating to the data view. */
-    NAV_DATA(MaterialDesignD.DATABASE),
+	/** Icon for navigating to the data view. */
+	NAV_DATA(MaterialDesignD.DATABASE),
 
-    /** Icon for navigating to the query view. */
-    NAV_QUERY(MaterialDesignM.MAGNIFY),
+	/** Icon for navigating to the query view. */
+	NAV_QUERY(MaterialDesignM.MAGNIFY),
 
-    /** Icon for navigating to the validation view. */
-    NAV_VALIDATION(MaterialDesignS.SHIELD_CHECK),
+	/** Icon for navigating to the validation view. */
+	NAV_VALIDATION(MaterialDesignS.SHIELD_CHECK),
 
-    /** Icon for navigating to settings view. */
-    NAV_SETTINGS(MaterialDesignC.COG),
+	/** Icon for navigating to settings view. */
+	NAV_SETTINGS(MaterialDesignC.COG),
 
-    /** Icon for collapsing/expanding side navigation. */
-    NAV_TOGGLE(MaterialDesignC.CHEVRON_DOUBLE_LEFT),
+	/** Icon for collapsing/expanding side navigation. */
+	NAV_TOGGLE(MaterialDesignC.CHEVRON_DOUBLE_LEFT),
 
-    /** Icon for first page navigation. */
-    FIRST_PAGE(MaterialDesignC.CHEVRON_DOUBLE_LEFT),
+	/** Icon for first page navigation. */
+	FIRST_PAGE(MaterialDesignC.CHEVRON_DOUBLE_LEFT),
 
-    /** Icon for previous page navigation. */
-    PREVIOUS_PAGE(MaterialDesignC.CHEVRON_LEFT),
+	/** Icon for previous page navigation. */
+	PREVIOUS_PAGE(MaterialDesignC.CHEVRON_LEFT),
 
-    /** Icon for next page navigation. */
-    NEXT_PAGE(MaterialDesignC.CHEVRON_RIGHT),
+	/** Icon for next page navigation. */
+	NEXT_PAGE(MaterialDesignC.CHEVRON_RIGHT),
 
-    /** Icon for last page navigation. */
-    LAST_PAGE(MaterialDesignC.CHEVRON_DOUBLE_RIGHT),
+	/** Icon for last page navigation. */
+	LAST_PAGE(MaterialDesignC.CHEVRON_DOUBLE_RIGHT),
 
-    /** Close Window */
-    CLOSE_WINDOW(MaterialDesignW.WINDOW_CLOSE),
+	/** Close Window */
+	CLOSE_WINDOW(MaterialDesignW.WINDOW_CLOSE),
 
-    // ===============================================================================
-    // Enum Constants - Views & Status
-    // ===============================================================================
+	// ===============================================================================
+	// Enum Constants - Views & Status
+	// ===============================================================================
 
-    /** Icon for textual result tabs. */
-    RESULT_TEXT(MaterialDesignF.FILE_DOCUMENT_OUTLINE),
+	/** Icon for textual result tabs. */
+	RESULT_TEXT(MaterialDesignF.FILE_DOCUMENT_OUTLINE),
 
-    /** Icon for tabular result tabs. */
-    RESULT_TABLE(MaterialDesignT.TABLE_LARGE),
+	/** Icon for tabular result tabs. */
+	RESULT_TABLE(MaterialDesignT.TABLE_LARGE),
 
-    /** Icon for graph result tabs. */
-    RESULT_GRAPH(MaterialDesignG.GRAPH_OUTLINE),
+	/** Icon for graph result tabs. */
+	RESULT_GRAPH(MaterialDesignG.GRAPH_OUTLINE),
 
-    /** Icon for query empty states. */
-    EMPTY_QUERY(MaterialDesignF.FILE_DOCUMENT_OUTLINE),
+	/** Icon for query empty states. */
+	EMPTY_QUERY(MaterialDesignF.FILE_DOCUMENT_OUTLINE),
 
-    /** Icon for validation empty states. */
-    EMPTY_VALIDATION(MaterialDesignS.SHIELD_CHECK_OUTLINE),
+	/** Icon for validation empty states. */
+	EMPTY_VALIDATION(MaterialDesignS.SHIELD_CHECK_OUTLINE),
 
-    /** Icon for "new" action buttons in empty states. */
-    EMPTY_ACTION_NEW(MaterialDesignP.PLUS),
+	/** Icon for "new" action buttons in empty states. */
+	EMPTY_ACTION_NEW(MaterialDesignP.PLUS),
 
-    /** Icon for "open/load" action buttons in empty states. */
-    EMPTY_ACTION_OPEN(MaterialDesignF.FOLDER_OPEN),
+	/** Icon for "open/load" action buttons in empty states. */
+	EMPTY_ACTION_OPEN(MaterialDesignF.FOLDER_OPEN),
 
-    /** Icon for light theme mode. */
-    THEME_LIGHT(MaterialDesignW.WEATHER_SUNNY),
+	/** Icon for light theme mode. */
+	THEME_LIGHT(MaterialDesignW.WEATHER_SUNNY),
 
-    /** Icon for dark theme mode. */
-    THEME_DARK(MaterialDesignW.WEATHER_NIGHT),
+	/** Icon for dark theme mode. */
+	THEME_DARK(MaterialDesignW.WEATHER_NIGHT),
 
-    /** Icon for website links. */
-    LINK_WEBSITE(MaterialDesignW.WEB),
+	/** Icon for website links. */
+	LINK_WEBSITE(MaterialDesignW.WEB),
 
-    /** Icon for GitHub links. */
-    LINK_GITHUB(MaterialDesignG.GITHUB),
+	/** Icon for GitHub links. */
+	LINK_GITHUB(MaterialDesignG.GITHUB),
 
-    /** Icon for issue tracker links. */
-    LINK_ISSUES(MaterialDesignA.ALERT_CIRCLE_OUTLINE),
+	/** Icon for issue tracker links. */
+	LINK_ISSUES(MaterialDesignA.ALERT_CIRCLE_OUTLINE),
 
-    /** Icon for forum/community links. */
-    LINK_FORUM(MaterialDesignF.FORUM_OUTLINE),
+	/** Icon for forum/community links. */
+	LINK_FORUM(MaterialDesignF.FORUM_OUTLINE),
 
-    /** Icon for template actions in colored action buttons. */
-    TEMPLATE(MaterialDesignF.FILE_DOCUMENT_MULTIPLE),
+	/** Icon for template action in tab toolbar/sub-header contexts. */
+	TEMPLATE(MaterialDesignF.FILE_DOCUMENT_MULTIPLE_OUTLINE),
 
-    /** Icon for informational notifications. */
-    NOTIFICATION_INFO(MaterialDesignI.INFORMATION_OUTLINE),
+	/** Icon for template action buttons in empty states (colored buttons). */
+	EMPTY_ACTION_TEMPLATE(MaterialDesignF.FILE_DOCUMENT_MULTIPLE),
 
-    /** Icon for success notifications. */
-    NOTIFICATION_SUCCESS(MaterialDesignC.CHECK_CIRCLE_OUTLINE),
+	/** Icon for informational notifications. */
+	NOTIFICATION_INFO(MaterialDesignI.INFORMATION_OUTLINE),
 
-    /** Icon for warning notifications. */
-    NOTIFICATION_WARNING(MaterialDesignA.ALERT_OUTLINE),
+	/** Icon for success notifications. */
+	NOTIFICATION_SUCCESS(MaterialDesignC.CHECK_CIRCLE_OUTLINE),
 
-    /** Icon for error notifications. */
-    NOTIFICATION_ERROR(MaterialDesignC.CLOSE_CIRCLE_OUTLINE),
+	/** Icon for warning notifications. */
+	NOTIFICATION_WARNING(MaterialDesignA.ALERT_OUTLINE),
 
-    // ===============================================================================
-    // Enum Constants - Actions
-    // ===============================================================================
+	/** Icon for error notifications. */
+	NOTIFICATION_ERROR(MaterialDesignC.CLOSE_CIRCLE_OUTLINE),
 
-    /** Icon for copy to clipboard operations. */
-    COPY(MaterialDesignC.CONTENT_COPY),
+	// ===============================================================================
+	// Enum Constants - Actions
+	// ===============================================================================
 
-    /** Icon for copy selection operations. */
-    COPY_SELECTION(MaterialDesignC.CONTENT_DUPLICATE),
+	/** Icon for copy to clipboard operations. */
+	COPY(MaterialDesignC.CONTENT_COPY),
 
-    /** Icon for play/execute/run operations. */
-    PLAY(MaterialDesignP.PLAY);
+	/** Icon for copy selection operations. */
+	COPY_SELECTION(MaterialDesignC.CONTENT_DUPLICATE),
 
-    // ===============================================================================
-    // Fields
-    // ===============================================================================
+	/** Icon for play/execute/run operations. */
+	PLAY(MaterialDesignP.PLAY);
 
-    /** The underlying Ikonli icon instance. */
-    private final Ikon ikon;
+	// ===============================================================================
+	// Fields
+	// ===============================================================================
 
-    // ===============================================================================
-    // Constructor
-    // ===============================================================================
+	/** The underlying Ikonli icon instance. */
+	private final Ikon ikon;
 
-    /**
-     * Creates a button icon with the specified Ikonli icon.
-     *
-     * @param ikon
-     *            The Ikonli icon to associate with this button icon
-     */
-    ButtonIcon(Ikon ikon) {
-        this.ikon = ikon;
-    }
+	// ===============================================================================
+	// Constructor
+	// ===============================================================================
 
-    // ===============================================================================
-    // Public API
-    // ===============================================================================
+	/**
+	 * Creates a button icon with the specified Ikonli icon.
+	 *
+	 * @param ikon
+	 *            The Ikonli icon to associate with this button icon
+	 */
+	ButtonIcon(Ikon ikon) {
+		this.ikon = ikon;
+	}
 
-    /**
-     * Returns the Ikonli icon associated with this button icon.
-     *
-     * @return The Ikonli icon instance
-     */
-    public Ikon getIkon() {
-        return ikon;
-    }
+	// ===============================================================================
+	// Public API
+	// ===============================================================================
+
+	/**
+	 * Returns the Ikonli icon associated with this button icon.
+	 *
+	 * @return The Ikonli icon instance
+	 */
+	public Ikon getIkon() {
+		return ikon;
+	}
 }

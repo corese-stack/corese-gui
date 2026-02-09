@@ -1,0 +1,46 @@
+.app-dialog.query-template-dialog {
+    -fx-min-width: 760px;
+    -fx-max-width: 940px;
+    -fx-min-height: 640px;
+    -fx-pref-height: 640px;
+}
+
+.app-dialog.query-template-dialog .dialog-header .label {
+    -fx-font-size: 1.35em;
+    -fx-font-weight: 800;
+}
+
+.query-template-content {
+    -fx-alignment: top-left;
+}
+
+.query-template-options {
+    -fx-min-width: 260px;
+    -fx-pref-width: 280px;
+}
+
+.query-template-preview-column {
+    -fx-min-width: 360px;
+}
+
+.query-template-preview {
+    -fx-min-height: 320px;
+    -fx-border-color: -color-border-muted;
+    -fx-border-radius: 0;
+    -fx-background-radius: 0;
+}
+
+.query-template-inline-row {
+    -fx-alignment: center-left;
+    -fx-spacing: 10px;
+}
+
+.query-template-inline-row .spinner {
+    -fx-min-width: 92px;
+    -fx-pref-width: 92px;
+    -fx-max-width: 92px;
+}
+
+.query-template-section-title {
+    -fx-font-weight: 700;
+}

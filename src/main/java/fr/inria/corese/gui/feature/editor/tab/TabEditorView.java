@@ -100,6 +100,7 @@ public class TabEditorView extends AbstractView {
 	private final TabStripController tabStripController;
 	private final IconButtonWidget newTabButton;
 	private final IconButtonWidget openFileButton;
+	private final IconButtonWidget templateButton;
 	private final HBox headerBar;
 	private final StackPane contentContainer;
 	private final VBox mainContent;
@@ -122,6 +123,7 @@ public class TabEditorView extends AbstractView {
 		this.tabStripController.setOnCloseRequest(this::requestCloseTab);
 		this.newTabButton = createNewTabButton();
 		this.openFileButton = createOpenFileButton();
+		this.templateButton = createTemplateButton();
 		this.headerBar = createTabHeader();
 		this.contentContainer = new StackPane();
 		this.mainContent = new VBox();
@@ -147,6 +149,14 @@ public class TabEditorView extends AbstractView {
 
 	private IconButtonWidget createOpenFileButton() {
 		IconButtonWidget button = createHeaderActionButton(ButtonFactory.openFile());
+		button.setDisable(true);
+		return button;
+	}
+
+	private IconButtonWidget createTemplateButton() {
+		IconButtonWidget button = createHeaderActionButton(ButtonFactory.template());
+		button.setVisible(false);
+		button.setManaged(false);
 		button.setDisable(true);
 		return button;
 	}
@@ -191,7 +201,7 @@ public class TabEditorView extends AbstractView {
 		HBox toolbar = new HBox(6);
 		toolbar.getStyleClass().add(STYLE_CLASS_TAB_ACTIONS);
 		toolbar.setAlignment(Pos.CENTER_LEFT);
-		toolbar.getChildren().addAll(newTabButton, openFileButton);
+		toolbar.getChildren().addAll(newTabButton, openFileButton, templateButton);
 		toolbar.setMinWidth(Region.USE_PREF_SIZE);
 		return toolbar;
 	}
@@ -540,6 +550,14 @@ public class TabEditorView extends AbstractView {
 	public void setOnOpenFileAction(EventHandler<ActionEvent> action) {
 		openFileButton.setOnAction(action);
 		openFileButton.setDisable(action == null);
+	}
+
+	public void setOnTemplateAction(EventHandler<ActionEvent> action) {
+		boolean enabled = action != null;
+		templateButton.setOnAction(action);
+		templateButton.setDisable(!enabled);
+		templateButton.setVisible(enabled);
+		templateButton.setManaged(enabled);
 	}
 
 	/**
