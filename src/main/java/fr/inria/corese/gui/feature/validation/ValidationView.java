@@ -12,70 +12,68 @@ import javafx.scene.layout.BorderPane;
 /**
  * View for the Validation screen.
  *
- * <p>Displays a tabbed interface where each tab contains a code editor for SHACL shapes and a
- * results pane for validation reports.
+ * <p>
+ * Displays a tabbed interface where each tab contains a code editor for SHACL
+ * shapes and a results pane for validation reports.
  */
 public class ValidationView extends AbstractView {
 
-    // ==============================================================================================
-    // Constants
-    // ==============================================================================================
+	// ==============================================================================================
+	// Constants
+	// ==============================================================================================
 
-    @SuppressWarnings("java:S1075") // Hardcoded URI - not relevant for internal CSS resources
-    private static final String STYLESHEET_PATH = "/css/features/validation-view.css";
+	@SuppressWarnings("java:S1075") // Hardcoded URI - not relevant for internal CSS resources
+	private static final String STYLESHEET_PATH = "/css/features/validation-view.css";
 
-    // ==============================================================================================
-    // Constructor
-    // ==============================================================================================
+	// ==============================================================================================
+	// Constructor
+	// ==============================================================================================
 
-    /** Creates the ValidationView. */
-    public ValidationView() {
-        super(new BorderPane(), STYLESHEET_PATH);
-    }
+	/** Creates the ValidationView. */
+	public ValidationView() {
+		super(new BorderPane(), STYLESHEET_PATH);
+	}
 
-    // ==============================================================================================
-    // Public API
-    // ==============================================================================================
+	// ==============================================================================================
+	// Public API
+	// ==============================================================================================
 
-    /**
-     * Sets the main content (typically the TabEditor).
-     *
-     * @param node The content node.
-     */
-    public void setMainContent(Node node) {
-        ((BorderPane) getRoot()).setCenter(node);
-    }
+	/**
+	 * Sets the main content (typically the TabEditor).
+	 *
+	 * @param node
+	 *            The content node.
+	 */
+	public void setMainContent(Node node) {
+		((BorderPane) getRoot()).setCenter(node);
+	}
 
-    /**
-     * Returns the list of buttons to be displayed in the result view toolbar.
-     *
-     * @return A list of ButtonConfig.
-     */
-    public List<ButtonConfig> getResultToolbarButtons() {
-        return List.of(
-            ButtonFactory.copy(),
-            ButtonFactory.export()
-        );
-    }
+	/**
+	 * Returns the list of buttons to be displayed in the result view toolbar.
+	 *
+	 * @return A list of ButtonConfig.
+	 */
+	public List<ButtonConfig> getResultToolbarButtons() {
+		return List.of(ButtonFactory.copy(), ButtonFactory.export());
+	}
 
-    public String getRunValidationLabel() {
-        return "Run Validation";
-    }
+	public String getRunValidationLabel() {
+		return "Run Validation";
+	}
 
-    /**
-     * Creates the empty state view for the validation screen.
-     *
-     * @param onNewAction  Action for "New Shapes File".
-     * @param onLoadAction Action for "Load Shapes File".
-     * @return The configured EmptyStateWidget.
-     */
-    public Node createEmptyState(Runnable onNewAction, Runnable onLoadAction) {
-        return new EmptyStateWidget(
-            ButtonIcon.EMPTY_VALIDATION,
-            "No shapes files open",
-            "Create a new shapes file or load an existing one",
-            EmptyStateWidget.createAction("New Shapes File", ButtonIcon.EMPTY_ACTION_NEW, onNewAction),
-            EmptyStateWidget.createAction("Load Shapes File", ButtonIcon.EMPTY_ACTION_OPEN, onLoadAction)
-        );
-    }
+	/**
+	 * Creates the empty state view for the validation screen.
+	 *
+	 * @param onNewAction
+	 *            Action for "New Shapes File".
+	 * @param onLoadAction
+	 *            Action for "Load Shapes File".
+	 * @return The configured EmptyStateWidget.
+	 */
+	public Node createEmptyState(Runnable onNewAction, Runnable onLoadAction) {
+		return new EmptyStateWidget(ButtonIcon.EMPTY_VALIDATION, "No shapes files open",
+				"Create a new shapes file, load one, or drop a file here.",
+				EmptyStateWidget.createAction("New Shapes File", ButtonIcon.EMPTY_ACTION_NEW, onNewAction),
+				EmptyStateWidget.createAction("Load Shapes File", ButtonIcon.EMPTY_ACTION_OPEN, onLoadAction));
+	}
 }

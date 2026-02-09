@@ -70,7 +70,7 @@ public class QueryViewController {
 				.withExecution(ButtonFactory.custom(ButtonIcon.PLAY, "Run Query"), this::executeQuery)
 				.withResultView(List.of(ButtonFactory.copy(), ButtonFactory.export()),
 						ResultViewConfig.builder().withTextTab().withTableTab().withGraphTab().build())
-				.withEmptyState(emptyState).withAllowedExtensions(List.of(".rq"))
+				.withEmptyState(emptyState).withAllowedExtensions(List.of(".rq", ".sparql"))
 				.withOpenFileAction(this::onOpenFileButtonClick).withPreloadFirstTab().build();
 
 		// 3. Create Controller

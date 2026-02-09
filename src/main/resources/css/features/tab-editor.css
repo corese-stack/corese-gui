@@ -76,3 +76,19 @@
     -fx-text-fill: -color-fg-muted;
     -fx-cursor: default;
 }
+
+.file-drop-overlay {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.file-drop-overlay-active {
+    -fx-background-color: rgba(64, 139, 250, 0.12);
+    -fx-background-insets: 8;
+    -fx-background-radius: 10;
+    -fx-border-color: -color-accent-fg;
+    -fx-border-insets: 8;
+    -fx-border-radius: 10;
+    -fx-border-width: 1.5;
+    -fx-border-style: segments(8, 6);
+}
