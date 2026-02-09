@@ -13,6 +13,7 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignM;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignR;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignT;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignU;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignW;
 
@@ -126,7 +127,7 @@ public enum ButtonIcon {
     RESULT_TEXT(MaterialDesignF.FILE_DOCUMENT_OUTLINE),
 
     /** Icon for tabular result tabs. */
-    RESULT_TABLE(MaterialDesignF.FILE_TABLE_OUTLINE),
+    RESULT_TABLE(MaterialDesignT.TABLE_LARGE),
 
     /** Icon for graph result tabs. */
     RESULT_GRAPH(MaterialDesignG.GRAPH_OUTLINE),
