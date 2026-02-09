@@ -1,12 +1,10 @@
 package fr.inria.corese.gui.feature.query;
 
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.emptystate.EmptyStateWidget;
 import fr.inria.corese.gui.core.view.AbstractView;
 import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignM;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 
 /**
  * View for the Query feature.
@@ -41,16 +39,16 @@ public class QueryView extends AbstractView {
     public Node createEmptyState(Runnable onNewAction, Runnable onLoadAction, Runnable onTemplateAction) {
         java.util.List<Node> actions = new java.util.ArrayList<>();
         
-        actions.add(EmptyStateWidget.createAction("New Query", MaterialDesignP.PLUS, onNewAction));
-        actions.add(EmptyStateWidget.createAction("Load Query", MaterialDesignF.FOLDER_OPEN, onLoadAction));
+        actions.add(EmptyStateWidget.createAction("New Query", ButtonIcon.EMPTY_ACTION_NEW, onNewAction));
+        actions.add(EmptyStateWidget.createAction("Load Query", ButtonIcon.EMPTY_ACTION_OPEN, onLoadAction));
 
         if (onTemplateAction != null) {
             actions.add(EmptyStateWidget.createAction(
-                "Templates", MaterialDesignF.FILE_DOCUMENT_MULTIPLE, onTemplateAction));
+                "Templates", ButtonIcon.TEMPLATE, onTemplateAction));
         }
 
         return new EmptyStateWidget(
-            MaterialDesignM.MAGNIFY,
+            ButtonIcon.EMPTY_QUERY,
             "No queries open",
             "Create a new query, load one, or use a template.",
             actions.toArray(Node[]::new)

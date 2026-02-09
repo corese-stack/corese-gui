@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.component.emptystate;
 
 import atlantafx.base.theme.Styles;
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -43,13 +44,25 @@ public class EmptyStateWidget extends VBox {
   /**
    * Constructs a new EmptyStateWidget.
    *
+   * @param icon        The icon to display (semantic button icon).
+   * @param title       The main title text (large, bold).
+   * @param description The secondary description text (smaller).
+   * @param buttons     Optional action buttons to display below the message.
+   */
+  public EmptyStateWidget(ButtonIcon icon, String title, String description, Node... buttons) {
+    this(icon != null ? icon.getIkon() : null, title, description, buttons);
+  }
+
+  /**
+   * Constructs a new EmptyStateWidget.
+   *
    * @param icon        The icon to display (from Ikonli).
    * @param title       The main title text (large, bold).
    * @param description The secondary description text (smaller).
    * @param buttons     Optional action buttons to display below the message.
    */
   public EmptyStateWidget(Ikon icon, String title, String description, Node... buttons) {
-    this.iconView = new FontIcon(icon);
+    this.iconView = icon != null ? new FontIcon(icon) : new FontIcon();
     this.titleLabel = new Label(title);
     this.descriptionLabel = new Label(description);
     this.buttonBox = new HBox(buttons);
@@ -86,6 +99,18 @@ public class EmptyStateWidget extends VBox {
     applyButtonStyle(btn);
 
     return btn;
+  }
+
+  /**
+   * Helper to create a standard button for the empty state view.
+   *
+   * @param text   The button text.
+   * @param icon   The semantic button icon (can be null).
+   * @param action The action to run on click.
+   * @return A configured Button.
+   */
+  public static Button createAction(String text, ButtonIcon icon, Runnable action) {
+    return createAction(text, icon != null ? icon.getIkon() : null, action);
   }
 
   /**
@@ -126,6 +151,10 @@ public class EmptyStateWidget extends VBox {
 
   public void setIcon(Ikon icon) {
     this.iconView.setIconCode(icon);
+  }
+
+  public void setIcon(ButtonIcon icon) {
+    this.iconView.setIconCode(icon != null ? icon.getIkon() : null);
   }
 
   public void setTitle(String title) {

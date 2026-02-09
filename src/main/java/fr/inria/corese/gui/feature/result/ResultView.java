@@ -1,5 +1,6 @@
 package fr.inria.corese.gui.feature.result;
 
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.tabstrip.TabStripController;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.theme.ThemeManager;
@@ -9,7 +10,6 @@ import javafx.scene.control.TabPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 /**
@@ -53,9 +53,9 @@ public class ResultView extends AbstractView {
 		textTab = new Tab(ResultViewConfig.TabType.TEXT.getLabel());
 		tableTab = new Tab(ResultViewConfig.TabType.TABLE.getLabel());
 		graphTab = new Tab(ResultViewConfig.TabType.GRAPH.getLabel());
-		textTab.setGraphic(createTabIcon(Feather.FILE_TEXT));
-		tableTab.setGraphic(createTabIcon(Feather.GRID));
-		graphTab.setGraphic(createTabIcon(Feather.SHARE_2));
+		textTab.setGraphic(createTabIcon(ButtonIcon.RESULT_TEXT));
+		tableTab.setGraphic(createTabIcon(ButtonIcon.RESULT_TABLE));
+		graphTab.setGraphic(createTabIcon(ButtonIcon.RESULT_GRAPH));
 
 		setupModelListeners();
 
@@ -233,8 +233,8 @@ public class ResultView extends AbstractView {
 		}
 	}
 
-	private FontIcon createTabIcon(Feather iconCode) {
-		FontIcon icon = new FontIcon(iconCode);
+	private FontIcon createTabIcon(ButtonIcon iconCode) {
+		FontIcon icon = new FontIcon(iconCode.getIkon());
 		icon.getStyleClass().add("result-tab-icon");
 		return icon;
 	}

@@ -1,16 +1,18 @@
 package fr.inria.corese.gui.component.button.enums;
 
 import org.kordamp.ikonli.Ikon;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignB;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignA;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignD;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignE;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignG;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignI;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignL;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignM;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignR;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignT;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignU;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignW;
 
@@ -40,7 +42,7 @@ import fr.inria.corese.gui.component.button.config.ButtonConfig;
  * <b>Usage example:</b>
  *
  * @see ButtonConfig
- * @see fr.inria.corese.gui.core.ButtonFactory
+ * @see fr.inria.corese.gui.component.button.factory.ButtonFactory
  */
 public enum ButtonIcon {
 
@@ -83,17 +85,23 @@ public enum ButtonIcon {
     // Enum Constants - Navigation & Information
     // ===============================================================================
 
-    /** Icon for documentation/help links. */
-    DOCUMENTATION(MaterialDesignL.LINK),
-
-    /** Icon for reload/refresh operations. */
-    RELOAD(MaterialDesignR.REFRESH),
-
     /** Icon for re-energizing graph layout forces. */
-    LAYOUT_FORCE(MaterialDesignM.MAGNET_ON),
+    LAYOUT_FORCE(MaterialDesignL.LIGHTNING_BOLT_OUTLINE),
 
-    /** Icon for viewing logs. */
-    LOGS(MaterialDesignB.BOOK_OPEN_VARIANT),
+    /** Icon for navigating to the data view. */
+    NAV_DATA(MaterialDesignD.DATABASE),
+
+    /** Icon for navigating to the query view. */
+    NAV_QUERY(MaterialDesignM.MAGNIFY),
+
+    /** Icon for navigating to the validation view. */
+    NAV_VALIDATION(MaterialDesignS.SHIELD_CHECK),
+
+    /** Icon for navigating to settings view. */
+    NAV_SETTINGS(MaterialDesignC.COG),
+
+    /** Icon for collapsing/expanding side navigation. */
+    NAV_TOGGLE(MaterialDesignC.CHEVRON_DOUBLE_LEFT),
 
     /** Icon for first page navigation. */
     FIRST_PAGE(MaterialDesignC.CHEVRON_DOUBLE_LEFT),
@@ -111,11 +119,66 @@ public enum ButtonIcon {
     CLOSE_WINDOW(MaterialDesignW.WINDOW_CLOSE),
 
     // ===============================================================================
-    // Enum Constants - Actions
+    // Enum Constants - Views & Status
     // ===============================================================================
 
-    /** Icon for delete/remove operations. */
-    DELETE(MaterialDesignT.TRASH_CAN),
+    /** Icon for textual result tabs. */
+    RESULT_TEXT(MaterialDesignF.FILE_DOCUMENT_OUTLINE),
+
+    /** Icon for tabular result tabs. */
+    RESULT_TABLE(MaterialDesignF.FILE_TABLE_OUTLINE),
+
+    /** Icon for graph result tabs. */
+    RESULT_GRAPH(MaterialDesignG.GRAPH_OUTLINE),
+
+    /** Icon for query empty states. */
+    EMPTY_QUERY(MaterialDesignF.FILE_DOCUMENT_OUTLINE),
+
+    /** Icon for validation empty states. */
+    EMPTY_VALIDATION(MaterialDesignS.SHIELD_CHECK_OUTLINE),
+
+    /** Icon for "new" action buttons in empty states. */
+    EMPTY_ACTION_NEW(MaterialDesignP.PLUS),
+
+    /** Icon for "open/load" action buttons in empty states. */
+    EMPTY_ACTION_OPEN(MaterialDesignF.FOLDER_OPEN),
+
+    /** Icon for light theme mode. */
+    THEME_LIGHT(MaterialDesignW.WEATHER_SUNNY),
+
+    /** Icon for dark theme mode. */
+    THEME_DARK(MaterialDesignW.WEATHER_NIGHT),
+
+    /** Icon for website links. */
+    LINK_WEBSITE(MaterialDesignW.WEB),
+
+    /** Icon for GitHub links. */
+    LINK_GITHUB(MaterialDesignG.GITHUB),
+
+    /** Icon for issue tracker links. */
+    LINK_ISSUES(MaterialDesignA.ALERT_CIRCLE_OUTLINE),
+
+    /** Icon for forum/community links. */
+    LINK_FORUM(MaterialDesignF.FORUM_OUTLINE),
+
+    /** Icon for template actions in colored action buttons. */
+    TEMPLATE(MaterialDesignF.FILE_DOCUMENT_MULTIPLE),
+
+    /** Icon for informational notifications. */
+    NOTIFICATION_INFO(MaterialDesignI.INFORMATION_OUTLINE),
+
+    /** Icon for success notifications. */
+    NOTIFICATION_SUCCESS(MaterialDesignC.CHECK_CIRCLE_OUTLINE),
+
+    /** Icon for warning notifications. */
+    NOTIFICATION_WARNING(MaterialDesignA.ALERT_OUTLINE),
+
+    /** Icon for error notifications. */
+    NOTIFICATION_ERROR(MaterialDesignC.CLOSE_CIRCLE_OUTLINE),
+
+    // ===============================================================================
+    // Enum Constants - Actions
+    // ===============================================================================
 
     /** Icon for copy to clipboard operations. */
     COPY(MaterialDesignC.CONTENT_COPY),

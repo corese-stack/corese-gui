@@ -1,14 +1,10 @@
 package fr.inria.corese.gui.feature.settings;
 
 import fr.inria.corese.gui.AppConstants;
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.utils.BrowserUtils;
 import fr.inria.corese.gui.utils.fx.SvgImageLoader;
-
-
-
-
-
 
 import atlantafx.base.controls.Tile;
 import atlantafx.base.controls.ToggleSwitch;
@@ -18,7 +14,6 @@ import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
-import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +32,7 @@ import org.slf4j.LoggerFactory;
 public final class SettingsView extends AbstractView {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SettingsView.class);
-      private static final String STYLESHEET_PATH = "/css/features/settings-view.css";
+  private static final String STYLESHEET_PATH = "/css/features/settings-view.css";
   // ===== UI Components =====
   private ToggleSwitch systemThemeSwitch;
   private ComboBox<String> themeComboBox;
@@ -88,11 +83,11 @@ public final class SettingsView extends AbstractView {
     // Mode Toggle Group
     ToggleGroup modeGroup = new ToggleGroup();
 
-    lightModeButton = new ToggleButton(null, new FontIcon(Feather.SUN));
+    lightModeButton = new ToggleButton(null, new FontIcon(ButtonIcon.THEME_LIGHT.getIkon()));
     lightModeButton.getStyleClass().addAll(Styles.LEFT_PILL);
     lightModeButton.setToggleGroup(modeGroup);
 
-    darkModeButton = new ToggleButton(null, new FontIcon(Feather.MOON));
+    darkModeButton = new ToggleButton(null, new FontIcon(ButtonIcon.THEME_DARK.getIkon()));
     darkModeButton.getStyleClass().addAll(Styles.RIGHT_PILL);
     darkModeButton.setToggleGroup(modeGroup);
 
@@ -143,7 +138,6 @@ public final class SettingsView extends AbstractView {
     return accentColorPicker;
   }
 
-
   // ===== About Section =====
 
   private VBox createAboutSection() {
@@ -161,10 +155,10 @@ public final class SettingsView extends AbstractView {
     linksBox
         .getChildren()
         .addAll(
-            createLinkButton("Website", AppConstants.WEBSITE_URL, Feather.GLOBE),
-            createLinkButton("GitHub", AppConstants.GITHUB_URL, Feather.GITHUB),
-            createLinkButton("Issues", AppConstants.ISSUES_URL, Feather.ALERT_CIRCLE),
-            createLinkButton("Forum", AppConstants.FORUM_URL, Feather.MESSAGE_CIRCLE));
+            createLinkButton("Website", AppConstants.WEBSITE_URL, ButtonIcon.LINK_WEBSITE),
+            createLinkButton("GitHub", AppConstants.GITHUB_URL, ButtonIcon.LINK_GITHUB),
+            createLinkButton("Issues", AppConstants.ISSUES_URL, ButtonIcon.LINK_ISSUES),
+            createLinkButton("Forum", AppConstants.FORUM_URL, ButtonIcon.LINK_FORUM));
 
     aboutTile.setAction(linksBox);
 
@@ -193,8 +187,8 @@ public final class SettingsView extends AbstractView {
     return coreseLogo;
   }
 
-  private Button createLinkButton(String text, String url, Feather icon) {
-    Button button = new Button(text, new FontIcon(icon));
+  private Button createLinkButton(String text, String url, ButtonIcon icon) {
+    Button button = new Button(text, new FontIcon(icon.getIkon()));
     button.getStyleClass().addAll(Styles.BUTTON_OUTLINED);
     button.setOnAction(e -> openURL(url));
     return button;

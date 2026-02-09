@@ -1,15 +1,13 @@
 package fr.inria.corese.gui.feature.validation;
 
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.emptystate.EmptyStateWidget;
 import fr.inria.corese.gui.core.view.AbstractView;
 import java.util.List;
 import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
 
 /**
  * View for the Validation screen.
@@ -73,11 +71,11 @@ public class ValidationView extends AbstractView {
      */
     public Node createEmptyState(Runnable onNewAction, Runnable onLoadAction) {
         return new EmptyStateWidget(
-            MaterialDesignS.SHIELD_CHECK_OUTLINE,
+            ButtonIcon.EMPTY_VALIDATION,
             "No shapes files open",
             "Create a new shapes file or load an existing one",
-            EmptyStateWidget.createAction("New Shapes File", MaterialDesignP.PLUS, onNewAction),
-            EmptyStateWidget.createAction("Load Shapes File", MaterialDesignF.FOLDER_OPEN, onLoadAction)
+            EmptyStateWidget.createAction("New Shapes File", ButtonIcon.EMPTY_ACTION_NEW, onNewAction),
+            EmptyStateWidget.createAction("Load Shapes File", ButtonIcon.EMPTY_ACTION_OPEN, onLoadAction)
         );
     }
 }

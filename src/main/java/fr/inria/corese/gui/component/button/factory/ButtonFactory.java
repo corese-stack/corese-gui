@@ -101,17 +101,6 @@ public final class ButtonFactory {
     }
 
     /**
-     * Creates a standardized Import button configuration.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with import icon and tooltip
-     */
-    public static ButtonConfig importFile(Runnable action) {
-        return new ButtonConfig(ButtonIcon.IMPORT, "Import files", action);
-    }
-
-    /**
      * Creates a standardized Export button configuration.
      *
      * @param action
@@ -288,32 +277,6 @@ public final class ButtonFactory {
     }
 
     // ===============================================================================
-    // Data Operations
-    // ===============================================================================
-
-    /**
-     * Creates a standardized Reload button configuration.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with reload icon and tooltip
-     */
-    public static ButtonConfig reload(Runnable action) {
-        return new ButtonConfig(ButtonIcon.RELOAD, "Reload", action);
-    }
-
-    /**
-     * Creates a standardized Delete button configuration.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with delete icon and tooltip
-     */
-    public static ButtonConfig delete(Runnable action) {
-        return new ButtonConfig(ButtonIcon.DELETE, "Delete", action);
-    }
-
-    // ===============================================================================
     // Execution Operations
     // ===============================================================================
 
@@ -328,29 +291,4 @@ public final class ButtonFactory {
         return new ButtonConfig(ButtonIcon.PLAY, "Run", action);
     }
 
-    // ===============================================================================
-    // Navigation & Information
-    // ===============================================================================
-
-    /**
-     * Creates a standardized Documentation button configuration.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with documentation icon and tooltip
-     */
-    public static ButtonConfig documentation(Runnable action) {
-        return new ButtonConfig(ButtonIcon.DOCUMENTATION, "Documentation", action);
-    }
-
-    /**
-     * Creates a standardized Logs button configuration.
-     *
-     * @param action
-     *            The action to execute when clicked, or null if wired later
-     * @return A configured ButtonConfig with logs icon and tooltip
-     */
-    public static ButtonConfig logs(Runnable action) {
-        return new ButtonConfig(ButtonIcon.LOGS, "Show logs", action);
-    }
 }

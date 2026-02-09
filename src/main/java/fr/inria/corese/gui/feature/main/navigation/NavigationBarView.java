@@ -1,5 +1,6 @@
 package fr.inria.corese.gui.feature.main.navigation;
 
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.core.enums.ViewId;
 import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.utils.fx.SvgImageLoader;
@@ -18,13 +19,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import org.kordamp.ikonli.Ikon;
-import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignD;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignM;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,19 +66,19 @@ public final class NavigationBarView extends AbstractView {
 
     this.logo = createLogoButton();
     this.dataButton =
-        createNavigationButton("Data", MaterialDesignD.DATABASE, "Load and manage RDF data");
+        createNavigationButton("Data", ButtonIcon.NAV_DATA, "Load and manage RDF data");
     this.queryButton =
         createNavigationButton(
-            "Query", MaterialDesignM.MAGNIFY, "Execute SPARQL queries on loaded RDF datasets");
+            "Query", ButtonIcon.NAV_QUERY, "Execute SPARQL queries on loaded RDF datasets");
     this.validationButton =
         createNavigationButton(
             "Validation",
-            MaterialDesignS.SHIELD_CHECK,
+            ButtonIcon.NAV_VALIDATION,
             "Validate RDF data against SHACL shapes and constraints");
     this.toggleButton = createToggleButton();
     this.settingsButton =
         createNavigationButton(
-            "Settings", MaterialDesignC.COG, "Configure application preferences and appearance");
+            "Settings", ButtonIcon.NAV_SETTINGS, "Configure application preferences and appearance");
 
     initializeLayout();
   }
@@ -139,13 +134,13 @@ public final class NavigationBarView extends AbstractView {
   }
 
   /** Creates a sidebar button with icon and text. */
-  private Button createNavigationButton(String text, Ikon iconCode, String tooltipText) {
+  private Button createNavigationButton(String text, ButtonIcon iconCode, String tooltipText) {
     Button button = new Button();
     button.getStyleClass().addAll("sidebar-button", Styles.FLAT, Styles.LEFT_PILL);
     button.setMaxWidth(Double.MAX_VALUE);
     button.setAlignment(Pos.CENTER_LEFT);
 
-    FontIcon icon = new FontIcon(iconCode);
+    FontIcon icon = new FontIcon(iconCode.getIkon());
     icon.getStyleClass().add("sidebar-icon");
 
     Label label = new Label(text);
@@ -169,7 +164,7 @@ public final class NavigationBarView extends AbstractView {
     button.setMaxWidth(Double.MAX_VALUE);
     button.setAlignment(Pos.CENTER);
 
-    FontIcon icon = new FontIcon(Feather.CHEVRONS_LEFT);
+    FontIcon icon = new FontIcon(ButtonIcon.NAV_TOGGLE.getIkon());
     icon.getStyleClass().add("sidebar-icon");
     button.setGraphic(icon);
 

@@ -28,7 +28,6 @@ dependencies {
 
     // Ikonli
     implementation("org.kordamp.ikonli:ikonli-javafx:12.4.0")
-    implementation("org.kordamp.ikonli:ikonli-feather-pack:12.4.0")
     implementation("org.kordamp.ikonli:ikonli-materialdesign-pack:12.4.0")
     implementation("org.kordamp.ikonli:ikonli-materialdesign2-pack:12.4.0")
 

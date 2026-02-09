@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.component.notification;
 
-import org.kordamp.ikonli.feather.Feather;
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import atlantafx.base.theme.Styles;
@@ -111,7 +111,7 @@ public class NotificationWidget {
      * @param message The message to display.
      */
     public void showInfo(String message) {
-        show(null, message, Styles.ACCENT, Feather.INFO);
+        show(null, message, Styles.ACCENT, ButtonIcon.NOTIFICATION_INFO);
     }
 
     /**
@@ -121,7 +121,7 @@ public class NotificationWidget {
      * @param message Detailed message.
      */
     public void showInfo(String title, String message) {
-        show(title, message, Styles.ACCENT, Feather.INFO);
+        show(title, message, Styles.ACCENT, ButtonIcon.NOTIFICATION_INFO);
     }
 
     /**
@@ -130,7 +130,7 @@ public class NotificationWidget {
      * @param message The message to display.
      */
     public void showSuccess(String message) {
-        show(null, message, Styles.SUCCESS, Feather.CHECK_CIRCLE);
+        show(null, message, Styles.SUCCESS, ButtonIcon.NOTIFICATION_SUCCESS);
     }
 
     /**
@@ -140,7 +140,7 @@ public class NotificationWidget {
      * @param message Detailed message.
      */
     public void showSuccess(String title, String message) {
-        show(title, message, Styles.SUCCESS, Feather.CHECK_CIRCLE);
+        show(title, message, Styles.SUCCESS, ButtonIcon.NOTIFICATION_SUCCESS);
     }
 
     /**
@@ -149,7 +149,7 @@ public class NotificationWidget {
      * @param message The message to display.
      */
     public void showWarning(String message) {
-        show(null, message, Styles.WARNING, Feather.ALERT_TRIANGLE);
+        show(null, message, Styles.WARNING, ButtonIcon.NOTIFICATION_WARNING);
     }
 
     /**
@@ -159,7 +159,7 @@ public class NotificationWidget {
      * @param message Detailed message.
      */
     public void showWarning(String title, String message) {
-        show(title, message, Styles.WARNING, Feather.ALERT_TRIANGLE);
+        show(title, message, Styles.WARNING, ButtonIcon.NOTIFICATION_WARNING);
     }
 
     /**
@@ -168,7 +168,7 @@ public class NotificationWidget {
      * @param message The message to display.
      */
     public void showError(String message) {
-        show(null, message, Styles.DANGER, Feather.X_CIRCLE);
+        show(null, message, Styles.DANGER, ButtonIcon.NOTIFICATION_ERROR);
     }
 
     /**
@@ -178,7 +178,7 @@ public class NotificationWidget {
      * @param message Detailed message.
      */
     public void showError(String title, String message) {
-        show(title, message, Styles.DANGER, Feather.X_CIRCLE);
+        show(title, message, Styles.DANGER, ButtonIcon.NOTIFICATION_ERROR);
     }
 
     // ==============================================================================================
@@ -193,7 +193,7 @@ public class NotificationWidget {
      * @param styleClass The AtlantaFX style class for coloring.
      * @param icon       The icon to display.
      */
-    private void show(String title, String message, String styleClass, Feather icon) {
+    private void show(String title, String message, String styleClass, ButtonIcon icon) {
         if (container == null) {
             return;
         }
@@ -213,7 +213,7 @@ public class NotificationWidget {
      * @param iconCode   The icon to display.
      * @return The configured HBox toast component.
      */
-    private HBox createToast(String title, String message, String styleClass, Feather iconCode) {
+    private HBox createToast(String title, String message, String styleClass, ButtonIcon iconCode) {
         HBox toast = new HBox(10);
         toast.getStylesheets().add(getClass().getResource(STYLESHEET).toExternalForm());
         toast.getStyleClass().addAll(Styles.ELEVATED_2, STYLE_CLASS_TOAST);
@@ -224,7 +224,7 @@ public class NotificationWidget {
         toast.setMinWidth(TOAST_MIN_WIDTH);
         toast.setMaxWidth(TOAST_MAX_WIDTH);
 
-        FontIcon icon = new FontIcon(iconCode);
+        FontIcon icon = new FontIcon(iconCode.getIkon());
         icon.getStyleClass().add(STYLE_CLASS_ICON);
         icon.setIconSize(20);
         if (styleClass != null) {
