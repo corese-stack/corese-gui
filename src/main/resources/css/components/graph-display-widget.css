@@ -13,3 +13,38 @@
 .graph-loading-mask {
     -fx-background-color: -color-bg-default;
 }
+
+.graph-safety-overlay {
+    -fx-background-color: rgba(0, 0, 0, 0.18);
+    -fx-padding: 16px;
+}
+
+.graph-safety-card {
+    -fx-padding: 14px 16px;
+    -fx-spacing: 10px;
+    -fx-max-width: 560px;
+    -fx-min-height: 120px;
+}
+
+.graph-safety-title {
+    -fx-text-fill: -color-fg-default;
+    -fx-font-size: 14px;
+    -fx-font-weight: 700;
+}
+
+.graph-safety-message {
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-size: 12px;
+    -fx-wrap-text: true;
+    -fx-max-width: 520px;
+    -fx-min-height: -1;
+}
+
+.graph-safety-action {
+    -fx-min-width: 150px;
+    -fx-padding: 6px 12px;
+}
+
+.graph-safety-actions {
+    -fx-alignment: center-right;
+}

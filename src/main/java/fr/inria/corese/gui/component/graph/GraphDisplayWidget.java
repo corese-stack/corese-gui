@@ -1,5 +1,6 @@
 package fr.inria.corese.gui.component.graph;
 
+import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.core.theme.AppThemeRegistry;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.theme.ThemeManager;
@@ -8,6 +9,10 @@ import java.util.Base64;
 import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.concurrent.Worker;
+import javafx.geometry.Pos;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -50,12 +55,23 @@ public class GraphDisplayWidget extends VBox {
 	// ==============================================================================================
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(GraphDisplayWidget.class);
+	private static final String COMMON_STYLESHEET = "/css/common/common.css";
 	private static final String STYLESHEET = "/css/components/graph-display-widget.css";
 	private static final String GRAPH_HTML_PATH = "/graph-viewer/graph-viewer.html";
 	private static final String STYLE_CLASS_CONTAINER = "graph-display-container";
 	private static final String STYLE_CLASS_WEBVIEW = "graph-display-webview";
 	private static final String STYLE_CLASS_LOADING_MASK = "graph-loading-mask";
+	private static final String STYLE_CLASS_SAFETY_OVERLAY = "graph-safety-overlay";
+	private static final String STYLE_CLASS_SAFETY_CARD = "graph-safety-card";
+	private static final String STYLE_CLASS_SAFETY_TITLE = "graph-safety-title";
+	private static final String STYLE_CLASS_SAFETY_MESSAGE = "graph-safety-message";
+	private static final String STYLE_CLASS_SAFETY_ACTION = "graph-safety-action";
+	private static final String STYLE_CLASS_SAFETY_ACTIONS = "graph-safety-actions";
 	private static final int MASK_FADE_MS = 140;
+	private static final int DEFAULT_MAX_AUTO_RENDER_CHARS = 1_500_000;
+	private static final String SAFETY_TITLE = "Graph preview paused";
+	private static final String SAFETY_ACTION = "Display anyway";
+	private static final String SAFETY_HINT = "The graph is large and automatic rendering is disabled to keep the application responsive.";
 
 	// ==============================================================================================
 	// Fields
@@ -65,10 +81,15 @@ public class GraphDisplayWidget extends VBox {
 	private final WebEngine webEngine;
 	private final StackPane container;
 	private final Region loadingMask;
+	private final StackPane safetyOverlay;
+	private final Label safetyMessageLabel;
+	private final Button safetyActionButton;
 	private final JavaBridge bridge = new JavaBridge();
 
 	private boolean pageLoaded = false;
 	private String pendingJsonLdData = null;
+	private String blockedJsonLdData = null;
+	private int maxAutoRenderChars = DEFAULT_MAX_AUTO_RENDER_CHARS;
 
 	// ==============================================================================================
 	// Constructor
@@ -83,6 +104,9 @@ public class GraphDisplayWidget extends VBox {
 		this.webEngine = webView.getEngine();
 		this.container = new StackPane();
 		this.loadingMask = new Region();
+		this.safetyMessageLabel = new Label();
+		this.safetyActionButton = new Button(SAFETY_ACTION);
+		this.safetyOverlay = createSafetyOverlay();
 
 		initializeLayout();
 		initializeListeners();
@@ -90,7 +114,7 @@ public class GraphDisplayWidget extends VBox {
 		// Wait for the widget to be attached to a scene before loading
 		sceneProperty().addListener((obs, oldScene, newScene) -> {
 			Worker.State currentState = webEngine.getLoadWorker().getState();
-			if (newScene != null && !pageLoaded && currentState != Worker.State.RUNNING
+			if (newScene != null && !pageLoaded && blockedJsonLdData == null && currentState != Worker.State.RUNNING
 					&& currentState != Worker.State.SUCCEEDED) {
 				Platform.runLater(this::loadGraphPage);
 			}
@@ -102,6 +126,7 @@ public class GraphDisplayWidget extends VBox {
 	// ==============================================================================================
 
 	private void initializeLayout() {
+		CssUtils.applyViewStyles(this, COMMON_STYLESHEET);
 		CssUtils.applyViewStyles(this, STYLESHEET);
 
 		webView.setContextMenuEnabled(false);
@@ -117,10 +142,38 @@ public class GraphDisplayWidget extends VBox {
 		loadingMask.setVisible(true);
 		loadingMask.setMouseTransparent(true);
 
-		container.getChildren().addAll(webView, loadingMask);
+		container.getChildren().addAll(webView, loadingMask, safetyOverlay);
 
 		setVgrow(container, Priority.ALWAYS);
 		getChildren().add(container);
+	}
+
+	private StackPane createSafetyOverlay() {
+		Label titleLabel = new Label(SAFETY_TITLE);
+		titleLabel.getStyleClass().add(STYLE_CLASS_SAFETY_TITLE);
+
+		safetyMessageLabel.getStyleClass().add(STYLE_CLASS_SAFETY_MESSAGE);
+		safetyMessageLabel.setWrapText(true);
+
+		safetyActionButton.getStyleClass().addAll(STYLE_CLASS_SAFETY_ACTION, Styles.ACCENT);
+		safetyActionButton.setOnAction(event -> renderBlockedGraph());
+		HBox actions = new HBox(safetyActionButton);
+		actions.getStyleClass().add(STYLE_CLASS_SAFETY_ACTIONS);
+		actions.setAlignment(Pos.CENTER_RIGHT);
+
+		VBox card = new VBox(10, titleLabel, safetyMessageLabel, actions);
+		card.getStyleClass().addAll(STYLE_CLASS_SAFETY_CARD, "floating-panel");
+		card.setPrefHeight(Region.USE_COMPUTED_SIZE);
+		card.setMinHeight(Region.USE_PREF_SIZE);
+		card.setMaxHeight(Region.USE_PREF_SIZE);
+		card.setMaxWidth(Region.USE_PREF_SIZE);
+
+		StackPane overlay = new StackPane(card);
+		overlay.getStyleClass().add(STYLE_CLASS_SAFETY_OVERLAY);
+		overlay.setAlignment(Pos.CENTER);
+		overlay.setVisible(false);
+		overlay.setManaged(false);
+		return overlay;
 	}
 
 	private void initializeListeners() {
@@ -192,6 +245,18 @@ public class GraphDisplayWidget extends VBox {
 			return;
 		}
 
+		if (shouldDeferAutomaticRender(jsonLdData)) {
+			deferGraphRendering(jsonLdData);
+			return;
+		}
+
+		renderGraph(jsonLdData);
+	}
+
+	private void renderGraph(String jsonLdData) {
+		hideSafetyOverlay();
+		blockedJsonLdData = null;
+
 		if (!pageLoaded) {
 			pendingJsonLdData = jsonLdData;
 			if (webEngine.getLoadWorker().getState() != Worker.State.RUNNING) {
@@ -201,6 +266,39 @@ public class GraphDisplayWidget extends VBox {
 		}
 
 		Platform.runLater(() -> injectGraphData(jsonLdData));
+	}
+
+	private boolean shouldDeferAutomaticRender(String jsonLdData) {
+		return maxAutoRenderChars > 0 && jsonLdData.length() > maxAutoRenderChars;
+	}
+
+	private void deferGraphRendering(String jsonLdData) {
+		blockedJsonLdData = jsonLdData;
+		pendingJsonLdData = null;
+		clearRenderedGraph();
+		showSafetyOverlay(jsonLdData.length());
+	}
+
+	private void renderBlockedGraph() {
+		if (blockedJsonLdData == null || blockedJsonLdData.isBlank()) {
+			return;
+		}
+		String jsonLdData = blockedJsonLdData;
+		renderGraph(jsonLdData);
+	}
+
+	private void showSafetyOverlay(int payloadLength) {
+		String formattedSize = String.format("%,d", payloadLength);
+		String formattedThreshold = String.format("%,d", maxAutoRenderChars);
+		safetyMessageLabel.setText(String.format("%s%nPayload size: %s chars (limit: %s chars).", SAFETY_HINT,
+				formattedSize, formattedThreshold));
+		safetyOverlay.setManaged(true);
+		safetyOverlay.setVisible(true);
+	}
+
+	private void hideSafetyOverlay() {
+		safetyOverlay.setVisible(false);
+		safetyOverlay.setManaged(false);
 	}
 
 	private void loadGraphPage() {
@@ -301,8 +399,22 @@ public class GraphDisplayWidget extends VBox {
 	}
 
 	public void clear() {
+		hideSafetyOverlay();
+		blockedJsonLdData = null;
 		pendingJsonLdData = null;
+		clearRenderedGraph();
+	}
+
+	private void clearRenderedGraph() {
 		executeScriptSafe("if(document.getElementById('myGraph')) document.getElementById('myGraph').jsonld = null;");
+	}
+
+	public void setMaxAutoRenderChars(int maxAutoRenderChars) {
+		this.maxAutoRenderChars = Math.max(0, maxAutoRenderChars);
+	}
+
+	public int getMaxAutoRenderChars() {
+		return maxAutoRenderChars;
 	}
 
 	/**
