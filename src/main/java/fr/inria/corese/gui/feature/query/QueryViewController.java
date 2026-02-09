@@ -2,6 +2,7 @@ package fr.inria.corese.gui.feature.query;
 
 import java.io.File;
 import java.util.List;
+import java.util.prefs.Preferences;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +28,6 @@ import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.control.Tab;
 import javafx.stage.FileChooser;
-import java.util.prefs.Preferences;
 
 /**
  * Controller for the Query feature.
@@ -40,6 +40,9 @@ import java.util.prefs.Preferences;
 public class QueryViewController {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(QueryViewController.class);
+	private static final String QUERY_NOTIFICATION_TITLE = "Query";
+	private static final String MSG_NO_SELECT_RESULTS = "No results found.";
+	private static final String MSG_NO_GRAPH_RESULTS = "No triples produced by this query.";
 	private static final Preferences PREFS = Preferences.userNodeForPackage(QueryViewController.class);
 	private static final String PREF_LAST_TABLE_TAB = "results.lastTab.table";
 	private static final String PREF_LAST_GRAPH_TAB = "results.lastTab.graph";
@@ -57,8 +60,8 @@ public class QueryViewController {
 
 	private void initialize() {
 		// 1. Configure Empty State
-		Node emptyState = view.createEmptyState(() -> tabEditorController.createNewTab(),
-				this::onOpenFileButtonClick, null // Reserved for future template action
+		Node emptyState = view.createEmptyState(() -> tabEditorController.createNewTab(), this::onOpenFileButtonClick,
+				null // Reserved for future template action
 		);
 
 		// 2. Configure Editor
@@ -68,8 +71,7 @@ public class QueryViewController {
 				.withResultView(List.of(ButtonFactory.copy(), ButtonFactory.export()),
 						ResultViewConfig.builder().withTextTab().withTableTab().withGraphTab().build())
 				.withEmptyState(emptyState).withAllowedExtensions(List.of(".rq"))
-				.withOpenFileAction(this::onOpenFileButtonClick)
-				.withPreloadFirstTab().build();
+				.withOpenFileAction(this::onOpenFileButtonClick).withPreloadFirstTab().build();
 
 		// 3. Create Controller
 		this.tabEditorController = new TabEditorController(config);
@@ -84,7 +86,8 @@ public class QueryViewController {
 	}
 
 	private void setupTabListeners() {
-		tabEditorController.addSelectionListener((obs, oldTab, newTab) -> updateResultsForSelectedQueryTab(newTab, false));
+		tabEditorController
+				.addSelectionListener((obs, oldTab, newTab) -> updateResultsForSelectedQueryTab(newTab, false));
 		tabEditorController.addTabListener(change -> {
 			while (change.next()) {
 				if (change.wasAdded()) {
@@ -192,6 +195,9 @@ public class QueryViewController {
 		// Configure results by query family.
 		switch (queryType) {
 			case SELECT -> {
+				if (showNoResultNotificationIfEmpty(resultRef, MSG_NO_SELECT_RESULTS)) {
+					break;
+				}
 				tabEditorController.showResultPane();
 				configureForTableResult(resultController, resultRef);
 			}
@@ -200,6 +206,9 @@ public class QueryViewController {
 				showAskOutcomeNotification(resultRef);
 			}
 			case CONSTRUCT, DESCRIBE -> {
+				if (showNoResultNotificationIfEmpty(resultRef, MSG_NO_GRAPH_RESULTS)) {
+					break;
+				}
 				tabEditorController.showResultPane();
 				configureForGraphResult(resultController, resultRef);
 			}
@@ -214,6 +223,15 @@ public class QueryViewController {
 		}
 
 		context.markResultRendered(resultRef);
+	}
+
+	private boolean showNoResultNotificationIfEmpty(QueryResultRef resultRef, String message) {
+		if (resultRef.getResultCount() > 0) {
+			return false;
+		}
+		tabEditorController.hideResultPane();
+		NotificationWidget.getInstance().showInfo(QUERY_NOTIFICATION_TITLE, message);
+		return true;
 	}
 
 	private void configureForTableResult(ResultController controller, QueryResultRef resultRef) {
