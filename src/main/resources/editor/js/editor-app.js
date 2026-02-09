@@ -37,6 +37,8 @@ const editorArea = document.getElementById('editor');
 const cm = CodeMirror.fromTextArea(editorArea, {
     lineNumbers: true,
     mode: "text/plain",
+    // Improves dead-key/IME handling on Linux WebView (GTK input-method quirks).
+    inputStyle: 'contenteditable',
     matchBrackets: true,
     autoCloseBrackets: true,
     indentUnit: 4,
