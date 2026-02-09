@@ -4,12 +4,14 @@ import fr.inria.corese.gui.AppConstants;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.utils.BrowserUtils;
+import fr.inria.corese.gui.utils.fx.LogoShadowEffects;
 import fr.inria.corese.gui.utils.fx.SvgImageLoader;
 
 import atlantafx.base.controls.Tile;
 import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
 import javafx.geometry.Pos;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -21,180 +23,183 @@ import org.slf4j.LoggerFactory;
 /**
  * Settings view for configuring application preferences.
  *
- * <p>This view follows the MVC pattern:
+ * <p>
+ * This view follows the MVC pattern:
  *
  * <ul>
- *   <li><b>Model:</b> {@link SettingsModel} - stores settings data
- *   <li><b>View:</b> This class - displays UI
- *   <li><b>Controller:</b> {@link SettingsController} - handles business logic
+ * <li><b>Model:</b> {@link SettingsModel} - stores settings data
+ * <li><b>View:</b> This class - displays UI
+ * <li><b>Controller:</b> {@link SettingsController} - handles business logic
  * </ul>
  */
 public final class SettingsView extends AbstractView {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(SettingsView.class);
-  private static final String STYLESHEET_PATH = "/css/features/settings-view.css";
-  // ===== UI Components =====
-  private ToggleSwitch systemThemeSwitch;
-  private ComboBox<String> themeComboBox;
-  private ToggleButton lightModeButton;
-  private ToggleButton darkModeButton;
-  private ColorPicker accentColorPicker;
+	private static final Logger LOGGER = LoggerFactory.getLogger(SettingsView.class);
+	private static final String STYLESHEET_PATH = "/css/features/settings-view.css";
+	// ===== UI Components =====
+	private ToggleSwitch systemThemeSwitch;
+	private ComboBox<String> themeComboBox;
+	private ToggleButton lightModeButton;
+	private ToggleButton darkModeButton;
+	private ColorPicker accentColorPicker;
 
-  // ===== Constructor =====
+	// ===== Constructor =====
 
-  public SettingsView() {
-    super(new ScrollPane(), STYLESHEET_PATH);
-    initializeLayout();
-  }
+	public SettingsView() {
+		super(new ScrollPane(), STYLESHEET_PATH);
+		initializeLayout();
+	}
 
-  // ===== Initialization =====
+	// ===== Initialization =====
 
-  private void initializeLayout() {
-    ScrollPane scrollPane = (ScrollPane) getRoot();
-    scrollPane.setFitToWidth(true);
+	private void initializeLayout() {
+		ScrollPane scrollPane = (ScrollPane) getRoot();
+		scrollPane.setFitToWidth(true);
 
-    VBox content = new VBox();
-    content.getStyleClass().add("settings-content");
+		VBox content = new VBox();
+		content.getStyleClass().add("settings-content");
 
-    content.getChildren().addAll(createAppearanceSection(), createAboutSection());
+		content.getChildren().addAll(createAppearanceSection(), createAboutSection());
 
-    scrollPane.setContent(content);
-  }
+		scrollPane.setContent(content);
+	}
 
-  // ===== Appearance Section =====
+	// ===== Appearance Section =====
 
-  private VBox createAppearanceSection() {
-    VBox section = new VBox();
-    section.getStyleClass().add("settings-section");
+	private VBox createAppearanceSection() {
+		VBox section = new VBox();
+		section.getStyleClass().add("settings-section");
 
-    Label sectionTitle = new Label("Appearance");
-    sectionTitle.getStyleClass().add(Styles.TITLE_3);
+		Label sectionTitle = new Label("Appearance");
+		sectionTitle.getStyleClass().add(Styles.TITLE_3);
 
-    // System Theme Tile
-    Tile systemThemeTile = new Tile("System Theme", "Use system theme and accent color");
-    systemThemeSwitch = new ToggleSwitch();
-    systemThemeTile.setAction(systemThemeSwitch);
+		// System Theme Tile
+		Tile systemThemeTile = new Tile("System Theme", "Use system theme and accent color");
+		systemThemeSwitch = new ToggleSwitch();
+		systemThemeTile.setAction(systemThemeSwitch);
 
-    // Theme Tile
-    Tile themeTile = new Tile("Theme", "Select application interface theme");
+		// Theme Tile
+		Tile themeTile = new Tile("Theme", "Select application interface theme");
 
-    themeComboBox = new ComboBox<>();
+		themeComboBox = new ComboBox<>();
 
-    // Mode Toggle Group
-    ToggleGroup modeGroup = new ToggleGroup();
+		// Mode Toggle Group
+		ToggleGroup modeGroup = new ToggleGroup();
 
-    lightModeButton = new ToggleButton(null, new FontIcon(ButtonIcon.THEME_LIGHT.getIkon()));
-    lightModeButton.getStyleClass().addAll(Styles.LEFT_PILL);
-    lightModeButton.setToggleGroup(modeGroup);
+		lightModeButton = new ToggleButton(null, new FontIcon(ButtonIcon.THEME_LIGHT.getIkon()));
+		lightModeButton.getStyleClass().addAll(Styles.LEFT_PILL);
+		lightModeButton.setToggleGroup(modeGroup);
 
-    darkModeButton = new ToggleButton(null, new FontIcon(ButtonIcon.THEME_DARK.getIkon()));
-    darkModeButton.getStyleClass().addAll(Styles.RIGHT_PILL);
-    darkModeButton.setToggleGroup(modeGroup);
+		darkModeButton = new ToggleButton(null, new FontIcon(ButtonIcon.THEME_DARK.getIkon()));
+		darkModeButton.getStyleClass().addAll(Styles.RIGHT_PILL);
+		darkModeButton.setToggleGroup(modeGroup);
 
-    // Enforce selection
-    modeGroup
-        .selectedToggleProperty()
-        .addListener(
-            (obs, oldVal, newVal) -> {
-              if (newVal == null) oldVal.setSelected(true);
-            });
+		// Enforce selection
+		modeGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> {
+			if (newVal == null)
+				oldVal.setSelected(true);
+		});
 
-    HBox modeBox = new HBox(lightModeButton, darkModeButton);
-    modeBox.setAlignment(Pos.CENTER_LEFT);
+		HBox modeBox = new HBox(lightModeButton, darkModeButton);
+		modeBox.setAlignment(Pos.CENTER_LEFT);
 
-    HBox themeActions = new HBox(15, themeComboBox, modeBox);
-    themeActions.setAlignment(Pos.CENTER_RIGHT);
-    themeTile.setAction(themeActions);
+		HBox themeActions = new HBox(15, themeComboBox, modeBox);
+		themeActions.setAlignment(Pos.CENTER_RIGHT);
+		themeTile.setAction(themeActions);
 
-    // Accent Color Tile
-    Tile accentColorTile = new Tile("Accent Color", "Choose your preferred accent color");
+		// Accent Color Tile
+		Tile accentColorTile = new Tile("Accent Color", "Choose your preferred accent color");
 
-    accentColorPicker = new ColorPicker();
-    accentColorTile.setAction(accentColorPicker);
+		accentColorPicker = new ColorPicker();
+		accentColorTile.setAction(accentColorPicker);
 
-    section.getChildren().addAll(sectionTitle, systemThemeTile, themeTile, accentColorTile);
-    return section;
-  }
+		section.getChildren().addAll(sectionTitle, systemThemeTile, themeTile, accentColorTile);
+		return section;
+	}
 
-  // ===== Getters for Controller =====
+	// ===== Getters for Controller =====
 
-  public ToggleSwitch getSystemThemeSwitch() {
-    return systemThemeSwitch;
-  }
+	public ToggleSwitch getSystemThemeSwitch() {
+		return systemThemeSwitch;
+	}
 
-  public ComboBox<String> getThemeComboBox() {
-    return themeComboBox;
-  }
+	public ComboBox<String> getThemeComboBox() {
+		return themeComboBox;
+	}
 
-  public ToggleButton getLightModeButton() {
-    return lightModeButton;
-  }
+	public ToggleButton getLightModeButton() {
+		return lightModeButton;
+	}
 
-  public ToggleButton getDarkModeButton() {
-    return darkModeButton;
-  }
+	public ToggleButton getDarkModeButton() {
+		return darkModeButton;
+	}
 
-  public ColorPicker getAccentColorPicker() {
-    return accentColorPicker;
-  }
+	public ColorPicker getAccentColorPicker() {
+		return accentColorPicker;
+	}
 
-  // ===== About Section =====
+	// ===== About Section =====
 
-  private VBox createAboutSection() {
-    VBox section = new VBox();
-    section.getStyleClass().add("settings-section");
+	private VBox createAboutSection() {
+		VBox section = new VBox();
+		section.getStyleClass().add("settings-section");
 
-    Label sectionTitle = new Label("About");
-    sectionTitle.getStyleClass().add(Styles.TITLE_3);
+		Label sectionTitle = new Label("About");
+		sectionTitle.getStyleClass().add(Styles.TITLE_3);
 
-    Tile aboutTile = new Tile(AppConstants.APP_NAME, "Version " + AppConstants.APP_VERSION);
-    aboutTile.setGraphic(createLogo());
+		Tile aboutTile = new Tile(AppConstants.APP_NAME, "Version " + AppConstants.APP_VERSION);
+		aboutTile.setGraphic(createLogo());
 
-    HBox linksBox = new HBox(10);
-    linksBox.setAlignment(Pos.CENTER_RIGHT);
-    linksBox
-        .getChildren()
-        .addAll(
-            createLinkButton("Website", AppConstants.WEBSITE_URL, ButtonIcon.LINK_WEBSITE),
-            createLinkButton("GitHub", AppConstants.GITHUB_URL, ButtonIcon.LINK_GITHUB),
-            createLinkButton("Issues", AppConstants.ISSUES_URL, ButtonIcon.LINK_ISSUES),
-            createLinkButton("Forum", AppConstants.FORUM_URL, ButtonIcon.LINK_FORUM));
+		HBox linksBox = new HBox(10);
+		linksBox.setAlignment(Pos.CENTER_RIGHT);
+		linksBox.getChildren().addAll(createLinkButton("Website", AppConstants.WEBSITE_URL, ButtonIcon.LINK_WEBSITE),
+				createLinkButton("GitHub", AppConstants.GITHUB_URL, ButtonIcon.LINK_GITHUB),
+				createLinkButton("Issues", AppConstants.ISSUES_URL, ButtonIcon.LINK_ISSUES),
+				createLinkButton("Forum", AppConstants.FORUM_URL, ButtonIcon.LINK_FORUM));
 
-    aboutTile.setAction(linksBox);
+		aboutTile.setAction(linksBox);
 
-    section.getChildren().addAll(sectionTitle, aboutTile);
-    return section;
-  }
+		section.getChildren().addAll(sectionTitle, aboutTile);
+		return section;
+	}
 
-  private ImageView createLogo() {
-    ImageView coreseLogo = new ImageView();
-    coreseLogo.setFitWidth(64);
-    coreseLogo.setFitHeight(64);
-    coreseLogo.setPreserveRatio(true);
-    coreseLogo.setSmooth(true);
-    coreseLogo.getStyleClass().add("app-logo");
+	private StackPane createLogo() {
+		ImageView coreseLogo = new ImageView();
+		coreseLogo.setFitWidth(64);
+		coreseLogo.setFitHeight(64);
+		coreseLogo.setPreserveRatio(true);
+		coreseLogo.getStyleClass().add("settings-logo-image");
+		coreseLogo.setEffect(LogoShadowEffects.createThemeAwareShadow());
 
-    try {
-      // Load SVG with 2x scaling
-      Image logoImage = SvgImageLoader.loadSvgImage("/images/corese-gui-logo.svg", 64, 64, 2.0);
-      if (logoImage != null) {
-        coreseLogo.setImage(logoImage);
-      }
-    } catch (Exception e) {
-      LOGGER.warn("Failed to load logo", e);
-    }
+		StackPane logoWrapper = new StackPane(coreseLogo);
+		logoWrapper.getStyleClass().add("settings-logo-wrapper");
 
-    return coreseLogo;
-  }
+		try {
+			// Load SVG with 2x scaling
+			Image logoImage = SvgImageLoader.loadSvgImage("/images/corese-gui-logo.svg", 64, 64, 2.0);
+			if (logoImage != null) {
+				coreseLogo.setImage(logoImage);
+			}
+		} catch (Exception e) {
+			LOGGER.warn("Failed to load logo", e);
+		}
 
-  private Button createLinkButton(String text, String url, ButtonIcon icon) {
-    Button button = new Button(text, new FontIcon(icon.getIkon()));
-    button.getStyleClass().addAll(Styles.BUTTON_OUTLINED);
-    button.setOnAction(e -> openURL(url));
-    return button;
-  }
+		Tooltip.install(logoWrapper, new Tooltip("Open Corese website"));
+		logoWrapper.setOnMouseClicked(e -> openURL(AppConstants.WEBSITE_URL));
+		LogoShadowEffects.installDefaultAnimation(logoWrapper, (DropShadow) coreseLogo.getEffect());
 
-  private void openURL(String url) {
-    BrowserUtils.openUrl(url);
-  }
+		return logoWrapper;
+	}
+
+	private Button createLinkButton(String text, String url, ButtonIcon icon) {
+		Button button = new Button(text, new FontIcon(icon.getIkon()));
+		button.getStyleClass().addAll(Styles.BUTTON_OUTLINED);
+		button.setOnAction(e -> openURL(url));
+		return button;
+	}
+
+	private void openURL(String url) {
+		BrowserUtils.openUrl(url);
+	}
 }

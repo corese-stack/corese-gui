@@ -34,11 +34,12 @@
   -fx-min-height: 72;
   -fx-max-height: 72;
   -fx-background-color: transparent;
+  -fx-padding: 8;
+  -fx-cursor: hand;
 }
 
-.app-logo {
+.sidebar-logo .app-logo {
   -fx-smooth: true;
-  -fx-effect: dropshadow(gaussian, -color-logo-shadow, 10, 0, 0, 0);
 }
 
 /* ==========================================================================

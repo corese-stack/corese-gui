@@ -3,6 +3,7 @@ package fr.inria.corese.gui.feature.main.navigation;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.core.enums.ViewId;
 import fr.inria.corese.gui.core.view.AbstractView;
+import fr.inria.corese.gui.utils.fx.LogoShadowEffects;
 import fr.inria.corese.gui.utils.fx.SvgImageLoader;
 
 import atlantafx.base.theme.Styles;
@@ -10,6 +11,7 @@ import java.util.function.Consumer;
 import javafx.animation.Animation;
 import javafx.animation.ParallelTransition;
 import javafx.geometry.Pos;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
@@ -24,289 +26,286 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * View component for the sidebar (navigation bar) of the Corese-GUI application.
+ * View component for the sidebar (navigation bar) of the Corese-GUI
+ * application.
  *
- * <p><strong>Responsibilities:</strong>
+ * <p>
+ * <strong>Responsibilities:</strong>
  *
  * <ul>
- *   <li>Defines the UI layout and structure
- *   <li>Manages collapse/expand animations
- *   <li>Handles visual state (active button highlighting)
+ * <li>Defines the UI layout and structure
+ * <li>Manages collapse/expand animations
+ * <li>Handles visual state (active button highlighting)
  * </ul>
  *
- * <p><strong>Does NOT handle:</strong> Business logic and event coordination are delegated to
+ * <p>
+ * <strong>Does NOT handle:</strong> Business logic and event coordination are
+ * delegated to
  * {@link fr.inria.corese.gui.feature.main.navigation.NavigationBarController}.
  *
- * <p>This class follows the MVC pattern as a pure View component.
+ * <p>
+ * This class follows the MVC pattern as a pure View component.
  */
 public final class NavigationBarView extends AbstractView {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(NavigationBarView.class);
-  private static final String STYLESHEET_PATH = "/css/features/navigation-bar.css";
+	private static final Logger LOGGER = LoggerFactory.getLogger(NavigationBarView.class);
+	private static final String STYLESHEET_PATH = "/css/features/navigation-bar.css";
 
-  // ==== State ====
-  private boolean collapsed = false;
-  private ParallelTransition currentTransition;
-  private Consumer<Boolean> onToggle;
-  private Runnable onLogoClick;
+	// ==== State ====
+	private boolean collapsed = false;
+	private ParallelTransition currentTransition;
+	private Consumer<Boolean> onToggle;
+	private Runnable onLogoClick;
 
-  // ==== UI elements ====
-  private final Button logo;
-  private final Button dataButton;
-  private final Button queryButton;
-  private final Button validationButton;
-  private final Button toggleButton;
-  private final Button settingsButton;
+	// ==== UI elements ====
+	private final Button logo;
+	private final Button dataButton;
+	private final Button queryButton;
+	private final Button validationButton;
+	private final Button toggleButton;
+	private final Button settingsButton;
 
-  // ==== Constructor ====
+	// ==== Constructor ====
 
-  /** Creates a new NavigationBarView instance and initializes the layout. */
-  public NavigationBarView() {
-    super(new VBox(), STYLESHEET_PATH);
+	/** Creates a new NavigationBarView instance and initializes the layout. */
+	public NavigationBarView() {
+		super(new VBox(), STYLESHEET_PATH);
 
-    this.logo = createLogoButton();
-    this.dataButton =
-        createNavigationButton("Data", ButtonIcon.NAV_DATA, "Load and manage RDF data");
-    this.queryButton =
-        createNavigationButton(
-            "Query", ButtonIcon.NAV_QUERY, "Execute SPARQL queries on loaded RDF datasets");
-    this.validationButton =
-        createNavigationButton(
-            "Validation",
-            ButtonIcon.NAV_VALIDATION,
-            "Validate RDF data against SHACL shapes and constraints");
-    this.toggleButton = createToggleButton();
-    this.settingsButton =
-        createNavigationButton(
-            "Settings", ButtonIcon.NAV_SETTINGS, "Configure application preferences and appearance");
+		this.logo = createLogoButton();
+		this.dataButton = createNavigationButton("Data", ButtonIcon.NAV_DATA, "Load and manage RDF data");
+		this.queryButton = createNavigationButton("Query", ButtonIcon.NAV_QUERY,
+				"Execute SPARQL queries on loaded RDF datasets");
+		this.validationButton = createNavigationButton("Validation", ButtonIcon.NAV_VALIDATION,
+				"Validate RDF data against SHACL shapes and constraints");
+		this.toggleButton = createToggleButton();
+		this.settingsButton = createNavigationButton("Settings", ButtonIcon.NAV_SETTINGS,
+				"Configure application preferences and appearance");
 
-    initializeLayout();
-  }
+		initializeLayout();
+	}
 
-  // ===== Layout & creation =====
+	// ===== Layout & creation =====
 
-  /** Configures the sidebar layout structure. */
-  private void initializeLayout() {
-    VBox root = (VBox) getRoot();
-    root.getStyleClass().add("sidebar");
-    root.setFillWidth(true);
+	/** Configures the sidebar layout structure. */
+	private void initializeLayout() {
+		VBox root = (VBox) getRoot();
+		root.getStyleClass().add("sidebar");
+		root.setFillWidth(true);
 
-    Region spacer = new Region();
-    VBox.setVgrow(spacer, Priority.ALWAYS);
+		Region spacer = new Region();
+		VBox.setVgrow(spacer, Priority.ALWAYS);
 
-    root.getChildren()
-        .setAll(
-            logo, dataButton, queryButton, validationButton, spacer, toggleButton, settingsButton);
-  }
+		root.getChildren().setAll(logo, dataButton, queryButton, validationButton, spacer, toggleButton,
+				settingsButton);
+	}
 
-  /** Creates the top logo button (non-interactive except logging). */
-  private Button createLogoButton() {
-    Button button = new Button();
-    button.getStyleClass().addAll("sidebar-logo", Styles.FLAT);
-    button.setMaxWidth(Double.MAX_VALUE);
-    button.setAlignment(Pos.CENTER);
+	/** Creates the top logo button. */
+	private Button createLogoButton() {
+		Button button = new Button();
+		button.getStyleClass().addAll("sidebar-logo", Styles.FLAT);
+		button.setMaxWidth(Double.MAX_VALUE);
+		button.setAlignment(Pos.CENTER);
 
-    try {
-      double logoSize = NavigationBarAnimations.getLogoExpandedSize();
-      // Load SVG with 2x scaling for high DPI
-      Image image = SvgImageLoader.loadSvgImage("/images/corese-logo.svg", logoSize, logoSize, 2.0);
+		try {
+			double logoSize = NavigationBarAnimations.getLogoExpandedSize();
+			// Load SVG with 2x scaling for high DPI
+			Image image = SvgImageLoader.loadSvgImage("/images/corese-logo.svg", logoSize, logoSize, 2.0);
 
-      if (image != null) {
-        ImageView view = new ImageView(image);
-        view.getStyleClass().add("app-logo");
-        view.setPreserveRatio(true);
-        view.setSmooth(true);
-        view.setFitWidth(logoSize);
-        view.setFitHeight(logoSize);
-        button.setGraphic(view);
-      }
-    } catch (Exception e) {
-      LOGGER.warn("Failed to load logo image", e);
-    }
+			if (image != null) {
+				ImageView view = new ImageView(image);
+				view.getStyleClass().add("app-logo");
+				view.setPreserveRatio(true);
+				view.setSmooth(true);
+				view.setFitWidth(logoSize);
+				view.setFitHeight(logoSize);
+				view.setEffect(LogoShadowEffects.createThemeAwareShadow());
+				button.setGraphic(view);
+				LogoShadowEffects.installDefaultAnimation(button, (DropShadow) view.getEffect());
+			}
+		} catch (Exception e) {
+			LOGGER.warn("Failed to load logo image", e);
+		}
 
-    button.setOnAction(
-        e -> {
-          if (onLogoClick != null) {
-            onLogoClick.run();
-          }
-        });
-    return button;
-  }
+		button.setOnAction(e -> {
+			if (onLogoClick != null) {
+				onLogoClick.run();
+			}
+		});
+		return button;
+	}
 
-  /** Creates a sidebar button with icon and text. */
-  private Button createNavigationButton(String text, ButtonIcon iconCode, String tooltipText) {
-    Button button = new Button();
-    button.getStyleClass().addAll("sidebar-button", Styles.FLAT, Styles.LEFT_PILL);
-    button.setMaxWidth(Double.MAX_VALUE);
-    button.setAlignment(Pos.CENTER_LEFT);
+	/** Creates a sidebar button with icon and text. */
+	private Button createNavigationButton(String text, ButtonIcon iconCode, String tooltipText) {
+		Button button = new Button();
+		button.getStyleClass().addAll("sidebar-button", Styles.FLAT, Styles.LEFT_PILL);
+		button.setMaxWidth(Double.MAX_VALUE);
+		button.setAlignment(Pos.CENTER_LEFT);
 
-    FontIcon icon = new FontIcon(iconCode.getIkon());
-    icon.getStyleClass().add("sidebar-icon");
+		FontIcon icon = new FontIcon(iconCode.getIkon());
+		icon.getStyleClass().add("sidebar-icon");
 
-    Label label = new Label(text);
-    label.getStyleClass().add("sidebar-text");
+		Label label = new Label(text);
+		label.getStyleClass().add("sidebar-text");
 
-    HBox content = new HBox(icon, label);
-    content.getStyleClass().add("sidebar-button-content");
-    content.setAlignment(Pos.CENTER_LEFT);
+		HBox content = new HBox(icon, label);
+		content.getStyleClass().add("sidebar-button-content");
+		content.setAlignment(Pos.CENTER_LEFT);
 
-    button.setGraphic(content);
-    button.setUserData(label);
-    button.setTooltip(new Tooltip(tooltipText));
+		button.setGraphic(content);
+		button.setUserData(label);
+		button.setTooltip(new Tooltip(tooltipText));
 
-    return button;
-  }
+		return button;
+	}
 
-  /** Creates the toggle button for collapse/expand. */
-  private Button createToggleButton() {
-    Button button = new Button();
-    button.getStyleClass().addAll("sidebar-toggle", Styles.FLAT, Styles.ROUNDED);
-    button.setMaxWidth(Double.MAX_VALUE);
-    button.setAlignment(Pos.CENTER);
+	/** Creates the toggle button for collapse/expand. */
+	private Button createToggleButton() {
+		Button button = new Button();
+		button.getStyleClass().addAll("sidebar-toggle", Styles.FLAT, Styles.ROUNDED);
+		button.setMaxWidth(Double.MAX_VALUE);
+		button.setAlignment(Pos.CENTER);
 
-    FontIcon icon = new FontIcon(ButtonIcon.NAV_TOGGLE.getIkon());
-    icon.getStyleClass().add("sidebar-icon");
-    button.setGraphic(icon);
+		FontIcon icon = new FontIcon(ButtonIcon.NAV_TOGGLE.getIkon());
+		icon.getStyleClass().add("sidebar-icon");
+		button.setGraphic(icon);
 
-    button.setTooltip(new Tooltip("Collapse sidebar"));
-    button.setOnAction(
-        e -> {
-          if (onToggle != null) {
-            onToggle.accept(!collapsed);
-          }
-        });
+		button.setTooltip(new Tooltip("Collapse sidebar"));
+		button.setOnAction(e -> {
+			if (onToggle != null) {
+				onToggle.accept(!collapsed);
+			}
+		});
 
-    return button;
-  }
+		return button;
+	}
 
-  // ===== Collapse / expand =====
+	// ===== Collapse / expand =====
 
-  /** Allows the controller/model to set collapse state. */
-  public void setCollapsed(boolean value) {
-    if (this.collapsed != value) {
-      toggleSidebar();
-    }
-  }
+	/** Allows the controller/model to set collapse state. */
+	public void setCollapsed(boolean value) {
+		if (this.collapsed != value) {
+			toggleSidebar();
+		}
+	}
 
-  /** Performs the collapse/expand animation. */
-  private void toggleSidebar() {
-    if (currentTransition != null && currentTransition.getStatus() == Animation.Status.RUNNING) {
-      currentTransition.stop();
-    }
+	/** Performs the collapse/expand animation. */
+	private void toggleSidebar() {
+		if (currentTransition != null && currentTransition.getStatus() == Animation.Status.RUNNING) {
+			currentTransition.stop();
+		}
 
-    collapsed = !collapsed;
+		collapsed = !collapsed;
 
-    VBox root = (VBox) getRoot();
-    FontIcon toggleIcon = (FontIcon) toggleButton.getGraphic();
-    ImageView logoView = (ImageView) logo.getGraphic();
+		VBox root = (VBox) getRoot();
+		FontIcon toggleIcon = (FontIcon) toggleButton.getGraphic();
+		ImageView logoView = (ImageView) logo.getGraphic();
 
-    Button[] navigationButtons =
-        new Button[] {dataButton, validationButton, queryButton, settingsButton};
+		Button[] navigationButtons = new Button[]{dataButton, validationButton, queryButton, settingsButton};
 
-    currentTransition =
-        NavigationBarAnimations.createToggleAnimation(
-            root, toggleIcon, logoView, navigationButtons, collapsed);
+		currentTransition = NavigationBarAnimations.createToggleAnimation(root, toggleIcon, logoView, navigationButtons,
+				collapsed);
 
-    currentTransition.setOnFinished(
-        e -> {
-          if (collapsed) {
-            root.getStyleClass().add("collapsed");
-            toggleButton.getTooltip().setText("Expand sidebar");
-          } else {
-            root.getStyleClass().remove("collapsed");
-            toggleButton.getTooltip().setText("Collapse sidebar");
-          }
-          currentTransition = null;
-        });
+		currentTransition.setOnFinished(e -> {
+			if (collapsed) {
+				root.getStyleClass().add("collapsed");
+				toggleButton.getTooltip().setText("Expand sidebar");
+			} else {
+				root.getStyleClass().remove("collapsed");
+				toggleButton.getTooltip().setText("Collapse sidebar");
+			}
+			currentTransition = null;
+		});
 
-    currentTransition.play();
-  }
+		currentTransition.play();
+	}
 
-  // ===== Selection & handlers =====
+	// ===== Selection & handlers =====
 
-  /**
-   * Sets the active view and highlights the corresponding button.
-   *
-   * @param viewId the view to highlight
-   */
-  public void setActiveView(ViewId viewId) {
-    Button targetButton = getButtonForViewId(viewId);
-    if (targetButton == null) {
-      return;
-    }
+	/**
+	 * Sets the active view and highlights the corresponding button.
+	 *
+	 * @param viewId
+	 *            the view to highlight
+	 */
+	public void setActiveView(ViewId viewId) {
+		Button targetButton = getButtonForViewId(viewId);
+		if (targetButton == null) {
+			return;
+		}
 
-    // Remove accent from all buttons
-    getRoot()
-        .lookupAll(".sidebar-button")
-        .forEach(
-            node -> {
-              if (node instanceof Button button) {
-                button.getStyleClass().remove(Styles.ACCENT);
-              }
-            });
+		// Remove accent from all buttons
+		getRoot().lookupAll(".sidebar-button").forEach(node -> {
+			if (node instanceof Button button) {
+				button.getStyleClass().remove(Styles.ACCENT);
+			}
+		});
 
-    // Highlight the target button
-    targetButton.getStyleClass().add(Styles.ACCENT);
-  }
+		// Highlight the target button
+		targetButton.getStyleClass().add(Styles.ACCENT);
+	}
 
-  /**
-   * Sets the navigation handler to be called when a navigation button is clicked.
-   *
-   * @param handler the navigation handler
-   */
-  public void setNavigationHandler(Consumer<ViewId> handler) {
-    for (ViewId id : ViewId.values()) {
-      Button button = getButtonForViewId(id);
-      if (button != null) {
-        button.setOnAction(
-            e -> {
-              if (handler != null) {
-                handler.accept(id);
-              }
-            });
-      }
-    }
-  }
+	/**
+	 * Sets the navigation handler to be called when a navigation button is clicked.
+	 *
+	 * @param handler
+	 *            the navigation handler
+	 */
+	public void setNavigationHandler(Consumer<ViewId> handler) {
+		for (ViewId id : ViewId.values()) {
+			Button button = getButtonForViewId(id);
+			if (button != null) {
+				button.setOnAction(e -> {
+					if (handler != null) {
+						handler.accept(id);
+					}
+				});
+			}
+		}
+	}
 
-  /**
-   * Returns the button corresponding to the given view ID.
-   *
-   * @param viewId the view ID
-   * @return the corresponding button
-   */
-  private Button getButtonForViewId(ViewId viewId) {
-    return switch (viewId) {
-      case DATA -> dataButton;
-      case VALIDATION -> validationButton;
-      case QUERY -> queryButton;
-      case SETTINGS -> settingsButton;
-    };
-  }
+	/**
+	 * Returns the button corresponding to the given view ID.
+	 *
+	 * @param viewId
+	 *            the view ID
+	 * @return the corresponding button
+	 */
+	private Button getButtonForViewId(ViewId viewId) {
+		return switch (viewId) {
+			case DATA -> dataButton;
+			case VALIDATION -> validationButton;
+			case QUERY -> queryButton;
+			case SETTINGS -> settingsButton;
+		};
+	}
 
-  /**
-   * Returns whether the sidebar is currently collapsed.
-   *
-   * @return true if collapsed, false otherwise
-   */
-  public boolean isCollapsed() {
-    return collapsed;
-  }
+	/**
+	 * Returns whether the sidebar is currently collapsed.
+	 *
+	 * @return true if collapsed, false otherwise
+	 */
+	public boolean isCollapsed() {
+		return collapsed;
+	}
 
-  /**
-   * Sets the toggle handler to be called when the sidebar is collapsed or expanded.
-   *
-   * @param handler the toggle handler
-   */
-  public void setOnToggle(Consumer<Boolean> handler) {
-    this.onToggle = handler;
-  }
+	/**
+	 * Sets the toggle handler to be called when the sidebar is collapsed or
+	 * expanded.
+	 *
+	 * @param handler
+	 *            the toggle handler
+	 */
+	public void setOnToggle(Consumer<Boolean> handler) {
+		this.onToggle = handler;
+	}
 
-  /**
-   * Sets the handler to be called when the logo is clicked.
-   *
-   * @param handler the logo click handler
-   */
-  public void setOnLogoClick(Runnable handler) {
-    this.onLogoClick = handler;
-  }
+	/**
+	 * Sets the handler to be called when the logo is clicked.
+	 *
+	 * @param handler
+	 *            the logo click handler
+	 */
+	public void setOnLogoClick(Runnable handler) {
+		this.onLogoClick = handler;
+	}
 }

@@ -23,7 +23,17 @@
     -fx-spacing: 20px;
 }
 
-.app-logo {
-  -fx-smooth: true;
-  -fx-effect: dropshadow(gaussian, -color-logo-shadow, 10, 0, 0, 0);
+.settings-logo-wrapper {
+    -fx-background-color: transparent;
+    -fx-background-radius: 14px;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-border-radius: 14px;
+    -fx-padding: 8px;
+    -fx-cursor: hand;
+    -fx-effect: null;
+}
+
+.settings-logo-image {
+    -fx-smooth: true;
 }
