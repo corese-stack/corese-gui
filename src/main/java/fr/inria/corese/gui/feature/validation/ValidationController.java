@@ -12,6 +12,7 @@ import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.model.ValidationResult;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
@@ -79,29 +80,16 @@ public class ValidationController {
 
 		// Build configuration
 		TabEditorConfig config = TabEditorConfig.builder()
-				.withEditorButtons(List.of(ButtonFactory.save(), ButtonFactory.export(),
-						ButtonFactory.undo(), ButtonFactory.redo()))
+				.withEditorButtons(List.of(ButtonFactory.save(), ButtonFactory.export(), ButtonFactory.undo(),
+						ButtonFactory.redo()))
 				.withExecution(ButtonFactory.custom(ButtonIcon.PLAY, view.getRunValidationLabel()),
 						this::executeValidation)
 				.withResultView(view.getResultToolbarButtons(), ResultViewConfig.builder().withTextTab().build())
-				.withEmptyState(emptyState)
-				.withAllowedExtensions(buildValidationExtensions())
-				.withOpenFileAction(this::onOpenFileButtonClick)
-				.build();
+				.withEmptyState(emptyState).withAllowedExtensions(FileTypeSupport.rdfExtensions())
+				.withOpenFileAction(this::onOpenFileButtonClick).build();
 
 		// Create controller
 		tabEditorController = new TabEditorController(config);
-	}
-
-	private static List<String> buildValidationExtensions() {
-		java.util.LinkedHashSet<String> extensions = new java.util.LinkedHashSet<>();
-		for (SerializationFormat format : SerializationFormat.rdfFormats()) {
-			String ext = format.getExtension();
-			if (ext != null && !ext.isBlank()) {
-				extensions.add(ext);
-			}
-		}
-		return List.copyOf(extensions);
 	}
 
 	private void setupViewIntegration() {
@@ -206,8 +194,8 @@ public class ValidationController {
 			// Ensure text formats are configured for RDF outputs
 			SerializationFormat[] formats = SerializationFormat.rdfFormats();
 			resultController.configureTextFormats(formats, SerializationFormat.TURTLE);
-			SerializationFormat preferredFormat = resultController
-					.getPreferredTextFormat(formats, SerializationFormat.TURTLE);
+			SerializationFormat preferredFormat = resultController.getPreferredTextFormat(formats,
+					SerializationFormat.TURTLE);
 
 			// Display initial report using the preferred format
 			AppExecutors.execute(() -> {
@@ -252,16 +240,20 @@ public class ValidationController {
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Open Shapes File");
 		FileDialogState.applyInitialDirectory(fileChooser);
-		List<String> extensions = buildValidationExtensions();
-		String[] patterns = extensions.stream().map(ext -> "*" + ext).toArray(String[]::new);
-		fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("RDF Files", patterns));
+		FileChooser.ExtensionFilter rdfFilter = FileTypeSupport.createExtensionFilter("RDF Files",
+				FileTypeSupport.rdfExtensions(), true);
+		fileChooser.getExtensionFilters().add(rdfFilter);
 		fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
+		fileChooser.setSelectedExtensionFilter(rdfFilter);
 
-		File file = fileChooser
-				.showOpenDialog(view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null);
+		List<File> files = fileChooser.showOpenMultipleDialog(
+				view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null);
+		if (files == null || files.isEmpty()) {
+			return;
+		}
 
-		if (file != null) {
-			FileDialogState.updateLastDirectory(file);
+		FileDialogState.updateLastDirectory(files.get(files.size() - 1));
+		for (File file : files) {
 			LOGGER.info("Loading SHACL file: {}", file.getAbsolutePath());
 			tabEditorController.openFile(file);
 		}

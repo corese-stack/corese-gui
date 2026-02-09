@@ -117,6 +117,7 @@ public enum SerializationFormat {
 		return switch (ext) {
 			case ".n3" -> TURTLE;
 			case ".sparql" -> SPARQL_QUERY;
+			case ".xml" -> RDF_XML;
 			case ".owl" -> RDF_XML;
 			default -> null;
 		};

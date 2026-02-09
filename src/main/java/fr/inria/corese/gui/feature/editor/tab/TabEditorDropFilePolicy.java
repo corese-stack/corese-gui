@@ -1,11 +1,9 @@
 package fr.inria.corese.gui.feature.editor.tab;
 
-import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.core.io.FileTypeSupport;
 import java.io.File;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Encapsulates drag-and-drop file acceptance rules for tab editors.
@@ -20,7 +18,7 @@ final class TabEditorDropFilePolicy {
 	private final List<String> normalizedAllowedExtensions;
 
 	TabEditorDropFilePolicy(List<String> allowedExtensions) {
-		this.normalizedAllowedExtensions = normalizeAllowedExtensions(allowedExtensions);
+		this.normalizedAllowedExtensions = FileTypeSupport.normalizeExtensions(allowedExtensions);
 	}
 
 	DropEvaluation evaluate(List<File> droppedFiles) {
@@ -56,64 +54,7 @@ final class TabEditorDropFilePolicy {
 	}
 
 	private boolean isAllowed(File file) {
-		if (!hasRestrictions()) {
-			return true;
-		}
-
-		String extension = extractExtension(file.getName());
-		if (extension == null) {
-			return false;
-		}
-
-		String normalizedExtension = normalizeExtension(extension);
-		SerializationFormat droppedFormat = SerializationFormat.forExtension(normalizedExtension);
-
-		for (String normalizedAllowed : normalizedAllowedExtensions) {
-			if (normalizedAllowed.equals(normalizedExtension)) {
-				return true;
-			}
-			SerializationFormat allowedFormat = SerializationFormat.forExtension(normalizedAllowed);
-			if (droppedFormat != null && droppedFormat == allowedFormat) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	private static List<String> normalizeAllowedExtensions(List<String> allowedExtensions) {
-		if (allowedExtensions == null || allowedExtensions.isEmpty()) {
-			return List.of();
-		}
-		LinkedHashSet<String> normalized = new LinkedHashSet<>();
-		for (String extension : allowedExtensions) {
-			String normalizedExtension = normalizeExtension(extension);
-			if (normalizedExtension != null) {
-				normalized.add(normalizedExtension);
-			}
-		}
-		return List.copyOf(normalized);
-	}
-
-	private static String extractExtension(String fileName) {
-		if (fileName == null) {
-			return null;
-		}
-		int dotIndex = fileName.lastIndexOf('.');
-		if (dotIndex < 0 || dotIndex == fileName.length() - 1) {
-			return null;
-		}
-		return fileName.substring(dotIndex);
-	}
-
-	private static String normalizeExtension(String extension) {
-		if (extension == null) {
-			return null;
-		}
-		String normalized = extension.trim().toLowerCase(Locale.ROOT);
-		if (normalized.isEmpty()) {
-			return null;
-		}
-		return normalized.startsWith(".") ? normalized : "." + normalized;
+		return FileTypeSupport.matchesAllowedExtensions(file, normalizedAllowedExtensions);
 	}
 
 	record DropEvaluation(List<File> acceptedFiles, int unsupportedFiles) {

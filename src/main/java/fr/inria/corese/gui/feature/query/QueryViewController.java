@@ -14,6 +14,7 @@ import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.QueryType;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.model.QueryResultRef;
+import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.service.QueryService;
 import fr.inria.corese.gui.core.service.RdfDataService;
@@ -70,7 +71,7 @@ public class QueryViewController {
 				.withExecution(ButtonFactory.custom(ButtonIcon.PLAY, "Run Query"), this::executeQuery)
 				.withResultView(List.of(ButtonFactory.copy(), ButtonFactory.export()),
 						ResultViewConfig.builder().withTextTab().withTableTab().withGraphTab().build())
-				.withEmptyState(emptyState).withAllowedExtensions(List.of(".rq", ".sparql"))
+				.withEmptyState(emptyState).withAllowedExtensions(FileTypeSupport.queryExtensions())
 				.withOpenFileAction(this::onOpenFileButtonClick).withPreloadFirstTab().build();
 
 		// 3. Create Controller
@@ -398,13 +399,19 @@ public class QueryViewController {
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Open Query File");
 		FileDialogState.applyInitialDirectory(fileChooser);
-		fileChooser.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("SPARQL Query", "*.rq", "*.sparql"),
-				new FileChooser.ExtensionFilter("All Files", "*.*"));
+		FileChooser.ExtensionFilter sparqlFilter = FileTypeSupport
+				.createExtensionFilter("SPARQL Query (*.rq, *.sparql)", FileTypeSupport.queryExtensions(), true);
+		fileChooser.getExtensionFilters().addAll(sparqlFilter, new FileChooser.ExtensionFilter("All Files", "*.*"));
+		fileChooser.setSelectedExtensionFilter(sparqlFilter);
 
-		File file = fileChooser
-				.showOpenDialog(view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null);
-		if (file != null) {
-			FileDialogState.updateLastDirectory(file);
+		List<File> files = fileChooser.showOpenMultipleDialog(
+				view.getRoot().getScene() != null ? view.getRoot().getScene().getWindow() : null);
+		if (files == null || files.isEmpty()) {
+			return;
+		}
+
+		FileDialogState.updateLastDirectory(files.get(files.size() - 1));
+		for (File file : files) {
 			openQueryFile(file);
 		}
 	}
