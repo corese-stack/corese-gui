@@ -502,7 +502,6 @@ public class TabEditorView extends AbstractView {
 		}
 		resultPaneTargetVisibility.put(splitPane, false);
 
-		Node resultNode = splitPane.getItems().get(1);
 		double currentPosition = splitPane.getDividers().get(0).getPosition();
 		if (Math.abs(currentPosition - RESULT_PANE_HIDDEN_POSITION) <= RESULT_DIVIDER_EPSILON) {
 			splitPane.getItems().remove(1);

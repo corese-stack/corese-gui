@@ -29,14 +29,13 @@ final class TabEditorDropFilePolicy {
 		List<File> acceptedFiles = new ArrayList<>();
 		int unsupportedFiles = 0;
 		for (File file : droppedFiles) {
-			if (file == null || !file.isFile()) {
-				continue;
+			if (file != null && file.isFile()) {
+				if (isAllowed(file)) {
+					acceptedFiles.add(file);
+				} else {
+					unsupportedFiles++;
+				}
 			}
-			if (!isAllowed(file)) {
-				unsupportedFiles++;
-				continue;
-			}
-			acceptedFiles.add(file);
 		}
 
 		return new DropEvaluation(List.copyOf(acceptedFiles), unsupportedFiles);
