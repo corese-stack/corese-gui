@@ -69,6 +69,7 @@ public class TabStripView extends HBox {
   private static final Duration OVERFLOW_SHADOW_SHOW_DELAY = Duration.millis(28);
   private static final Duration OVERFLOW_SHADOW_FADE_IN_DURATION = Duration.millis(180);
   private static final Duration OVERFLOW_SHADOW_FADE_OUT_DURATION = Duration.millis(220);
+  private static final Duration AUTO_SCROLL_DURATION = Duration.millis(220);
 
   private final boolean animationsEnabled;
   private final ScrollPane scrollPane;
@@ -95,6 +96,8 @@ public class TabStripView extends HBox {
   private boolean firstRenderDone = false;
   private boolean deferredRenderScheduled = false;
   private boolean closeAnimationInProgress = false;
+  private Timeline autoScrollAnimation;
+  private double autoScrollTargetHValue = Double.NaN;
 
   private List<Tab> currentTabs = List.of();
   private Tab currentSelectedTab;
@@ -279,7 +282,7 @@ public class TabStripView extends HBox {
     if (fullWild) {
       selectedTabEnsureScheduled = false;
       forceRightRevealPending = false;
-      setScrollHValue(0.0);
+      setScrollHValue(0.0, false);
     } else {
       if (trackChildrenReplaced) {
         maybeRestoreScrollFromHValue(previousHValue);
@@ -317,7 +320,7 @@ public class TabStripView extends HBox {
     }
 
     if (forceRightRevealPending && isSelectedTabLast()) {
-      setScrollHValue(1.0);
+      setScrollHValue(1.0, true);
       forceRightRevealPending = false;
       return;
     }
@@ -343,7 +346,7 @@ public class TabStripView extends HBox {
     }
 
     double clampedLeft = clamp(targetLeft, 0.0, scrollableWidth);
-    setScrollHValue(clampedLeft / scrollableWidth);
+    setScrollHValue(clampedLeft / scrollableWidth, true);
   }
 
   private void scheduleEnsureSelectedTabVisible() {
@@ -358,16 +361,54 @@ public class TabStripView extends HBox {
         });
   }
 
-  private void setScrollHValue(double targetHValue) {
+  private void setScrollHValue(double targetHValue, boolean animated) {
     double clamped = clamp(targetHValue, 0.0, 1.0);
     if (!firstRenderDone) {
+      stopAutoScrollAnimation();
       scrollPane.setHvalue(clamped);
       return;
     }
+    if (!animated || !animationsEnabled) {
+      stopAutoScrollAnimation();
+      if (Math.abs(scrollPane.getHvalue() - clamped) <= SCROLL_EPSILON) {
+        return;
+      }
+      scrollPane.setHvalue(clamped);
+      return;
+    }
+
+    if (autoScrollAnimation != null) {
+      if (Math.abs(autoScrollTargetHValue - clamped) <= SCROLL_EPSILON
+          && autoScrollAnimation.getStatus() == Animation.Status.RUNNING) {
+        return;
+      }
+      stopAutoScrollAnimation();
+    }
+
     if (Math.abs(scrollPane.getHvalue() - clamped) <= SCROLL_EPSILON) {
       return;
     }
-    scrollPane.setHvalue(clamped);
+    autoScrollTargetHValue = clamped;
+    autoScrollAnimation =
+        new Timeline(
+            new KeyFrame(
+                AUTO_SCROLL_DURATION,
+                new KeyValue(scrollPane.hvalueProperty(), clamped, Interpolator.EASE_BOTH)));
+    autoScrollAnimation.setOnFinished(
+        e -> {
+          autoScrollAnimation = null;
+          autoScrollTargetHValue = Double.NaN;
+        });
+    autoScrollAnimation.play();
+  }
+
+  private void stopAutoScrollAnimation() {
+    if (autoScrollAnimation == null) {
+      return;
+    }
+    autoScrollAnimation.stop();
+    autoScrollAnimation = null;
+    autoScrollTargetHValue = Double.NaN;
   }
 
   private boolean replaceTrackChildrenIfNeeded(List<javafx.scene.Node> orderedChildren) {
@@ -712,6 +753,7 @@ public class TabStripView extends HBox {
   }
 
   private void handleHorizontalScroll(ScrollEvent event) {
+    stopAutoScrollAnimation();
     double scrollableWidth = getScrollableWidth();
     if (scrollableWidth <= 0) {
       scrollPane.setHvalue(0);
@@ -757,7 +799,7 @@ public class TabStripView extends HBox {
                   if (!forceRightRevealPending || currentTabs.isEmpty()) {
                     return;
                   }
-                  setScrollHValue(1.0);
+                  setScrollHValue(1.0, true);
                   forceRightRevealPending = false;
                 }));
   }
