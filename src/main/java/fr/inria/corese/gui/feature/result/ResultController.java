@@ -319,8 +319,7 @@ public class ResultController implements AutoCloseable {
 	public void close() {
 		setOnTabSelected(null);
 		if (textController != null) {
-			textController.setOnFormatChanged(null);
-			textController.clearContent();
+			textController.close();
 		}
 		if (tableController != null) {
 			tableController.setFormatProvider(null);
@@ -329,6 +328,7 @@ public class ResultController implements AutoCloseable {
 		if (graphController != null) {
 			graphController.close();
 		}
+		view.close();
 	}
 
 }

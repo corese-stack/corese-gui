@@ -1,6 +1,5 @@
 package fr.inria.corese.gui.utils.fx;
 
-import fr.inria.corese.gui.core.theme.AppThemeRegistry;
 import fr.inria.corese.gui.core.theme.ThemeManager;
 import javafx.scene.Node;
 import javafx.scene.effect.DropShadow;
@@ -42,10 +41,6 @@ public final class LogoShadowEffects {
 	}
 
 	private static Color resolveLogoShadowColor() {
-		AppThemeRegistry appTheme = AppThemeRegistry.fromTheme(ThemeManager.getInstance().getTheme());
-		if (appTheme != null && appTheme.isDark()) {
-			return Color.rgb(255, 255, 255, 0.25);
-		}
-		return Color.rgb(0, 0, 0, 0.25);
+		return ThemeManager.getInstance().getLogoShadowColor();
 	}
 }

@@ -170,6 +170,10 @@ public class TextResultView extends AbstractView {
 		editorWidget.zoomOut();
 	}
 
+	public void close() {
+		editorWidget.close();
+	}
+
 	// ==============================================================================================
 	// Public API - Configuration
 	// ==============================================================================================

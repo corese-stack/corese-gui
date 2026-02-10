@@ -24,7 +24,7 @@ import javafx.scene.input.ClipboardContent;
  * <li>User actions: Copy to Clipboard, Export to File, Zoom.
  * </ul>
  */
-public class TextResultController {
+public class TextResultController implements AutoCloseable {
 
 	private final TextResultView view;
 	private Consumer<SerializationFormat> onFormatChanged;
@@ -149,6 +149,12 @@ public class TextResultController {
 	 */
 	public Node getView() {
 		return view.getRoot();
+	}
+
+	@Override
+	public void close() {
+		onFormatChanged = null;
+		view.close();
 	}
 
 	/**

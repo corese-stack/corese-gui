@@ -66,6 +66,11 @@ public class ResultView extends AbstractView {
 		root.setCenter(layout);
 	}
 
+	public void close() {
+		tabStripController.close();
+		clearAllTabs();
+	}
+
 	// ==============================================================================================
 	// Package-private Accessors (Demeter's Law compliance)
 	// ==============================================================================================
@@ -216,8 +221,7 @@ public class ResultView extends AbstractView {
 	}
 
 	private void setupModelListeners() {
-		tabPane.getSelectionModel().selectedItemProperty()
-				.addListener((obs, oldTab, newTab) -> showTabContent(newTab));
+		tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> showTabContent(newTab));
 		tabPane.getTabs().addListener((javafx.collections.ListChangeListener<Tab>) c -> {
 			if (tabPane.getSelectionModel().getSelectedItem() == null && !tabPane.getTabs().isEmpty()) {
 				tabPane.getSelectionModel().select(tabPane.getTabs().get(0));

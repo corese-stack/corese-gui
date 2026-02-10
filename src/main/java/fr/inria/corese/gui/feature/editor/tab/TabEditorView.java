@@ -175,6 +175,7 @@ public class TabEditorView extends AbstractView {
 
 		contentContainer.setId(TAB_CONTENT_WRAPPER_ID);
 		contentContainer.getChildren().add(fileDropOverlay);
+		refreshEditorPlaceholderBackgrounds();
 	}
 
 	private Region createFileDropOverlay() {
@@ -243,6 +244,10 @@ public class TabEditorView extends AbstractView {
 
 	private void setupThemeListener() {
 		themeManager.accentColorProperty().addListener((obs, oldColor, newColor) -> tabStripController.refresh());
+		themeManager.themeProperty().addListener((obs, oldTheme, newTheme) -> {
+			tabStripController.refresh();
+			refreshEditorPlaceholderBackgrounds();
+		});
 	}
 
 	private void setupFileDropListeners() {
@@ -272,12 +277,28 @@ public class TabEditorView extends AbstractView {
 			if (content != null) {
 				StackPane wrapper = new StackPane(content);
 				wrapper.setId(TAB_CONTENT_WRAPPER_ID);
+				applyEditorPlaceholderBackground(wrapper);
 				contentContainer.getChildren().add(0, wrapper);
 				if (animateOnOpen) {
 					playEditorContentFadeIn(resolveEditorFadeTarget(selectedTab, content));
 				}
 			}
 		}
+	}
+
+	private void refreshEditorPlaceholderBackgrounds() {
+		applyEditorPlaceholderBackground(contentContainer);
+		contentContainer.getChildren().stream()
+				.filter(node -> TAB_CONTENT_WRAPPER_ID.equals(node.getId()) && node instanceof Region)
+				.map(Region.class::cast).forEach(this::applyEditorPlaceholderBackground);
+	}
+
+	private void applyEditorPlaceholderBackground(Region region) {
+		region.setStyle("-fx-background-color: " + resolveEditorPlaceholderBackground() + ";");
+	}
+
+	private String resolveEditorPlaceholderBackground() {
+		return themeManager.getEditorBackgroundHex();
 	}
 
 	private Node resolveEditorFadeTarget(Tab tab, Node tabContent) {

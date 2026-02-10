@@ -1,7 +1,6 @@
 package fr.inria.corese.gui.component.graph;
 
 import atlantafx.base.theme.Styles;
-import fr.inria.corese.gui.core.theme.AppThemeRegistry;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.theme.ThemeManager;
 import fr.inria.corese.gui.utils.AppExecutors;
@@ -97,6 +96,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	private final StackPane safetyOverlay;
 	private final Label safetyMessageLabel;
 	private final Button safetyActionButton;
+	private final ThemeManager themeManager;
 	private final JavaBridge bridge = new JavaBridge();
 	private final AtomicLong renderRequestCounter = new AtomicLong();
 	private boolean disposed = false;
@@ -134,6 +134,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	 * a scene.
 	 */
 	public GraphDisplayWidget() {
+		this.themeManager = ThemeManager.getInstance();
 		this.webView = new WebView();
 		this.webEngine = webView.getEngine();
 		this.container = new StackPane();
@@ -233,9 +234,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		webEngine.getLoadWorker().stateProperty().addListener(loadStateListener);
 		webEngine.getLoadWorker().exceptionProperty().addListener(loadExceptionListener);
 
-		ThemeManager tm = ThemeManager.getInstance();
-		tm.themeProperty().addListener(themeChangeListener);
-		tm.accentColorProperty().addListener(accentColorChangeListener);
+		themeManager.themeProperty().addListener(themeChangeListener);
+		themeManager.accentColorProperty().addListener(accentColorChangeListener);
 	}
 
 	private void handleSceneAttachment(Scene newScene) {
@@ -488,27 +488,14 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		if (disposed) {
 			return;
 		}
-		ThemeManager tm = ThemeManager.getInstance();
-		boolean isDark = false;
-		String themeName = "default";
-
-		if (tm.getTheme() != null) {
-			AppThemeRegistry appTheme = AppThemeRegistry.fromTheme(tm.getTheme());
-			if (appTheme != null) {
-				isDark = appTheme.isDark();
-				themeName = appTheme.getBaseName().toLowerCase();
-			}
-		}
 
 		if (!pageLoaded) {
 			return;
 		}
 
-		Color accent = tm.getAccentColor();
-		String hexAccent = CssUtils.toHex(accent);
-
-		String script = String.format("if(window.setTheme) window.setTheme(%b, '%s', '%s');", isDark, hexAccent,
-				themeName);
+		ThemeManager.WebThemeInfo webTheme = themeManager.getWebThemeInfo();
+		String script = String.format("if(window.setTheme) window.setTheme(%b, '%s', '%s');", webTheme.dark(),
+				webTheme.accentHex(), webTheme.themeName());
 
 		executeScriptSafe(script);
 	}
@@ -594,9 +581,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		webEngine.getLoadWorker().stateProperty().removeListener(loadStateListener);
 		webEngine.getLoadWorker().exceptionProperty().removeListener(loadExceptionListener);
 
-		ThemeManager tm = ThemeManager.getInstance();
-		tm.themeProperty().removeListener(themeChangeListener);
-		tm.accentColorProperty().removeListener(accentColorChangeListener);
+		themeManager.themeProperty().removeListener(themeChangeListener);
+		themeManager.accentColorProperty().removeListener(accentColorChangeListener);
 	}
 
 	/**

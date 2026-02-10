@@ -79,12 +79,16 @@ public final class QueryTemplateDialog {
 		refreshPreview.run();
 
 		Button cancelButton = new Button("Cancel");
-		cancelButton.setOnAction(e -> ModalService.getInstance().hide());
+		cancelButton.setOnAction(e -> {
+			form.previewEditor.close();
+			ModalService.getInstance().hide();
+		});
 
 		Button okButton = new Button("OK");
 		okButton.getStyleClass().add(Styles.ACCENT);
 		okButton.setOnAction(e -> {
 			onConfirmTemplate.accept(form.previewEditor.getContent());
+			form.previewEditor.close();
 			ModalService.getInstance().hide();
 		});
 
@@ -320,6 +324,11 @@ public final class QueryTemplateDialog {
 		previewEditor.setMode(SerializationFormat.SPARQL_QUERY);
 		previewEditor.setMinHeight(320);
 		previewEditor.zoomInForCurrentEditorOnly();
+		previewEditor.sceneProperty().addListener((obs, oldScene, newScene) -> {
+			if (oldScene != null && newScene == null) {
+				previewEditor.close();
+			}
+		});
 		VBox.setVgrow(previewEditor, Priority.ALWAYS);
 		return previewEditor;
 	}

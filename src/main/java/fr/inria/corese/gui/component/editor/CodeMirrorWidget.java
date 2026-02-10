@@ -1,8 +1,7 @@
 package fr.inria.corese.gui.component.editor;
 
+import atlantafx.base.theme.Theme;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-import fr.inria.corese.gui.core.theme.AppThemeRegistry;
-import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.theme.ThemeManager;
 import java.net.URL;
 import java.util.prefs.Preferences;
@@ -13,10 +12,12 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.concurrent.Worker;
-import javafx.scene.input.ScrollEvent;
+import javafx.event.EventHandler;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
@@ -36,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * inside a WebView. It handles bidirectional communication between Java and
  * JavaScript for content, mode, and theme.
  */
-public class CodeMirrorWidget extends VBox {
+public class CodeMirrorWidget extends VBox implements AutoCloseable {
 	private static final Logger LOGGER = LoggerFactory.getLogger(CodeMirrorWidget.class);
 
 	// Constants
@@ -54,6 +55,7 @@ public class CodeMirrorWidget extends VBox {
 	// Components
 	private final WebView webView;
 	private final WebEngine webEngine;
+	private final ThemeManager themeManager;
 
 	// Properties
 	private final StringProperty contentProperty = new SimpleStringProperty("");
@@ -66,9 +68,14 @@ public class CodeMirrorWidget extends VBox {
 	// State
 	private final String editorHtmlPath;
 	private final boolean readOnly;
+	private boolean disposed = false;
 	private boolean autoFormat = false;
 	private boolean initialized = false;
 	private boolean isInternalUpdate = false;
+	private final ChangeListener<Worker.State> loadStateListener;
+	private final ChangeListener<Theme> themeChangeListener;
+	private final ChangeListener<Color> accentColorChangeListener;
+	private final EventHandler<ScrollEvent> zoomScrollFilter;
 
 	// ==============================================================================================
 	// Constructors
@@ -101,8 +108,45 @@ public class CodeMirrorWidget extends VBox {
 		this.editorHtmlPath = editorHtmlPath;
 		this.readOnly = readOnly;
 		this.autoFormat = readOnly;
+		this.themeManager = ThemeManager.getInstance();
 		this.webView = new WebView();
 		this.webEngine = webView.getEngine();
+		this.loadStateListener = (obs, oldState, newState) -> {
+			if (disposed) {
+				return;
+			}
+			if (newState == Worker.State.SUCCEEDED) {
+				onPageLoaded();
+			} else if (newState == Worker.State.FAILED) {
+				LOGGER.error("Failed to load editor from: {}", this.editorHtmlPath);
+			}
+		};
+		this.themeChangeListener = (obs, oldTheme, newTheme) -> {
+			if (!disposed) {
+				Platform.runLater(this::updateTheme);
+			}
+		};
+		this.accentColorChangeListener = (obs, oldColor, newColor) -> {
+			if (!disposed) {
+				Platform.runLater(this::updateTheme);
+			}
+		};
+		this.zoomScrollFilter = event -> {
+			if (disposed) {
+				return;
+			}
+			if (event.isControlDown()) {
+				// Adjust zoom based on scroll direction.
+				double delta = event.getDeltaY();
+				if (delta > 0) {
+					zoomIn();
+				} else if (delta < 0) {
+					zoomOut();
+				}
+				// Always consume the event to prevent actual scrolling of the page content.
+				event.consume();
+			}
+		};
 
 		initializeLayout();
 		initializeListeners();
@@ -129,14 +173,14 @@ public class CodeMirrorWidget extends VBox {
 	private void initializeListeners() {
 		// Content synchronization (Java -> JS)
 		contentProperty.addListener((obs, old, newValue) -> {
-			if (initialized && newValue != null && !isInternalUpdate) {
+			if (!disposed && initialized && newValue != null && !isInternalUpdate) {
 				updateEditorContent(newValue);
 			}
 		});
 
 		// Mode synchronization (Java -> JS)
 		modeProperty.addListener((obs, old, newValue) -> {
-			if (initialized && newValue != null) {
+			if (!disposed && initialized && newValue != null) {
 				applyMode(newValue);
 			}
 		});
@@ -145,42 +189,22 @@ public class CodeMirrorWidget extends VBox {
 		zoomProperty.addListener((obs, oldVal, newVal) -> applyEditorZoom(newVal.doubleValue()));
 
 		// Loading status listener
-		webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
-			if (newState == Worker.State.SUCCEEDED) {
-				onPageLoaded();
-			} else if (newState == Worker.State.FAILED) {
-				LOGGER.error("Failed to load editor from: {}", editorHtmlPath);
-			}
-		});
+		webEngine.getLoadWorker().stateProperty().addListener(loadStateListener);
 
 		// Theme synchronization
-		ThemeManager.getInstance().themeProperty()
-				.addListener((obs, old, newVal) -> Platform.runLater(this::updateTheme));
-		ThemeManager.getInstance().accentColorProperty()
-				.addListener((obs, old, newVal) -> Platform.runLater(this::updateTheme));
+		themeManager.themeProperty().addListener(themeChangeListener);
+		themeManager.accentColorProperty().addListener(accentColorChangeListener);
 
 		// Mouse Scroll Zoom (Ctrl + Scroll)
 		// We attach the filter to 'this' (VBox) to intercept events before they reach
 		// the WebView
-		this.addEventFilter(ScrollEvent.SCROLL, event -> {
-			if (event.isControlDown()) {
-				// Adjust zoom based on scroll direction
-				// DeltaY is usually positive for scrolling up (zoom in) and negative for down
-				// (zoom
-				// out)
-				double delta = event.getDeltaY();
-				if (delta > 0) {
-					zoomIn();
-				} else if (delta < 0) {
-					zoomOut();
-				}
-				// Always consume the event to prevent actual scrolling of the page content
-				event.consume();
-			}
-		});
+		this.addEventFilter(ScrollEvent.SCROLL, zoomScrollFilter);
 	}
 
 	private void loadEditorUrl() {
+		if (disposed) {
+			return;
+		}
 		URL url = getClass().getResource(editorHtmlPath);
 		if (url == null) {
 			LOGGER.error("Resource not found: {}", editorHtmlPath);
@@ -191,6 +215,9 @@ public class CodeMirrorWidget extends VBox {
 
 	@SuppressWarnings("removal")
 	private void onPageLoaded() {
+		if (disposed) {
+			return;
+		}
 		try {
 			// Inject Java Bridge into JavaScript
 			// Using deprecated JSObject as there's no official alternative yet
@@ -221,6 +248,9 @@ public class CodeMirrorWidget extends VBox {
 	}
 
 	public void setAutoFormat(boolean enabled) {
+		if (disposed) {
+			return;
+		}
 		this.autoFormat = enabled;
 		applyAutoFormatSetting();
 	}
@@ -247,23 +277,9 @@ public class CodeMirrorWidget extends VBox {
 		if (!initialized)
 			return;
 
-		ThemeManager tm = ThemeManager.getInstance();
-		boolean isDark = false;
-		String themeName = "default";
-
-		if (tm.getTheme() != null) {
-			AppThemeRegistry appTheme = AppThemeRegistry.fromTheme(tm.getTheme());
-			if (appTheme != null) {
-				isDark = appTheme.isDark();
-				themeName = appTheme.getBaseName().toLowerCase();
-			}
-		}
-
-		Color accent = tm.getAccentColor();
-		String hexAccent = CssUtils.toHex(accent);
-
-		String script = String.format("if(window.setTheme) window.setTheme(%b, '%s', '%s');", isDark, hexAccent,
-				themeName);
+		ThemeManager.WebThemeInfo webTheme = themeManager.getWebThemeInfo();
+		String script = String.format("if(window.setTheme) window.setTheme(%b, '%s', '%s');", webTheme.dark(),
+				webTheme.accentHex(), webTheme.themeName());
 		executeScriptSafe(script);
 	}
 
@@ -312,7 +328,7 @@ public class CodeMirrorWidget extends VBox {
 	}
 
 	private void executeScriptSafe(String script) {
-		if (!initialized || webEngine.getLoadWorker().getState() != Worker.State.SUCCEEDED) {
+		if (disposed || !initialized || webEngine.getLoadWorker().getState() != Worker.State.SUCCEEDED) {
 			return;
 		}
 		try {
@@ -333,6 +349,9 @@ public class CodeMirrorWidget extends VBox {
 	 *            The new content to set
 	 */
 	public void setContent(String content) {
+		if (disposed) {
+			return;
+		}
 		contentProperty.set(content);
 	}
 
@@ -342,7 +361,7 @@ public class CodeMirrorWidget extends VBox {
 	 * @return The current content of the editor
 	 */
 	public String getContent() {
-		if (!initialized)
+		if (!initialized || disposed)
 			return contentProperty.get();
 		try {
 			Object result = webEngine
@@ -361,6 +380,9 @@ public class CodeMirrorWidget extends VBox {
 	 *            The serialization format to set the mode for
 	 */
 	public void setMode(SerializationFormat format) {
+		if (disposed) {
+			return;
+		}
 		modeProperty.set(format);
 	}
 
@@ -394,10 +416,37 @@ public class CodeMirrorWidget extends VBox {
 	}
 
 	private void setZoom(double value, boolean persistPreference) {
+		if (disposed) {
+			return;
+		}
 		double clamped = clampZoom(value);
 		zoomProperty.set(clamped);
 		if (persistPreference) {
 			saveZoom(clamped);
+		}
+	}
+
+	@Override
+	public void close() {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(this::close);
+			return;
+		}
+		if (disposed) {
+			return;
+		}
+		disposed = true;
+		initialized = false;
+
+		themeManager.themeProperty().removeListener(themeChangeListener);
+		themeManager.accentColorProperty().removeListener(accentColorChangeListener);
+		webEngine.getLoadWorker().stateProperty().removeListener(loadStateListener);
+		removeEventFilter(ScrollEvent.SCROLL, zoomScrollFilter);
+
+		try {
+			webEngine.load("about:blank");
+		} catch (Exception e) {
+			LOGGER.debug("Unable to unload editor web view", e);
 		}
 	}
 

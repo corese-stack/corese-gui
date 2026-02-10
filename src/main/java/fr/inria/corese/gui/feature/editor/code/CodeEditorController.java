@@ -842,6 +842,7 @@ public class CodeEditorController {
 	/** Cleans up resources. */
 	public void dispose() {
 		view.getCodeMirrorView().contentProperty().unbindBidirectional(model.contentProperty());
+		view.getCodeMirrorView().close();
 	}
 
 	public javafx.scene.Node getViewRoot() {
