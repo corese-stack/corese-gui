@@ -58,7 +58,7 @@ public final class ExportHelper {
 		fileChooser.setTitle("Export Result As");
 
 		String extension = safeFormat.getExtension();
-		String baseName = defaultBaseName(safeFormat);
+		String baseName = DefaultFileNameResolver.resultBaseName(safeFormat);
 		fileChooser.setInitialFileName(baseName);
 		FileDialogState.applyInitialDirectory(fileChooser);
 
@@ -121,7 +121,7 @@ public final class ExportHelper {
 	private static FileChooser createFileChooser(List<SerializationFormat> formats) {
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Export Result");
-		fileChooser.setInitialFileName(defaultBaseName(formats));
+		fileChooser.setInitialFileName(DefaultFileNameResolver.resultBaseName(formats));
 		FileDialogState.applyInitialDirectory(fileChooser);
 
 		for (SerializationFormat format : formats) {
@@ -191,7 +191,7 @@ public final class ExportHelper {
 
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Export Graph As SVG");
-		fileChooser.setInitialFileName("graph");
+		fileChooser.setInitialFileName(DefaultFileNameResolver.graphBaseName());
 		FileDialogState.applyInitialDirectory(fileChooser);
 
 		FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter("SVG file (*.svg)", "*.svg");
@@ -223,7 +223,7 @@ public final class ExportHelper {
 
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Export Graph");
-		fileChooser.setInitialFileName("graph");
+		fileChooser.setInitialFileName(DefaultFileNameResolver.graphBaseName());
 		FileDialogState.applyInitialDirectory(fileChooser);
 
 		FileChooser.ExtensionFilter svgFilter = new FileChooser.ExtensionFilter("SVG file (*.svg)", "*.svg");
@@ -396,54 +396,5 @@ public final class ExportHelper {
 		GraphExportFormat(String extension) {
 			this.extension = extension;
 		}
-	}
-
-	private static String defaultBaseName(SerializationFormat format) {
-		if (format == null) {
-			return "export";
-		}
-		if (isSparqlResultFormat(format)) {
-			return "query-results";
-		}
-		if (isRdfGraphFormat(format)) {
-			return "graph";
-		}
-		return "export";
-	}
-
-	private static String defaultBaseName(List<SerializationFormat> formats) {
-		if (formats == null || formats.isEmpty()) {
-			return "export";
-		}
-		boolean hasSparql = false;
-		boolean hasRdf = false;
-		for (SerializationFormat format : formats) {
-			if (isSparqlResultFormat(format)) {
-				hasSparql = true;
-			} else if (isRdfGraphFormat(format)) {
-				hasRdf = true;
-			}
-		}
-		if (hasSparql && !hasRdf) {
-			return "query-results";
-		}
-		if (hasRdf && !hasSparql) {
-			return "graph";
-		}
-		return "export";
-	}
-
-	private static boolean isSparqlResultFormat(SerializationFormat format) {
-		return switch (format) {
-			case CSV, TSV, JSON, XML, MARKDOWN -> true;
-			default -> false;
-		};
-	}
-
-	private static boolean isRdfGraphFormat(SerializationFormat format) {
-		return switch (format) {
-			case TURTLE, RDF_XML, JSON_LD, N_TRIPLES, N_QUADS, TRIG, RDFC10, RDFC10_SHA384 -> true;
-			default -> false;
-		};
 	}
 }

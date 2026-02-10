@@ -5,6 +5,8 @@ import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
+import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.core.io.DefaultFileNameResolver;
 import fr.inria.corese.gui.core.io.FileDialogState;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.service.ModalService;
@@ -25,8 +27,6 @@ import javafx.scene.control.Button;
 import javafx.stage.FileChooser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import fr.inria.corese.gui.core.enums.SerializationFormat;
 
 /**
  * Controller for the Code Editor component.
@@ -715,36 +715,11 @@ public class CodeEditorController {
 	}
 
 	private String resolveDefaultBaseName(boolean forExport) {
-		String fileBase = extractBaseName(model.getFilePath());
-		if (fileBase != null && !fileBase.isBlank()) {
-			return forExport ? fileBase + "-export" : fileBase;
-		}
-
-		if (isSparqlOnlyEditor()) {
-			return forExport ? "query-export" : "query";
-		}
-
-		if (isGraphEditor()) {
-			return forExport ? "shapes-export" : "shapes";
-		}
-
-		return forExport ? "export" : "document";
+		return DefaultFileNameResolver.editorBaseName(model.getFilePath(), allowedExtensions, forExport);
 	}
 
 	private String extractExtension(String path) {
 		return FileTypeSupport.extractExtension(path);
-	}
-
-	private String extractBaseName(String path) {
-		if (path == null || path.isBlank()) {
-			return null;
-		}
-		String fileName = new java.io.File(path).getName();
-		int dot = fileName.lastIndexOf('.');
-		if (dot <= 0) {
-			return fileName;
-		}
-		return fileName.substring(0, dot);
 	}
 
 	private String formatLabelForExtension(String extension) {
@@ -754,12 +729,6 @@ public class CodeEditorController {
 		}
 		String ext = extension.startsWith(".") ? extension.substring(1) : extension;
 		return ext.toUpperCase();
-	}
-
-	private boolean isSparqlOnlyEditor() {
-		List<String> allowed = getNormalizedAllowedExtensions();
-		return allowed.size() == 1
-				&& SerializationFormat.forExtension(allowed.get(0)) == SerializationFormat.SPARQL_QUERY;
 	}
 
 	private boolean isGraphEditor() {
