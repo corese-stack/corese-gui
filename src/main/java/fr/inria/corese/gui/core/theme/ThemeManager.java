@@ -47,6 +47,14 @@ public final class ThemeManager {
 	private static final String EDITOR_BG_PRIMER_DARK = "#010409";
 	private static final String EDITOR_BG_NORD_DARK = "#242933";
 	private static final String ROOT_MANAGED_STYLE_BLOCK_KEY = "corese.themeManager.managedStyle";
+	private static final Color LOGO_SHADOW_LIGHT = Color.rgb(0, 0, 0, 0.25);
+	private static final Color LOGO_SHADOW_DARK = Color.rgb(255, 255, 255, 0.25);
+	private static final Color TAB_OVERFLOW_SHADOW_LIGHT = Color.rgb(0, 0, 0, 0.16);
+	private static final Color TAB_OVERFLOW_SHADOW_DARK = Color.rgb(255, 255, 255, 0.12);
+	private static final Color SIDEBAR_SEPARATOR_LIGHT = Color.rgb(0, 0, 0, 0.16);
+	private static final Color SIDEBAR_SEPARATOR_DARK = Color.rgb(255, 255, 255, 0.18);
+	private static final Color SIDEBAR_SHADOW_LIGHT = Color.rgb(0, 0, 0, 0.14);
+	private static final Color SIDEBAR_SHADOW_DARK = Color.rgb(255, 255, 255, 0.14);
 
 	// ===== Properties =====
 
@@ -329,24 +337,17 @@ public final class ThemeManager {
 
 		Node root = primaryStage.getScene().getRoot();
 		String cssColor = toCssColor(color);
-
-		// Determine theme-aware shadows based on current theme.
-		String logoShadowColor = "rgba(0, 0, 0, 0.25)";
-		String tabOverflowShadow = "rgba(0, 0, 0, 0.16)";
-		String tabOverflowShadowTransparent = "rgba(0, 0, 0, 0.00)";
-		if (isCurrentThemeDark()) {
-			logoShadowColor = "rgba(255, 255, 255, 0.25)";
-			tabOverflowShadow = "rgba(255, 255, 255, 0.12)";
-			tabOverflowShadowTransparent = "rgba(255, 255, 255, 0.00)";
-		}
+		Color tabOverflowShadow = getTabOverflowShadowColor();
 
 		String newAccentStyle = String.format(
 				"-color-accent-emphasis: %s; " + "-color-accent-fg: %s; " + "-color-accent-subtle: %s; "
 						+ "-color-accent-muted: %s; " + "-color-logo-shadow: %s; " + "-color-tab-overflow-shadow: %s; "
-						+ "-color-tab-overflow-shadow-transparent: %s;",
+						+ "-color-tab-overflow-shadow-transparent: %s; " + "-color-sidebar-separator: %s; "
+						+ "-color-sidebar-shadow: %s;",
 				cssColor, cssColor, toCssColor(color.deriveColor(0, 0.3, 1.0, 0.3)),
-				toCssColor(color.deriveColor(0, 0.5, 1.0, 0.5)), logoShadowColor, tabOverflowShadow,
-				tabOverflowShadowTransparent);
+				toCssColor(color.deriveColor(0, 0.5, 1.0, 0.5)), toCssRgbaColor(getLogoShadowColor()),
+				toCssRgbaColor(tabOverflowShadow), toCssRgbaColor(withOpacity(tabOverflowShadow, 0.0)),
+				toCssRgbaColor(getSidebarSeparatorColor()), toCssRgbaColor(getSidebarShadowColor()));
 
 		String previousManagedStyle = (String) root.getProperties().get(ROOT_MANAGED_STYLE_BLOCK_KEY);
 		String baseStyle = stripManagedStyle(root.getStyle(), previousManagedStyle);
@@ -367,6 +368,31 @@ public final class ThemeManager {
 		}
 		return String.format("#%02X%02X%02X", (int) (color.getRed() * 255), (int) (color.getGreen() * 255),
 				(int) (color.getBlue() * 255));
+	}
+
+	/**
+	 * Converts a JavaFX Color to a CSS rgba() string preserving alpha.
+	 *
+	 * @param color
+	 *            The color to convert.
+	 * @return A string in the format "rgba(r, g, b, a)".
+	 */
+	private String toCssRgbaColor(Color color) {
+		if (color == null) {
+			color = getDefaultAccentColor();
+		}
+		int red = (int) Math.round(color.getRed() * 255);
+		int green = (int) Math.round(color.getGreen() * 255);
+		int blue = (int) Math.round(color.getBlue() * 255);
+		return String.format(Locale.ROOT, "rgba(%d, %d, %d, %.3f)", red, green, blue, color.getOpacity());
+	}
+
+	private static Color withOpacity(Color color, double opacity) {
+		if (color == null) {
+			return Color.TRANSPARENT;
+		}
+		double clampedOpacity = Math.max(0.0, Math.min(1.0, opacity));
+		return Color.color(color.getRed(), color.getGreen(), color.getBlue(), clampedOpacity);
 	}
 
 	private static String stripManagedStyle(String currentStyle, String managedStyle) {
@@ -457,9 +483,37 @@ public final class ThemeManager {
 	 */
 	public Color getLogoShadowColor() {
 		if (isCurrentThemeDark()) {
-			return Color.rgb(255, 255, 255, 0.25);
+			return LOGO_SHADOW_DARK;
 		}
-		return Color.rgb(0, 0, 0, 0.25);
+		return LOGO_SHADOW_LIGHT;
+	}
+
+	/**
+	 * Returns the sidebar separator color matching the current light/dark context.
+	 */
+	public Color getSidebarSeparatorColor() {
+		if (isCurrentThemeDark()) {
+			return SIDEBAR_SEPARATOR_DARK;
+		}
+		return SIDEBAR_SEPARATOR_LIGHT;
+	}
+
+	/**
+	 * Returns the sidebar drop-shadow color matching the current light/dark
+	 * context.
+	 */
+	public Color getSidebarShadowColor() {
+		if (isCurrentThemeDark()) {
+			return SIDEBAR_SHADOW_DARK;
+		}
+		return SIDEBAR_SHADOW_LIGHT;
+	}
+
+	private Color getTabOverflowShadowColor() {
+		if (isCurrentThemeDark()) {
+			return TAB_OVERFLOW_SHADOW_DARK;
+		}
+		return TAB_OVERFLOW_SHADOW_LIGHT;
 	}
 
 	/** Returns normalized theme data for Java -> WebView bridge scripts. */

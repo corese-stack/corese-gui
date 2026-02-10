@@ -17,7 +17,8 @@
   -fx-max-width: 200;
   -fx-background-color: -color-bg-subtle;
   -fx-border-width: 0 1 0 0;
-  -fx-border-color: -color-border-default;
+  -fx-border-color: -color-sidebar-separator;
+  -fx-effect: innershadow(gaussian, -color-sidebar-shadow, 6, 0.04, -1, 0);
 }
 
 .sidebar.collapsed {
