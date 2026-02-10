@@ -40,7 +40,7 @@ class KGGraphVis extends HTMLElement {
         this.labelVisibilityThrottleMs = 80;
         this.lastLabelVisibilityUpdate = 0;
         this.labelVisibilityRaf = null;
-        this.currentTransform = { k: 1, x: 0, y: 0 };
+        this.currentTransform = d3.zoomIdentity;
         this.isInteracting = false;
         this.labelsHiddenForInteraction = false;
         this.interactionTimer = null;
@@ -184,6 +184,9 @@ class KGGraphVis extends HTMLElement {
      */
     set jsonld(jsonld) {
         const data = this.internalData.get(this) || {};
+        if (data.jsonld === jsonld) {
+            return;
+        }
         data.jsonld = jsonld;
         this.internalData.set(this, data);
         this.drawChart();
@@ -523,6 +526,24 @@ class KGGraphVis extends HTMLElement {
         const normalizeArray = value => (Array.isArray(value) ? value : [value]);
         const isObject = value => value !== null && typeof value === 'object';
         const resolveGraphId = graphId => graphId || 'default';
+        const isInferenceGraphId = graphId => {
+            const gid = resolveGraphId(graphId);
+            return gid.startsWith('urn:corese:inference:')
+                || gid === 'http://ns.inria.fr/corese/rule'
+                || gid === 'http://ns.inria.fr/corese/constraint';
+        };
+        const graphPriority = graphId => {
+            const gid = resolveGraphId(graphId);
+            if (gid === 'default') {
+                return 3;
+            }
+            if (isInferenceGraphId(gid)) {
+                return 1;
+            }
+            return 2;
+        };
+        const shouldPreferGraph = (currentGraph, candidateGraph) =>
+            graphPriority(candidateGraph) > graphPriority(currentGraph);
 
         const upsertNode = (id, type, graphId, meta = {}, isSubject = false) => {
             if (!id) return null;
@@ -536,13 +557,16 @@ class KGGraphVis extends HTMLElement {
                 if (!existing.graphs) existing.graphs = new Set([existing.graph]);
                 existing.graphs.add(resolvedGraph);
 
-                if (isSubject && resolvedGraph !== 'default' && !existing.isDefinedAsSubject) {
-                    existing.graph = resolvedGraph;
-                    existing.isDefinedAsSubject = true;
-                    existing.definitionGraph = resolvedGraph;
-                } else if ((!existing.graph || existing.graph === 'default')
-                    && resolvedGraph !== 'default'
-                    && !existing.isDefinedAsSubject) {
+                if (isSubject) {
+                    if (!existing.isDefinedAsSubject) {
+                        existing.graph = resolvedGraph;
+                        existing.isDefinedAsSubject = true;
+                        existing.definitionGraph = resolvedGraph;
+                    } else if (shouldPreferGraph(existing.definitionGraph || existing.graph, resolvedGraph)) {
+                        existing.graph = resolvedGraph;
+                        existing.definitionGraph = resolvedGraph;
+                    }
+                } else if (!existing.isDefinedAsSubject && shouldPreferGraph(existing.graph, resolvedGraph)) {
                     existing.graph = resolvedGraph;
                 }
 
@@ -647,6 +671,57 @@ class KGGraphVis extends HTMLElement {
         return graph;
     }
 
+    captureNodeStateById() {
+        const previousNodes = this.graph?.nodes;
+        if (!Array.isArray(previousNodes) || previousNodes.length === 0) {
+            return new Map();
+        }
+        const states = new Map();
+        previousNodes.forEach(node => {
+            if (!node || !node.id) return;
+            if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) return;
+            states.set(node.id, {
+                x: node.x,
+                y: node.y,
+                vx: Number.isFinite(node.vx) ? node.vx : 0,
+                vy: Number.isFinite(node.vy) ? node.vy : 0,
+                fx: Number.isFinite(node.fx) ? node.fx : null,
+                fy: Number.isFinite(node.fy) ? node.fy : null
+            });
+        });
+        return states;
+    }
+
+    computeLayoutAnchor(previousNodeStateById) {
+        if (!previousNodeStateById || previousNodeStateById.size === 0) {
+            return { x: this.width / 2, y: this.height / 2 };
+        }
+        let sumX = 0;
+        let sumY = 0;
+        let count = 0;
+        previousNodeStateById.forEach(state => {
+            sumX += state.x;
+            sumY += state.y;
+            count += 1;
+        });
+        if (count === 0) {
+            return { x: this.width / 2, y: this.height / 2 };
+        }
+        return { x: sumX / count, y: sumY / count };
+    }
+
+    resolvePreservedTransform() {
+        const t = this.currentTransform;
+        if (!t
+            || !Number.isFinite(t.k)
+            || !Number.isFinite(t.x)
+            || !Number.isFinite(t.y)
+            || t.k <= 0) {
+            return d3.zoomIdentity;
+        }
+        return d3.zoomIdentity.scale(t.k).translate(t.x / t.k, t.y / t.k);
+    }
+
     /* -------------------------------------------------------------
      * MAIN DRAWING
      * ------------------------------------------------------------- */
@@ -657,33 +732,74 @@ class KGGraphVis extends HTMLElement {
      */
     drawChart() {
         if (!this.width || !this.height) this.updateSize();
+        const previousNodeStateById = this.captureNodeStateById();
+        const hadExistingLayout = previousNodeStateById.size > 0;
+        const preservedTransform = this.resolvePreservedTransform();
         if (this.simulation) this.simulation.stop();
+        if (this.interactionTimer) {
+            clearTimeout(this.interactionTimer);
+            this.interactionTimer = null;
+        }
+        if (this.labelVisibilityRaf) {
+            cancelAnimationFrame(this.labelVisibilityRaf);
+            this.labelVisibilityRaf = null;
+        }
 
         const chartSvg = this.shadowRoot.querySelector("#chart-container");
         if (!chartSvg) return;
 
         this.svg = d3.select(chartSvg);
         this.svg.selectAll("*").remove();
-        this.currentTransform = d3.zoomIdentity;
         this.isInteracting = false;
         this.labelsHiddenForInteraction = false;
+        this.lastLabelVisibilityUpdate = 0;
+        this.lastLabelUpdate = 0;
 
-        if (!this.jsonld) return;
+        if (!this.jsonld) {
+            this.graph = { nodes: [], links: [] };
+            this.simulation = null;
+            this.linkSelection = null;
+            this.nodeSelection = null;
+            this.linkLabelSelection = null;
+            this.nodeLabelSelection = null;
+            this.currentTransform = d3.zoomIdentity;
+            return;
+        }
 
         try {
             this.jsonLDOntology = JSON.parse(this.jsonld);
             const graph = this.createGraph();
             this.graph = graph;
+            const anchor = this.computeLayoutAnchor(previousNodeStateById);
+            let reusedNodeCount = 0;
 
-            // Initialize node positions
             this.graph.nodes.forEach(node => {
-                node.x = this.width / 2 + (Math.random() - 0.5) * 400;
-                node.y = this.height / 2 + (Math.random() - 0.5) * 400;
+                const previous = previousNodeStateById.get(node.id);
+                if (previous) {
+                    reusedNodeCount += 1;
+                    node.x = previous.x;
+                    node.y = previous.y;
+                    node.vx = previous.vx;
+                    node.vy = previous.vy;
+                    node.fx = previous.fx;
+                    node.fy = previous.fy;
+                    return;
+                }
+                node.x = anchor.x + (Math.random() - 0.5) * 220;
+                node.y = anchor.y + (Math.random() - 0.5) * 220;
                 node.vx = 0;
                 node.vy = 0;
             });
 
-            this.renderGraph();
+            const addedNodeCount = this.graph.nodes.length - reusedNodeCount;
+            const addedRatio = this.graph.nodes.length === 0
+                ? 0
+                : addedNodeCount / this.graph.nodes.length;
+            const initialAlpha = !hadExistingLayout
+                ? 1
+                : (addedRatio <= 0.12 ? 0.18 : (addedRatio <= 0.35 ? 0.30 : 0.55));
+
+            this.renderGraph(preservedTransform, initialAlpha);
         } catch (e) {
             console.error("Graph drawing error:", e);
         }
@@ -692,7 +808,7 @@ class KGGraphVis extends HTMLElement {
     /**
      * Configures D3 forces, zoom, and appends visual elements.
      */
-    renderGraph() {
+    renderGraph(initialTransform = d3.zoomIdentity, initialAlpha = 1) {
         // Force Simulation Configuration with adaptive strength for large graphs
         const nodeCount = this.graph.nodes.length;
         const isLargeGraph = nodeCount > 200;
@@ -740,7 +856,7 @@ class KGGraphVis extends HTMLElement {
                 this.onInteraction(!(isWheel || isDblClick));
             });
         this.svg.call(this.zoomBehavior);
-        this.svg.call(this.zoomBehavior.transform, d3.zoomIdentity);
+        this.svg.call(this.zoomBehavior.transform, initialTransform || d3.zoomIdentity);
 
         // Layers
         const linkGroup = gZoom.append("g").attr("class", "links-layer");
@@ -964,7 +1080,10 @@ class KGGraphVis extends HTMLElement {
             });
 
         // Start!
-        this.simulation.alpha(1).restart();
+        const clampedAlpha = Number.isFinite(initialAlpha)
+            ? Math.max(0.05, Math.min(1, initialAlpha))
+            : 1;
+        this.simulation.alpha(clampedAlpha).restart();
     }
 
     /**

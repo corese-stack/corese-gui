@@ -123,6 +123,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	private boolean pageLoaded = false;
 	private String pendingJsonLdData = null;
 	private String blockedJsonLdData = null;
+	private String lastRequestedJsonLdData = null;
 	private int maxAutoRenderChars = DEFAULT_MAX_AUTO_RENDER_CHARS;
 
 	// ==============================================================================================
@@ -316,6 +317,10 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			clear();
 			return;
 		}
+		if (jsonLdData.equals(lastRequestedJsonLdData) || jsonLdData.equals(pendingJsonLdData)
+				|| jsonLdData.equals(blockedJsonLdData)) {
+			return;
+		}
 
 		if (shouldDeferAutomaticRender(jsonLdData)) {
 			deferGraphRendering(jsonLdData);
@@ -329,6 +334,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		if (disposed) {
 			return;
 		}
+		lastRequestedJsonLdData = jsonLdData;
 		hideSafetyOverlay();
 		blockedJsonLdData = null;
 		long requestId = renderRequestCounter.incrementAndGet();
@@ -518,6 +524,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		hideSafetyOverlay();
 		blockedJsonLdData = null;
 		pendingJsonLdData = null;
+		lastRequestedJsonLdData = null;
 		hideLoadingOverlay();
 		clearRenderedGraph();
 	}
@@ -560,6 +567,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		renderRequestCounter.incrementAndGet();
 		pendingJsonLdData = null;
 		blockedJsonLdData = null;
+		lastRequestedJsonLdData = null;
 		hideSafetyOverlay();
 		loadingOverlay.setVisible(false);
 		loadingOverlay.setManaged(false);

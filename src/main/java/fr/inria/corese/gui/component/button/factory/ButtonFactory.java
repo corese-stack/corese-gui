@@ -147,6 +147,22 @@ public final class ButtonFactory {
 	}
 
 	/**
+	 * Creates a standardized "Load from URI" button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with URI icon and tooltip
+	 */
+	public static ButtonConfig openUri(Runnable action) {
+		return new ButtonConfig(ButtonIcon.OPEN_URI, "Load from URI", action);
+	}
+
+	/** Creates a "Load from URI" button configuration with no action bound yet. */
+	public static ButtonConfig openUri() {
+		return openUri(null);
+	}
+
+	/**
 	 * Creates a standardized New Tab button configuration.
 	 *
 	 * @param action
@@ -290,6 +306,38 @@ public final class ButtonFactory {
 	 */
 	public static ButtonConfig resetLayout(Runnable action) {
 		return new ButtonConfig(ButtonIcon.LAYOUT_FORCE, "Re-energize Layout", action);
+	}
+
+	/**
+	 * Creates a standardized Reload button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with reload icon and tooltip
+	 */
+	public static ButtonConfig reload(Runnable action) {
+		return new ButtonConfig(ButtonIcon.RELOAD, "Reload Sources", action);
+	}
+
+	/** Creates a Reload button configuration with no action bound yet. */
+	public static ButtonConfig reload() {
+		return reload(null);
+	}
+
+	/**
+	 * Creates a standardized Clear Graph button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with clear icon and tooltip
+	 */
+	public static ButtonConfig clearGraph(Runnable action) {
+		return new ButtonConfig(ButtonIcon.CLEAR, "Clear Graph", action);
+	}
+
+	/** Creates a Clear Graph button configuration with no action bound yet. */
+	public static ButtonConfig clearGraph() {
+		return clearGraph(null);
 	}
 
 	// ===============================================================================

@@ -1,0 +1,106 @@
+/* ==========================================================================
+   Data View
+   ========================================================================== */
+
+.data-page-root {
+    -fx-background-color: -color-bg-default;
+    -fx-padding: 14px;
+}
+
+.data-page-split {
+    -fx-background-color: transparent;
+}
+
+.data-page-split > .split-pane-divider {
+    -fx-background-color: -color-border-muted;
+    -fx-padding: 0 0 0 1;
+}
+
+/* ==========================================================================
+   Common Cards
+   ========================================================================== */
+
+.data-card {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+}
+
+/* ==========================================================================
+   Left Pane: Reasoning
+   ========================================================================== */
+
+.data-left-pane {
+    -fx-min-width: 240px;
+    -fx-pref-width: 280px;
+    -fx-max-width: 340px;
+    -fx-padding: 4px 10px 4px 2px;
+    -fx-spacing: 10px;
+}
+
+.data-pane-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-fg-default;
+}
+
+.data-pane-subtitle {
+    -fx-font-size: 12px;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.data-section-title {
+    -fx-padding: 2px 0 0 0;
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-fg-default;
+}
+
+.data-rule-list {
+    -fx-spacing: 8px;
+    -fx-padding: 4px 0 6px 0;
+}
+
+.data-rule-toggle {
+    -fx-text-fill: -color-fg-default;
+}
+
+/* ==========================================================================
+   Right Pane: Graph
+   ========================================================================== */
+
+.data-right-pane {
+    -fx-padding: 4px 2px 4px 10px;
+}
+
+.data-graph-card {
+    -fx-padding: 10px;
+    -fx-spacing: 10px;
+}
+
+.data-graph-container {
+    -fx-padding: 6px;
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+}
+
+.data-status-bar {
+    -fx-alignment: center-left;
+    -fx-spacing: 14px;
+    -fx-padding: 8px 10px;
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-subtle;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+}
+
+.data-status-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: -color-fg-muted;
+}

@@ -8,139 +8,209 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URLConnection;
 
 /**
  * Service for loading RDF data into the shared graph.
  *
  * <p>
- * This service provides a clean API for RDF data operations, handling I/O and format detection
- * while delegating actual graph operations to the {@link GraphStoreService}.
+ * This service provides a clean API for RDF data operations, handling I/O and
+ * format detection while delegating actual graph operations to the
+ * {@link GraphStoreService}.
  *
  * <p>
  * The Singleton pattern is justified here because:
  * <ul>
- *   <li>Only one data loading service should coordinate access to the shared graph</li>
- *   <li>Prevents concurrent loading issues and resource conflicts</li>
- *   <li>Maintains consistent error handling and logging across the application</li>
+ * <li>Only one data loading service should coordinate access to the shared
+ * graph</li>
+ * <li>Prevents concurrent loading issues and resource conflicts</li>
+ * <li>Maintains consistent error handling and logging across the
+ * application</li>
  * </ul>
  *
  * <p>
  * Example usage:
+ *
  * <pre>{@code
  * RdfDataService service = RdfDataService.getInstance();
  * try {
- *     service.loadFile(new File("data.ttl"));
+ * 	service.loadFile(new File("data.ttl"));
  * } catch (RdfLoadException e) {
- *     // Handle loading error
+ * 	// Handle loading error
  * }
  * }</pre>
  */
 @SuppressWarnings("java:S6548") // Singleton pattern is justified for coordinated graph access
 public class RdfDataService {
 
-    // ==============================================================================================
-    // Fields
-    // ==============================================================================================
+	// ==============================================================================================
+	// Fields
+	// ==============================================================================================
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RdfDataService.class);
-    private static final RdfDataService INSTANCE = new RdfDataService();
+	private static final Logger LOGGER = LoggerFactory.getLogger(RdfDataService.class);
+	private static final RdfDataService INSTANCE = new RdfDataService();
 
-    // ==============================================================================================
-    // Constructor
-    // ==============================================================================================
+	// ==============================================================================================
+	// Constructor
+	// ==============================================================================================
 
-    private RdfDataService() {}
+	private RdfDataService() {
+	}
 
-    // ==============================================================================================
-    // Public API
-    // ==============================================================================================
+	// ==============================================================================================
+	// Public API
+	// ==============================================================================================
 
-    /**
-     * Returns the singleton instance of the RDF data service.
-     *
-     * @return The RdfDataService instance.
-     */
-    public static RdfDataService getInstance() {
-        return INSTANCE;
-    }
+	/**
+	 * Returns the singleton instance of the RDF data service.
+	 *
+	 * @return The RdfDataService instance.
+	 */
+	public static RdfDataService getInstance() {
+		return INSTANCE;
+	}
 
-    /**
-     * Loads an RDF file into the shared graph.
-     *
-     * <p>
-     * Automatically detects the RDF format based on file extension.
-     * Supported formats include Turtle, RDF/XML, N-Triples, JSON-LD, and others.
-     *
-     * @param file The RDF file to load.
-     * @throws IllegalArgumentException if the file is null or doesn't exist.
-     * @throws RdfLoadException if the file cannot be read or parsed.
-     */
-    @SuppressWarnings("java:S2139")
-    public void loadFile(File file) {
-        if (file == null) {
-            throw new IllegalArgumentException("File cannot be null.");
-        }
-        if (!file.exists()) {
-            throw new IllegalArgumentException("File does not exist: " + file.getAbsolutePath());
-        }
+	/**
+	 * Loads an RDF file into the shared graph.
+	 *
+	 * <p>
+	 * Automatically detects the RDF format based on file extension. Supported
+	 * formats include Turtle, RDF/XML, N-Triples, JSON-LD, and others.
+	 *
+	 * @param file
+	 *            The RDF file to load.
+	 * @throws IllegalArgumentException
+	 *             if the file is null or doesn't exist.
+	 * @throws RdfLoadException
+	 *             if the file cannot be read or parsed.
+	 */
+	@SuppressWarnings("java:S2139")
+	public void loadFile(File file) {
+		if (file == null) {
+			throw new IllegalArgumentException("File cannot be null.");
+		}
+		if (!file.exists()) {
+			throw new IllegalArgumentException("File does not exist: " + file.getAbsolutePath());
+		}
 
-        LOGGER.info("Loading RDF file: {}", file.getAbsolutePath());
-        
-        fr.inria.corese.core.api.Loader.format format = LoadFormat.getFormat(file.getName());
-        if (format == fr.inria.corese.core.api.Loader.format.UNDEF_FORMAT) {
-            LOGGER.warn("Could not detect format from extension for {}, Corese will attempt auto-detection.", file.getName());
-        }
+		LOGGER.info("Loading RDF file: {}", file.getAbsolutePath());
 
-        try (InputStream stream = new FileInputStream(file)) {
-            Load loader = Load.create(GraphStoreService.getInstance().getGraph());
-            loader.parse(stream, format);
-            LOGGER.info("Successfully loaded {} triples from file.", GraphStoreService.getInstance().size());
-        } catch (Exception e) { // Generic catch is justified: Corese can throw various exception types
-            String errorMsg = String.format("Failed to load RDF file '%s': %s", file.getName(), e.getMessage());
-            LOGGER.error(errorMsg, e);
-            throw new RdfLoadException(errorMsg, e);
-        }
-    }
+		fr.inria.corese.core.api.Loader.format format = LoadFormat.getFormat(file.getName());
+		if (format == fr.inria.corese.core.api.Loader.format.UNDEF_FORMAT) {
+			LOGGER.warn("Could not detect format from extension for {}, Corese will attempt auto-detection.",
+					file.getName());
+		}
 
-    /**
-     * Clears all RDF data from the graph.
-     *
-     * <p>
-     * This operation removes all triples from the graph but keeps the graph instance intact.
-     */
-    public void clearData() {
-        LOGGER.info("Clearing all RDF data from graph.");
-        GraphStoreService.getInstance().clear();
-    }
+		try (InputStream stream = new FileInputStream(file)) {
+			Load loader = Load.create(GraphStoreService.getInstance().getGraph());
+			loader.parse(stream, format);
+			LOGGER.info("Successfully loaded {} triples from file.", GraphStoreService.getInstance().size());
+		} catch (Exception e) { // Generic catch is justified: Corese can throw various exception types
+			String errorMsg = String.format("Failed to load RDF file '%s': %s", file.getName(), e.getMessage());
+			LOGGER.error(errorMsg, e);
+			throw new RdfLoadException(errorMsg, e);
+		}
+	}
 
-    /**
-     * Checks if the graph contains any RDF data.
-     *
-     * @return true if the graph has at least one triple, false otherwise.
-     */
-    public boolean hasData() {
-        return GraphStoreService.getInstance().hasData();
-    }
+	/**
+	 * Loads RDF data from a remote URI into the shared graph.
+	 *
+	 * <p>
+	 * The RDF format is automatically detected from extension and/or content-type
+	 * when available.
+	 *
+	 * @param uriString
+	 *            the URI to load
+	 * @throws IllegalArgumentException
+	 *             if URI is null/blank or invalid
+	 * @throws RdfLoadException
+	 *             if loading/parsing fails
+	 */
+	@SuppressWarnings("java:S2139")
+	public void loadUri(String uriString) {
+		if (uriString == null || uriString.isBlank()) {
+			throw new IllegalArgumentException("URI cannot be empty.");
+		}
 
-    /**
-     * Returns the number of triples currently in the graph.
-     *
-     * @return The count of RDF triples.
-     */
-    public int getTripleCount() {
-        return GraphStoreService.getInstance().size();
-    }
+		String normalizedUri = uriString.trim();
+		URI uri;
+		try {
+			uri = URI.create(normalizedUri);
+		} catch (IllegalArgumentException e) {
+			throw new IllegalArgumentException("Invalid URI: " + normalizedUri, e);
+		}
 
-    // ==============================================================================================
-    // Exception Classes
-    // ==============================================================================================
+		if (uri.getScheme() == null || uri.getScheme().isBlank()) {
+			throw new IllegalArgumentException("URI must include a scheme (e.g., http, https, file): " + normalizedUri);
+		}
 
-    /**
-     * Exception thrown when RDF file loading fails.
-     */
-    public static class RdfLoadException extends RuntimeException {
-        public RdfLoadException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
+		LOGGER.info("Loading RDF URI: {}", normalizedUri);
+		try (InputStream stream = openUriStream(uri)) {
+			Load loader = Load.create(GraphStoreService.getInstance().getGraph());
+			fr.inria.corese.core.api.Loader.format format = LoadFormat.getFormat(uri.getPath());
+			if (format == fr.inria.corese.core.api.Loader.format.UNDEF_FORMAT) {
+				loader.parse(stream);
+			} else {
+				loader.parse(stream, format);
+			}
+			LOGGER.info("Successfully loaded {} triples after URI load.", GraphStoreService.getInstance().size());
+		} catch (Exception e) { // Generic catch is justified: Corese can throw various exception types
+			String errorMsg = String.format("Failed to load RDF URI '%s': %s", normalizedUri, e.getMessage());
+			LOGGER.error(errorMsg, e);
+			throw new RdfLoadException(errorMsg, e);
+		}
+	}
+
+	private InputStream openUriStream(URI uri) throws Exception {
+		URLConnection connection = uri.toURL().openConnection();
+		connection.setConnectTimeout(10_000);
+		connection.setReadTimeout(30_000);
+		connection.setRequestProperty("Accept", String.join(", ", "text/turtle", "application/ld+json",
+				"application/rdf+xml", "application/n-triples", "application/trig", "*/*"));
+		return connection.getInputStream();
+	}
+
+	/**
+	 * Clears all RDF data from the graph.
+	 *
+	 * <p>
+	 * This operation removes all triples from the graph but keeps the graph
+	 * instance intact.
+	 */
+	public void clearData() {
+		LOGGER.info("Clearing all RDF data from graph.");
+		GraphStoreService.getInstance().clear();
+	}
+
+	/**
+	 * Checks if the graph contains any RDF data.
+	 *
+	 * @return true if the graph has at least one triple, false otherwise.
+	 */
+	public boolean hasData() {
+		return GraphStoreService.getInstance().hasData();
+	}
+
+	/**
+	 * Returns the number of triples currently in the graph.
+	 *
+	 * @return The count of RDF triples.
+	 */
+	public int getTripleCount() {
+		return GraphStoreService.getInstance().size();
+	}
+
+	// ==============================================================================================
+	// Exception Classes
+	// ==============================================================================================
+
+	/**
+	 * Exception thrown when RDF file loading fails.
+	 */
+	public static class RdfLoadException extends RuntimeException {
+		public RdfLoadException(String message, Throwable cause) {
+			super(message, cause);
+		}
+	}
 }

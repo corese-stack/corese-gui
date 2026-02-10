@@ -57,6 +57,9 @@ public enum ButtonIcon {
 	/** Icon for opening files. */
 	OPEN_FILE(MaterialDesignF.FOLDER_OPEN_OUTLINE),
 
+	/** Icon for loading data from a URI. */
+	OPEN_URI(MaterialDesignL.LINK_VARIANT),
+
 	/** Icon for creating a new editor tab. */
 	NEW_TAB(MaterialDesignP.PLUS),
 
@@ -88,6 +91,12 @@ public enum ButtonIcon {
 
 	/** Icon for re-energizing graph layout forces. */
 	LAYOUT_FORCE(MaterialDesignL.LIGHTNING_BOLT_OUTLINE),
+
+	/** Icon for reloading data/sources. */
+	RELOAD(MaterialDesignR.REFRESH),
+
+	/** Icon for clear/delete graph actions. */
+	CLEAR(MaterialDesignT.TRASH_CAN_OUTLINE),
 
 	/** Icon for navigating to the data view. */
 	NAV_DATA(MaterialDesignD.DATABASE),

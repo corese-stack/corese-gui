@@ -8,99 +8,102 @@ import org.slf4j.LoggerFactory;
  * Internal package-private holder for the Corese {@link Graph} instance.
  *
  * <p>
- * This class acts as the single source of truth for the RDF data within the GUI adapter layer.
- * It is intentionally package-private to prevent direct access to the {@code Graph} object
- * from outside the {@code core.service} package, enforcing strict encapsulation.
+ * This class acts as the single source of truth for the RDF data within the GUI
+ * adapter layer. It is intentionally package-private to prevent direct access
+ * to the {@code Graph} object from outside the {@code core.service} package,
+ * enforcing strict encapsulation.
  *
  * <p>
  * The Singleton pattern is justified here because:
  * <ul>
- *   <li>Only one RDF graph should exist for the entire application</li>
- *   <li>All adapter services must operate on the same graph instance</li>
- *   <li>Package-private visibility ensures controlled access only through service APIs</li>
+ * <li>Only one RDF graph should exist for the entire application</li>
+ * <li>All adapter services must operate on the same graph instance</li>
+ * <li>Package-private visibility ensures controlled access only through service
+ * APIs</li>
  * </ul>
  *
  * <p>
- * All read/write operations on the graph should be coordinated through the public services:
+ * All read/write operations on the graph should be coordinated through the
+ * public services:
  * <ul>
- *   <li>{@link RdfDataService} for loading and clearing data</li>
- *   <li>{@link QueryService} for executing SPARQL queries</li>
- *   <li>{@link ShaclService} for validation</li>
+ * <li>{@link RdfDataService} for loading and clearing data</li>
+ * <li>{@link QueryService} for executing SPARQL queries</li>
+ * <li>{@link ShaclService} for validation</li>
  * </ul>
  */
 @SuppressWarnings("java:S6548") // Singleton pattern is justified for global graph management
 class GraphStoreService {
 
-    // ==============================================================================================
-    // Fields
-    // ==============================================================================================
+	// ==============================================================================================
+	// Fields
+	// ==============================================================================================
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(GraphStoreService.class);
-    private static final GraphStoreService INSTANCE = new GraphStoreService();
+	private static final Logger LOGGER = LoggerFactory.getLogger(GraphStoreService.class);
+	private static final GraphStoreService INSTANCE = new GraphStoreService();
 
-    private final Graph graph;
+	private final Graph graph;
 
-    // ==============================================================================================
-    // Constructor
-    // ==============================================================================================
+	// ==============================================================================================
+	// Constructor
+	// ==============================================================================================
 
-    /**
-     * Private constructor to enforce singleton usage within the package.
-     */
-    private GraphStoreService() {
-        this.graph = Graph.create();
-        LOGGER.debug("Corese Graph initialized.");
-    }
+	/**
+	 * Private constructor to enforce singleton usage within the package.
+	 */
+	private GraphStoreService() {
+		this.graph = Graph.create();
+		LOGGER.debug("Corese Graph initialized.");
+	}
 
-    // ==============================================================================================
-    // Package-Private API
-    // ==============================================================================================
+	// ==============================================================================================
+	// Package-Private API
+	// ==============================================================================================
 
-    /**
-     * Returns the singleton instance of the GraphStoreService.
-     *
-     * @return the singleton instance
-     */
-    static GraphStoreService getInstance() {
-        return INSTANCE;
-    }
+	/**
+	 * Returns the singleton instance of the GraphStoreService.
+	 *
+	 * @return the singleton instance
+	 */
+	static GraphStoreService getInstance() {
+		return INSTANCE;
+	}
 
-    /**
-     * Returns the underlying Corese Graph object.
-     *
-     * @return the {@link Graph} instance
-     */
-    Graph getGraph() {
-        return graph;
-    }
+	/**
+	 * Returns the underlying Corese Graph object.
+	 *
+	 * @return the {@link Graph} instance
+	 */
+	Graph getGraph() {
+		return graph;
+	}
 
-    /**
-     * Clears all data from the graph.
-     */
-    void clear() {
-        try {
-            graph.empty();
-            LOGGER.debug("Graph data cleared.");
-        } catch (Exception e) {
-            LOGGER.error("Failed to clear graph", e);
-        }
-    }
+	/**
+	 * Clears all data from the graph.
+	 */
+	void clear() {
+		try {
+			graph.clear();
+			LOGGER.debug("Graph data cleared.");
+		} catch (Exception e) {
+			LOGGER.error("Failed to clear graph", e);
+		}
+	}
 
-    /**
-     * Returns the number of triples in the graph.
-     *
-     * @return the size of the graph
-     */
-    int size() {
-        return graph.size();
-    }
+	/**
+	 * Returns the number of triples in the graph.
+	 *
+	 * @return the size of the graph
+	 */
+	int size() {
+		return graph.size();
+	}
 
-    /**
-     * Checks if the graph contains any data.
-     *
-     * @return true if the graph has data, false otherwise
-     */
-    boolean hasData() {
-        return graph.size() > 0;
-    }
+	/**
+	 * Checks if the graph contains any data.
+	 *
+	 * @return true if the graph has data, false otherwise
+	 */
+	boolean hasData() {
+		return graph.size() > 0;
+	}
 }

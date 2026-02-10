@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.stage.FileChooser;
@@ -136,6 +137,12 @@ public final class ExportHelper {
 
 	private static SerializationFormat determineFormat(File file, FileChooser fileChooser,
 			List<SerializationFormat> formats) {
+		SerializationFormat detected = determineFormatOrNull(file, fileChooser, formats);
+		return detected != null ? detected : formats.get(0);
+	}
+
+	private static SerializationFormat determineFormatOrNull(File file, FileChooser fileChooser,
+			List<SerializationFormat> formats) {
 
 		FileChooser.ExtensionFilter selectedFilter = fileChooser.getSelectedExtensionFilter();
 
@@ -148,7 +155,7 @@ public final class ExportHelper {
 
 		// Fallback: check extension
 		SerializationFormat formatFromExtension = findFormatByExtension(file.getName(), formats);
-		return formatFromExtension != null ? formatFromExtension : formats.get(0);
+		return formatFromExtension;
 	}
 
 	private static SerializationFormat findFormatByFilter(FileChooser.ExtensionFilter filter,
@@ -246,6 +253,91 @@ public final class ExportHelper {
 			case SVG -> writeFileAsync(finalFile, contentToExport);
 			case PNG -> transcodeSvgToPng(finalFile, contentToExport);
 			case PDF -> transcodeSvgToPdf(finalFile, contentToExport);
+		}
+	}
+
+	/**
+	 * Prompts the user to export a data graph using one unified save dialog.
+	 *
+	 * <p>
+	 * The selected extension decides whether the export is RDF serialization (e.g.
+	 * {@code .ttl}, {@code .jsonld}) or visual graph export ({@code .svg},
+	 * {@code .png}, {@code .pdf}).
+	 *
+	 * @param window
+	 *            parent window
+	 * @param rdfFormats
+	 *            supported RDF formats
+	 * @param rdfContentProvider
+	 *            provider generating RDF content per selected format
+	 * @param svgContentProvider
+	 *            provider of current graph SVG for visual exports
+	 */
+	public static void exportDataGraph(Window window, List<SerializationFormat> rdfFormats,
+			Function<SerializationFormat, String> rdfContentProvider, Supplier<String> svgContentProvider) {
+
+		List<SerializationFormat> safeRdfFormats = rdfFormats == null ? List.of() : rdfFormats;
+		if (safeRdfFormats.isEmpty() && svgContentProvider == null) {
+			return;
+		}
+
+		FileChooser fileChooser = new FileChooser();
+		fileChooser.setTitle("Export Graph");
+		fileChooser.setInitialFileName(DefaultFileNameResolver.graphBaseName());
+		FileDialogState.applyInitialDirectory(fileChooser);
+
+		for (SerializationFormat format : safeRdfFormats) {
+			String ext = format.getExtension();
+			fileChooser.getExtensionFilters()
+					.add(new FileChooser.ExtensionFilter(format.getLabel() + " (*" + ext + ")", "*" + ext));
+		}
+
+		FileChooser.ExtensionFilter svgFilter = new FileChooser.ExtensionFilter("SVG file (*.svg)", "*.svg");
+		FileChooser.ExtensionFilter pngFilter = new FileChooser.ExtensionFilter("PNG image (*.png)", "*.png");
+		FileChooser.ExtensionFilter pdfFilter = new FileChooser.ExtensionFilter("PDF document (*.pdf)", "*.pdf");
+		fileChooser.getExtensionFilters().addAll(svgFilter, pngFilter, pdfFilter,
+				new FileChooser.ExtensionFilter("All Files", "*.*"));
+
+		File file = fileChooser.showSaveDialog(window);
+		if (file == null) {
+			return;
+		}
+
+		FileDialogState.updateLastDirectory(file);
+		SerializationFormat rdfFormat = determineFormatOrNull(file, fileChooser, safeRdfFormats);
+		if (rdfFormat != null) {
+			File finalFile = enforceExtension(file, rdfFormat);
+			AppExecutors.execute(() -> {
+				String content = rdfContentProvider != null ? rdfContentProvider.apply(rdfFormat) : null;
+				if (content == null) {
+					Platform.runLater(
+							() -> NotificationWidget.getInstance().showError("Export Failed: No content available."));
+					return;
+				}
+				writeFileAsync(finalFile, content);
+			});
+			return;
+		}
+
+		if (svgContentProvider == null) {
+			NotificationWidget.getInstance().showError("Export Failed: visual export is unavailable.");
+			return;
+		}
+
+		String svgContent = svgContentProvider.get();
+		if (svgContent == null || svgContent.isBlank()) {
+			NotificationWidget.getInstance().showError("Export Failed: no rendered graph available.");
+			return;
+		}
+
+		GraphExportFormat visualFormat = determineGraphFormat(file, fileChooser.getSelectedExtensionFilter(), svgFilter,
+				pngFilter, pdfFilter);
+		File finalFile = enforceExtension(file, visualFormat.extension);
+
+		switch (visualFormat) {
+			case SVG -> writeFileAsync(finalFile, svgContent);
+			case PNG -> transcodeSvgToPng(finalFile, svgContent);
+			case PDF -> transcodeSvgToPdf(finalFile, svgContent);
 		}
 	}
 
