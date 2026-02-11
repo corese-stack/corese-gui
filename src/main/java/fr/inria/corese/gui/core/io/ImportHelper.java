@@ -135,7 +135,7 @@ public final class ImportHelper {
 			if (onSuccess != null) {
 				onSuccess.accept(task.getValue());
 			}
-			NotificationWidget.getInstance().showSuccess("File loaded: " + file.getName());
+			NotificationWidget.getInstance().showSuccess("Imported file: " + file.getName() + ".");
 		}));
 
 		task.setOnFailed(event -> Platform.runLater(() -> {
@@ -144,7 +144,7 @@ public final class ImportHelper {
 				onFailure.accept(exception);
 			} else {
 				String message = exception != null ? exception.getMessage() : "Unknown error";
-				NotificationWidget.getInstance().showError("Import Failed: " + message);
+				NotificationWidget.getInstance().showError("Import failed: " + message);
 			}
 		}));
 

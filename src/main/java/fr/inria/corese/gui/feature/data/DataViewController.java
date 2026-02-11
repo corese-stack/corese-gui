@@ -233,12 +233,13 @@ public class DataViewController implements AutoCloseable {
 		}
 
 		if (compatibleFiles.isEmpty()) {
-			NotificationWidget.getInstance().showWarning("No compatible RDF file dropped.");
+			NotificationWidget.getInstance().showWarning("No compatible RDF files were dropped.");
 			return;
 		}
 
 		if (ignoredCount > 0) {
-			NotificationWidget.getInstance().showWarning("Ignored " + ignoredCount + " unsupported dropped file(s).");
+			NotificationWidget.getInstance()
+					.showWarning("Ignored " + countLabel(ignoredCount, "unsupported dropped file") + ".");
 		}
 
 		executeLoadFiles(compatibleFiles);
@@ -255,6 +256,7 @@ public class DataViewController implements AutoCloseable {
 		FileDialogState.updateLastDirectory(safeFiles);
 		AppExecutors.execute(() -> {
 			int successCount = 0;
+			int graphTripleCount = workspaceService.getTripleCount();
 			dataOperationInProgress.set(true);
 			try {
 				for (File file : safeFiles) {
@@ -262,7 +264,7 @@ public class DataViewController implements AutoCloseable {
 						workspaceService.loadFile(file);
 						successCount++;
 					} catch (Exception ex) {
-						String message = "Error loading " + file.getName() + ": " + ex.getMessage();
+						String message = "File load failed for " + file.getName() + ": " + ex.getMessage();
 						Platform.runLater(() -> NotificationWidget.getInstance().showError(message));
 					}
 				}
@@ -278,9 +280,12 @@ public class DataViewController implements AutoCloseable {
 				}
 			} finally {
 				int loadedCount = successCount;
+				graphTripleCount = workspaceService.getTripleCount();
+				int finalTripleCount = graphTripleCount;
 				Platform.runLater(() -> {
 					if (loadedCount > 0) {
-						NotificationWidget.getInstance().showSuccess("Loaded " + loadedCount + " file(s).");
+						NotificationWidget.getInstance().showSuccess("Loaded " + countLabel(loadedCount, "file")
+								+ ". Graph now has " + countLabel(finalTripleCount, "triple") + ".");
 					}
 				});
 				finishDataOperation();
@@ -296,6 +301,7 @@ public class DataViewController implements AutoCloseable {
 		List<String> urisToLoad = uris == null ? List.of() : List.copyOf(uris);
 		AppExecutors.execute(() -> {
 			int successCount = 0;
+			int graphTripleCount = workspaceService.getTripleCount();
 			List<String> errors = new ArrayList<>();
 			dataOperationInProgress.set(true);
 			try {
@@ -318,9 +324,12 @@ public class DataViewController implements AutoCloseable {
 				errors.add("Unexpected URI loading error: " + e.getMessage());
 			} finally {
 				int loadedCount = successCount;
+				graphTripleCount = workspaceService.getTripleCount();
+				int finalTripleCount = graphTripleCount;
 				Platform.runLater(() -> {
 					if (loadedCount > 0) {
-						NotificationWidget.getInstance().showSuccess("Loaded " + loadedCount + " URI(s).");
+						NotificationWidget.getInstance().showSuccess("Loaded " + countLabel(loadedCount, "URI")
+								+ ". Graph now has " + countLabel(finalTripleCount, "triple") + ".");
 					}
 					if (!errors.isEmpty()) {
 						for (String error : errors) {
@@ -336,7 +345,7 @@ public class DataViewController implements AutoCloseable {
 	private void handleReloadSources() {
 		List<DataSource> trackedSources = workspaceService.getTrackedSources();
 		if (trackedSources.isEmpty()) {
-			NotificationWidget.getInstance().showWarning("No tracked data source to reload.");
+			NotificationWidget.getInstance().showWarning("No tracked data sources to reload.");
 			return;
 		}
 		DataReloadSourcesDialog.show(trackedSources, this::executeReloadSources);
@@ -348,12 +357,14 @@ public class DataViewController implements AutoCloseable {
 			try {
 				reasoningService.resetAllProfiles();
 				int reloaded = workspaceService.reloadSources(selectedSources);
+				int tripleCount = workspaceService.getTripleCount();
 				Platform.runLater(() -> {
 					resetReasoningUiState();
 					if (reloaded > 0) {
-						NotificationWidget.getInstance().showSuccess("Reloaded " + reloaded + " source(s).");
+						NotificationWidget.getInstance().showSuccess("Reloaded " + countLabel(reloaded, "source")
+								+ ". Graph now has " + countLabel(tripleCount, "triple") + ".");
 					} else {
-						NotificationWidget.getInstance().showInfo("Graph reloaded with no source selected.");
+						NotificationWidget.getInstance().showInfo("Reload", "No source selected. Graph was cleared.");
 					}
 				});
 			} catch (Exception e) {
@@ -409,11 +420,17 @@ public class DataViewController implements AutoCloseable {
 		DataClearGraphDialog.show(() -> AppExecutors.execute(() -> {
 			try {
 				dataOperationInProgress.set(true);
+				int removedTriples = workspaceService.getTripleCount();
 				reasoningService.resetAllProfiles();
 				workspaceService.clearGraph();
 				Platform.runLater(() -> {
 					resetReasoningUiState();
-					NotificationWidget.getInstance().showSuccess("Graph cleared.");
+					if (removedTriples > 0) {
+						NotificationWidget.getInstance()
+								.showSuccess("Graph cleared. Removed " + countLabel(removedTriples, "triple") + ".");
+					} else {
+						NotificationWidget.getInstance().showSuccess("Graph cleared.");
+					}
 				});
 			} catch (Exception e) {
 				Platform.runLater(() -> NotificationWidget.getInstance().showError("Clear failed: " + e.getMessage()));
@@ -457,6 +474,13 @@ public class DataViewController implements AutoCloseable {
 				});
 			}
 		});
+	}
+
+	private static String countLabel(int count, String noun) {
+		if (count == 1) {
+			return "1 " + noun;
+		}
+		return count + " " + noun + "s";
 	}
 
 	@Override

@@ -52,8 +52,7 @@ public class TabEditorController {
 
 	private static final String DEFAULT_TAB_TITLE = "untitled";
 	private static final String DEFAULT_TAB_LABEL = "Untitled";
-	private static final String DROP_WARNING_IGNORED_TEMPLATE = "%d file(s) ignored. %s";
-	private static final String DROP_WARNING_NONE_ACCEPTED_TEMPLATE = "No compatible file dropped. %s";
+	private static final String DROP_WARNING_NONE_ACCEPTED_TEMPLATE = "No compatible files were dropped. %s";
 	private static final Logger LOGGER = LoggerFactory.getLogger(TabEditorController.class);
 
 	// ===============================================================================
@@ -191,7 +190,14 @@ public class TabEditorController {
 			return;
 		}
 		NotificationWidget.getInstance()
-				.showWarning(String.format(DROP_WARNING_IGNORED_TEMPLATE, evaluation.unsupportedFiles(), hint));
+				.showWarning("Ignored " + countLabel(evaluation.unsupportedFiles(), "file") + ". " + hint);
+	}
+
+	private static String countLabel(int count, String noun) {
+		if (count == 1) {
+			return "1 " + noun;
+		}
+		return count + " " + noun + "s";
 	}
 
 	@SuppressWarnings("deprecation")

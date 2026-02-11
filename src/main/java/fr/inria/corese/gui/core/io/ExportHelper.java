@@ -111,7 +111,7 @@ public final class ExportHelper {
 				String content = contentProvider.apply(selectedFormat);
 				if (content == null) {
 					Platform.runLater(
-							() -> NotificationWidget.getInstance().showError("Export Failed: No content available."));
+							() -> NotificationWidget.getInstance().showError("Export failed: no content available."));
 					return;
 				}
 				writeFileAsync(finalFile, content);
@@ -311,7 +311,7 @@ public final class ExportHelper {
 				String content = rdfContentProvider != null ? rdfContentProvider.apply(rdfFormat) : null;
 				if (content == null) {
 					Platform.runLater(
-							() -> NotificationWidget.getInstance().showError("Export Failed: No content available."));
+							() -> NotificationWidget.getInstance().showError("Export failed: no content available."));
 					return;
 				}
 				writeFileAsync(finalFile, content);
@@ -320,13 +320,13 @@ public final class ExportHelper {
 		}
 
 		if (svgContentProvider == null) {
-			NotificationWidget.getInstance().showError("Export Failed: visual export is unavailable.");
+			NotificationWidget.getInstance().showError("Export failed: visual export is unavailable.");
 			return;
 		}
 
 		String svgContent = svgContentProvider.get();
 		if (svgContent == null || svgContent.isBlank()) {
-			NotificationWidget.getInstance().showError("Export Failed: no rendered graph available.");
+			NotificationWidget.getInstance().showError("Export failed: no rendered graph available.");
 			return;
 		}
 
@@ -351,13 +351,14 @@ public final class ExportHelper {
 
 			@Override
 			protected void succeeded() {
-				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess("File saved successfully"));
+				Platform.runLater(
+						() -> NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + "."));
 			}
 
 			@Override
 			protected void failed() {
 				Platform.runLater(() -> NotificationWidget.getInstance()
-						.showError("Export Failed: " + getException().getMessage()));
+						.showError("Export failed: " + getException().getMessage()));
 			}
 		};
 
@@ -384,13 +385,14 @@ public final class ExportHelper {
 
 			@Override
 			protected void succeeded() {
-				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess("File saved successfully"));
+				Platform.runLater(
+						() -> NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + "."));
 			}
 
 			@Override
 			protected void failed() {
 				Platform.runLater(() -> NotificationWidget.getInstance()
-						.showError("Export Failed: " + getException().getMessage()));
+						.showError("Export failed: " + getException().getMessage()));
 			}
 		};
 
@@ -412,13 +414,14 @@ public final class ExportHelper {
 
 			@Override
 			protected void succeeded() {
-				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess("File saved successfully"));
+				Platform.runLater(
+						() -> NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + "."));
 			}
 
 			@Override
 			protected void failed() {
 				Platform.runLater(() -> NotificationWidget.getInstance()
-						.showError("Export Failed: " + getException().getMessage()));
+						.showError("Export failed: " + getException().getMessage()));
 			}
 		};
 

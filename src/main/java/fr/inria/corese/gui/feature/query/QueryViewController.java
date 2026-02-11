@@ -293,7 +293,7 @@ public class QueryViewController {
 			NotificationWidget.getInstance().showError("ASK", "False");
 			return;
 		}
-		NotificationWidget.getInstance().showWarning("ASK", "Result unavailable");
+		NotificationWidget.getInstance().showWarning("ASK", "Result unavailable.");
 	}
 
 	private void showUpdateSummaryNotification(QueryResultRef resultRef) {
@@ -301,18 +301,25 @@ public class QueryViewController {
 		int deleted = resultRef.getDeletedTriples();
 		if (inserted > 0 && deleted > 0) {
 			NotificationWidget.getInstance().showSuccess("Update",
-					String.format("%d triple(s) inserted, %d triple(s) deleted.", inserted, deleted));
+					countLabel(inserted, "triple") + " inserted, " + countLabel(deleted, "triple") + " deleted.");
 			return;
 		}
 		if (inserted > 0) {
-			NotificationWidget.getInstance().showSuccess("Insert", String.format("%d triple(s) inserted.", inserted));
+			NotificationWidget.getInstance().showSuccess("Insert", countLabel(inserted, "triple") + " inserted.");
 			return;
 		}
 		if (deleted > 0) {
-			NotificationWidget.getInstance().showSuccess("Delete", String.format("%d triple(s) deleted.", deleted));
+			NotificationWidget.getInstance().showSuccess("Delete", countLabel(deleted, "triple") + " deleted.");
 			return;
 		}
 		NotificationWidget.getInstance().showSuccess("Update", "No graph change detected.");
+	}
+
+	private static String countLabel(int count, String noun) {
+		if (count == 1) {
+			return "1 " + noun;
+		}
+		return count + " " + noun + "s";
 	}
 
 	private void registerResultTabPreference(Tab tab) {

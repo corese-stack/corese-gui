@@ -98,7 +98,7 @@ public class TextResultController implements AutoCloseable {
 		ClipboardContent content = new ClipboardContent();
 		content.putString(text);
 		Clipboard.getSystemClipboard().setContent(content);
-		NotificationWidget.getInstance().showSuccess("Result copied to clipboard");
+		NotificationWidget.getInstance().showSuccess("Copied result to clipboard.");
 	}
 
 	private void exportContent() {

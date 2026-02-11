@@ -404,7 +404,7 @@ public class CodeEditorController {
 						// Append or Replace? Standard import usually replaces content in editors unless
 						// "Insert"
 						model.setContent(content);
-						NotificationWidget.getInstance().showSuccess("Imported: " + file.getName());
+						NotificationWidget.getInstance().showSuccess("Imported file: " + file.getName() + ".");
 					});
 				} catch (IOException e) {
 					LOGGER.error("Failed to import file", e);
@@ -468,9 +468,9 @@ public class CodeEditorController {
 						if (contentSnapshot.equals(model.getContent())) {
 							model.markAsSaved();
 						}
-						NotificationWidget.getInstance().showSuccess("Saved: " + file.getName());
+						NotificationWidget.getInstance().showSuccess("Saved file: " + file.getName() + ".");
 					} else {
-						NotificationWidget.getInstance().showSuccess("Exported: " + file.getName());
+						NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + ".");
 					}
 				});
 			} catch (IOException e) {
@@ -484,7 +484,7 @@ public class CodeEditorController {
 	private void exportContent() {
 		String content = model.getContent();
 		if (content == null || content.isBlank()) {
-			NotificationWidget.getInstance().showWarning("Nothing to export");
+			NotificationWidget.getInstance().showWarning("No content to export.");
 			return;
 		}
 
@@ -511,7 +511,7 @@ public class CodeEditorController {
 	private void exportGraphContent(String content) {
 		List<SerializationFormat> formats = getGraphExportFormats();
 		if (formats.isEmpty()) {
-			NotificationWidget.getInstance().showWarning("No export formats available");
+			NotificationWidget.getInstance().showWarning("No export format is available.");
 			return;
 		}
 

@@ -224,14 +224,16 @@ public class TableResultController {
 			return;
 		}
 
+		int selectedCells = getSelectedCells(view.getTableView()).size();
 		String content = buildTsvFromSelection();
 		if (content == null || content.isBlank()) {
-			NotificationWidget.getInstance().showWarning("Copy failed: No selection.");
+			NotificationWidget.getInstance().showWarning("No selection to copy.");
 			return;
 		}
 
 		writeClipboard(content);
-		NotificationWidget.getInstance().showSuccess("Selection copied (TSV)");
+		NotificationWidget.getInstance()
+				.showSuccess("Copied " + countLabel(selectedCells, "selected cell") + " to clipboard (TSV).");
 	}
 
 	private void copyAll() {
@@ -241,12 +243,13 @@ public class TableResultController {
 
 		String content = buildTsvFromAllRows();
 		if (content == null || content.isBlank()) {
-			NotificationWidget.getInstance().showWarning("Copy failed: No data available.");
+			NotificationWidget.getInstance().showWarning("No table data available to copy.");
 			return;
 		}
 
 		writeClipboard(content);
-		NotificationWidget.getInstance().showSuccess("Table copied (TSV)");
+		NotificationWidget.getInstance()
+				.showSuccess("Copied table to clipboard (TSV, " + countLabel(allRows.size(), "row") + ").");
 	}
 
 	private void exportContent() {
@@ -255,7 +258,7 @@ public class TableResultController {
 		}
 
 		if (formatProvider == null) {
-			NotificationWidget.getInstance().showError("Export failed: No data provider available.");
+			NotificationWidget.getInstance().showError("Export failed: no data provider available.");
 			return;
 		}
 
@@ -496,6 +499,13 @@ public class TableResultController {
 	}
 
 	private record ColumnSelection(List<Integer> indices, List<String> labels) {
+	}
+
+	private static String countLabel(int count, String noun) {
+		if (count == 1) {
+			return "1 " + noun;
+		}
+		return count + " " + noun + "s";
 	}
 
 	@SuppressWarnings({"unchecked", "java:S3740"})

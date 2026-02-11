@@ -17,7 +17,7 @@ import javafx.scene.Node;
  */
 public class GraphResultController implements AutoCloseable {
 
-	private static final String MSG_EXPORT_EMPTY = "No graph to export";
+	private static final String MSG_EXPORT_EMPTY = "No graph to export.";
 
 	private final GraphResultView view;
 
