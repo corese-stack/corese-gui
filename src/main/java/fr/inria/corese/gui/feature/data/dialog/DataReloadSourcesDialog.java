@@ -2,6 +2,7 @@ package fr.inria.corese.gui.feature.data.dialog;
 
 import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.core.dialog.DialogLayout;
+import fr.inria.corese.gui.core.dialog.DialogLayout.ImpactTone;
 import fr.inria.corese.gui.core.service.DataSourceRegistryService.DataSource;
 import fr.inria.corese.gui.core.service.DataSourceRegistryService.SourceType;
 import fr.inria.corese.gui.core.service.ModalService;
@@ -35,10 +36,6 @@ public final class DataReloadSourcesDialog {
 	private static final String STYLESHEET = "/css/features/data-reload-sources-dialog.css";
 	private static final String STYLE_CLASS_DIALOG = "data-reload-dialog";
 	private static final String STYLE_CLASS_CONTENT = "data-reload-dialog-content";
-	private static final String STYLE_CLASS_WARNING_CARD = "data-reload-dialog-warning";
-	private static final String STYLE_CLASS_WARNING_TITLE = "data-reload-dialog-warning-title";
-	private static final String STYLE_CLASS_WARNING_LIST = "data-reload-dialog-warning-list";
-	private static final String STYLE_CLASS_WARNING_ITEM = "data-reload-dialog-warning-item";
 	private static final String STYLE_CLASS_SOURCE_SCROLL = "data-reload-dialog-source-scroll";
 	private static final String STYLE_CLASS_SOURCE_LIST = "data-reload-dialog-source-list";
 	private static final String STYLE_CLASS_SOURCE_ITEM = "data-reload-dialog-source-item";
@@ -49,7 +46,6 @@ public final class DataReloadSourcesDialog {
 	private static final List<String> WARNING_ITEMS = List.of("SPARQL UPDATE modifications are discarded.",
 			"Reasoning profiles are reset to OFF.", "Unchecked sources are excluded from future reloads.");
 	private static final String EMPTY_SELECTION_MESSAGE = "Select at least one source to reload.";
-	private static final String BULLET_PREFIX = "- ";
 	private static final int FILE_PATH_MAX_CHARS = 56;
 	private static final int URI_MAX_CHARS = 72;
 	private static final int SOURCE_VIEWPORT_HEIGHT = 240;
@@ -97,20 +93,7 @@ public final class DataReloadSourcesDialog {
 		sourceScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
 		sourceScroll.setFitToHeight(false);
 
-		Label warningTitleLabel = new Label(WARNING_TITLE);
-		warningTitleLabel.getStyleClass().add(STYLE_CLASS_WARNING_TITLE);
-
-		VBox warningList = new VBox(3);
-		warningList.getStyleClass().add(STYLE_CLASS_WARNING_LIST);
-		for (String warningItem : WARNING_ITEMS) {
-			Label itemLabel = new Label(BULLET_PREFIX + warningItem);
-			itemLabel.getStyleClass().add(STYLE_CLASS_WARNING_ITEM);
-			itemLabel.setWrapText(true);
-			warningList.getChildren().add(itemLabel);
-		}
-
-		VBox warningBox = new VBox(6, warningTitleLabel, warningList);
-		warningBox.getStyleClass().add(STYLE_CLASS_WARNING_CARD);
+		VBox warningBox = DialogLayout.createImpactBlock(WARNING_TITLE, WARNING_ITEMS, ImpactTone.WARNING);
 
 		VBox content = new VBox(10, warningBox, sourceScroll);
 		content.getStyleClass().add(STYLE_CLASS_CONTENT);

@@ -26,3 +26,42 @@
 .app-dialog .dialog-message {
     -fx-wrap-text: true;
 }
+
+.app-dialog .dialog-impact {
+    -fx-spacing: 6px;
+    -fx-padding: 10px 12px;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+}
+
+.app-dialog .dialog-impact.warning {
+    -fx-background-color: -color-warning-muted;
+    -fx-border-color: -color-warning-emphasis;
+}
+
+.app-dialog .dialog-impact.warning .dialog-impact-title {
+    -fx-text-fill: -color-warning-emphasis;
+}
+
+.app-dialog .dialog-impact.danger {
+    -fx-background-color: -color-danger-muted;
+    -fx-border-color: -color-danger-emphasis;
+}
+
+.app-dialog .dialog-impact.danger .dialog-impact-title {
+    -fx-text-fill: -color-danger-emphasis;
+}
+
+.app-dialog .dialog-impact .dialog-impact-title {
+    -fx-font-weight: 700;
+}
+
+.app-dialog .dialog-impact .dialog-impact-list {
+    -fx-spacing: 3px;
+}
+
+.app-dialog .dialog-impact .dialog-impact-item {
+    -fx-text-fill: -color-fg-default;
+    -fx-wrap-text: true;
+}

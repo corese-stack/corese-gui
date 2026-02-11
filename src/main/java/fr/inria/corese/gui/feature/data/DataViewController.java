@@ -13,9 +13,9 @@ import fr.inria.corese.gui.core.service.DefaultDataWorkspaceService;
 import fr.inria.corese.gui.core.service.DefaultReasoningService;
 import fr.inria.corese.gui.core.service.GraphMutationBus;
 import fr.inria.corese.gui.core.service.GraphMutationEvent;
-import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.service.ReasoningProfile;
 import fr.inria.corese.gui.core.service.ReasoningService;
+import fr.inria.corese.gui.feature.data.dialog.DataClearGraphDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataReloadSourcesDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataUriLoadDialog;
 import fr.inria.corese.gui.utils.AppExecutors;
@@ -325,24 +325,21 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void handleClearGraph() {
-		ModalService.getInstance().showConfirmation("Clear Graph",
-				"This will permanently remove all graph data and tracked sources.\nDo you want to continue?",
-				"Clear Graph", true, () -> AppExecutors.execute(() -> {
-					try {
-						dataOperationInProgress.set(true);
-						reasoningService.resetAllProfiles();
-						workspaceService.clearGraph();
-						Platform.runLater(() -> {
-							resetReasoningUiState();
-							NotificationWidget.getInstance().showSuccess("Graph cleared.");
-						});
-					} catch (Exception e) {
-						Platform.runLater(
-								() -> NotificationWidget.getInstance().showError("Clear failed: " + e.getMessage()));
-					} finally {
-						finishDataOperation();
-					}
-				}));
+		DataClearGraphDialog.show(() -> AppExecutors.execute(() -> {
+			try {
+				dataOperationInProgress.set(true);
+				reasoningService.resetAllProfiles();
+				workspaceService.clearGraph();
+				Platform.runLater(() -> {
+					resetReasoningUiState();
+					NotificationWidget.getInstance().showSuccess("Graph cleared.");
+				});
+			} catch (Exception e) {
+				Platform.runLater(() -> NotificationWidget.getInstance().showError("Clear failed: " + e.getMessage()));
+			} finally {
+				finishDataOperation();
+			}
+		}));
 	}
 
 	private void finishDataOperation() {

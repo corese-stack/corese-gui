@@ -8,30 +8,6 @@
     -fx-padding: 2px 0 0 0;
 }
 
-.data-reload-dialog-warning {
-    -fx-spacing: 6px;
-    -fx-padding: 10px 12px;
-    -fx-background-color: -color-warning-muted;
-    -fx-border-color: -color-warning-emphasis;
-    -fx-border-width: 1px;
-    -fx-border-radius: 8px;
-    -fx-background-radius: 8px;
-}
-
-.data-reload-dialog-warning-title {
-    -fx-font-weight: 700;
-    -fx-text-fill: -color-warning-emphasis;
-}
-
-.data-reload-dialog-warning-list {
-    -fx-spacing: 3px;
-}
-
-.data-reload-dialog-warning-item {
-    -fx-text-fill: -color-fg-default;
-    -fx-wrap-text: true;
-}
-
 .data-reload-dialog-source-scroll {
     -fx-background-color: transparent;
     -fx-padding: 0;

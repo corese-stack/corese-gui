@@ -1,5 +1,7 @@
 package fr.inria.corese.gui.core.dialog;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 import atlantafx.base.theme.Styles;
@@ -40,6 +42,23 @@ import javafx.scene.layout.VBox;
  * </ul>
  */
 public class DialogLayout extends VBox {
+
+	/**
+	 * Visual tone used by reusable dialog impact blocks.
+	 */
+	public enum ImpactTone {
+		WARNING("warning"), DANGER("danger");
+
+		private final String styleClass;
+
+		ImpactTone(String styleClass) {
+			this.styleClass = styleClass;
+		}
+
+		String styleClass() {
+			return styleClass;
+		}
+	}
 
 	private static final String STYLESHEET;
 
@@ -203,6 +222,40 @@ public class DialogLayout extends VBox {
 		return new DialogLayout(safeTitle, msgLabel, cancelBtn, confirmBtn);
 	}
 
+	/**
+	 * Creates a reusable impact block for warning/danger dialog content.
+	 *
+	 * @param title
+	 *            block title
+	 * @param items
+	 *            bullet-pointed impact lines
+	 * @param tone
+	 *            visual severity tone
+	 * @return a styled impact block node
+	 */
+	public static VBox createImpactBlock(String title, List<String> items, ImpactTone tone) {
+		ImpactTone safeTone = tone == null ? ImpactTone.WARNING : tone;
+		String safeTitle = (title == null || title.isBlank()) ? "Notice" : title.trim();
+		List<String> safeItems = sanitizeImpactItems(items);
+
+		Label titleLabel = new Label(safeTitle);
+		titleLabel.getStyleClass().add("dialog-impact-title");
+		titleLabel.setWrapText(true);
+
+		VBox itemList = new VBox(3);
+		itemList.getStyleClass().add("dialog-impact-list");
+		for (String item : safeItems) {
+			Label itemLabel = new Label("• " + item);
+			itemLabel.getStyleClass().add("dialog-impact-item");
+			itemLabel.setWrapText(true);
+			itemList.getChildren().add(itemLabel);
+		}
+
+		VBox impactBox = new VBox(6, titleLabel, itemList);
+		impactBox.getStyleClass().addAll("dialog-impact", safeTone.styleClass());
+		return impactBox;
+	}
+
 	// ==============================================================================================
 	// Private Helpers
 	// ==============================================================================================
@@ -226,5 +279,22 @@ public class DialogLayout extends VBox {
 		okBtn.setOnAction(e -> ModalService.getInstance().hide());
 
 		return new DialogLayout(title, msgLabel, okBtn);
+	}
+
+	private static List<String> sanitizeImpactItems(List<String> items) {
+		if (items == null || items.isEmpty()) {
+			return List.of("No additional details.");
+		}
+		List<String> safeItems = new ArrayList<>();
+		for (String item : items) {
+			if (item == null) {
+				continue;
+			}
+			String normalized = item.trim();
+			if (!normalized.isBlank()) {
+				safeItems.add(normalized);
+			}
+		}
+		return safeItems.isEmpty() ? List.of("No additional details.") : List.copyOf(safeItems);
 	}
 }
