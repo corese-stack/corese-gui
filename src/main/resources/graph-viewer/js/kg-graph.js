@@ -62,6 +62,8 @@ class KGGraphVis extends HTMLElement {
         this.lastLabelUpdate = 0;
         this.simulationStopped = false;
         this.AUTO_STOP_ALPHA = 0.005; // Alpha threshold for auto-stabilize (very low)
+        this.PARALLEL_LINK_SPACING = 22;
+        this.PARALLEL_LINK_MAX_CURVE = 90;
     }
 
     /* -------------------------------------------------------------
@@ -304,6 +306,158 @@ class KGGraphVis extends HTMLElement {
         return safe.replaceAll(/[^a-zA-Z0-9-_]/g, '_');
     }
 
+    getLinkEndpointId(endpoint) {
+        if (endpoint && typeof endpoint === 'object' && endpoint.id) {
+            return endpoint.id;
+        }
+        return endpoint ?? null;
+    }
+
+    sortLinksForStableLayout(links = []) {
+        links.sort((a, b) => {
+            const sourceA = this.getLinkEndpointId(a?.source) || '';
+            const targetA = this.getLinkEndpointId(a?.target) || '';
+            const nameA = a?.name || '';
+            const graphA = a?.graph || '';
+
+            const sourceB = this.getLinkEndpointId(b?.source) || '';
+            const targetB = this.getLinkEndpointId(b?.target) || '';
+            const nameB = b?.name || '';
+            const graphB = b?.graph || '';
+
+            return sourceA.localeCompare(sourceB)
+                || targetA.localeCompare(targetB)
+                || nameA.localeCompare(nameB)
+                || graphA.localeCompare(graphB);
+        });
+    }
+
+    assignParallelLinkOffsets(links = []) {
+        if (!Array.isArray(links)) return;
+
+        const pairGroups = new Map();
+        const setCenteredOffsets = groupLinks => {
+            const center = (groupLinks.length - 1) / 2;
+            groupLinks.forEach((link, index) => {
+                link.parallelOffsetUnit = index - center;
+            });
+        };
+        const setDirectionalOffsets = groupLinks => {
+            groupLinks.forEach((link, index) => {
+                link.parallelOffsetUnit = index + 0.5;
+            });
+        };
+
+        links.forEach(link => {
+            link.parallelOffsetUnit = 0;
+            const sourceId = this.getLinkEndpointId(link?.source);
+            const targetId = this.getLinkEndpointId(link?.target);
+            if (!sourceId || !targetId) return;
+            if (sourceId === targetId) return;
+
+            const [minId, maxId] = sourceId <= targetId
+                ? [sourceId, targetId]
+                : [targetId, sourceId];
+            const pairKey = `${minId}__${maxId}`;
+            if (!pairGroups.has(pairKey)) {
+                pairGroups.set(pairKey, {
+                    minId,
+                    maxId,
+                    forward: [],
+                    backward: []
+                });
+            }
+            const group = pairGroups.get(pairKey);
+            const isForward = sourceId === minId && targetId === maxId;
+            (isForward ? group.forward : group.backward).push(link);
+        });
+
+        pairGroups.forEach(group => {
+            this.sortLinksForStableLayout(group.forward);
+            this.sortLinksForStableLayout(group.backward);
+            const hasBothDirections = group.forward.length > 0 && group.backward.length > 0;
+
+            if (hasBothDirections) {
+                // Keep offsets on the same sign for both directions.
+                // Because source/target are reversed, the same sign naturally bends
+                // paths on opposite sides and avoids overlap.
+                setDirectionalOffsets(group.forward);
+                setDirectionalOffsets(group.backward);
+                return;
+            }
+
+            const singleDirection = group.forward.length > 0 ? group.forward : group.backward;
+            setCenteredOffsets(singleDirection);
+        });
+    }
+
+    buildLinkGeometry(link) {
+        const source = link?.source;
+        const target = link?.target;
+        if (!source || !target) return null;
+        if (!Number.isFinite(source.x) || !Number.isFinite(source.y)
+            || !Number.isFinite(target.x) || !Number.isFinite(target.y)) {
+            return null;
+        }
+
+        const sx = source.x;
+        const sy = source.y;
+        const tx = target.x;
+        const ty = target.y;
+        const dx = tx - sx;
+        const dy = ty - sy;
+        const distance = Math.hypot(dx, dy);
+
+        if (distance < 1e-6) {
+            const loopSize = 34 + Math.abs(link?.parallelOffsetUnit || 0) * 10;
+            const startX = sx;
+            const startY = sy - 20;
+            const endX = sx + 1;
+            const endY = sy - 20;
+            const c1x = sx + loopSize;
+            const c1y = sy - loopSize;
+            const c2x = sx + loopSize;
+            const c2y = sy + loopSize;
+            const labelX = sx + loopSize + 6;
+            const labelY = sy;
+            return {
+                path: `M${startX},${startY} C${c1x},${c1y} ${c2x},${c2y} ${endX},${endY}`,
+                labelX,
+                labelY
+            };
+        }
+
+        const midpointX = (sx + tx) / 2;
+        const midpointY = (sy + ty) / 2;
+        const offsetUnit = Number.isFinite(link?.parallelOffsetUnit) ? link.parallelOffsetUnit : 0;
+        const maxForDistance = Math.min(this.PARALLEL_LINK_MAX_CURVE, Math.max(distance * 0.35, 0));
+        const rawCurveOffset = offsetUnit * this.PARALLEL_LINK_SPACING;
+        const curveOffset = Math.max(-maxForDistance, Math.min(maxForDistance, rawCurveOffset));
+
+        if (Math.abs(curveOffset) < 0.5) {
+            return {
+                path: `M${sx},${sy} L${tx},${ty}`,
+                labelX: midpointX,
+                labelY: midpointY
+            };
+        }
+
+        const normalX = -dy / distance;
+        const normalY = dx / distance;
+        const controlX = midpointX + normalX * curveOffset;
+        const controlY = midpointY + normalY * curveOffset;
+        const t = 0.5;
+        const invT = 1 - t;
+        const labelX = invT * invT * sx + 2 * invT * t * controlX + t * t * tx;
+        const labelY = invT * invT * sy + 2 * invT * t * controlY + t * t * ty;
+
+        return {
+            path: `M${sx},${sy} Q${controlX},${controlY} ${tx},${ty}`,
+            labelX,
+            labelY
+        };
+    }
+
     /* -------------------------------------------------------------
      * RENDERING METHODS
      * ------------------------------------------------------------- */
@@ -496,16 +650,11 @@ class KGGraphVis extends HTMLElement {
 
         if (showEdgeLabels) {
             this.linkLabelSelection.style('display', d => {
-                const sx = d?.source?.x;
-                const sy = d?.source?.y;
-                const tx = d?.target?.x;
-                const ty = d?.target?.y;
-                if (typeof sx !== 'number' || typeof sy !== 'number' || typeof tx !== 'number' || typeof ty !== 'number') {
+                const geometry = d?.geometry ?? this.buildLinkGeometry(d);
+                if (!geometry) {
                     return 'none';
                 }
-                const mx = (sx + tx) / 2;
-                const my = (sy + ty) / 2;
-                return inView(mx, my) ? null : 'none';
+                return inView(geometry.labelX, geometry.labelY) ? null : 'none';
             });
         }
     }
@@ -770,6 +919,7 @@ class KGGraphVis extends HTMLElement {
             this.jsonLDOntology = JSON.parse(this.jsonld);
             const graph = this.createGraph();
             this.graph = graph;
+            this.assignParallelLinkOffsets(this.graph.links);
             const anchor = this.computeLayoutAnchor(previousNodeStateById);
             let reusedNodeCount = 0;
 
@@ -1117,7 +1267,9 @@ class KGGraphVis extends HTMLElement {
         if (this.linkSelection) {
             this.linkSelection.attr("d", d => {
                 if (!hasPos(d.source) || !hasPos(d.target)) return null;
-                return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+                const geometry = this.buildLinkGeometry(d);
+                d.geometry = geometry;
+                return geometry ? geometry.path : null;
             });
 
             // Update Gradients (throttled for performance)
@@ -1153,8 +1305,16 @@ class KGGraphVis extends HTMLElement {
             if (now - this.lastLabelUpdate >= this.LABEL_TICK_THROTTLE) {
                 this.lastLabelUpdate = now;
                 this.linkLabelSelection
-                    .attr("x", d => (hasPos(d.source) && hasPos(d.target)) ? (d.source.x + d.target.x) / 2 : null)
-                    .attr("y", d => (hasPos(d.source) && hasPos(d.target)) ? (d.source.y + d.target.y) / 2 : null);
+                    .attr("x", d => {
+                        if (!hasPos(d.source) || !hasPos(d.target)) return null;
+                        const geometry = d.geometry ?? this.buildLinkGeometry(d);
+                        return geometry ? geometry.labelX : null;
+                    })
+                    .attr("y", d => {
+                        if (!hasPos(d.source) || !hasPos(d.target)) return null;
+                        const geometry = d.geometry ?? this.buildLinkGeometry(d);
+                        return geometry ? geometry.labelY : null;
+                    });
             }
         }
     }
