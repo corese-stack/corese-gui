@@ -1,0 +1,65 @@
+.app-dialog.data-reload-dialog {
+    -fx-min-width: 520px;
+    -fx-max-width: 720px;
+}
+
+.data-reload-dialog-content {
+    -fx-spacing: 10px;
+    -fx-padding: 2px 0 0 0;
+}
+
+.data-reload-dialog-warning {
+    -fx-spacing: 6px;
+    -fx-padding: 10px 12px;
+    -fx-background-color: -color-warning-muted;
+    -fx-border-color: -color-warning-emphasis;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+}
+
+.data-reload-dialog-warning-title {
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-warning-emphasis;
+}
+
+.data-reload-dialog-warning-list {
+    -fx-spacing: 3px;
+}
+
+.data-reload-dialog-warning-item {
+    -fx-text-fill: -color-fg-default;
+    -fx-wrap-text: true;
+}
+
+.data-reload-dialog-source-scroll {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.data-reload-dialog-source-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.data-reload-dialog-source-list {
+    -fx-spacing: 7px;
+    -fx-fill-width: true;
+}
+
+.data-reload-dialog-source-item {
+    -fx-max-width: Infinity;
+    -fx-padding: 7px 10px;
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-muted;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+}
+
+.data-reload-dialog-inline-error {
+    -fx-text-fill: -color-danger-fg;
+    -fx-font-size: 12px;
+    -fx-alignment: center-right;
+    -fx-text-alignment: right;
+    -fx-padding: 0 6px 0 0;
+}
