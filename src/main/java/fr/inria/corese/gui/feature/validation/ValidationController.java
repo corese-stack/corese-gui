@@ -14,6 +14,7 @@ import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.model.ValidationResult;
+import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
@@ -154,14 +155,12 @@ public class ValidationController {
 
 			// Update UI on JavaFX Application Thread
 			Platform.runLater(() -> handleValidationResult(result, resultController));
-		} catch (Exception e) {
+		} catch (Throwable e) { // Broad catch prevents background-thread crashes on malformed shapes
 			LOGGER.error("Error during validation", e);
 			Platform.runLater(() -> {
 				tabEditorController.setExecutionState(false);
 				tabEditorController.hideResultPane();
-				tabEditorController.showError("Validation Error",
-						"An unexpected error occurred during validation.\n" + "Please check the logs for more details.",
-						e.getMessage());
+				ModalService.getInstance().showError("Validation Error", buildValidationErrorMessage(e));
 			});
 		}
 	}
@@ -169,50 +168,77 @@ public class ValidationController {
 	private void handleValidationResult(ValidationResult result, ResultController resultController) {
 		tabEditorController.setExecutionState(false);
 
-		if (result.getErrorMessage() != null) {
-			// Handle validation errors (e.g., syntax errors in shapes)
+		if (result == null) {
 			tabEditorController.hideResultPane();
-			tabEditorController.showError("Invalid SHACL Syntax",
-					"The SHACL shapes contain syntax errors.\nPlease correct the errors listed below:",
-					result.getErrorMessage());
-		} else {
-			// Success: Display the report
-			Tab selectedTab = tabEditorController.getSelectedTab();
-			ValidationModel model = tabModels.get(selectedTab);
-
-			tabEditorController.showResultPane();
-
-			// Configure tabs: Validation results have text only
-			resultController.configureTabsForResult(true, // text: enabled (TURTLE/RDF/XML report)
-					false, // table: disabled
-					false // graph: disabled (not used for validation)
-			);
-
-			// Ensure the text tab is visible to show the report
-			resultController.selectTextTab();
-
-			// Ensure text formats are configured for RDF outputs
-			SerializationFormat[] formats = SerializationFormat.rdfFormats();
-			resultController.configureTextFormats(formats, SerializationFormat.TURTLE);
-			SerializationFormat preferredFormat = resultController.getPreferredTextFormat(formats,
-					SerializationFormat.TURTLE);
-
-			// Display initial report using the preferred format
-			AppExecutors.execute(() -> {
-				String initialReport = model.formatLastReport(preferredFormat.getLabel());
-				if (initialReport != null) {
-					Platform.runLater(() -> resultController.updateText(initialReport));
-				}
-			});
-
-			// Configure callback for format changes
-			resultController.setOnFormatChanged(format -> AppExecutors.execute(() -> {
-				String formattedReport = model.formatLastReport(format.getLabel());
-				if (formattedReport != null) {
-					Platform.runLater(() -> resultController.updateText(formattedReport));
-				}
-			}));
+			ModalService.getInstance().showError("Validation Error", "Validation failed: no result was returned.");
+			return;
 		}
+
+		if (result.getErrorMessage() != null && !result.getErrorMessage().isBlank()) {
+			// Handle validation errors (e.g., syntax errors in shapes) with query-like
+			// modal
+			tabEditorController.hideResultPane();
+			ModalService.getInstance().showError("Validation Error", result.getErrorMessage());
+			return;
+		}
+
+		// Success: Display the report
+		Tab selectedTab = tabEditorController.getSelectedTab();
+		ValidationModel model = selectedTab != null ? tabModels.get(selectedTab) : null;
+		if (model == null) {
+			tabEditorController.hideResultPane();
+			ModalService.getInstance().showError("Validation Error", "Validation context is no longer available.");
+			return;
+		}
+
+		tabEditorController.showResultPane();
+
+		// Configure tabs: Validation results have text only
+		resultController.configureTabsForResult(true, // text: enabled (TURTLE/RDF/XML report)
+				false, // table: disabled
+				false // graph: disabled (not used for validation)
+		);
+
+		// Ensure the text tab is visible to show the report
+		resultController.selectTextTab();
+
+		// Ensure text formats are configured for RDF outputs
+		SerializationFormat[] formats = SerializationFormat.rdfFormats();
+		resultController.configureTextFormats(formats, SerializationFormat.TURTLE);
+		SerializationFormat preferredFormat = resultController.getPreferredTextFormat(formats,
+				SerializationFormat.TURTLE);
+
+		// Display initial report using the preferred format
+		AppExecutors.execute(() -> {
+			String initialReport = model.formatLastReport(preferredFormat.getLabel());
+			if (initialReport != null) {
+				Platform.runLater(() -> resultController.updateText(initialReport));
+			}
+		});
+
+		// Configure callback for format changes
+		resultController.setOnFormatChanged(format -> AppExecutors.execute(() -> {
+			String formattedReport = model.formatLastReport(format.getLabel());
+			if (formattedReport != null) {
+				Platform.runLater(() -> resultController.updateText(formattedReport));
+			}
+		}));
+	}
+
+	private static String buildValidationErrorMessage(Throwable throwable) {
+		if (throwable == null) {
+			return "Validation failed: unknown error.";
+		}
+		String message = throwable.getMessage();
+		Throwable cause = throwable.getCause();
+		while ((message == null || message.isBlank()) && cause != null) {
+			message = cause.getMessage();
+			cause = cause.getCause();
+		}
+		if (message == null || message.isBlank()) {
+			return "Validation failed: " + throwable.getClass().getSimpleName();
+		}
+		return "Validation failed: " + message;
 	}
 
 	// ==============================================================================================
