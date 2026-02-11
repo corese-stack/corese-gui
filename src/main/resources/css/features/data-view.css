@@ -89,6 +89,26 @@
     -fx-background-radius: 6px;
 }
 
+.data-graph-empty-state {
+    -fx-padding: 20px;
+}
+
+.data-graph-drop-overlay {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.data-graph-drop-overlay-active {
+    -fx-background-color: rgba(64, 139, 250, 0.12);
+    -fx-background-insets: 8;
+    -fx-background-radius: 10;
+    -fx-border-color: -color-accent-fg;
+    -fx-border-insets: 8;
+    -fx-border-radius: 10;
+    -fx-border-width: 1.5;
+    -fx-border-style: segments(8, 6);
+}
+
 .data-status-bar {
     -fx-alignment: center-left;
     -fx-spacing: 14px;

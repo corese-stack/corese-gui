@@ -66,9 +66,15 @@ public class DataViewController implements AutoCloseable {
 
 	private void initialize() {
 		configureToolbar();
+		configureGraphSurface();
 		configureReasoningControls();
 		subscribeToGraphMutations();
 		refreshGraphSnapshot();
+	}
+
+	private void configureGraphSurface() {
+		view.configureGraphEmptyState(this::handleLoadFile, this::handleLoadUri);
+		view.setOnGraphFilesDropped(this::handleGraphFilesDropped);
 	}
 
 	private void configureToolbar() {
@@ -169,11 +175,13 @@ public class DataViewController implements AutoCloseable {
 	private void refreshGraphSnapshot() {
 		try {
 			String jsonLdSnapshot = workspaceService.getGraphSnapshotJsonLd();
-			if (jsonLdSnapshot == null || jsonLdSnapshot.isBlank()) {
+			boolean hasRenderableGraph = jsonLdSnapshot != null && !jsonLdSnapshot.isBlank();
+			if (!hasRenderableGraph) {
 				view.getGraphWidget().clear();
 			} else {
 				view.getGraphWidget().displayGraph(jsonLdSnapshot);
 			}
+			view.setGraphEmptyStateVisible(!hasRenderableGraph);
 			view.updateStatus(workspaceService.getTripleCount(), workspaceService.getSourceCount());
 			updateToolbarActionStates();
 		} catch (Exception e) {
@@ -204,43 +212,80 @@ public class DataViewController implements AutoCloseable {
 		fileChooser.setSelectedExtensionFilter(rdfFilter);
 
 		List<File> files = fileChooser.showOpenMultipleDialog(view.getRoot().getScene().getWindow());
+		executeLoadFiles(files);
+	}
 
-		if (files != null && !files.isEmpty()) {
-			FileDialogState.updateLastDirectory(files);
-			AppExecutors.execute(() -> {
-				int successCount = 0;
-				dataOperationInProgress.set(true);
-				try {
-					for (File file : files) {
-						try {
-							workspaceService.loadFile(file);
-							successCount++;
-						} catch (Exception ex) {
-							String message = "Error loading " + file.getName() + ": " + ex.getMessage();
-							Platform.runLater(() -> NotificationWidget.getInstance().showError(message));
-						}
-					}
-
-					int loadedCount = successCount;
-					if (loadedCount > 0 && reasoningService.hasAnyEnabledProfile()) {
-						try {
-							reasoningService.recomputeEnabledProfiles();
-						} catch (Exception e) {
-							Platform.runLater(() -> NotificationWidget.getInstance()
-									.showError("Reasoning recompute failed: " + e.getMessage()));
-						}
-					}
-				} finally {
-					int loadedCount = successCount;
-					Platform.runLater(() -> {
-						if (loadedCount > 0) {
-							NotificationWidget.getInstance().showSuccess("Loaded " + loadedCount + " file(s).");
-						}
-					});
-					finishDataOperation();
-				}
-			});
+	private void handleGraphFilesDropped(List<File> droppedFiles) {
+		List<File> safeDroppedFiles = droppedFiles == null ? List.of() : List.copyOf(droppedFiles);
+		if (safeDroppedFiles.isEmpty()) {
+			return;
 		}
+
+		List<File> compatibleFiles = new ArrayList<>();
+		int ignoredCount = 0;
+		for (File file : safeDroppedFiles) {
+			if (file != null && file.isFile()
+					&& FileTypeSupport.matchesAllowedExtensions(file, FileTypeSupport.rdfExtensions())) {
+				compatibleFiles.add(file);
+			} else {
+				ignoredCount++;
+			}
+		}
+
+		if (compatibleFiles.isEmpty()) {
+			NotificationWidget.getInstance().showWarning("No compatible RDF file dropped.");
+			return;
+		}
+
+		if (ignoredCount > 0) {
+			NotificationWidget.getInstance().showWarning("Ignored " + ignoredCount + " unsupported dropped file(s).");
+		}
+
+		executeLoadFiles(compatibleFiles);
+	}
+
+	private void executeLoadFiles(List<File> files) {
+		List<File> safeFiles = files == null
+				? List.of()
+				: files.stream().filter(file -> file != null && file.isFile()).toList();
+		if (safeFiles.isEmpty()) {
+			return;
+		}
+
+		FileDialogState.updateLastDirectory(safeFiles);
+		AppExecutors.execute(() -> {
+			int successCount = 0;
+			dataOperationInProgress.set(true);
+			try {
+				for (File file : safeFiles) {
+					try {
+						workspaceService.loadFile(file);
+						successCount++;
+					} catch (Exception ex) {
+						String message = "Error loading " + file.getName() + ": " + ex.getMessage();
+						Platform.runLater(() -> NotificationWidget.getInstance().showError(message));
+					}
+				}
+
+				int loadedCount = successCount;
+				if (loadedCount > 0 && reasoningService.hasAnyEnabledProfile()) {
+					try {
+						reasoningService.recomputeEnabledProfiles();
+					} catch (Exception e) {
+						Platform.runLater(() -> NotificationWidget.getInstance()
+								.showError("Reasoning recompute failed: " + e.getMessage()));
+					}
+				}
+			} finally {
+				int loadedCount = successCount;
+				Platform.runLater(() -> {
+					if (loadedCount > 0) {
+						NotificationWidget.getInstance().showSuccess("Loaded " + loadedCount + " file(s).");
+					}
+				});
+				finishDataOperation();
+			}
+		});
 	}
 
 	private void handleLoadUri() {
