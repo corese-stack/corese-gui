@@ -69,6 +69,9 @@ public enum ButtonIcon {
 	/** Icon for exporting data/files. */
 	EXPORT(MaterialDesignA.APPLICATION_EXPORT),
 
+	/** Icon for exporting RDF dataset formats from data workspace. */
+	EXPORT_DATA(MaterialDesignD.DATABASE_EXPORT_OUTLINE),
+
 	// ===============================================================================
 	// Enum Constants - Editor Operations
 	// ===============================================================================

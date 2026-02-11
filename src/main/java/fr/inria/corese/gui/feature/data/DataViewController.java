@@ -74,13 +74,16 @@ public class DataViewController implements AutoCloseable {
 	private void configureToolbar() {
 		List<ButtonConfig> buttons = List.of(ButtonFactory.openFile(this::handleLoadFile),
 				ButtonFactory.openUri(this::handleLoadUri), ButtonFactory.reload(this::handleReloadSources),
-				ButtonFactory.export(this::handleExportGraph), ButtonFactory.clearGraph(this::handleClearGraph),
+				ButtonFactory.exportData(this::handleExportData), ButtonFactory.clearGraph(this::handleClearGraph),
+				ButtonFactory.exportGraph(this::handleExportVisualGraph),
 				ButtonFactory.resetLayout(view.getGraphWidget()::resetLayout),
 				ButtonFactory.zoomIn(view.getGraphWidget()::zoomIn),
 				ButtonFactory.zoomOut(view.getGraphWidget()::zoomOut));
 
 		view.setToolbarActions(buttons);
+		view.insertToolbarSeparatorAfter(ButtonIcon.CLEAR);
 		view.markToolbarButtonDanger(ButtonIcon.CLEAR);
+		updateToolbarActionStates();
 	}
 
 	private void configureReasoningControls() {
@@ -172,9 +175,23 @@ public class DataViewController implements AutoCloseable {
 				view.getGraphWidget().displayGraph(jsonLdSnapshot);
 			}
 			view.updateStatus(workspaceService.getTripleCount(), workspaceService.getSourceCount());
+			updateToolbarActionStates();
 		} catch (Exception e) {
 			LOGGER.warn("Failed to refresh graph snapshot", e);
 		}
+	}
+
+	private void updateToolbarActionStates() {
+		boolean hasData = workspaceService.hasData();
+		boolean hasTrackedSources = !workspaceService.getTrackedSources().isEmpty();
+
+		view.setToolbarButtonDisabled(ButtonIcon.RELOAD, !hasTrackedSources);
+		view.setToolbarButtonDisabled(ButtonIcon.EXPORT_DATA, !hasData);
+		view.setToolbarButtonDisabled(ButtonIcon.EXPORT, !hasData);
+		view.setToolbarButtonDisabled(ButtonIcon.CLEAR, !hasData);
+		view.setToolbarButtonDisabled(ButtonIcon.LAYOUT_FORCE, !hasData);
+		view.setToolbarButtonDisabled(ButtonIcon.ZOOM_IN, !hasData);
+		view.setToolbarButtonDisabled(ButtonIcon.ZOOM_OUT, !hasData);
 	}
 
 	private void handleLoadFile() {
@@ -302,17 +319,17 @@ public class DataViewController implements AutoCloseable {
 		});
 	}
 
-	private void handleExportGraph() {
+	private void handleExportData() {
 		if (!workspaceService.hasData()) {
-			NotificationWidget.getInstance().showWarning("No graph data to export.");
+			NotificationWidget.getInstance().showWarning("No RDF data to export.");
 			return;
 		}
 		if (view.getRoot().getScene() == null) {
-			NotificationWidget.getInstance().showError("Export unavailable: view is not attached to a scene.");
+			NotificationWidget.getInstance().showError("RDF export unavailable: view is not attached to a scene.");
 			return;
 		}
 
-		ExportHelper.exportDataGraph(view.getRoot().getScene().getWindow(), workspaceService.getRdfExportFormats(),
+		ExportHelper.exportResult(view.getRoot().getScene().getWindow(), workspaceService.getRdfExportFormats(),
 				format -> {
 					try {
 						return workspaceService.serializeGraph(format);
@@ -321,7 +338,26 @@ public class DataViewController implements AutoCloseable {
 								.showError("RDF export preparation failed: " + e.getMessage()));
 						return null;
 					}
-				}, () -> view.getGraphWidget().getSvgContent());
+				});
+	}
+
+	private void handleExportVisualGraph() {
+		if (!workspaceService.hasData()) {
+			NotificationWidget.getInstance().showWarning("No graph to export.");
+			return;
+		}
+		if (view.getRoot().getScene() == null) {
+			NotificationWidget.getInstance().showError("Graph export unavailable: view is not attached to a scene.");
+			return;
+		}
+
+		String svgContent = view.getGraphWidget().getSvgContent();
+		if (svgContent == null || svgContent.isBlank()) {
+			NotificationWidget.getInstance().showWarning("No rendered graph available for export.");
+			return;
+		}
+
+		ExportHelper.exportGraph(view.getRoot().getScene().getWindow(), svgContent);
 	}
 
 	private void handleClearGraph() {

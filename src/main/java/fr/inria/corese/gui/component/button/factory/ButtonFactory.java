@@ -117,6 +117,40 @@ public final class ButtonFactory {
 	}
 
 	/**
+	 * Creates a standardized RDF data export button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with data-export icon and tooltip
+	 */
+	public static ButtonConfig exportData(Runnable action) {
+		return new ButtonConfig(ButtonIcon.EXPORT_DATA, "Export RDF Data", action);
+	}
+
+	/** Creates an RDF data export button configuration with no action bound yet. */
+	public static ButtonConfig exportData() {
+		return exportData(null);
+	}
+
+	/**
+	 * Creates a standardized visual graph export button configuration.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig for visual graph exports
+	 */
+	public static ButtonConfig exportGraph(Runnable action) {
+		return new ButtonConfig(ButtonIcon.EXPORT, "Export Graph (SVG/PNG/PDF)", action);
+	}
+
+	/**
+	 * Creates a visual graph export button configuration with no action bound yet.
+	 */
+	public static ButtonConfig exportGraph() {
+		return exportGraph(null);
+	}
+
+	/**
 	 * Creates an Export SVG button configuration.
 	 *
 	 * <p>

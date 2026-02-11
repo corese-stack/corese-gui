@@ -153,6 +153,28 @@ public class DataView extends AbstractView {
 	}
 
 	/**
+	 * Inserts a separator after a specific toolbar button.
+	 *
+	 * @param buttonIcon
+	 *            toolbar button icon key
+	 */
+	public void insertToolbarSeparatorAfter(ButtonIcon buttonIcon) {
+		toolbarWidget.insertSeparatorAfter(buttonIcon);
+	}
+
+	/**
+	 * Enables or disables a specific toolbar button.
+	 *
+	 * @param buttonIcon
+	 *            toolbar button icon key
+	 * @param disabled
+	 *            true to disable, false to enable
+	 */
+	public void setToolbarButtonDisabled(ButtonIcon buttonIcon, boolean disabled) {
+		toolbarWidget.setButtonDisabled(buttonIcon, disabled);
+	}
+
+	/**
 	 * Marks a toolbar button as dangerous.
 	 *
 	 * @param buttonIcon

@@ -34,14 +34,14 @@ public class GraphResultController implements AutoCloseable {
 	 * Initializes the controller by setting up the toolbar actions on the view.
 	 */
 	private void initialize() {
-		view.setToolbarActions(List.of(ButtonFactory.export(this::exportGraph),
+		view.setToolbarActions(List.of(ButtonFactory.exportGraph(this::exportGraph),
 				ButtonFactory.resetLayout(view.getGraphWidget()::resetLayout),
 				ButtonFactory.zoomIn(view.getGraphWidget()::zoomIn),
 				ButtonFactory.zoomOut(view.getGraphWidget()::zoomOut)));
 	}
 
 	/**
-	 * Triggers the export process to save the current graph as an SVG file.
+	 * Triggers the export process to save the current graph as SVG, PNG, or PDF.
 	 * Delegates the file handling to {@link ExportHelper}.
 	 */
 	private void exportGraph() {
