@@ -1,8 +1,10 @@
 package fr.inria.corese.gui.core.service;
 
 import fr.inria.corese.core.Graph;
-import fr.inria.corese.core.kgram.api.core.Edge;
-import fr.inria.corese.core.kgram.api.core.Node;
+import fr.inria.corese.core.kgram.core.Mapping;
+import fr.inria.corese.core.kgram.core.Mappings;
+import fr.inria.corese.core.query.QueryProcess;
+import fr.inria.corese.core.sparql.api.IDatatype;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.service.DataSourceRegistryService.DataSource;
 import fr.inria.corese.gui.core.service.DataSourceRegistryService.SourceType;
@@ -11,6 +13,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Default implementation of {@link DataWorkspaceService}.
@@ -22,7 +26,13 @@ import java.util.Map;
 @SuppressWarnings("java:S6548") // Singleton is intentional for shared graph workspace management
 public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(DefaultDataWorkspaceService.class);
 	private static final DefaultDataWorkspaceService INSTANCE = new DefaultDataWorkspaceService();
+	private static final String NAMED_GRAPH_COUNT_QUERY = """
+			SELECT ?g (COUNT(*) AS ?count)
+			WHERE { GRAPH ?g { ?s ?p ?o } }
+			GROUP BY ?g
+			""";
 
 	private final RdfDataService rdfDataService = RdfDataService.getInstance();
 	private final DataSourceRegistryService sourceRegistryService = DataSourceRegistryService.getInstance();
@@ -135,15 +145,12 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 
 		Graph graph = GraphStoreService.getInstance().getGraph();
 		int totalTripleCount = Math.max(0, graph.size());
-		String defaultGraphName = resolveDefaultGraphName(graph);
 		Map<String, Integer> graphTripleCounts = computeGraphTripleCounts(graph);
-		int defaultGraphTripleCount = defaultGraphName == null
-				? 0
-				: graphTripleCounts.getOrDefault(defaultGraphName, 0);
+		int namedGraphTripleTotal = graphTripleCounts.values().stream().mapToInt(Integer::intValue).sum();
+		int defaultGraphTripleCount = Math.max(0, totalTripleCount - namedGraphTripleTotal);
 
 		List<DataWorkspaceStatus.NamedGraphStat> namedGraphStats = graphTripleCounts.entrySet().stream()
 				.filter(entry -> entry.getValue() > 0)
-				.filter(entry -> defaultGraphName == null || !defaultGraphName.equals(entry.getKey()))
 				.map(entry -> new DataWorkspaceStatus.NamedGraphStat(entry.getKey(), entry.getValue()))
 				.sorted((left, right) -> {
 					int byCount = Integer.compare(right.tripleCount(), left.tripleCount());
@@ -167,33 +174,38 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 
 	private static Map<String, Integer> computeGraphTripleCounts(Graph graph) {
 		Map<String, Integer> counts = new HashMap<>();
-		for (Node graphNode : graph.getGraphNodes()) {
-			if (graphNode == null || graphNode.getLabel() == null || graphNode.getLabel().isBlank()) {
-				continue;
+		if (graph == null || graph.size() == 0) {
+			return counts;
+		}
+		try {
+			QueryProcess queryProcess = QueryProcess.create(graph);
+			Mappings mappings = queryProcess.query(NAMED_GRAPH_COUNT_QUERY);
+			for (Mapping mapping : mappings) {
+				IDatatype graphValue = mapping.getValue("?g");
+				if (graphValue == null || graphValue.getLabel() == null || graphValue.getLabel().isBlank()) {
+					continue;
+				}
+				IDatatype countValue = mapping.getValue("?count");
+				counts.put(graphValue.getLabel(), toNonNegativeInt(countValue));
 			}
-			counts.put(graphNode.getLabel(), countEdges(graph.getEdges(graphNode, Graph.IGRAPH)));
+		} catch (Exception e) {
+			LOGGER.warn("Unable to compute named graph counts safely, status will fallback to global counters", e);
 		}
 		return counts;
 	}
 
-	private static String resolveDefaultGraphName(Graph graph) {
-		Node defaultGraphNode = graph.getDefaultGraphNode();
-		if (defaultGraphNode == null) {
-			return null;
+	private static int toNonNegativeInt(IDatatype value) {
+		if (value == null || value.getLabel() == null || value.getLabel().isBlank()) {
+			return 0;
 		}
-		String label = defaultGraphNode.getLabel();
-		return (label == null || label.isBlank()) ? null : label;
-	}
-
-	private static int countEdges(Iterable<Edge> edges) {
-		int count = 0;
-		if (edges == null) {
-			return count;
+		try {
+			long parsed = Long.parseLong(value.getLabel());
+			if (parsed <= 0) {
+				return 0;
+			}
+			return parsed > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) parsed;
+		} catch (NumberFormatException e) {
+			return 0;
 		}
-		for (@SuppressWarnings("unused")
-		Edge ignored : edges) {
-			count++;
-		}
-		return count;
 	}
 }
