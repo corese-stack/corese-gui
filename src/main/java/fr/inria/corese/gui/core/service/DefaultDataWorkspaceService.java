@@ -1,10 +1,16 @@
 package fr.inria.corese.gui.core.service;
 
+import fr.inria.corese.core.Graph;
+import fr.inria.corese.core.kgram.api.core.Edge;
+import fr.inria.corese.core.kgram.api.core.Node;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.service.DataSourceRegistryService.DataSource;
 import fr.inria.corese.gui.core.service.DataSourceRegistryService.SourceType;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Default implementation of {@link DataWorkspaceService}.
@@ -119,5 +125,75 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 	@Override
 	public List<DataSource> getTrackedSources() {
 		return sourceRegistryService.snapshot();
+	}
+
+	@Override
+	public DataWorkspaceStatus getStatus() {
+		List<DataSource> sources = sourceRegistryService.snapshot();
+		int fileSourceCount = (int) sources.stream().filter(source -> source.type() == SourceType.FILE).count();
+		int uriSourceCount = (int) sources.stream().filter(source -> source.type() == SourceType.URI).count();
+
+		Graph graph = GraphStoreService.getInstance().getGraph();
+		int totalTripleCount = Math.max(0, graph.size());
+		String defaultGraphName = resolveDefaultGraphName(graph);
+		Map<String, Integer> graphTripleCounts = computeGraphTripleCounts(graph);
+		int defaultGraphTripleCount = defaultGraphName == null
+				? 0
+				: graphTripleCounts.getOrDefault(defaultGraphName, 0);
+
+		List<DataWorkspaceStatus.NamedGraphStat> namedGraphStats = graphTripleCounts.entrySet().stream()
+				.filter(entry -> entry.getValue() > 0)
+				.filter(entry -> defaultGraphName == null || !defaultGraphName.equals(entry.getKey()))
+				.map(entry -> new DataWorkspaceStatus.NamedGraphStat(entry.getKey(), entry.getValue()))
+				.sorted((left, right) -> {
+					int byCount = Integer.compare(right.tripleCount(), left.tripleCount());
+					return byCount != 0 ? byCount : left.graphName().compareTo(right.graphName());
+				}).toList();
+
+		List<DataWorkspaceStatus.ReasoningStat> reasoningStats = new ArrayList<>();
+		int inferredTripleCount = 0;
+		for (ReasoningProfile profile : ReasoningProfile.values()) {
+			int profileCount = graphTripleCounts.getOrDefault(profile.namedGraphUri(), 0);
+			inferredTripleCount += profileCount;
+			reasoningStats
+					.add(new DataWorkspaceStatus.ReasoningStat(profile.label(), profile.namedGraphUri(), profileCount));
+		}
+		int explicitTripleCount = Math.max(0, totalTripleCount - inferredTripleCount);
+
+		return new DataWorkspaceStatus(totalTripleCount, explicitTripleCount, inferredTripleCount,
+				defaultGraphTripleCount, sources.size(), fileSourceCount, uriSourceCount, namedGraphStats.size(),
+				namedGraphStats, reasoningStats);
+	}
+
+	private static Map<String, Integer> computeGraphTripleCounts(Graph graph) {
+		Map<String, Integer> counts = new HashMap<>();
+		for (Node graphNode : graph.getGraphNodes()) {
+			if (graphNode == null || graphNode.getLabel() == null || graphNode.getLabel().isBlank()) {
+				continue;
+			}
+			counts.put(graphNode.getLabel(), countEdges(graph.getEdges(graphNode, Graph.IGRAPH)));
+		}
+		return counts;
+	}
+
+	private static String resolveDefaultGraphName(Graph graph) {
+		Node defaultGraphNode = graph.getDefaultGraphNode();
+		if (defaultGraphNode == null) {
+			return null;
+		}
+		String label = defaultGraphNode.getLabel();
+		return (label == null || label.isBlank()) ? null : label;
+	}
+
+	private static int countEdges(Iterable<Edge> edges) {
+		int count = 0;
+		if (edges == null) {
+			return count;
+		}
+		for (@SuppressWarnings("unused")
+		Edge ignored : edges) {
+			count++;
+		}
+		return count;
 	}
 }

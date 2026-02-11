@@ -122,5 +122,17 @@
 
 .data-status-label {
     -fx-font-size: 12px;
-    -fx-text-fill: -color-fg-muted;
+    -fx-text-fill: -color-fg-default;
+    -fx-font-weight: 600;
+    -fx-padding: 4px 10px;
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1px;
+    -fx-border-radius: 999px;
+    -fx-background-radius: 999px;
+}
+
+.data-status-label:hover {
+    -fx-border-color: -color-accent-fg;
+    -fx-text-fill: -color-accent-fg;
 }

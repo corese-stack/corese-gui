@@ -103,4 +103,11 @@ public interface DataWorkspaceService {
 	 * @return immutable source list
 	 */
 	List<DataSource> getTrackedSources();
+
+	/**
+	 * Returns a complete status snapshot for Data page counters and tooltips.
+	 *
+	 * @return workspace status snapshot
+	 */
+	DataWorkspaceStatus getStatus();
 }

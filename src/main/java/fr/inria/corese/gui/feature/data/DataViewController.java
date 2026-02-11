@@ -7,6 +7,7 @@ import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.io.FileDialogState;
 import fr.inria.corese.gui.core.io.ExportHelper;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
+import fr.inria.corese.gui.core.service.DataWorkspaceStatus;
 import fr.inria.corese.gui.core.service.DataWorkspaceService;
 import fr.inria.corese.gui.core.service.DataSourceRegistryService.DataSource;
 import fr.inria.corese.gui.core.service.DefaultDataWorkspaceService;
@@ -174,6 +175,7 @@ public class DataViewController implements AutoCloseable {
 
 	private void refreshGraphSnapshot() {
 		try {
+			DataWorkspaceStatus status = workspaceService.getStatus();
 			String jsonLdSnapshot = workspaceService.getGraphSnapshotJsonLd();
 			boolean hasRenderableGraph = jsonLdSnapshot != null && !jsonLdSnapshot.isBlank();
 			if (!hasRenderableGraph) {
@@ -182,7 +184,7 @@ public class DataViewController implements AutoCloseable {
 				view.getGraphWidget().displayGraph(jsonLdSnapshot);
 			}
 			view.setGraphEmptyStateVisible(!hasRenderableGraph);
-			view.updateStatus(workspaceService.getTripleCount(), workspaceService.getSourceCount());
+			view.updateStatus(status);
 			updateToolbarActionStates();
 		} catch (Exception e) {
 			LOGGER.warn("Failed to refresh graph snapshot", e);
