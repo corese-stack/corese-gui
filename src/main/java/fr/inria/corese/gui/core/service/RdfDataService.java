@@ -10,6 +10,7 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URLConnection;
+import javax.net.ssl.SSLHandshakeException;
 
 /**
  * Service for loading RDF data into the shared graph.
@@ -50,6 +51,14 @@ public class RdfDataService {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(RdfDataService.class);
 	private static final RdfDataService INSTANCE = new RdfDataService();
+	private static final int CONNECT_TIMEOUT_MS = 10_000;
+	private static final int READ_TIMEOUT_MS = 30_000;
+	private static final String HTTPS_SCHEME = "https";
+	private static final String HTTP_SCHEME = "http";
+	private static final String ACCEPT_HEADER = String.join(", ", "text/turtle", "application/ld+json",
+			"application/rdf+xml", "application/n-triples", "application/trig", "*/*");
+	private static final String DEMO_HTTP_FALLBACK_HOST = "ns.inria.fr";
+	private static final String DEMO_HTTP_FALLBACK_PATH_PREFIX = "/humans/";
 
 	// ==============================================================================================
 	// Constructor
@@ -156,19 +165,76 @@ public class RdfDataService {
 			}
 			LOGGER.info("Successfully loaded {} triples after URI load.", GraphStoreService.getInstance().size());
 		} catch (Exception e) { // Generic catch is justified: Corese can throw various exception types
-			String errorMsg = String.format("Failed to load RDF URI '%s': %s", normalizedUri, e.getMessage());
+			String details = isSslHandshakeFailure(e)
+					? "TLS certificate validation failed. The app retries HTTP only for known demo links under "
+							+ DEMO_HTTP_FALLBACK_HOST + DEMO_HTTP_FALLBACK_PATH_PREFIX
+							+ ". Otherwise, fix the JVM truststore or use http:// when available."
+					: e.getMessage();
+			String errorMsg = String.format("Failed to load RDF URI '%s': %s", normalizedUri, details);
 			LOGGER.error(errorMsg, e);
 			throw new RdfLoadException(errorMsg, e);
 		}
 	}
 
 	private InputStream openUriStream(URI uri) throws Exception {
+		try {
+			return openUriStreamInternal(uri);
+		} catch (Exception primaryFailure) {
+			URI fallbackUri = resolveDemoHttpFallbackUri(uri, primaryFailure);
+			if (fallbackUri == null) {
+				throw primaryFailure;
+			}
+			LOGGER.warn("TLS validation failed for {}. Retrying with HTTP fallback {} for known demo host {}.", uri,
+					fallbackUri, DEMO_HTTP_FALLBACK_HOST);
+			return openUriStreamInternal(fallbackUri);
+		}
+	}
+
+	private InputStream openUriStreamInternal(URI uri) throws Exception {
 		URLConnection connection = uri.toURL().openConnection();
-		connection.setConnectTimeout(10_000);
-		connection.setReadTimeout(30_000);
-		connection.setRequestProperty("Accept", String.join(", ", "text/turtle", "application/ld+json",
-				"application/rdf+xml", "application/n-triples", "application/trig", "*/*"));
+		connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
+		connection.setReadTimeout(READ_TIMEOUT_MS);
+		connection.setRequestProperty("Accept", ACCEPT_HEADER);
 		return connection.getInputStream();
+	}
+
+	private URI resolveDemoHttpFallbackUri(URI uri, Exception failure) {
+		if (!isSslHandshakeFailure(failure)) {
+			return null;
+		}
+		if (!isDemoHttpFallbackCandidate(uri)) {
+			return null;
+		}
+		try {
+			return new URI(HTTP_SCHEME, uri.getUserInfo(), uri.getHost(), uri.getPort(), uri.getPath(), uri.getQuery(),
+					uri.getFragment());
+		} catch (Exception uriCreationFailure) {
+			LOGGER.debug("Failed to build HTTP fallback URI from {}", uri, uriCreationFailure);
+			return null;
+		}
+	}
+
+	private boolean isDemoHttpFallbackCandidate(URI uri) {
+		if (uri == null || !HTTPS_SCHEME.equalsIgnoreCase(uri.getScheme())) {
+			return false;
+		}
+		String host = uri.getHost();
+		String path = uri.getPath();
+		if (host == null || path == null) {
+			return false;
+		}
+		return DEMO_HTTP_FALLBACK_HOST.equalsIgnoreCase(host) && path.startsWith(DEMO_HTTP_FALLBACK_PATH_PREFIX);
+	}
+
+	private boolean isSslHandshakeFailure(Throwable throwable) {
+		Throwable current = throwable;
+		while (current != null) {
+			if (current instanceof SSLHandshakeException) {
+				return true;
+			}
+			current = current.getCause();
+		}
+		return false;
 	}
 
 	/**

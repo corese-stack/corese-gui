@@ -6,7 +6,7 @@ package fr.inria.corese.gui.feature.query.template;
 public final class QueryTemplateGenerator {
 
 	private static final String DEFAULT_GRAPH_URI = "http://example.org/graph";
-	private static final String LOAD_URI_PLACEHOLDER = "https://ns.inria.fr/humans/humans_data.ttl";
+	private static final String LOAD_URI_PLACEHOLDER = "http://ns.inria.fr/humans/humans_data.ttl";
 	private static final String EXAMPLE_SUBJECT = "http://example.org/resource/s";
 	private static final String EXAMPLE_PREDICATE = "http://example.org/property/p";
 	private static final String EXAMPLE_LITERAL = "\"value\"";

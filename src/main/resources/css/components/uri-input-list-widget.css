@@ -1,0 +1,22 @@
+.uri-input-list-widget {
+    -fx-spacing: 10px;
+}
+
+.uri-input-list-widget .uri-input-fields {
+    -fx-spacing: 8px;
+}
+
+.uri-input-list-widget .uri-inline-error {
+    -fx-text-fill: -color-danger-fg;
+    -fx-font-size: 12px;
+}
+
+.uri-input-list-widget .uri-input-invalid {
+    -fx-border-color: -color-danger-fg;
+    -fx-border-width: 1px;
+}
+
+.uri-input-list-widget .uri-input-invalid:focused {
+    -fx-border-color: -color-danger-fg;
+    -fx-border-width: 1.5px;
+}

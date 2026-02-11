@@ -67,7 +67,7 @@ public enum ButtonIcon {
 	IMPORT(MaterialDesignI.IMPORT),
 
 	/** Icon for exporting data/files. */
-	EXPORT(MaterialDesignE.EXPORT),
+	EXPORT(MaterialDesignA.APPLICATION_EXPORT),
 
 	// ===============================================================================
 	// Enum Constants - Editor Operations

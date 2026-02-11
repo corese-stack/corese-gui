@@ -1,17 +1,14 @@
 package fr.inria.corese.gui.feature.data;
 
-import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
-import fr.inria.corese.gui.core.dialog.DialogLayout;
 import fr.inria.corese.gui.core.io.FileDialogState;
 import fr.inria.corese.gui.core.io.ExportHelper;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.service.DataWorkspaceService;
 import fr.inria.corese.gui.core.service.DataSourceRegistryService.DataSource;
-import fr.inria.corese.gui.core.service.DataSourceRegistryService.SourceType;
 import fr.inria.corese.gui.core.service.DefaultDataWorkspaceService;
 import fr.inria.corese.gui.core.service.DefaultReasoningService;
 import fr.inria.corese.gui.core.service.GraphMutationBus;
@@ -19,22 +16,17 @@ import fr.inria.corese.gui.core.service.GraphMutationEvent;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.service.ReasoningProfile;
 import fr.inria.corese.gui.core.service.ReasoningService;
+import fr.inria.corese.gui.feature.data.dialog.DataReloadSourcesDialog;
+import fr.inria.corese.gui.feature.data.dialog.DataUriLoadDialog;
 import fr.inria.corese.gui.utils.AppExecutors;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javafx.application.Platform;
-import javafx.geometry.Insets;
-import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextInputDialog;
-import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,12 +55,6 @@ public class DataViewController implements AutoCloseable {
 
 	private static final long GRAPH_REFRESH_DEBOUNCE_MS = 120L;
 	private static final long REASONING_REFRESH_DEBOUNCE_MS = 260L;
-	private static final String LOAD_URI_DIALOG_TITLE = "Load RDF from URI";
-	private static final String LOAD_URI_DIALOG_HEADER = "Load graph data from a URI";
-	private static final String RELOAD_MODAL_TITLE = "Reload Sources";
-	private static final String RELOAD_WARNING_TEXT = "Reload rebuilds the graph from selected sources.\n"
-			+ "All modifications made via SPARQL UPDATE queries will be lost.\n"
-			+ "Reasoning toggles will be reset to OFF.";
 
 	public DataViewController(DataView view) {
 		this.view = view;
@@ -207,72 +193,80 @@ public class DataViewController implements AutoCloseable {
 			AppExecutors.execute(() -> {
 				int successCount = 0;
 				dataOperationInProgress.set(true);
+				try {
+					for (File file : files) {
+						try {
+							workspaceService.loadFile(file);
+							successCount++;
+						} catch (Exception ex) {
+							String message = "Error loading " + file.getName() + ": " + ex.getMessage();
+							Platform.runLater(() -> NotificationWidget.getInstance().showError(message));
+						}
+					}
 
-				for (File file : files) {
-					try {
-						workspaceService.loadFile(file);
-						successCount++;
-					} catch (Exception ex) {
-						String message = "Error loading " + file.getName() + ": " + ex.getMessage();
-						Platform.runLater(() -> NotificationWidget.getInstance().showError(message));
+					int loadedCount = successCount;
+					if (loadedCount > 0 && reasoningService.hasAnyEnabledProfile()) {
+						try {
+							reasoningService.recomputeEnabledProfiles();
+						} catch (Exception e) {
+							Platform.runLater(() -> NotificationWidget.getInstance()
+									.showError("Reasoning recompute failed: " + e.getMessage()));
+						}
 					}
+				} finally {
+					int loadedCount = successCount;
+					Platform.runLater(() -> {
+						if (loadedCount > 0) {
+							NotificationWidget.getInstance().showSuccess("Loaded " + loadedCount + " file(s).");
+						}
+					});
+					finishDataOperation();
 				}
-
-				int loadedCount = successCount;
-				if (loadedCount > 0 && reasoningService.hasAnyEnabledProfile()) {
-					try {
-						reasoningService.recomputeEnabledProfiles();
-					} catch (Exception e) {
-						Platform.runLater(() -> NotificationWidget.getInstance()
-								.showError("Reasoning recompute failed: " + e.getMessage()));
-					}
-				}
-				dataOperationInProgress.set(false);
-				Platform.runLater(() -> {
-					if (loadedCount > 0) {
-						NotificationWidget.getInstance().showSuccess("Loaded " + loadedCount + " file(s).");
-					}
-					syncReasoningToggleStates();
-					refreshGraphSnapshot();
-				});
 			});
 		}
 	}
 
 	private void handleLoadUri() {
-		TextInputDialog dialog = new TextInputDialog("https://");
-		dialog.setTitle(LOAD_URI_DIALOG_TITLE);
-		dialog.setHeaderText(LOAD_URI_DIALOG_HEADER);
-		dialog.setContentText("URI:");
+		DataUriLoadDialog.show(this::executeLoadUris);
+	}
 
-		Optional<String> uriChoice = dialog.showAndWait();
-		if (uriChoice.isEmpty()) {
-			return;
-		}
-
-		String uri = uriChoice.get().trim();
-		if (uri.isBlank()) {
-			NotificationWidget.getInstance().showWarning("URI cannot be empty.");
-			return;
-		}
-
+	private void executeLoadUris(List<String> uris) {
+		List<String> urisToLoad = uris == null ? List.of() : List.copyOf(uris);
 		AppExecutors.execute(() -> {
+			int successCount = 0;
+			List<String> errors = new ArrayList<>();
 			dataOperationInProgress.set(true);
 			try {
-				workspaceService.loadUri(uri);
-				if (reasoningService.hasAnyEnabledProfile()) {
-					reasoningService.recomputeEnabledProfiles();
+				for (String uri : urisToLoad) {
+					try {
+						workspaceService.loadUri(uri);
+						successCount++;
+					} catch (Exception ex) {
+						errors.add("URI load failed for " + uri + ": " + ex.getMessage());
+					}
 				}
-				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess("Loaded URI: " + uri));
+				if (successCount > 0 && reasoningService.hasAnyEnabledProfile()) {
+					try {
+						reasoningService.recomputeEnabledProfiles();
+					} catch (Exception e) {
+						errors.add("Reasoning recompute failed: " + e.getMessage());
+					}
+				}
 			} catch (Exception e) {
-				Platform.runLater(
-						() -> NotificationWidget.getInstance().showError("URI load failed: " + e.getMessage()));
+				errors.add("Unexpected URI loading error: " + e.getMessage());
 			} finally {
-				dataOperationInProgress.set(false);
+				int loadedCount = successCount;
 				Platform.runLater(() -> {
-					syncReasoningToggleStates();
-					refreshGraphSnapshot();
+					if (loadedCount > 0) {
+						NotificationWidget.getInstance().showSuccess("Loaded " + loadedCount + " URI(s).");
+					}
+					if (!errors.isEmpty()) {
+						for (String error : errors) {
+							NotificationWidget.getInstance().showError(error);
+						}
+					}
 				});
+				finishDataOperation();
 			}
 		});
 	}
@@ -283,49 +277,7 @@ public class DataViewController implements AutoCloseable {
 			NotificationWidget.getInstance().showWarning("No tracked data source to reload.");
 			return;
 		}
-		showReloadModal(trackedSources);
-	}
-
-	private void showReloadModal(List<DataSource> trackedSources) {
-		VBox sourceList = new VBox(8);
-		sourceList.setFillWidth(true);
-
-		Map<CheckBox, DataSource> sourceSelections = new LinkedHashMap<>();
-		for (DataSource source : trackedSources) {
-			CheckBox checkBox = new CheckBox(formatSourceLabel(source));
-			checkBox.setSelected(true);
-			checkBox.setWrapText(true);
-			sourceSelections.put(checkBox, source);
-			sourceList.getChildren().add(checkBox);
-		}
-
-		ScrollPane sourceScroll = new ScrollPane(sourceList);
-		sourceScroll.setFitToWidth(true);
-		sourceScroll.setPrefViewportHeight(180);
-		sourceScroll.setMinViewportHeight(120);
-
-		Label warningLabel = new Label(RELOAD_WARNING_TEXT);
-		warningLabel.setWrapText(true);
-
-		Label sourceLabel = new Label("Select sources to reload:");
-		sourceLabel.getStyleClass().add(Styles.TEXT_BOLD);
-
-		VBox content = new VBox(10, warningLabel, sourceLabel, sourceScroll);
-		content.setPadding(new Insets(0));
-
-		Button cancelButton = new Button("Cancel");
-		cancelButton.setOnAction(event -> ModalService.getInstance().hide());
-
-		Button reloadButton = new Button("Reload");
-		reloadButton.getStyleClass().add(Styles.ACCENT);
-		reloadButton.setOnAction(event -> {
-			List<DataSource> selectedSources = sourceSelections.entrySet().stream()
-					.filter(entry -> entry.getKey().isSelected()).map(Map.Entry::getValue).toList();
-			ModalService.getInstance().hide();
-			executeReloadSources(selectedSources);
-		});
-
-		ModalService.getInstance().show(new DialogLayout(RELOAD_MODAL_TITLE, content, cancelButton, reloadButton));
+		DataReloadSourcesDialog.show(trackedSources, this::executeReloadSources);
 	}
 
 	private void executeReloadSources(List<DataSource> selectedSources) {
@@ -345,11 +297,7 @@ public class DataViewController implements AutoCloseable {
 			} catch (Exception e) {
 				Platform.runLater(() -> NotificationWidget.getInstance().showError("Reload failed: " + e.getMessage()));
 			} finally {
-				dataOperationInProgress.set(false);
-				Platform.runLater(() -> {
-					syncReasoningToggleStates();
-					refreshGraphSnapshot();
-				});
+				finishDataOperation();
 			}
 		});
 	}
@@ -392,13 +340,17 @@ public class DataViewController implements AutoCloseable {
 						Platform.runLater(
 								() -> NotificationWidget.getInstance().showError("Clear failed: " + e.getMessage()));
 					} finally {
-						dataOperationInProgress.set(false);
-						Platform.runLater(() -> {
-							syncReasoningToggleStates();
-							refreshGraphSnapshot();
-						});
+						finishDataOperation();
 					}
 				}));
+	}
+
+	private void finishDataOperation() {
+		dataOperationInProgress.set(false);
+		Platform.runLater(() -> {
+			syncReasoningToggleStates();
+			refreshGraphSnapshot();
+		});
 	}
 
 	private void resetReasoningUiState() {
@@ -427,14 +379,6 @@ public class DataViewController implements AutoCloseable {
 				});
 			}
 		});
-	}
-
-	private String formatSourceLabel(DataSource source) {
-		if (source.type() == SourceType.FILE) {
-			String fileName = new File(source.location()).getName();
-			return "File: " + fileName + "  (" + source.location() + ")";
-		}
-		return "URI: " + source.location();
 	}
 
 	@Override
