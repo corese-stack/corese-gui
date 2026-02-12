@@ -11,6 +11,7 @@ import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.view.AbstractView;
 import java.io.File;
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
@@ -28,6 +29,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 
 /**
  * Main view for the Data page.
@@ -50,6 +52,13 @@ public class DataView extends AbstractView {
 	private static final String STYLE_CLASS_GRAPH_EMPTY_STATE = "data-graph-empty-state";
 	private static final String STYLE_CLASS_GRAPH_DROP_OVERLAY = "data-graph-drop-overlay";
 	private static final String STYLE_CLASS_GRAPH_DROP_OVERLAY_ACTIVE = "data-graph-drop-overlay-active";
+	private static final String TOOLTIP_TITLE_TRIPLES = "Triples";
+	private static final String TOOLTIP_TITLE_SOURCES = "Sources";
+	private static final String TOOLTIP_TITLE_NAMED_GRAPHS = "Named Graphs";
+	private static final String TOOLTIP_TITLE_INFERRED = "Inferred";
+	private static final int TOOLTIP_MAX_WIDTH = 420;
+	private static final int TOOLTIP_SHOW_DELAY_MS = 150;
+	private static final int TOOLTIP_HIDE_DELAY_MS = 120;
 	private static final int TOOLTIP_PREVIEW_LIMIT = 8;
 	private static final NumberFormat INTEGER_FORMAT = NumberFormat.getIntegerInstance(Locale.getDefault());
 
@@ -148,10 +157,7 @@ public class DataView extends AbstractView {
 		HBox statusBar = new HBox(10, tripleCountLabel, sourceCountLabel, namedGraphCountLabel,
 				inferredTripleCountLabel);
 		statusBar.getStyleClass().add("data-status-bar");
-		for (Label label : List.of(tripleCountLabel, sourceCountLabel, namedGraphCountLabel,
-				inferredTripleCountLabel)) {
-			label.getStyleClass().add("data-status-label");
-		}
+		initializeStatusMetricLabels();
 
 		HBox graphBody = new HBox(graphContainer, toolbarWidget);
 		HBox.setHgrow(graphContainer, Priority.ALWAYS);
@@ -163,6 +169,13 @@ public class DataView extends AbstractView {
 		graphPane.setCenter(graphCard);
 
 		return graphPane;
+	}
+
+	private void initializeStatusMetricLabels() {
+		for (Label label : List.of(tripleCountLabel, sourceCountLabel, namedGraphCountLabel, inferredTripleCountLabel)) {
+			label.getStyleClass().add("data-status-label");
+			label.setFocusTraversable(false);
+		}
 	}
 
 	private void initializeGraphContainer() {
@@ -392,87 +405,105 @@ public class DataView extends AbstractView {
 	public void updateStatus(DataWorkspaceStatus status) {
 		DataWorkspaceStatus safeStatus = status == null ? DataWorkspaceStatus.empty() : status;
 
-		tripleCountLabel.setText("Triples: " + formatCount(safeStatus.tripleCount()));
-		sourceCountLabel.setText("Sources: " + formatCount(safeStatus.sourceCount()));
-		namedGraphCountLabel.setText("Named Graphs: " + formatCount(safeStatus.namedGraphCount()));
-		inferredTripleCountLabel.setText("Inferred: " + formatCount(safeStatus.inferredTripleCount()));
+		updateStatusMetric(tripleCountLabel, TOOLTIP_TITLE_TRIPLES, safeStatus.tripleCount(),
+				buildTriplesTooltipLines(safeStatus));
+		updateStatusMetric(sourceCountLabel, TOOLTIP_TITLE_SOURCES, safeStatus.sourceCount(),
+				buildSourcesTooltipLines(safeStatus));
+		updateStatusMetric(namedGraphCountLabel, TOOLTIP_TITLE_NAMED_GRAPHS, safeStatus.namedGraphCount(),
+				buildNamedGraphTooltipLines(safeStatus));
+		updateStatusMetric(inferredTripleCountLabel, TOOLTIP_TITLE_INFERRED, safeStatus.inferredTripleCount(),
+				buildReasoningTooltipLines(safeStatus));
+	}
 
-		setTooltip(tripleCountLabel, """
+	private static void updateStatusMetric(Label label, String title, int value, List<String> tooltipLines) {
+		label.setText(title + ": " + formatCount(value));
+		applyTooltip(label, tooltipLines, title);
+	}
+
+	private static List<String> buildTriplesTooltipLines(DataWorkspaceStatus status) {
+		return """
 				Total triples: %s
 				Explicit triples: %s
 				Inferred triples: %s
 				Default graph triples: %s
-				""".formatted(formatCount(safeStatus.tripleCount()), formatCount(safeStatus.explicitTripleCount()),
-				formatCount(safeStatus.inferredTripleCount()), formatCount(safeStatus.defaultGraphTripleCount())));
+				""".formatted(formatCount(status.tripleCount()), formatCount(status.explicitTripleCount()),
+				formatCount(status.inferredTripleCount()), formatCount(status.defaultGraphTripleCount())).lines().toList();
+	}
 
-		setTooltip(sourceCountLabel, """
+	private static List<String> buildSourcesTooltipLines(DataWorkspaceStatus status) {
+		return """
 				Tracked sources: %s
 				File sources: %s
 				URI sources: %s
-				""".formatted(formatCount(safeStatus.sourceCount()), formatCount(safeStatus.fileSourceCount()),
-				formatCount(safeStatus.uriSourceCount())));
-
-		setTooltip(namedGraphCountLabel, formatNamedGraphTooltip(safeStatus));
-		setTooltip(inferredTripleCountLabel, formatReasoningTooltip(safeStatus));
+				""".formatted(formatCount(status.sourceCount()), formatCount(status.fileSourceCount()),
+				formatCount(status.uriSourceCount())).lines().toList();
 	}
 
-	private static String formatNamedGraphTooltip(DataWorkspaceStatus status) {
+	private static List<String> buildNamedGraphTooltipLines(DataWorkspaceStatus status) {
 		if (status.namedGraphStats().isEmpty()) {
-			return "No named graph currently contains triples.";
+			return List.of("No named graph currently contains triples.");
 		}
 
-		StringBuilder builder = new StringBuilder();
-		builder.append("Named graphs with triples: ").append(formatCount(status.namedGraphCount()));
+		List<String> lines = new ArrayList<>();
+		lines.add("Named graphs with triples: " + formatCount(status.namedGraphCount()));
 		int displayed = Math.min(TOOLTIP_PREVIEW_LIMIT, status.namedGraphStats().size());
 		for (int index = 0; index < displayed; index++) {
 			DataWorkspaceStatus.NamedGraphStat stat = status.namedGraphStats().get(index);
-			builder.append("\n").append(shortenGraphName(stat.graphName())).append(": ")
-					.append(formatCount(stat.tripleCount())).append(" triples");
+			lines.add(shortenGraphName(stat.graphName()) + ": " + formatCount(stat.tripleCount()) + " triples");
 		}
 		if (status.namedGraphStats().size() > displayed) {
-			builder.append("\n... and ").append(formatCount(status.namedGraphStats().size() - displayed))
-					.append(" more named graphs.");
+			lines.add("... and " + formatCount(status.namedGraphStats().size() - displayed) + " more named graphs.");
 		}
-		return builder.toString();
+		return lines;
 	}
 
-	private static String formatReasoningTooltip(DataWorkspaceStatus status) {
-		StringBuilder builder = new StringBuilder();
-		builder.append("Inferred triples: ").append(formatCount(status.inferredTripleCount()));
+	private static List<String> buildReasoningTooltipLines(DataWorkspaceStatus status) {
+		List<String> lines = new ArrayList<>();
+		lines.add("Inferred triples: " + formatCount(status.inferredTripleCount()));
 		for (DataWorkspaceStatus.ReasoningStat stat : status.reasoningStats()) {
-			builder.append("\n").append(stat.profileLabel()).append(": ").append(formatCount(stat.tripleCount()))
-					.append(" triples");
+			lines.add(stat.profileLabel() + ": " + formatCount(stat.tripleCount()) + " triples");
 		}
-		return builder.toString();
+		return lines;
 	}
 
 	private static String shortenGraphName(String graphName) {
 		if (graphName == null || graphName.isBlank()) {
 			return "(unnamed)";
 		}
-		if (graphName.length() <= 72) {
+		if (graphName.length() <= 56) {
 			return graphName;
 		}
-		return graphName.substring(0, 69) + "...";
+		return graphName.substring(0, 53) + "...";
 	}
 
 	private static String formatCount(int value) {
 		return INTEGER_FORMAT.format(Math.max(0, value));
 	}
 
-	private static void setTooltip(Label label, String text) {
-		if (text == null || text.isBlank()) {
+	private static void applyTooltip(Label label, List<String> lines, String title) {
+		List<String> safeLines = lines == null
+				? List.of()
+				: lines.stream().filter(line -> line != null && !line.isBlank()).toList();
+		if (safeLines.isEmpty()) {
 			label.setTooltip(null);
 			return;
 		}
+		String safeTitle = (title == null || title.isBlank()) ? "Details" : title;
+		String tooltipText = safeTitle + "\n\n" + String.join("\n", safeLines);
+
 		Tooltip tooltip = label.getTooltip();
 		if (tooltip == null) {
-			tooltip = new Tooltip(text);
-			tooltip.setWrapText(true);
-			tooltip.setMaxWidth(520);
+			tooltip = new Tooltip();
 			label.setTooltip(tooltip);
-			return;
 		}
-		tooltip.setText(text);
+		if (!tooltipText.equals(tooltip.getText())) {
+			tooltip.setText(tooltipText);
+		}
+		tooltip.setGraphic(null);
+		tooltip.setWrapText(false);
+		tooltip.setMaxWidth(TOOLTIP_MAX_WIDTH);
+		tooltip.setShowDelay(Duration.millis(TOOLTIP_SHOW_DELAY_MS));
+		tooltip.setHideDelay(Duration.millis(TOOLTIP_HIDE_DELAY_MS));
+		tooltip.setShowDuration(Duration.INDEFINITE);
 	}
 }

@@ -140,8 +140,7 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 	@Override
 	public DataWorkspaceStatus getStatus() {
 		List<DataSource> sources = sourceRegistryService.snapshot();
-		int fileSourceCount = (int) sources.stream().filter(source -> source.type() == SourceType.FILE).count();
-		int uriSourceCount = (int) sources.stream().filter(source -> source.type() == SourceType.URI).count();
+		SourceStats sourceStats = computeSourceStats(sources);
 
 		Graph graph = GraphStoreService.getInstance().getGraph();
 		int totalTripleCount = Math.max(0, graph.size());
@@ -149,27 +148,13 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 		int namedGraphTripleTotal = graphTripleCounts.values().stream().mapToInt(Integer::intValue).sum();
 		int defaultGraphTripleCount = Math.max(0, totalTripleCount - namedGraphTripleTotal);
 
-		List<DataWorkspaceStatus.NamedGraphStat> namedGraphStats = graphTripleCounts.entrySet().stream()
-				.filter(entry -> entry.getValue() > 0)
-				.map(entry -> new DataWorkspaceStatus.NamedGraphStat(entry.getKey(), entry.getValue()))
-				.sorted((left, right) -> {
-					int byCount = Integer.compare(right.tripleCount(), left.tripleCount());
-					return byCount != 0 ? byCount : left.graphName().compareTo(right.graphName());
-				}).toList();
+		List<DataWorkspaceStatus.NamedGraphStat> namedGraphStats = toSortedNamedGraphStats(graphTripleCounts);
+		ReasoningStats reasoningStats = computeReasoningStats(graphTripleCounts);
+		int explicitTripleCount = Math.max(0, totalTripleCount - reasoningStats.inferredTripleCount());
 
-		List<DataWorkspaceStatus.ReasoningStat> reasoningStats = new ArrayList<>();
-		int inferredTripleCount = 0;
-		for (ReasoningProfile profile : ReasoningProfile.values()) {
-			int profileCount = graphTripleCounts.getOrDefault(profile.namedGraphUri(), 0);
-			inferredTripleCount += profileCount;
-			reasoningStats
-					.add(new DataWorkspaceStatus.ReasoningStat(profile.label(), profile.namedGraphUri(), profileCount));
-		}
-		int explicitTripleCount = Math.max(0, totalTripleCount - inferredTripleCount);
-
-		return new DataWorkspaceStatus(totalTripleCount, explicitTripleCount, inferredTripleCount,
-				defaultGraphTripleCount, sources.size(), fileSourceCount, uriSourceCount, namedGraphStats.size(),
-				namedGraphStats, reasoningStats);
+		return new DataWorkspaceStatus(totalTripleCount, explicitTripleCount, reasoningStats.inferredTripleCount(),
+				defaultGraphTripleCount, sourceStats.total(), sourceStats.fileCount(), sourceStats.uriCount(),
+				namedGraphStats.size(), namedGraphStats, reasoningStats.details());
 	}
 
 	private static Map<String, Integer> computeGraphTripleCounts(Graph graph) {
@@ -207,5 +192,37 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 		} catch (NumberFormatException e) {
 			return 0;
 		}
+	}
+
+	private static SourceStats computeSourceStats(List<DataSource> sources) {
+		int fileCount = (int) sources.stream().filter(source -> source.type() == SourceType.FILE).count();
+		int uriCount = (int) sources.stream().filter(source -> source.type() == SourceType.URI).count();
+		return new SourceStats(sources.size(), fileCount, uriCount);
+	}
+
+	private static List<DataWorkspaceStatus.NamedGraphStat> toSortedNamedGraphStats(Map<String, Integer> graphTripleCounts) {
+		return graphTripleCounts.entrySet().stream().filter(entry -> entry.getValue() > 0)
+				.map(entry -> new DataWorkspaceStatus.NamedGraphStat(entry.getKey(), entry.getValue()))
+				.sorted((left, right) -> {
+					int byCount = Integer.compare(right.tripleCount(), left.tripleCount());
+					return byCount != 0 ? byCount : left.graphName().compareTo(right.graphName());
+				}).toList();
+	}
+
+	private static ReasoningStats computeReasoningStats(Map<String, Integer> graphTripleCounts) {
+		List<DataWorkspaceStatus.ReasoningStat> details = new ArrayList<>();
+		int inferredTripleCount = 0;
+		for (ReasoningProfile profile : ReasoningProfile.values()) {
+			int profileCount = graphTripleCounts.getOrDefault(profile.namedGraphUri(), 0);
+			inferredTripleCount += profileCount;
+			details.add(new DataWorkspaceStatus.ReasoningStat(profile.label(), profile.namedGraphUri(), profileCount));
+		}
+		return new ReasoningStats(details, inferredTripleCount);
+	}
+
+	private record SourceStats(int total, int fileCount, int uriCount) {
+	}
+
+	private record ReasoningStats(List<DataWorkspaceStatus.ReasoningStat> details, int inferredTripleCount) {
 	}
 }

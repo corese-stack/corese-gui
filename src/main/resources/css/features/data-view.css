@@ -122,17 +122,15 @@
 
 .data-status-label {
     -fx-font-size: 12px;
-    -fx-text-fill: -color-fg-default;
-    -fx-font-weight: 600;
-    -fx-padding: 4px 10px;
-    -fx-background-color: -color-bg-default;
-    -fx-border-color: -color-border-default;
-    -fx-border-width: 1px;
-    -fx-border-radius: 999px;
-    -fx-background-radius: 999px;
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-weight: 500;
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
 }
 
 .data-status-label:hover {
-    -fx-border-color: -color-accent-fg;
-    -fx-text-fill: -color-accent-fg;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: -color-fg-muted;
 }
