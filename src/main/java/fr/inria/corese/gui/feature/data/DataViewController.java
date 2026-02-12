@@ -1,15 +1,16 @@
 package fr.inria.corese.gui.feature.data;
 
+import atlantafx.base.controls.ToggleSwitch;
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
-import fr.inria.corese.gui.core.io.FileDialogState;
 import fr.inria.corese.gui.core.io.ExportHelper;
+import fr.inria.corese.gui.core.io.FileDialogState;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
-import fr.inria.corese.gui.core.service.DataWorkspaceStatus;
-import fr.inria.corese.gui.core.service.DataWorkspaceService;
 import fr.inria.corese.gui.core.service.DataSourceRegistryService.DataSource;
+import fr.inria.corese.gui.core.service.DataWorkspaceService;
+import fr.inria.corese.gui.core.service.DataWorkspaceStatus;
 import fr.inria.corese.gui.core.service.DefaultDataWorkspaceService;
 import fr.inria.corese.gui.core.service.DefaultReasoningService;
 import fr.inria.corese.gui.core.service.GraphMutationBus;
@@ -27,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javafx.application.Platform;
-import javafx.scene.control.CheckBox;
 import javafx.stage.FileChooser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,15 +42,19 @@ import org.slf4j.LoggerFactory;
 public class DataViewController implements AutoCloseable {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DataViewController.class);
+	private static final String DROP_WARNING_NONE_ACCEPTED_TEMPLATE = "No compatible files were dropped. %s";
+	private static final String DROP_WARNING_IGNORED_TEMPLATE = "Ignored %s. %s";
 
 	private final DataView view;
 	private final DataWorkspaceService workspaceService;
 	private final ReasoningService reasoningService;
 	private final GraphMutationBus mutationBus;
+	private final DataRuleFileController ruleFileController;
 	private final AtomicBoolean refreshScheduled = new AtomicBoolean(false);
 	private final AtomicBoolean reasoningRecomputeScheduled = new AtomicBoolean(false);
 	private final AtomicBoolean dataOperationInProgress = new AtomicBoolean(false);
-	private final Map<ReasoningProfile, CheckBox> reasoningToggles = new EnumMap<>(ReasoningProfile.class);
+	private final AtomicBoolean syncingReasoningUi = new AtomicBoolean(false);
+	private final Map<ReasoningProfile, ToggleSwitch> reasoningToggles = new EnumMap<>(ReasoningProfile.class);
 
 	private AutoCloseable mutationSubscription;
 
@@ -62,6 +66,8 @@ public class DataViewController implements AutoCloseable {
 		this.workspaceService = DefaultDataWorkspaceService.getInstance();
 		this.reasoningService = DefaultReasoningService.getInstance();
 		this.mutationBus = GraphMutationBus.getInstance();
+		this.ruleFileController = new DataRuleFileController(view, reasoningService, this::refreshReasoningUiState,
+				this::refreshGraphSnapshot);
 		initialize();
 	}
 
@@ -94,22 +100,24 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void configureReasoningControls() {
-		List<CheckBox> builtInToggles = view.getBuiltInRuleToggles();
+		List<ToggleSwitch> builtInToggles = view.getBuiltInRuleToggles();
 		reasoningToggles.put(ReasoningProfile.RDFS, builtInToggles.get(0));
 		reasoningToggles.put(ReasoningProfile.OWL_RL, builtInToggles.get(1));
 		reasoningToggles.put(ReasoningProfile.OWL_RL_LITE, builtInToggles.get(2));
 		reasoningToggles.put(ReasoningProfile.OWL_RL_EXT, builtInToggles.get(3));
 
-		for (Map.Entry<ReasoningProfile, CheckBox> entry : reasoningToggles.entrySet()) {
+		for (Map.Entry<ReasoningProfile, ToggleSwitch> entry : reasoningToggles.entrySet()) {
 			ReasoningProfile profile = entry.getKey();
-			CheckBox toggle = entry.getValue();
+			ToggleSwitch toggle = entry.getValue();
 			toggle.setSelected(reasoningService.isEnabled(profile));
-			toggle.setOnAction(event -> handleReasoningToggle(profile, toggle.isSelected()));
+			toggle.selectedProperty().addListener((observable, previous, selected) -> {
+				if (syncingReasoningUi.get()) {
+					return;
+				}
+				handleReasoningToggle(profile, Boolean.TRUE.equals(selected));
+			});
 		}
-
-		// Custom rules support will be added in the next reasoning milestone.
-		view.getLoadCustomRuleButton().setOnAction(
-				event -> NotificationWidget.getInstance().showInfo("Reasoning", "Custom .rul support is coming next."));
+		ruleFileController.initialize();
 	}
 
 	private void subscribeToGraphMutations() {
@@ -149,7 +157,7 @@ public class DataViewController implements AutoCloseable {
 			} finally {
 				reasoningRecomputeScheduled.set(false);
 				Platform.runLater(() -> {
-					syncReasoningToggleStates();
+					refreshReasoningUiState();
 					refreshGraphSnapshot();
 				});
 			}
@@ -189,6 +197,11 @@ public class DataViewController implements AutoCloseable {
 		} catch (Exception e) {
 			LOGGER.warn("Failed to refresh graph snapshot", e);
 		}
+	}
+
+	private void refreshReasoningUiState() {
+		syncReasoningToggleStates();
+		ruleFileController.refreshRuleFileList();
 	}
 
 	private void updateToolbarActionStates() {
@@ -234,14 +247,16 @@ public class DataViewController implements AutoCloseable {
 			}
 		}
 
+		String expectedExtensionsHint = DataUiMessageUtils.buildExpectedExtensionsHint(FileTypeSupport.rdfExtensions());
 		if (compatibleFiles.isEmpty()) {
-			NotificationWidget.getInstance().showWarning("No compatible RDF files were dropped.");
+			NotificationWidget.getInstance()
+					.showWarning(String.format(DROP_WARNING_NONE_ACCEPTED_TEMPLATE, expectedExtensionsHint));
 			return;
 		}
 
 		if (ignoredCount > 0) {
-			NotificationWidget.getInstance()
-					.showWarning("Ignored " + countLabel(ignoredCount, "unsupported dropped file") + ".");
+			NotificationWidget.getInstance().showWarning(String.format(DROP_WARNING_IGNORED_TEMPLATE,
+					DataUiMessageUtils.countLabel(ignoredCount, "dropped file"), expectedExtensionsHint));
 		}
 
 		executeLoadFiles(compatibleFiles);
@@ -286,8 +301,10 @@ public class DataViewController implements AutoCloseable {
 				int finalTripleCount = graphTripleCount;
 				Platform.runLater(() -> {
 					if (loadedCount > 0) {
-						NotificationWidget.getInstance().showSuccess("Loaded " + countLabel(loadedCount, "file")
-								+ ". Graph now has " + countLabel(finalTripleCount, "triple") + ".");
+						NotificationWidget.getInstance()
+								.showSuccess("Loaded " + DataUiMessageUtils.countLabel(loadedCount, "file")
+										+ ". Graph now has " + DataUiMessageUtils.countLabel(finalTripleCount, "triple")
+										+ ".");
 					}
 				});
 				finishDataOperation();
@@ -330,8 +347,10 @@ public class DataViewController implements AutoCloseable {
 				int finalTripleCount = graphTripleCount;
 				Platform.runLater(() -> {
 					if (loadedCount > 0) {
-						NotificationWidget.getInstance().showSuccess("Loaded " + countLabel(loadedCount, "URI")
-								+ ". Graph now has " + countLabel(finalTripleCount, "triple") + ".");
+						NotificationWidget.getInstance()
+								.showSuccess("Loaded " + DataUiMessageUtils.countLabel(loadedCount, "URI")
+										+ ". Graph now has " + DataUiMessageUtils.countLabel(finalTripleCount, "triple")
+										+ ".");
 					}
 					if (!errors.isEmpty()) {
 						for (String error : errors) {
@@ -363,8 +382,10 @@ public class DataViewController implements AutoCloseable {
 				Platform.runLater(() -> {
 					resetReasoningUiState();
 					if (reloaded > 0) {
-						NotificationWidget.getInstance().showSuccess("Reloaded " + countLabel(reloaded, "source")
-								+ ". Graph now has " + countLabel(tripleCount, "triple") + ".");
+						NotificationWidget.getInstance()
+								.showSuccess("Reloaded " + DataUiMessageUtils.countLabel(reloaded, "source")
+										+ ". Graph now has " + DataUiMessageUtils.countLabel(tripleCount, "triple")
+										+ ".");
 					} else {
 						NotificationWidget.getInstance().showInfo("Reload", "No source selected. Graph was cleared.");
 					}
@@ -428,8 +449,8 @@ public class DataViewController implements AutoCloseable {
 				Platform.runLater(() -> {
 					resetReasoningUiState();
 					if (removedTriples > 0) {
-						NotificationWidget.getInstance()
-								.showSuccess("Graph cleared. Removed " + countLabel(removedTriples, "triple") + ".");
+						NotificationWidget.getInstance().showSuccess("Graph cleared. Removed "
+								+ DataUiMessageUtils.countLabel(removedTriples, "triple") + ".");
 					} else {
 						NotificationWidget.getInstance().showSuccess("Graph cleared.");
 					}
@@ -445,18 +466,23 @@ public class DataViewController implements AutoCloseable {
 	private void finishDataOperation() {
 		dataOperationInProgress.set(false);
 		Platform.runLater(() -> {
-			syncReasoningToggleStates();
+			refreshReasoningUiState();
 			refreshGraphSnapshot();
 		});
 	}
 
 	private void resetReasoningUiState() {
-		view.resetBuiltInRuleToggles();
+		refreshReasoningUiState();
 	}
 
 	private void syncReasoningToggleStates() {
-		for (Map.Entry<ReasoningProfile, CheckBox> entry : reasoningToggles.entrySet()) {
-			entry.getValue().setSelected(reasoningService.isEnabled(entry.getKey()));
+		syncingReasoningUi.set(true);
+		try {
+			for (Map.Entry<ReasoningProfile, ToggleSwitch> entry : reasoningToggles.entrySet()) {
+				entry.getValue().setSelected(reasoningService.isEnabled(entry.getKey()));
+			}
+		} finally {
+			syncingReasoningUi.set(false);
 		}
 	}
 
@@ -471,18 +497,11 @@ public class DataViewController implements AutoCloseable {
 						.showError("Reasoning update failed for " + profile.label() + ": " + e.getMessage()));
 			} finally {
 				Platform.runLater(() -> {
-					syncReasoningToggleStates();
+					refreshReasoningUiState();
 					refreshGraphSnapshot();
 				});
 			}
 		});
-	}
-
-	private static String countLabel(int count, String noun) {
-		if (count == 1) {
-			return "1 " + noun;
-		}
-		return count + " " + noun + "s";
 	}
 
 	@Override

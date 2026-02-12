@@ -4,7 +4,7 @@
 
 .data-page-root {
     -fx-background-color: -color-bg-default;
-    -fx-padding: 14px 14px 10px 14px;
+    -fx-padding: 12px;
 }
 
 .data-page-layout {
@@ -17,9 +17,9 @@
    ========================================================================== */
 
 .data-left-pane {
-    -fx-min-width: 240px;
-    -fx-pref-width: 280px;
-    -fx-max-width: 340px;
+    -fx-min-width: 248px;
+    -fx-pref-width: 288px;
+    -fx-max-width: 360px;
     -fx-padding: 10px 12px;
     -fx-spacing: 10px;
     -fx-background-color: -color-bg-subtle;
@@ -29,38 +29,212 @@
     -fx-background-radius: 8px;
 }
 
-.data-reasoning-section {
-    -fx-spacing: 8px;
-    -fx-padding: 8px 0 10px 0;
-    -fx-border-color: -color-border-muted;
-    -fx-border-width: 1px 0 0 0;
-}
-
 .data-pane-title {
     -fx-font-size: 16px;
     -fx-font-weight: 700;
     -fx-text-fill: -color-fg-default;
 }
 
-.data-pane-subtitle {
-    -fx-font-size: 12px;
-    -fx-text-fill: -color-fg-muted;
+.data-reasoning-section {
+    -fx-spacing: 8px;
+    -fx-padding: 0;
 }
 
 .data-section-title {
-    -fx-padding: 2px 0 0 0;
+    -fx-padding: 0;
     -fx-font-size: 12px;
-    -fx-font-weight: 600;
+    -fx-font-weight: 700;
     -fx-text-fill: -color-fg-default;
 }
 
 .data-rule-list {
     -fx-spacing: 8px;
-    -fx-padding: 4px 0 6px 0;
+    -fx-padding: 8px;
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
 }
 
-.data-rule-toggle {
+.data-rule-row {
+    -fx-alignment: center-left;
+    -fx-max-width: Infinity;
+    -fx-padding: 8px 10px;
+    -fx-spacing: 8px;
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-muted;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+}
+
+.data-rule-toggle-label {
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
     -fx-text-fill: -color-fg-default;
+}
+
+.data-rule-toggle-switch {
+    -fx-scale-x: 0.96;
+    -fx-scale-y: 0.96;
+}
+
+.data-custom-rules-section {
+    -fx-spacing: 8px;
+    -fx-padding: 10px 0 0 0;
+}
+
+.data-custom-rules-header {
+    -fx-alignment: center-left;
+    -fx-spacing: 8px;
+    -fx-padding: 0;
+}
+
+.data-custom-rules-surface {
+    -fx-spacing: 0;
+    -fx-padding: 0;
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+}
+
+.data-custom-rules-toolbar {
+    -fx-max-width: Infinity;
+}
+
+.data-custom-rules-toolbar.app-toolbar.app-toolbar-horizontal {
+    -fx-min-height: 42px;
+    -fx-pref-height: 42px;
+    -fx-border-color: -color-border-default transparent transparent transparent;
+    -fx-border-width: 1px 0 0 0;
+    -fx-border-radius: 0 0 8px 8px;
+    -fx-background-radius: 0 0 8px 8px;
+    -fx-padding: 4px 6px;
+}
+
+.data-custom-rules-content {
+    -fx-min-height: 0;
+    -fx-pref-height: -1;
+    -fx-max-height: Infinity;
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-border-radius: 0;
+    -fx-background-radius: 8px 8px 0 0;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
+}
+
+.data-custom-rules-scroll {
+    -fx-padding: 8px;
+    -fx-background-color: transparent;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+}
+
+.data-custom-rules-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8px;
+}
+
+.data-custom-rules-list {
+    -fx-spacing: 8px;
+    -fx-fill-width: true;
+    -fx-padding: 0;
+}
+
+.data-custom-rule-item {
+    -fx-max-width: Infinity;
+    -fx-padding: 8px 10px;
+    -fx-spacing: 8px;
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-muted;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+}
+
+.data-custom-rule-name {
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-fg-default;
+}
+
+.data-custom-rule-controls {
+    -fx-alignment: center-right;
+    -fx-spacing: 12px;
+}
+
+.data-custom-rule-menu-button {
+    -fx-padding: 2px;
+    -fx-min-width: 30px;
+    -fx-pref-width: 30px;
+    -fx-max-width: 30px;
+    -fx-min-height: 28px;
+    -fx-pref-height: 28px;
+    -fx-max-height: 28px;
+    -fx-background-radius: 6px;
+    -fx-border-radius: 6px;
+}
+
+.data-custom-rule-menu-button-icon {
+    -fx-icon-color: -color-fg-default;
+    -fx-icon-size: 16px;
+}
+
+.data-custom-rule-menu-item-icon {
+    -fx-icon-color: -color-fg-muted;
+    -fx-icon-size: 14px;
+}
+
+.data-custom-rule-menu .menu-item > .label {
+    -fx-font-weight: 400;
+}
+
+.data-custom-rules-empty-state.empty-state-widget {
+    -fx-padding: 16px 12px;
+    -fx-background-color: transparent;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-spacing: 10px;
+}
+
+.data-custom-rules-empty-state .empty-state-icon {
+    -fx-icon-size: 32px;
+}
+
+.data-custom-rules-empty-state .empty-state-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: 700;
+}
+
+.data-custom-rules-empty-state .empty-state-description {
+    -fx-font-size: 12px;
+    -fx-max-width: 220px;
+}
+
+.data-custom-rules-empty-state .empty-state-buttons {
+    -fx-spacing: 8px;
+}
+
+.data-custom-rules-drop-overlay {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.data-custom-rules-drop-overlay-active {
+    -fx-background-color: rgba(64, 139, 250, 0.12);
+    -fx-background-insets: 6;
+    -fx-background-radius: 8;
+    -fx-border-color: -color-accent-fg;
+    -fx-border-insets: 6;
+    -fx-border-radius: 8;
+    -fx-border-width: 1.4;
+    -fx-border-style: segments(8, 6);
 }
 
 /* ==========================================================================
@@ -69,6 +243,16 @@
 
 .data-right-pane {
     -fx-padding: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-color: transparent;
+}
+
+.data-graph-toolbar.app-toolbar.app-toolbar-vertical {
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 0 0 0 1;
+    -fx-border-radius: 0 8px 0 0;
+    -fx-background-radius: 0 8px 0 0;
 }
 
 .data-graph-card {
@@ -100,6 +284,10 @@
 
 .data-graph-empty-state {
     -fx-padding: 20px;
+}
+
+.data-graph-empty-state .empty-state-description {
+    -fx-max-width: 640px;
 }
 
 .data-graph-drop-overlay {
