@@ -12,11 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
-import javafx.animation.Interpolator;
-import javafx.animation.KeyFrame;
-import javafx.animation.KeyValue;
-import javafx.animation.Timeline;
-import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -24,9 +19,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tooltip;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.util.Duration;
 
 /**
  * Modal dialog that lets users select tracked sources to reload.
@@ -50,12 +43,8 @@ public final class DataReloadSourcesDialog {
 	private static final int URI_MAX_CHARS = 72;
 	private static final int SOURCE_VIEWPORT_HEIGHT = 240;
 	private static final int SOURCE_MIN_VIEWPORT_HEIGHT = 120;
-	private static final Duration MESSAGE_ANIMATION_DURATION = Duration.millis(140);
-	private static final double FALLBACK_MESSAGE_HEIGHT = 18.0;
-	private static final String VALIDATION_ANIMATION_KEY = "reloadValidationAnimation";
-	private static final String BUTTON_ANIMATION_KEY = "reloadButtonAnimation";
-	private static final double RELOAD_BUTTON_DISABLED_OPACITY = 0.62;
-	private static final double RELOAD_BUTTON_ENABLED_OPACITY = 1.0;
+	private static final String VALIDATION_ANIMATION_KEY = "reloadSourcesValidationAnimation";
+	private static final String BUTTON_ANIMATION_KEY = "reloadSourcesButtonAnimation";
 
 	private DataReloadSourcesDialog() {
 		throw new AssertionError("Utility class");
@@ -108,11 +97,12 @@ public final class DataReloadSourcesDialog {
 		Label selectionErrorLabel = new Label(EMPTY_SELECTION_MESSAGE);
 		selectionErrorLabel.getStyleClass().add(STYLE_CLASS_INLINE_ERROR);
 		selectionErrorLabel.setWrapText(false);
-		prepareCollapsedValidationLabel(selectionErrorLabel);
+		DialogSelectionStateSupport.prepareCollapsedValidationLabel(selectionErrorLabel);
 
 		Runnable updateSelectionState = () -> {
 			boolean anySelected = sourceSelections.keySet().stream().anyMatch(CheckBox::isSelected);
-			updateReloadActionState(anySelected, reloadButton, selectionErrorLabel);
+			DialogSelectionStateSupport.updateActionState(anySelected, reloadButton, selectionErrorLabel,
+					EMPTY_SELECTION_MESSAGE, VALIDATION_ANIMATION_KEY, BUTTON_ANIMATION_KEY);
 		};
 		sourceSelections.keySet().forEach(checkBox -> checkBox.selectedProperty()
 				.addListener((obs, oldValue, newValue) -> updateSelectionState.run()));
@@ -122,7 +112,8 @@ public final class DataReloadSourcesDialog {
 			List<DataSource> selectedSources = sourceSelections.entrySet().stream()
 					.filter(entry -> entry.getKey().isSelected()).map(Map.Entry::getValue).toList();
 			if (selectedSources.isEmpty()) {
-				showValidationMessage(selectionErrorLabel, EMPTY_SELECTION_MESSAGE);
+				DialogSelectionStateSupport.showValidationMessage(selectionErrorLabel, EMPTY_SELECTION_MESSAGE,
+						VALIDATION_ANIMATION_KEY);
 				return;
 			}
 			ModalService.getInstance().hide();
@@ -177,172 +168,5 @@ public final class DataReloadSourcesDialog {
 			return normalized.substring(normalized.length() - maxChars);
 		}
 		return "..." + normalized.substring(normalized.length() - (maxChars - 3));
-	}
-
-	private static void prepareCollapsedValidationLabel(Label label) {
-		label.setText("");
-		label.setOpacity(0);
-		label.setManaged(false);
-		label.setVisible(false);
-		label.setMinHeight(0);
-		label.setPrefHeight(0);
-		label.setMaxHeight(0);
-	}
-
-	private static void showValidationMessage(Label label, String message) {
-		String safeMessage = message == null ? "" : message.trim();
-		if (safeMessage.isBlank()) {
-			hideValidationMessage(label);
-			return;
-		}
-		stopValidationAnimation(label);
-		label.setText(safeMessage);
-		if (label.isManaged() && label.isVisible()) {
-			label.setOpacity(1);
-			label.setMinHeight(Region.USE_COMPUTED_SIZE);
-			label.setPrefHeight(Region.USE_COMPUTED_SIZE);
-			label.setMaxHeight(Region.USE_COMPUTED_SIZE);
-			return;
-		}
-		animateValidationMessageExpand(label);
-	}
-
-	private static void hideValidationMessage(Label label) {
-		if (!label.isManaged() && !label.isVisible()) {
-			label.setText("");
-			return;
-		}
-		animateValidationMessageCollapse(label);
-	}
-
-	private static void updateReloadActionState(boolean hasSelection, Button reloadButton, Label validationLabel) {
-		if (hasSelection) {
-			hideValidationMessage(validationLabel);
-			animateReloadButtonState(reloadButton, true);
-		} else {
-			showValidationMessage(validationLabel, EMPTY_SELECTION_MESSAGE);
-			animateReloadButtonState(reloadButton, false);
-		}
-	}
-
-	private static void animateValidationMessageExpand(Label label) {
-		stopValidationAnimation(label);
-		Platform.runLater(() -> {
-			label.applyCss();
-			double targetHeight = resolveValidationLabelHeight(label);
-			label.setManaged(true);
-			label.setVisible(true);
-			label.setOpacity(0);
-			label.setMinHeight(0);
-			label.setPrefHeight(0);
-			label.setMaxHeight(0);
-
-			Timeline timeline = new Timeline(
-					new KeyFrame(Duration.ZERO, new KeyValue(label.opacityProperty(), 0, Interpolator.EASE_BOTH),
-							new KeyValue(label.minHeightProperty(), 0, Interpolator.EASE_BOTH),
-							new KeyValue(label.prefHeightProperty(), 0, Interpolator.EASE_BOTH),
-							new KeyValue(label.maxHeightProperty(), 0, Interpolator.EASE_BOTH)),
-					new KeyFrame(MESSAGE_ANIMATION_DURATION,
-							new KeyValue(label.opacityProperty(), 1, Interpolator.EASE_OUT),
-							new KeyValue(label.minHeightProperty(), targetHeight, Interpolator.EASE_OUT),
-							new KeyValue(label.prefHeightProperty(), targetHeight, Interpolator.EASE_OUT),
-							new KeyValue(label.maxHeightProperty(), targetHeight, Interpolator.EASE_OUT)));
-			timeline.setOnFinished(event -> {
-				label.setOpacity(1);
-				label.setMinHeight(Region.USE_COMPUTED_SIZE);
-				label.setPrefHeight(Region.USE_COMPUTED_SIZE);
-				label.setMaxHeight(Region.USE_COMPUTED_SIZE);
-				label.getProperties().remove(VALIDATION_ANIMATION_KEY);
-			});
-			label.getProperties().put(VALIDATION_ANIMATION_KEY, timeline);
-			timeline.play();
-		});
-	}
-
-	private static void animateValidationMessageCollapse(Label label) {
-		stopValidationAnimation(label);
-		Platform.runLater(() -> {
-			double startHeight = resolveValidationLabelHeight(label);
-			double startOpacity = label.getOpacity() > 0 ? label.getOpacity() : 1;
-			label.setMinHeight(startHeight);
-			label.setPrefHeight(startHeight);
-			label.setMaxHeight(startHeight);
-
-			Timeline timeline = new Timeline(
-					new KeyFrame(Duration.ZERO,
-							new KeyValue(label.opacityProperty(), startOpacity, Interpolator.EASE_BOTH),
-							new KeyValue(label.minHeightProperty(), startHeight, Interpolator.EASE_BOTH),
-							new KeyValue(label.prefHeightProperty(), startHeight, Interpolator.EASE_BOTH),
-							new KeyValue(label.maxHeightProperty(), startHeight, Interpolator.EASE_BOTH)),
-					new KeyFrame(MESSAGE_ANIMATION_DURATION,
-							new KeyValue(label.opacityProperty(), 0, Interpolator.EASE_IN),
-							new KeyValue(label.minHeightProperty(), 0, Interpolator.EASE_IN),
-							new KeyValue(label.prefHeightProperty(), 0, Interpolator.EASE_IN),
-							new KeyValue(label.maxHeightProperty(), 0, Interpolator.EASE_IN)));
-			timeline.setOnFinished(event -> {
-				prepareCollapsedValidationLabel(label);
-				label.getProperties().remove(VALIDATION_ANIMATION_KEY);
-			});
-			label.getProperties().put(VALIDATION_ANIMATION_KEY, timeline);
-			timeline.play();
-		});
-	}
-
-	private static void stopValidationAnimation(Label label) {
-		Object animation = label.getProperties().remove(VALIDATION_ANIMATION_KEY);
-		if (animation instanceof Timeline timeline) {
-			timeline.stop();
-		}
-	}
-
-	private static void animateReloadButtonState(Button button, boolean enabled) {
-		stopReloadButtonAnimation(button);
-		double targetOpacity = enabled ? RELOAD_BUTTON_ENABLED_OPACITY : RELOAD_BUTTON_DISABLED_OPACITY;
-		boolean sameState = button.isDisable() == !enabled;
-		boolean sameOpacity = Math.abs(button.getOpacity() - targetOpacity) < 0.001;
-		if (sameState && sameOpacity) {
-			button.setMouseTransparent(false);
-			return;
-		}
-
-		if (enabled) {
-			button.setDisable(false);
-		}
-		button.setMouseTransparent(true);
-
-		Platform.runLater(() -> {
-			Timeline timeline = new Timeline(
-					new KeyFrame(Duration.ZERO,
-							new KeyValue(button.opacityProperty(), button.getOpacity(), Interpolator.EASE_BOTH)),
-					new KeyFrame(MESSAGE_ANIMATION_DURATION,
-							new KeyValue(button.opacityProperty(), targetOpacity, Interpolator.EASE_BOTH)));
-			timeline.setOnFinished(event -> {
-				button.setOpacity(targetOpacity);
-				button.setDisable(!enabled);
-				button.setMouseTransparent(false);
-				button.getProperties().remove(BUTTON_ANIMATION_KEY);
-			});
-			button.getProperties().put(BUTTON_ANIMATION_KEY, timeline);
-			timeline.play();
-		});
-	}
-
-	private static void stopReloadButtonAnimation(Button button) {
-		Object animation = button.getProperties().remove(BUTTON_ANIMATION_KEY);
-		if (animation instanceof Timeline timeline) {
-			timeline.stop();
-		}
-	}
-
-	private static double resolveValidationLabelHeight(Label label) {
-		double measuredHeight = label.getHeight();
-		if (measuredHeight > 0) {
-			return measuredHeight;
-		}
-		double preferredHeight = label.prefHeight(-1);
-		if (preferredHeight > 0) {
-			return preferredHeight;
-		}
-		return FALLBACK_MESSAGE_HEIGHT;
 	}
 }

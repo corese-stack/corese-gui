@@ -1,0 +1,27 @@
+.app-dialog.data-rule-preview-dialog {
+    -fx-min-width: 640px;
+    -fx-max-width: 900px;
+}
+
+.data-rule-preview-content {
+    -fx-spacing: 8px;
+    -fx-padding: 0;
+}
+
+.data-rule-preview-path {
+    -fx-font-size: 12px;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.data-rule-preview-editor {
+    -fx-pref-height: 420px;
+    -fx-min-height: 320px;
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
+    -fx-padding: 1px;
+}
