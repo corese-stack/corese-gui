@@ -42,8 +42,6 @@ import org.slf4j.LoggerFactory;
 public class DataViewController implements AutoCloseable {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DataViewController.class);
-	private static final String DROP_WARNING_NONE_ACCEPTED_TEMPLATE = "No compatible files were dropped. %s";
-	private static final String DROP_WARNING_IGNORED_TEMPLATE = "Ignored %s. %s";
 
 	private final DataView view;
 	private final DataWorkspaceService workspaceService;
@@ -231,35 +229,16 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void handleGraphFilesDropped(List<File> droppedFiles) {
-		List<File> safeDroppedFiles = droppedFiles == null ? List.of() : List.copyOf(droppedFiles);
-		if (safeDroppedFiles.isEmpty()) {
+		DataDroppedFilesSupport.DropEvaluation dropEvaluation = DataDroppedFilesSupport.evaluate(droppedFiles,
+				FileTypeSupport.rdfExtensions());
+		if (!dropEvaluation.hasAcceptedFiles()) {
+			DataDroppedFilesSupport.notifyWarnings(dropEvaluation,
+					DataUiMessageUtils.buildExpectedExtensionsHint(FileTypeSupport.rdfExtensions()));
 			return;
 		}
-
-		List<File> compatibleFiles = new ArrayList<>();
-		int ignoredCount = 0;
-		for (File file : safeDroppedFiles) {
-			if (file != null && file.isFile()
-					&& FileTypeSupport.matchesAllowedExtensions(file, FileTypeSupport.rdfExtensions())) {
-				compatibleFiles.add(file);
-			} else {
-				ignoredCount++;
-			}
-		}
-
 		String expectedExtensionsHint = DataUiMessageUtils.buildExpectedExtensionsHint(FileTypeSupport.rdfExtensions());
-		if (compatibleFiles.isEmpty()) {
-			NotificationWidget.getInstance()
-					.showWarning(String.format(DROP_WARNING_NONE_ACCEPTED_TEMPLATE, expectedExtensionsHint));
-			return;
-		}
-
-		if (ignoredCount > 0) {
-			NotificationWidget.getInstance().showWarning(String.format(DROP_WARNING_IGNORED_TEMPLATE,
-					DataUiMessageUtils.countLabel(ignoredCount, "dropped file"), expectedExtensionsHint));
-		}
-
-		executeLoadFiles(compatibleFiles);
+		DataDroppedFilesSupport.notifyWarnings(dropEvaluation, expectedExtensionsHint);
+		executeLoadFiles(dropEvaluation.acceptedFiles());
 	}
 
 	private void executeLoadFiles(List<File> files) {

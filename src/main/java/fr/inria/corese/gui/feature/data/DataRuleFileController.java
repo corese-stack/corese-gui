@@ -28,8 +28,6 @@ import javafx.stage.FileChooser;
 final class DataRuleFileController {
 
 	private static final String RULE_FILE_ALREADY_LOADED_MESSAGE = "Rule file is already loaded:";
-	private static final String DROP_WARNING_NONE_ACCEPTED_TEMPLATE = "No compatible files were dropped. %s";
-	private static final String DROP_WARNING_IGNORED_TEMPLATE = "Ignored %s. %s";
 
 	private final DataView view;
 	private final ReasoningService reasoningService;
@@ -87,36 +85,16 @@ final class DataRuleFileController {
 	}
 
 	private void handleRuleFilesDropped(List<File> droppedFiles) {
-		List<File> safeDroppedFiles = droppedFiles == null ? List.of() : List.copyOf(droppedFiles);
-		if (safeDroppedFiles.isEmpty()) {
+		DataDroppedFilesSupport.DropEvaluation dropEvaluation = DataDroppedFilesSupport.evaluate(droppedFiles,
+				FileTypeSupport.ruleExtensions());
+		if (!dropEvaluation.hasAcceptedFiles()) {
+			DataDroppedFilesSupport.notifyWarnings(dropEvaluation,
+					DataUiMessageUtils.buildExpectedExtensionsHint(FileTypeSupport.ruleExtensions()));
 			return;
 		}
-
-		List<File> compatibleFiles = new ArrayList<>();
-		int ignoredCount = 0;
-		for (File file : safeDroppedFiles) {
-			if (file != null && file.isFile()
-					&& FileTypeSupport.matchesAllowedExtensions(file, FileTypeSupport.ruleExtensions())) {
-				compatibleFiles.add(file);
-			} else {
-				ignoredCount++;
-			}
-		}
-
-		String expectedExtensionsHint = DataUiMessageUtils
-				.buildExpectedExtensionsHint(FileTypeSupport.ruleExtensions());
-		if (compatibleFiles.isEmpty()) {
-			NotificationWidget.getInstance()
-					.showWarning(String.format(DROP_WARNING_NONE_ACCEPTED_TEMPLATE, expectedExtensionsHint));
-			return;
-		}
-
-		if (ignoredCount > 0) {
-			NotificationWidget.getInstance().showWarning(String.format(DROP_WARNING_IGNORED_TEMPLATE,
-					DataUiMessageUtils.countLabel(ignoredCount, "dropped file"), expectedExtensionsHint));
-		}
-
-		executeLoadRuleFiles(compatibleFiles);
+		DataDroppedFilesSupport.notifyWarnings(dropEvaluation,
+				DataUiMessageUtils.buildExpectedExtensionsHint(FileTypeSupport.ruleExtensions()));
+		executeLoadRuleFiles(dropEvaluation.acceptedFiles());
 	}
 
 	private void executeLoadRuleFiles(List<File> ruleFiles) {
