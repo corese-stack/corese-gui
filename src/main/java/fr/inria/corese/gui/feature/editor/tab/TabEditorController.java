@@ -7,8 +7,6 @@ import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -69,6 +67,7 @@ public class TabEditorController {
 	/** Factory for creating result controllers (lazy from config) */
 	private final Supplier<ResultController> resultControllerFactory;
 	private final TabEditorDropFilePolicy dropFilePolicy;
+	private final TabEditorTitleAllocator titleAllocator;
 
 	/**
 	 * Preloaded tab that is ready for instant use.
@@ -84,7 +83,6 @@ public class TabEditorController {
 	 * created on-demand.
 	 */
 	private Tab preloadedTab;
-	private int untitledCounter = 0;
 
 	// ===============================================================================
 	// Constructor
@@ -112,6 +110,7 @@ public class TabEditorController {
 		this.view = new TabEditorView();
 		this.resultControllerFactory = config.createResultControllerFactory();
 		this.dropFilePolicy = new TabEditorDropFilePolicy(config.getAllowedExtensions());
+		this.titleAllocator = new TabEditorTitleAllocator(DEFAULT_TAB_TITLE, DEFAULT_TAB_LABEL);
 
 		initialize();
 	}
@@ -258,39 +257,7 @@ public class TabEditorController {
 	}
 
 	private String resolveNewTabTitle(String requestedTitle) {
-		if (DEFAULT_TAB_TITLE.equals(requestedTitle)) {
-			return nextUntitledTitle();
-		}
-		return ensureUniqueTitle(requestedTitle);
-	}
-
-	private String nextUntitledTitle() {
-		java.util.Set<String> existingTitles = getExistingTabTitles();
-		int next = untitledCounter + 1;
-		String candidate = DEFAULT_TAB_LABEL + " " + next;
-		while (existingTitles.contains(candidate)) {
-			next++;
-			candidate = DEFAULT_TAB_LABEL + " " + next;
-		}
-		untitledCounter = next;
-		return candidate;
-	}
-
-	private String ensureUniqueTitle(String baseTitle) {
-		if (baseTitle == null || baseTitle.isBlank()) {
-			return nextUntitledTitle();
-		}
-		java.util.Set<String> existingTitles = getExistingTabTitles();
-		if (!existingTitles.contains(baseTitle)) {
-			return baseTitle;
-		}
-		int suffix = 2;
-		String candidate = baseTitle + " (" + suffix + ")";
-		while (existingTitles.contains(candidate)) {
-			suffix++;
-			candidate = baseTitle + " (" + suffix + ")";
-		}
-		return candidate;
+		return titleAllocator.resolveTitle(requestedTitle, getExistingTabTitles());
 	}
 
 	private java.util.Set<String> getExistingTabTitles() {
@@ -785,40 +752,7 @@ public class TabEditorController {
 	}
 
 	private Tab findTabByFile(File file) {
-		Path normalizedPath = normalizePathSafely(file);
-		String absolutePath = file.getAbsolutePath();
-
-		for (Tab tab : view.getTabs()) {
-			String tabFilePath = getFilePathForTab(tab);
-			if (tabFilePath != null && isMatchingFile(normalizedPath, absolutePath, tabFilePath)) {
-				return tab;
-			}
-		}
-		return null;
-	}
-
-	private Path normalizePathSafely(File file) {
-		try {
-			return file.toPath().toRealPath();
-		} catch (IOException _) {
-			return null;
-		}
-	}
-
-	private boolean isMatchingFile(Path normalizedSearchPath, String absoluteSearchPath, String tabFilePath) {
-		if (normalizedSearchPath != null) {
-			return matchesNormalizedPath(normalizedSearchPath, tabFilePath);
-		}
-		return absoluteSearchPath.equals(tabFilePath);
-	}
-
-	private boolean matchesNormalizedPath(Path normalizedPath, String tabFilePath) {
-		try {
-			Path tabPath = Path.of(tabFilePath).toRealPath();
-			return normalizedPath.equals(tabPath);
-		} catch (IOException _) {
-			return false;
-		}
+		return TabEditorFileMatcher.findOpenTabByFile(view.getTabs(), this::getFilePathForTab, file);
 	}
 
 	// ===============================================================================
