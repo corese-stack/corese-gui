@@ -28,6 +28,7 @@ public final class FileTypeSupport {
 
 	private static final List<String> QUERY_EXTENSIONS = List.of(".rq", ".sparql");
 	private static final List<String> RDF_EXTENSIONS = buildRdfExtensions();
+	private static final List<String> RULE_EXTENSIONS = List.of(".rul");
 	private static final List<String> DEFAULT_EDITOR_OPEN_EXTENSIONS = mergeExtensions(RDF_EXTENSIONS,
 			QUERY_EXTENSIONS);
 
@@ -47,6 +48,13 @@ public final class FileTypeSupport {
 	 */
 	public static List<String> rdfExtensions() {
 		return RDF_EXTENSIONS;
+	}
+
+	/**
+	 * Returns custom reasoning rule extensions accepted by the Data page.
+	 */
+	public static List<String> ruleExtensions() {
+		return RULE_EXTENSIONS;
 	}
 
 	/** Returns the default extension set for generic editor "Open file" dialogs. */
@@ -171,6 +179,42 @@ public final class FileTypeSupport {
 			return new FileChooser.ExtensionFilter(label, "*.*");
 		}
 		return new FileChooser.ExtensionFilter(label, patterns);
+	}
+
+	/**
+	 * Builds a human-readable sentence listing accepted extensions.
+	 *
+	 * @param extensions
+	 *            accepted extension collection
+	 * @return formatted sentence, or empty string if none
+	 */
+	public static String acceptedExtensionsHint(Collection<String> extensions) {
+		List<String> normalized = normalizeExtensions(extensions);
+		if (normalized.isEmpty()) {
+			return "";
+		}
+		return "Accepted extensions: " + String.join(", ", normalized) + ".";
+	}
+
+	/**
+	 * Appends a normalized accepted-extensions hint to a base message.
+	 *
+	 * @param baseMessage
+	 *            primary message
+	 * @param extensions
+	 *            accepted extension collection
+	 * @return base message with extension hint when available
+	 */
+	public static String withAcceptedExtensions(String baseMessage, Collection<String> extensions) {
+		String normalizedBase = baseMessage == null ? "" : baseMessage.trim();
+		String hint = acceptedExtensionsHint(extensions);
+		if (hint.isBlank()) {
+			return normalizedBase;
+		}
+		if (normalizedBase.isBlank()) {
+			return hint;
+		}
+		return normalizedBase + "\n" + hint;
 	}
 
 	private static List<String> buildRdfExtensions() {

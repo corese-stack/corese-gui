@@ -25,7 +25,7 @@
     -fx-text-fill: -color-fg-subtle;
     -fx-text-alignment: center;
     -fx-alignment: center;
-    -fx-max-width: 400;
+    -fx-max-width: 460;
 }
 
 .empty-state-buttons {
@@ -45,7 +45,7 @@
     -fx-border-color: transparent;
 }
 
-/* 
- * Button styles are now handled by AtlantaFX Styles.ACCENT class 
+/*
+ * Button styles are now handled by AtlantaFX Styles.ACCENT class
  * applied in the Java code to ensure consistency with the rest of the application.
  */

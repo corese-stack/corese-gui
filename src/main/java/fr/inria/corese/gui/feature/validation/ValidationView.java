@@ -4,6 +4,7 @@ import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.emptystate.EmptyStateWidget;
+import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.view.AbstractView;
 import java.util.List;
 import javafx.scene.Node;
@@ -72,7 +73,8 @@ public class ValidationView extends AbstractView {
 	 */
 	public Node createEmptyState(Runnable onNewAction, Runnable onLoadAction) {
 		return new EmptyStateWidget(ButtonIcon.EMPTY_VALIDATION, "No shapes files open",
-				"Create a new shapes file, load one, or drop a file here.",
+				FileTypeSupport.withAcceptedExtensions("Create a new SHACL shapes file, load one, or drop it here.",
+						FileTypeSupport.rdfExtensions()),
 				EmptyStateWidget.createAction("New Shapes File", ButtonIcon.EMPTY_ACTION_NEW, onNewAction),
 				EmptyStateWidget.createAction("Load Shapes File", ButtonIcon.EMPTY_ACTION_OPEN, onLoadAction));
 	}

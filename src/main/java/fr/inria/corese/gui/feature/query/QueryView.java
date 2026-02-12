@@ -2,6 +2,7 @@ package fr.inria.corese.gui.feature.query;
 
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.emptystate.EmptyStateWidget;
+import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.view.AbstractView;
 import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
@@ -52,8 +53,12 @@ public class QueryView extends AbstractView {
 			actions.add(EmptyStateWidget.createAction("Templates", ButtonIcon.EMPTY_ACTION_TEMPLATE, onTemplateAction));
 		}
 
-		return new EmptyStateWidget(ButtonIcon.EMPTY_QUERY, "No queries open",
-				"Create a new query, load one, use a template, or drop a query file here.",
+		EmptyStateWidget emptyState = new EmptyStateWidget(ButtonIcon.EMPTY_QUERY, "No queries open",
+				FileTypeSupport.withAcceptedExtensions(
+						"Create a new query, load one, use a template, or drop a query file here.",
+						FileTypeSupport.queryExtensions()),
 				actions.toArray(Node[]::new));
+		emptyState.getStyleClass().add("query-empty-state");
+		return emptyState;
 	}
 }

@@ -2,4 +2,6 @@
    Split Editor View Stylesheet
    ========================================================================== */
 
-/* Intentionally minimal. Add view-specific styles here when needed. */
+.query-empty-state .empty-state-description {
+    -fx-max-width: 560px;
+}

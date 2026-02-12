@@ -47,9 +47,9 @@ final class TabEditorDropFilePolicy {
 
 	String describeAllowedExtensions() {
 		if (normalizedAllowedExtensions.isEmpty()) {
-			return "Allowed extensions are restricted for this editor.";
+			return "Expected extensions are configured for this editor.";
 		}
-		return "Allowed: " + String.join(", ", normalizedAllowedExtensions);
+		return "Expected extensions: " + String.join(", ", normalizedAllowedExtensions);
 	}
 
 	private boolean isAllowed(File file) {
