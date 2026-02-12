@@ -197,7 +197,12 @@ public class CodeEditorController {
 		String lower = content.toLowerCase();
 		String trimmed = content.trim();
 
-		SerializationFormat format = detectSparqlFormat(lower);
+		SerializationFormat format = detectXmlFormat(trimmed);
+		if (format != null && looksLikeXmlRuleDocument(lower, trimmed)) {
+			return format;
+		}
+
+		format = detectSparqlFormat(lower);
 		if (format != null) {
 			return format;
 		}
@@ -289,6 +294,14 @@ public class CodeEditorController {
 			return SerializationFormat.XML;
 		}
 		return null;
+	}
+
+	private boolean looksLikeXmlRuleDocument(String lower, String trimmed) {
+		if (trimmed.startsWith("<?xml")) {
+			return true;
+		}
+		return lower.startsWith("<rdf:rdf") || lower.startsWith("<rule") || lower.contains("<![cdata[")
+				|| (lower.contains("<rdf:rdf") && lower.contains("</rdf:rdf>"));
 	}
 
 	private boolean looksLikeJsonLd(String trimmed) {

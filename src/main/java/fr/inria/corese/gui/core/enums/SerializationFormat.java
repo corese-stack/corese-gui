@@ -119,6 +119,7 @@ public enum SerializationFormat {
 			case ".sparql" -> SPARQL_QUERY;
 			case ".xml" -> RDF_XML;
 			case ".owl" -> RDF_XML;
+			case ".rul" -> XML;
 			default -> null;
 		};
 	}
