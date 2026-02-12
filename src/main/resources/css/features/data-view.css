@@ -134,6 +134,15 @@
     -fx-background-radius: 0 0 8px 8px;
 }
 
+.data-status-group {
+    -fx-alignment: center-left;
+    -fx-spacing: 14px;
+}
+
+.data-status-group-secondary {
+    -fx-alignment: center-right;
+}
+
 .data-status-label {
     -fx-font-size: 12px;
     -fx-text-fill: -color-fg-muted;

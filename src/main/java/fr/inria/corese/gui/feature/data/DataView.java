@@ -53,6 +53,8 @@ public class DataView extends AbstractView {
 	private static final String STYLE_CLASS_GRAPH_DROP_OVERLAY = "data-graph-drop-overlay";
 	private static final String STYLE_CLASS_GRAPH_DROP_OVERLAY_ACTIVE = "data-graph-drop-overlay-active";
 	private static final String STYLE_CLASS_GRAPH_BODY = "data-graph-body";
+	private static final String STYLE_CLASS_STATUS_GROUP = "data-status-group";
+	private static final String STYLE_CLASS_STATUS_GROUP_SECONDARY = "data-status-group-secondary";
 	private static final String TOOLTIP_TITLE_TRIPLES = "Triples";
 	private static final String TOOLTIP_TITLE_SOURCES = "Sources";
 	private static final String TOOLTIP_TITLE_NAMED_GRAPHS = "Named Graphs";
@@ -155,9 +157,7 @@ public class DataView extends AbstractView {
 
 		initializeGraphContainer();
 
-		HBox statusBar = new HBox(10, tripleCountLabel, sourceCountLabel, namedGraphCountLabel,
-				inferredTripleCountLabel);
-		statusBar.getStyleClass().add("data-status-bar");
+		HBox statusBar = createStatusBar();
 		initializeStatusMetricLabels();
 
 		HBox graphBody = new HBox(graphContainer, toolbarWidget);
@@ -173,8 +173,28 @@ public class DataView extends AbstractView {
 		return graphPane;
 	}
 
+	private HBox createStatusBar() {
+		HBox primaryStatusGroup = createStatusGroup(tripleCountLabel, sourceCountLabel);
+		HBox secondaryStatusGroup = createStatusGroup(namedGraphCountLabel, inferredTripleCountLabel);
+		secondaryStatusGroup.getStyleClass().add(STYLE_CLASS_STATUS_GROUP_SECONDARY);
+
+		Region statusSpacer = new Region();
+		HBox.setHgrow(statusSpacer, Priority.ALWAYS);
+
+		HBox statusBar = new HBox(10, primaryStatusGroup, statusSpacer, secondaryStatusGroup);
+		statusBar.getStyleClass().add("data-status-bar");
+		return statusBar;
+	}
+
+	private static HBox createStatusGroup(Label... labels) {
+		HBox group = new HBox(14, labels);
+		group.getStyleClass().add(STYLE_CLASS_STATUS_GROUP);
+		return group;
+	}
+
 	private void initializeStatusMetricLabels() {
-		for (Label label : List.of(tripleCountLabel, sourceCountLabel, namedGraphCountLabel, inferredTripleCountLabel)) {
+		for (Label label : List.of(tripleCountLabel, sourceCountLabel, namedGraphCountLabel,
+				inferredTripleCountLabel)) {
 			label.getStyleClass().add("data-status-label");
 			label.setFocusTraversable(false);
 		}
@@ -423,22 +443,15 @@ public class DataView extends AbstractView {
 	}
 
 	private static List<String> buildTriplesTooltipLines(DataWorkspaceStatus status) {
-		return """
-				Total triples: %s
-				Explicit triples: %s
-				Inferred triples: %s
-				Default graph triples: %s
-				""".formatted(formatCount(status.tripleCount()), formatCount(status.explicitTripleCount()),
-				formatCount(status.inferredTripleCount()), formatCount(status.defaultGraphTripleCount())).lines().toList();
+		int namedGraphTriples = Math.max(0, status.tripleCount() - status.defaultGraphTripleCount());
+		return List.of("Explicit triples: " + formatCount(status.explicitTripleCount()),
+				"Default graph triples: " + formatCount(status.defaultGraphTripleCount()),
+				"Triples in named graphs: " + formatCount(namedGraphTriples));
 	}
 
 	private static List<String> buildSourcesTooltipLines(DataWorkspaceStatus status) {
-		return """
-				Tracked sources: %s
-				File sources: %s
-				URI sources: %s
-				""".formatted(formatCount(status.sourceCount()), formatCount(status.fileSourceCount()),
-				formatCount(status.uriSourceCount())).lines().toList();
+		return List.of("File sources: " + formatCount(status.fileSourceCount()),
+				"URI sources: " + formatCount(status.uriSourceCount()));
 	}
 
 	private static List<String> buildNamedGraphTooltipLines(DataWorkspaceStatus status) {
@@ -447,7 +460,6 @@ public class DataView extends AbstractView {
 		}
 
 		List<String> lines = new ArrayList<>();
-		lines.add("Named graphs with triples: " + formatCount(status.namedGraphCount()));
 		int displayed = Math.min(TOOLTIP_PREVIEW_LIMIT, status.namedGraphStats().size());
 		for (int index = 0; index < displayed; index++) {
 			DataWorkspaceStatus.NamedGraphStat stat = status.namedGraphStats().get(index);
@@ -461,7 +473,6 @@ public class DataView extends AbstractView {
 
 	private static List<String> buildReasoningTooltipLines(DataWorkspaceStatus status) {
 		List<String> lines = new ArrayList<>();
-		lines.add("Inferred triples: " + formatCount(status.inferredTripleCount()));
 		for (DataWorkspaceStatus.ReasoningStat stat : status.reasoningStats()) {
 			lines.add(stat.profileLabel() + ": " + formatCount(stat.tripleCount()) + " triples");
 		}
