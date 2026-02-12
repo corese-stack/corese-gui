@@ -16,37 +16,49 @@
 /* ============================================================================= */
 
 .app-toolbar {
-    /* Theme-aware background color - subtle variant for visual separation */
     -fx-background-color: -color-bg-subtle;
+}
 
-    /* Left border only to separate from main content area */
+.app-toolbar.app-toolbar-vertical {
     -fx-border-color: -color-border-default;
     -fx-border-width: 0 0 0 1;
-
-    /* Compact padding for icon buttons */
     -fx-padding: 5px;
-
-    /* Fixed width to accommodate icon buttons consistently */
     -fx-min-width: 48px;
     -fx-pref-width: 48px;
-
-    /* Align buttons to the top center */
-    -fx-alignment: top-center;
-
-    /* Vertical spacing between buttons */
-    -fx-spacing: 10px;
-
-    /* Allow vertical expansion */
     -fx-max-height: Infinity;
 }
 
-.app-toolbar .app-toolbar-separator {
+.app-toolbar.app-toolbar-horizontal {
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-padding: 4px;
+    -fx-min-width: 0;
+    -fx-pref-width: -1;
+    -fx-max-width: Infinity;
+    -fx-min-height: 44px;
+    -fx-pref-height: 44px;
+}
+
+.app-toolbar.app-toolbar-vertical .app-toolbar-separator {
     -fx-min-width: 26px;
     -fx-pref-width: 26px;
     -fx-max-width: 26px;
     -fx-min-height: 1px;
     -fx-pref-height: 1px;
     -fx-max-height: 1px;
+    -fx-background-color: -color-border-muted;
+    -fx-opacity: 0.8;
+}
+
+.app-toolbar.app-toolbar-horizontal .app-toolbar-separator {
+    -fx-min-width: 1px;
+    -fx-pref-width: 1px;
+    -fx-max-width: 1px;
+    -fx-min-height: 24px;
+    -fx-pref-height: 24px;
+    -fx-max-height: 24px;
     -fx-background-color: -color-border-muted;
     -fx-opacity: 0.8;
 }

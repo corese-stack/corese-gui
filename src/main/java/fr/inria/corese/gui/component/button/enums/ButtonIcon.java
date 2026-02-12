@@ -202,6 +202,9 @@ public enum ButtonIcon {
 	/** Icon for copy selection operations. */
 	COPY_SELECTION(MaterialDesignC.CONTENT_DUPLICATE),
 
+	/** Icon for contextual "more actions" menu buttons. */
+	MORE_ACTIONS(MaterialDesignD.DOTS_VERTICAL),
+
 	/** Icon for play/execute/run operations. */
 	PLAY(MaterialDesignP.PLAY);
 
