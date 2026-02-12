@@ -52,6 +52,7 @@ public class DataView extends AbstractView {
 	private static final String STYLE_CLASS_GRAPH_EMPTY_STATE = "data-graph-empty-state";
 	private static final String STYLE_CLASS_GRAPH_DROP_OVERLAY = "data-graph-drop-overlay";
 	private static final String STYLE_CLASS_GRAPH_DROP_OVERLAY_ACTIVE = "data-graph-drop-overlay-active";
+	private static final String STYLE_CLASS_GRAPH_BODY = "data-graph-body";
 	private static final String TOOLTIP_TITLE_TRIPLES = "Triples";
 	private static final String TOOLTIP_TITLE_SOURCES = "Sources";
 	private static final String TOOLTIP_TITLE_NAMED_GRAPHS = "Named Graphs";
@@ -160,10 +161,11 @@ public class DataView extends AbstractView {
 		initializeStatusMetricLabels();
 
 		HBox graphBody = new HBox(graphContainer, toolbarWidget);
+		graphBody.getStyleClass().add(STYLE_CLASS_GRAPH_BODY);
 		HBox.setHgrow(graphContainer, Priority.ALWAYS);
 
-		VBox graphCard = new VBox(10, graphBody, statusBar);
-		graphCard.getStyleClass().addAll("data-card", "data-graph-card", "floating-panel");
+		VBox graphCard = new VBox(graphBody, statusBar);
+		graphCard.getStyleClass().add("data-graph-card");
 		VBox.setVgrow(graphBody, Priority.ALWAYS);
 
 		graphPane.setCenter(graphCard);
