@@ -8,6 +8,7 @@ import fr.inria.corese.core.sparql.api.IDatatype;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.service.DataSourceRegistryService.DataSource;
 import fr.inria.corese.gui.core.service.DataSourceRegistryService.SourceType;
+import fr.inria.corese.gui.core.service.ReasoningService.RuleFileState;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -43,6 +44,7 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 	private final RdfDataService rdfDataService = RdfDataService.getInstance();
 	private final DataSourceRegistryService sourceRegistryService = DataSourceRegistryService.getInstance();
 	private final GraphProjectionService graphProjectionService = GraphProjectionService.getInstance();
+	private final ReasoningService reasoningService = DefaultReasoningService.getInstance();
 	private final GraphMutationBus mutationBus = GraphMutationBus.getInstance();
 
 	private DefaultDataWorkspaceService() {
@@ -262,13 +264,18 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 				}).toList();
 	}
 
-	private static ReasoningStats computeReasoningStats(Map<String, Integer> graphTripleCounts) {
+	private ReasoningStats computeReasoningStats(Map<String, Integer> graphTripleCounts) {
 		List<DataWorkspaceStatus.ReasoningStat> details = new ArrayList<>();
 		int inferredTripleCount = 0;
 		for (ReasoningProfile profile : ReasoningProfile.values()) {
 			int profileCount = graphTripleCounts.getOrDefault(profile.namedGraphUri(), 0);
 			inferredTripleCount += profileCount;
 			details.add(new DataWorkspaceStatus.ReasoningStat(profile.label(), profile.namedGraphUri(), profileCount));
+		}
+		for (RuleFileState ruleFile : reasoningService.snapshotRuleFiles()) {
+			int ruleCount = graphTripleCounts.getOrDefault(ruleFile.namedGraphUri(), 0);
+			inferredTripleCount += ruleCount;
+			details.add(new DataWorkspaceStatus.ReasoningStat(ruleFile.label(), ruleFile.namedGraphUri(), ruleCount));
 		}
 		return new ReasoningStats(details, inferredTripleCount);
 	}
