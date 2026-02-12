@@ -18,7 +18,6 @@ import java.util.function.Consumer;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
@@ -53,6 +52,8 @@ public class DataView extends AbstractView {
 	private static final String STYLE_CLASS_GRAPH_DROP_OVERLAY = "data-graph-drop-overlay";
 	private static final String STYLE_CLASS_GRAPH_DROP_OVERLAY_ACTIVE = "data-graph-drop-overlay-active";
 	private static final String STYLE_CLASS_GRAPH_BODY = "data-graph-body";
+	private static final String STYLE_CLASS_PAGE_LAYOUT = "data-page-layout";
+	private static final String STYLE_CLASS_REASONING_SECTION = "data-reasoning-section";
 	private static final String STYLE_CLASS_STATUS_GROUP = "data-status-group";
 	private static final String STYLE_CLASS_STATUS_GROUP_SECONDARY = "data-status-group-secondary";
 	private static final String TOOLTIP_TITLE_TRIPLES = "Triples";
@@ -97,16 +98,13 @@ public class DataView extends AbstractView {
 		BorderPane root = (BorderPane) getRoot();
 		root.getStyleClass().add("data-page-root");
 
-		SplitPane splitPane = new SplitPane();
-		splitPane.getStyleClass().add("data-page-split");
-
 		VBox reasoningPane = createReasoningPane();
 		BorderPane graphPane = createGraphPane();
-		SplitPane.setResizableWithParent(reasoningPane, false);
-		splitPane.getItems().addAll(reasoningPane, graphPane);
-		splitPane.setDividerPositions(0.27);
+		HBox layout = new HBox(reasoningPane, graphPane);
+		layout.getStyleClass().add(STYLE_CLASS_PAGE_LAYOUT);
+		HBox.setHgrow(graphPane, Priority.ALWAYS);
 
-		root.setCenter(splitPane);
+		root.setCenter(layout);
 	}
 
 	private VBox createReasoningPane() {
@@ -139,10 +137,10 @@ public class DataView extends AbstractView {
 		loadCustomRuleButton.getStyleClass().add(Styles.ACCENT);
 
 		VBox builtInCard = new VBox(10, builtInTitle, builtInRules);
-		builtInCard.getStyleClass().addAll("data-card", "floating-panel");
+		builtInCard.getStyleClass().add(STYLE_CLASS_REASONING_SECTION);
 
 		VBox customCard = new VBox(10, customTitle, customHint, loadCustomRuleButton);
-		customCard.getStyleClass().addAll("data-card", "floating-panel");
+		customCard.getStyleClass().add(STYLE_CLASS_REASONING_SECTION);
 
 		Region spacer = new Region();
 		VBox.setVgrow(spacer, Priority.ALWAYS);
