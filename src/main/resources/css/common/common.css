@@ -2,6 +2,51 @@
    Common Styles - Reusable UI components and utilities
    ========================================================================== */
 
+/* --------------------------------------------------------------------------
+   Workspace & Card System
+   -------------------------------------------------------------------------- */
+
+.app-workspace-root {
+    -fx-background-color: -color-bg-default;
+    -fx-padding: 12px;
+}
+
+.app-workspace-layout {
+    -fx-spacing: 10px;
+    -fx-fill-height: true;
+}
+
+.app-card {
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
+}
+
+.app-workspace-card {
+    -fx-padding: 0;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
+}
+
+.app-card-default {
+    -fx-background-color: -color-bg-default;
+}
+
+.app-card-subtle {
+    -fx-background-color: -color-bg-subtle;
+}
+
+.app-card-row {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-muted;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+}
+
 /**
  * A floating panel container with background, border, and shadow.
  * Used for overlays like format selectors, configuration boxes, etc.
@@ -17,7 +62,7 @@
     -fx-border-color: -color-border-muted;
     -fx-border-radius: 6px;
     -fx-border-width: 1px;
-    
+
     /* Elevation - subtle shadow */
     -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.1), 10, 0, 0, 4);
 }

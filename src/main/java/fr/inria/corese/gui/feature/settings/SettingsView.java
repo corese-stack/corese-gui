@@ -4,6 +4,7 @@ import fr.inria.corese.gui.AppConstants;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.utils.BrowserUtils;
+import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.utils.fx.LogoShadowEffects;
 import fr.inria.corese.gui.utils.fx.SvgImageLoader;
 
@@ -37,6 +38,8 @@ public final class SettingsView extends AbstractView {
 	private static final Logger LOGGER = LoggerFactory.getLogger(SettingsView.class);
 	@SuppressWarnings("java:S1075")
 	private static final String STYLESHEET_PATH = "/css/features/settings-view.css";
+	@SuppressWarnings("java:S1075")
+	private static final String COMMON_STYLESHEET_PATH = "/css/common/common.css";
 	// ===== UI Components =====
 	private ToggleSwitch systemThemeSwitch;
 	private ComboBox<String> themeComboBox;
@@ -48,6 +51,7 @@ public final class SettingsView extends AbstractView {
 
 	public SettingsView() {
 		super(new ScrollPane(), STYLESHEET_PATH);
+		CssUtils.applyViewStyles(getRoot(), COMMON_STYLESHEET_PATH);
 		initializeLayout();
 	}
 
@@ -69,7 +73,7 @@ public final class SettingsView extends AbstractView {
 
 	private VBox createAppearanceSection() {
 		VBox section = new VBox();
-		section.getStyleClass().add("settings-section");
+		section.getStyleClass().addAll("settings-section", "app-card", "app-card-subtle");
 
 		Label sectionTitle = new Label("Appearance");
 		sectionTitle.getStyleClass().add(Styles.TITLE_3);
@@ -144,7 +148,7 @@ public final class SettingsView extends AbstractView {
 
 	private VBox createAboutSection() {
 		VBox section = new VBox();
-		section.getStyleClass().add("settings-section");
+		section.getStyleClass().addAll("settings-section", "app-card", "app-card-subtle");
 
 		Label sectionTitle = new Label("About");
 		sectionTitle.getStyleClass().add(Styles.TITLE_3);

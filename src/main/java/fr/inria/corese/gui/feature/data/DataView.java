@@ -15,6 +15,7 @@ import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.feature.data.model.DataRuleFileItem;
 import fr.inria.corese.gui.feature.data.support.DataRuleFileRowFactory;
 import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport;
+import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,7 +35,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.shape.Rectangle;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 /**
@@ -114,12 +114,12 @@ public class DataView extends AbstractView {
 
 	private void initializeLayout() {
 		BorderPane root = (BorderPane) getRoot();
-		root.getStyleClass().add("data-page-root");
+		root.getStyleClass().addAll("data-page-root", "app-workspace-root");
 
 		VBox reasoningPane = createReasoningPane();
 		BorderPane graphPane = createGraphPane();
 		HBox layout = new HBox(reasoningPane, graphPane);
-		layout.getStyleClass().add(STYLE_CLASS_PAGE_LAYOUT);
+		layout.getStyleClass().addAll(STYLE_CLASS_PAGE_LAYOUT, "app-workspace-layout");
 		HBox.setHgrow(graphPane, Priority.ALWAYS);
 
 		root.setCenter(layout);
@@ -127,7 +127,7 @@ public class DataView extends AbstractView {
 
 	private VBox createReasoningPane() {
 		VBox pane = new VBox(10);
-		pane.getStyleClass().add("data-left-pane");
+		pane.getStyleClass().addAll("data-left-pane", "app-card", "app-card-subtle");
 
 		Label titleLabel = new Label("Reasoning");
 		titleLabel.getStyleClass().add("data-pane-title");
@@ -138,7 +138,7 @@ public class DataView extends AbstractView {
 				createBuiltInRuleRow("OWL RL", owlRlToggle, owlRlViewButton),
 				createBuiltInRuleRow("OWL RL Lite", owlRlLiteToggle, owlRlLiteViewButton),
 				createBuiltInRuleRow("OWL RL Ext", owlRlExtToggle, owlRlExtViewButton));
-		builtInRules.getStyleClass().add("data-rule-list");
+		builtInRules.getStyleClass().addAll("data-rule-list", "app-card", "app-card-default");
 
 		VBox builtInCard = new VBox(8, builtInTitle, builtInRules);
 		builtInCard.getStyleClass().add(STYLE_CLASS_REASONING_SECTION);
@@ -153,7 +153,7 @@ public class DataView extends AbstractView {
 		ruleFilesToolbar.getStyleClass().add("data-custom-rules-toolbar");
 
 		VBox customRulesSurface = new VBox(ruleFilesContent, ruleFilesToolbar);
-		customRulesSurface.getStyleClass().add("data-custom-rules-surface");
+		customRulesSurface.getStyleClass().addAll("data-custom-rules-surface", "app-card", "app-card-default");
 		customRulesSurface.setMaxHeight(Double.MAX_VALUE);
 		VBox.setVgrow(customRulesSurface, Priority.ALWAYS);
 
@@ -191,7 +191,7 @@ public class DataView extends AbstractView {
 		HBox.setHgrow(spacer, Priority.ALWAYS);
 
 		HBox row = new HBox(8, label, spacer, viewButton, toggle);
-		row.getStyleClass().add("data-rule-row");
+		row.getStyleClass().addAll("data-rule-row", "app-card-row");
 		row.setAlignment(Pos.CENTER_LEFT);
 		return row;
 	}
@@ -200,7 +200,7 @@ public class DataView extends AbstractView {
 		ruleFilesContent.getStyleClass().add("data-custom-rules-content");
 		ruleFilesContent.setMaxHeight(Double.MAX_VALUE);
 		ruleFilesContent.getChildren().setAll(ruleFilesScrollPane, ruleFilesDropOverlay);
-		applyRoundedClip(ruleFilesContent, 8);
+		RoundedClipSupport.applyRoundedClip(ruleFilesContent, 8);
 
 		ruleFilesList.getStyleClass().add("data-custom-rules-list");
 
@@ -229,17 +229,6 @@ public class DataView extends AbstractView {
 		setupRuleFilesDropListeners();
 	}
 
-	private static void applyRoundedClip(Region region, double radius) {
-		Rectangle clip = new Rectangle();
-		clip.setArcWidth(radius * 2);
-		clip.setArcHeight(radius * 2);
-		region.layoutBoundsProperty().addListener((observable, previous, bounds) -> {
-			clip.setWidth(bounds.getWidth());
-			clip.setHeight(bounds.getHeight());
-		});
-		region.setClip(clip);
-	}
-
 	private BorderPane createGraphPane() {
 		BorderPane graphPane = new BorderPane();
 		graphPane.getStyleClass().add("data-right-pane");
@@ -255,7 +244,7 @@ public class DataView extends AbstractView {
 		HBox.setHgrow(graphContainer, Priority.ALWAYS);
 
 		VBox graphCard = new VBox(graphBody, statusBar);
-		graphCard.getStyleClass().add("data-graph-card");
+		graphCard.getStyleClass().addAll("data-graph-card", "app-card", "app-card-default");
 		VBox.setVgrow(graphBody, Priority.ALWAYS);
 
 		graphPane.setCenter(graphCard);

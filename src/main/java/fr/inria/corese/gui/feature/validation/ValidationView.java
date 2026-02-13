@@ -5,10 +5,14 @@ import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.emptystate.EmptyStateWidget;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
+import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.view.AbstractView;
+import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import java.util.List;
 import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 
 /**
  * View for the Validation screen.
@@ -25,6 +29,10 @@ public class ValidationView extends AbstractView {
 
 	@SuppressWarnings("java:S1075") // Hardcoded URI - not relevant for internal CSS resources
 	private static final String STYLESHEET_PATH = "/css/features/validation-view.css";
+	@SuppressWarnings("java:S1075")
+	private static final String COMMON_STYLESHEET_PATH = "/css/common/common.css";
+
+	private final StackPane workspaceCard = new StackPane();
 
 	// ==============================================================================================
 	// Constructor
@@ -33,6 +41,17 @@ public class ValidationView extends AbstractView {
 	/** Creates the ValidationView. */
 	public ValidationView() {
 		super(new BorderPane(), STYLESHEET_PATH);
+		CssUtils.applyViewStyles(getRoot(), COMMON_STYLESHEET_PATH);
+		initializeLayout();
+	}
+
+	private void initializeLayout() {
+		BorderPane root = (BorderPane) getRoot();
+		root.getStyleClass().addAll("validation-page-root", "app-workspace-root");
+		workspaceCard.getStyleClass().addAll("app-workspace-card", "app-card", "app-card-default");
+		workspaceCard.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		RoundedClipSupport.applyRoundedClip(workspaceCard, 8);
+		root.setCenter(workspaceCard);
 	}
 
 	// ==============================================================================================
@@ -46,7 +65,10 @@ public class ValidationView extends AbstractView {
 	 *            The content node.
 	 */
 	public void setMainContent(Node node) {
-		((BorderPane) getRoot()).setCenter(node);
+		if (node instanceof Region region) {
+			region.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		}
+		workspaceCard.getChildren().setAll(node);
 	}
 
 	/**

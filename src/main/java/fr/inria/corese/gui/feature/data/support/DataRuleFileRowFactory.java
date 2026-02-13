@@ -64,7 +64,7 @@ public final class DataRuleFileRowFactory {
 		controls.setAlignment(Pos.CENTER_RIGHT);
 
 		HBox row = new HBox(8, nameLabel, spacer, controls);
-		row.getStyleClass().add("data-custom-rule-item");
+		row.getStyleClass().addAll("data-custom-rule-item", "app-card-row");
 		row.setAlignment(Pos.CENTER_LEFT);
 		row.setMaxWidth(Double.MAX_VALUE);
 		Tooltip.install(row, new Tooltip(sourcePath));

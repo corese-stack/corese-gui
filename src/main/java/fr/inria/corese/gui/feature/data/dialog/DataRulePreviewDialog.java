@@ -5,14 +5,13 @@ import fr.inria.corese.gui.core.dialog.DialogLayout;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.theme.CssUtils;
+import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import java.util.Locale;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.shape.Rectangle;
 
 /**
  * Modal dialog displaying one rule file as read-only text.
@@ -53,7 +52,7 @@ public final class DataRulePreviewDialog {
 		previewEditor.getStyleClass().add(STYLE_CLASS_EDITOR);
 		previewEditor.setMode(detectRulePreviewMode(safeContent, safePath));
 		previewEditor.setContent(safeContent);
-		applyRoundedClip(previewEditor, 8);
+		RoundedClipSupport.applyRoundedClip(previewEditor, 8);
 		VBox.setVgrow(previewEditor, Priority.ALWAYS);
 
 		VBox content = new VBox(8, pathLabel, previewEditor);
@@ -76,17 +75,6 @@ public final class DataRulePreviewDialog {
 			}
 		});
 		ModalService.getInstance().show(dialog);
-	}
-
-	private static void applyRoundedClip(Region region, double radius) {
-		Rectangle clip = new Rectangle();
-		clip.setArcWidth(radius * 2);
-		clip.setArcHeight(radius * 2);
-		region.layoutBoundsProperty().addListener((observable, previous, bounds) -> {
-			clip.setWidth(bounds.getWidth());
-			clip.setHeight(bounds.getHeight());
-		});
-		region.setClip(clip);
 	}
 
 	private static SerializationFormat detectRulePreviewMode(String content, String sourcePath) {
