@@ -4,11 +4,10 @@ package fr.inria.corese.gui.feature.query.template;
  * Immutable options used to generate a SPARQL query template.
  */
 public record QueryTemplateOptions(QueryTemplateType type, boolean useGraphClause, boolean useDistinct,
-		boolean orderBySubject, QueryTemplatePattern pattern, Integer limit, Integer offset) {
+		boolean orderBySubject, boolean useOptionalPattern, boolean useUnionPattern, Integer limit, Integer offset) {
 
 	public QueryTemplateOptions {
 		type = type == null ? QueryTemplateType.SELECT : type;
-		pattern = pattern == null ? QueryTemplatePattern.BASIC : pattern;
 
 		if (!type.supportsGraphClause()) {
 			useGraphClause = false;
@@ -20,14 +19,16 @@ public record QueryTemplateOptions(QueryTemplateType type, boolean useGraphClaus
 			orderBySubject = false;
 		}
 		if (!type.supportsPatternVariant()) {
-			pattern = QueryTemplatePattern.BASIC;
+			useOptionalPattern = false;
+			useUnionPattern = false;
 		}
 		if (!type.supportsLimit()) {
 			limit = null;
+			offset = null;
 		} else if (limit != null && limit < 1) {
 			limit = 1;
 		}
-		if (!type.supportsOffset()) {
+		if (!type.supportsOffset() || limit == null) {
 			offset = null;
 		} else if (offset != null && offset < 0) {
 			offset = 0;

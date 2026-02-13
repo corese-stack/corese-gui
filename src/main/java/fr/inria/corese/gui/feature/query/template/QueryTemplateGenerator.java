@@ -6,7 +6,7 @@ package fr.inria.corese.gui.feature.query.template;
 public final class QueryTemplateGenerator {
 
 	private static final String DEFAULT_GRAPH_URI = "http://example.org/graph";
-	private static final String LOAD_URI_PLACEHOLDER = "http://ns.inria.fr/humans/humans_data.ttl";
+	private static final String LOAD_URI_PLACEHOLDER = "https://ns.inria.fr/humans/humans_data.ttl";
 	private static final String EXAMPLE_SUBJECT = "http://example.org/resource/s";
 	private static final String EXAMPLE_PREDICATE = "http://example.org/property/p";
 	private static final String EXAMPLE_LITERAL = "\"value\"";
@@ -17,8 +17,7 @@ public final class QueryTemplateGenerator {
 
 	public static String generate(QueryTemplateOptions options) {
 		QueryTemplateOptions safeOptions = options == null
-				? new QueryTemplateOptions(QueryTemplateType.SELECT, false, false, false, QueryTemplatePattern.BASIC,
-						null, null)
+				? new QueryTemplateOptions(QueryTemplateType.SELECT, false, false, false, false, false, null, null)
 				: options;
 
 		return switch (safeOptions.type()) {
@@ -176,11 +175,12 @@ public final class QueryTemplateGenerator {
 
 	private static String buildWherePattern(QueryTemplateOptions options, int indentLevel) {
 		String indent = "  ".repeat(Math.max(0, indentLevel));
-		return switch (options.pattern()) {
-			case BASIC -> buildBasicPattern(options, indent);
-			case OPTIONAL -> buildOptionalPattern(options, indent);
-			case UNION -> buildUnionPattern(options, indent);
-		};
+		StringBuilder pattern = new StringBuilder(
+				options.useUnionPattern() ? buildUnionPattern(options, indent) : buildBasicPattern(options, indent));
+		if (options.useOptionalPattern()) {
+			pattern.append('\n').append(buildOptionalPattern(options, indent));
+		}
+		return pattern.toString();
 	}
 
 	private static String buildBasicPattern(QueryTemplateOptions options, String indent) {
@@ -192,15 +192,9 @@ public final class QueryTemplateGenerator {
 
 	private static String buildOptionalPattern(QueryTemplateOptions options, String indent) {
 		if (options.useGraphClause()) {
-			return """
-					%sGRAPH ?g { ?s ?p ?o }
-					%sOPTIONAL { GRAPH ?g { ?s ?p ?label } }
-					""".formatted(indent, indent).stripTrailing();
+			return indent + "OPTIONAL { GRAPH ?g { ?s ?optionalPredicate ?optionalObject } }";
 		}
-		return """
-				%s?s ?p ?o .
-				%sOPTIONAL { ?s ?p ?label . }
-				""".formatted(indent, indent).stripTrailing();
+		return indent + "OPTIONAL { ?s ?optionalPredicate ?optionalObject . }";
 	}
 
 	private static String buildUnionPattern(QueryTemplateOptions options, String indent) {
@@ -208,13 +202,13 @@ public final class QueryTemplateGenerator {
 			return """
 					%s{ GRAPH ?g { ?s ?p ?o } }
 					%sUNION
-					%s{ GRAPH ?g { ?s ?p ?alt } }
+					%s{ GRAPH ?g { ?s ?altPredicate ?altObject } }
 					""".formatted(indent, indent, indent).stripTrailing();
 		}
 		return """
 				%s{ ?s ?p ?o . }
 				%sUNION
-				%s{ ?s ?p ?alt . }
+				%s{ ?s ?altPredicate ?altObject . }
 				""".formatted(indent, indent, indent).stripTrailing();
 	}
 }

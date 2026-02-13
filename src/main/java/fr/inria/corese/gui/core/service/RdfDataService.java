@@ -10,7 +10,6 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URLConnection;
-import javax.net.ssl.SSLHandshakeException;
 
 /**
  * Service for loading RDF data into the shared graph.
@@ -53,12 +52,8 @@ public class RdfDataService {
 	private static final RdfDataService INSTANCE = new RdfDataService();
 	private static final int CONNECT_TIMEOUT_MS = 10_000;
 	private static final int READ_TIMEOUT_MS = 30_000;
-	private static final String HTTPS_SCHEME = "https";
-	private static final String HTTP_SCHEME = "http";
 	private static final String ACCEPT_HEADER = String.join(", ", "text/turtle", "application/ld+json",
 			"application/rdf+xml", "application/n-triples", "application/trig", "*/*");
-	private static final String DEMO_HTTP_FALLBACK_HOST = "ns.inria.fr";
-	private static final String DEMO_HTTP_FALLBACK_PATH_PREFIX = "/humans/";
 
 	// ==============================================================================================
 	// Constructor
@@ -165,9 +160,9 @@ public class RdfDataService {
 			}
 			LOGGER.info("Successfully loaded {} triples after URI load.", GraphStoreService.getInstance().size());
 		} catch (Exception e) { // Generic catch is justified: Corese can throw various exception types
-			String details = isSslHandshakeFailure(e)
+			String details = DemoHttpFallbackSupport.isSslHandshakeFailure(e)
 					? "TLS certificate validation failed. The app retries HTTP only for known demo links under "
-							+ DEMO_HTTP_FALLBACK_HOST + DEMO_HTTP_FALLBACK_PATH_PREFIX
+							+ DemoHttpFallbackSupport.demoHost() + DemoHttpFallbackSupport.demoPathPrefix()
 							+ ". Otherwise, fix the JVM truststore or use http:// when available."
 					: e.getMessage();
 			String errorMsg = String.format("Failed to load RDF URI '%s': %s", normalizedUri, details);
@@ -180,12 +175,12 @@ public class RdfDataService {
 		try {
 			return openUriStreamInternal(uri);
 		} catch (Exception primaryFailure) {
-			URI fallbackUri = resolveDemoHttpFallbackUri(uri, primaryFailure);
+			URI fallbackUri = DemoHttpFallbackSupport.resolveUriAfterSslFailure(uri, primaryFailure);
 			if (fallbackUri == null) {
 				throw primaryFailure;
 			}
 			LOGGER.warn("TLS validation failed for {}. Retrying with HTTP fallback {} for known demo host {}.", uri,
-					fallbackUri, DEMO_HTTP_FALLBACK_HOST);
+					fallbackUri, DemoHttpFallbackSupport.demoHost());
 			return openUriStreamInternal(fallbackUri);
 		}
 	}
@@ -196,45 +191,6 @@ public class RdfDataService {
 		connection.setReadTimeout(READ_TIMEOUT_MS);
 		connection.setRequestProperty("Accept", ACCEPT_HEADER);
 		return connection.getInputStream();
-	}
-
-	private URI resolveDemoHttpFallbackUri(URI uri, Exception failure) {
-		if (!isSslHandshakeFailure(failure)) {
-			return null;
-		}
-		if (!isDemoHttpFallbackCandidate(uri)) {
-			return null;
-		}
-		try {
-			return new URI(HTTP_SCHEME, uri.getUserInfo(), uri.getHost(), uri.getPort(), uri.getPath(), uri.getQuery(),
-					uri.getFragment());
-		} catch (Exception uriCreationFailure) {
-			LOGGER.debug("Failed to build HTTP fallback URI from {}", uri, uriCreationFailure);
-			return null;
-		}
-	}
-
-	private boolean isDemoHttpFallbackCandidate(URI uri) {
-		if (uri == null || !HTTPS_SCHEME.equalsIgnoreCase(uri.getScheme())) {
-			return false;
-		}
-		String host = uri.getHost();
-		String path = uri.getPath();
-		if (host == null || path == null) {
-			return false;
-		}
-		return DEMO_HTTP_FALLBACK_HOST.equalsIgnoreCase(host) && path.startsWith(DEMO_HTTP_FALLBACK_PATH_PREFIX);
-	}
-
-	private boolean isSslHandshakeFailure(Throwable throwable) {
-		Throwable current = throwable;
-		while (current != null) {
-			if (current instanceof SSLHandshakeException) {
-				return true;
-			}
-			current = current.getCause();
-		}
-		return false;
 	}
 
 	/**

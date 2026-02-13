@@ -1,8 +1,8 @@
 .app-dialog.query-template-dialog {
-    -fx-min-width: 760px;
-    -fx-max-width: 940px;
-    -fx-min-height: 640px;
-    -fx-pref-height: 640px;
+    -fx-min-width: 820px;
+    -fx-max-width: 980px;
+    -fx-min-height: 650px;
+    -fx-pref-height: 660px;
 }
 
 .query-template-content {
@@ -10,30 +10,50 @@
 }
 
 .query-template-options {
-    -fx-min-width: 260px;
-    -fx-pref-width: 280px;
+    -fx-min-width: 280px;
+    -fx-pref-width: 300px;
+}
+
+.query-template-section {
+    -fx-spacing: 8px;
+    -fx-padding: 10px 12px;
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1px;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+}
+
+.query-template-section-content {
+    -fx-spacing: 8px;
 }
 
 .query-template-preview-column {
-    -fx-min-width: 360px;
+    -fx-min-width: 380px;
 }
 
 .query-template-preview {
-    -fx-min-height: 320px;
-    -fx-border-color: -color-border-muted;
-    -fx-border-radius: 0;
-    -fx-background-radius: 0;
+    -fx-min-height: 340px;
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-background-color: -color-bg-default;
 }
 
-.query-template-inline-row {
+.query-template-option-check {
+    -fx-wrap-text: true;
+}
+
+.query-template-option-row {
     -fx-alignment: center-left;
     -fx-spacing: 10px;
 }
 
-.query-template-inline-row .spinner {
-    -fx-min-width: 92px;
-    -fx-pref-width: 92px;
-    -fx-max-width: 92px;
+.query-template-option-row .spinner {
+    -fx-min-width: 110px;
+    -fx-pref-width: 110px;
+    -fx-max-width: 110px;
 }
 
 .query-template-section-title {

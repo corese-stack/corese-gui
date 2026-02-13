@@ -144,6 +144,7 @@ public class DialogLayout extends VBox {
 		VBox body = new VBox(content);
 		body.getStyleClass().add("dialog-body");
 		body.setFillWidth(true);
+		VBox.setVgrow(body, Priority.ALWAYS);
 		if (actions == null || actions.length == 0) {
 			body.getStyleClass().add("no-actions");
 		}

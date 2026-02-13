@@ -110,7 +110,7 @@ public class QueryService {
 			int graphSizeBefore = graph.size();
 			QueryProcess exec = QueryProcess.create(graph);
 
-			Mappings mappings = exec.query(queryString);
+			Mappings mappings = executeWithLoadFallback(exec, queryString);
 			ASTQuery ast = mappings.getAST();
 
 			QueryType type = detectType(ast);
@@ -235,6 +235,36 @@ public class QueryService {
 			return Math.max(0, mappings.size());
 		}
 		return 0;
+	}
+
+	private Mappings executeWithLoadFallback(QueryProcess exec, String queryString) throws Exception {
+		String preprocessedQuery = DemoHttpFallbackSupport.rewriteLoadUrisToHttp(queryString);
+		boolean usingPreprocessedLoadUris = preprocessedQuery != null && !preprocessedQuery.equals(queryString);
+		if (usingPreprocessedLoadUris) {
+			LOGGER.info("Applying HTTP fallback to known demo LOAD URIs before query execution.");
+		}
+
+		try {
+			return exec.query(preprocessedQuery);
+		} catch (Exception primaryFailure) {
+			if (usingPreprocessedLoadUris) {
+				throw primaryFailure;
+			}
+			if (!DemoHttpFallbackSupport.isSslHandshakeFailure(primaryFailure)) {
+				throw primaryFailure;
+			}
+			String fallbackQuery = DemoHttpFallbackSupport.rewriteLoadUrisToHttp(queryString);
+			if (fallbackQuery == null || fallbackQuery.equals(queryString)) {
+				throw primaryFailure;
+			}
+			LOGGER.warn("TLS validation failed during query LOAD. Retrying known demo URIs with HTTP fallback.");
+			try {
+				return exec.query(fallbackQuery);
+			} catch (Exception fallbackFailure) {
+				fallbackFailure.addSuppressed(primaryFailure);
+				throw fallbackFailure;
+			}
+		}
 	}
 
 	// ==============================================================================================
