@@ -6,10 +6,13 @@ import fr.inria.corese.gui.core.dialog.DialogLayout;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.theme.CssUtils;
+import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.prefs.Preferences;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.binding.Bindings;
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
@@ -46,13 +49,17 @@ public final class QueryTemplateDialog {
 	private static final String STYLE_CLASS_OPTION_CHECK = "query-template-option-check";
 	private static final String STYLE_CLASS_OPTION_ROW = "query-template-option-row";
 	private static final String STYLE_CLASS_SECTION_TITLE = "query-template-section-title";
-	private static final String DIALOG_SUBTITLE = "Choose a query type, adjust options, and insert the preview.";
+	private static final String STYLE_CLASS_INLINE_ERROR = "query-template-inline-error";
+	private static final String STYLE_CLASS_INPUT_INVALID = "query-template-input-invalid";
+	private static final String DIALOG_SUBTITLE = "Select a query template, adjust options, and insert the generated query.";
 
 	private static final int DEFAULT_LIMIT = 100;
 	private static final int DEFAULT_OFFSET = 0;
 	private static final int MAX_LIMIT_OFFSET = 1_000_000;
 	private static final Duration ROW_ANIMATION_DURATION = Duration.millis(150);
+	private static final Duration MESSAGE_ANIMATION_DURATION = Duration.millis(140);
 	private static final double FALLBACK_ROW_HEIGHT = 34.0;
+	private static final double FALLBACK_MESSAGE_HEIGHT = 18.0;
 
 	private static final Preferences PREFS = Preferences.userNodeForPackage(QueryTemplateDialog.class);
 	private static final String PREF_TYPE = "queryTemplate.type";
@@ -67,6 +74,7 @@ public final class QueryTemplateDialog {
 	private static final String PREF_OFFSET_VALUE = "queryTemplate.offsetValue";
 
 	private static final String OFFSET_ROW_ANIMATION_KEY = "queryTemplateOffsetRowAnimation";
+	private static final String VALIDATION_ANIMATION_KEY = "queryTemplateValidationAnimation";
 
 	private QueryTemplateDialog() {
 		throw new AssertionError("Utility class");
@@ -101,6 +109,7 @@ public final class QueryTemplateDialog {
 
 		Button okButton = new Button("Insert");
 		okButton.getStyleClass().add(Styles.ACCENT);
+		okButton.disableProperty().bind(form.hasValidationError);
 		okButton.setOnAction(event -> {
 			onConfirmTemplate.accept(form.previewEditor.getContent());
 			form.previewEditor.close();
@@ -140,7 +149,7 @@ public final class QueryTemplateDialog {
 	}
 
 	private static VBox buildPreviewColumn(CodeMirrorWidget previewEditor) {
-		Label previewLabel = createSectionTitle("Preview");
+		Label previewLabel = createSectionTitle("Generated Query");
 		VBox previewColumn = new VBox(8, previewLabel, previewEditor);
 		previewColumn.getStyleClass().add(STYLE_CLASS_PREVIEW_COLUMN);
 		previewColumn.setMaxHeight(Double.MAX_VALUE);
@@ -189,17 +198,25 @@ public final class QueryTemplateDialog {
 		setNodeVisible(form.patternSection, supportsGraphPattern || supportsPatternVariant);
 		setNodeVisible(form.resultSection, supportsDistinct || supportsOrderBy);
 
-		int parsedLimit = readSpinnerValue(form.limitSpinner, DEFAULT_LIMIT, 1);
-		int parsedOffset = readSpinnerValue(form.offsetSpinner, DEFAULT_OFFSET, 0);
-		Integer limit = supportsLimit && form.applyLimitCheck.isSelected() ? parsedLimit : null;
-		Integer offset = offsetRowVisible && form.applyOffsetCheck.isSelected() ? parsedOffset : null;
+		boolean validateLimit = supportsLimit && form.applyLimitCheck.isSelected();
+		boolean validateOffset = offsetRowVisible && form.applyOffsetCheck.isSelected();
+		NumericValidation numericValidation = validateNumericInputs(form, validateLimit, validateOffset);
+		form.hasValidationError.set(!numericValidation.valid());
+
+		savePreferences(form, selectedType, numericValidation.limitValue(), numericValidation.offsetValue());
+		if (!numericValidation.valid()) {
+			showValidationError(form, numericValidation.message());
+			return;
+		}
+		clearValidationError(form);
+
+		Integer limit = validateLimit ? numericValidation.limitValue() : null;
+		Integer offset = validateOffset ? numericValidation.offsetValue() : null;
 
 		QueryTemplateOptions options = new QueryTemplateOptions(selectedType, form.useGraphPatternCheck.isSelected(),
 				form.useDistinctCheck.isSelected(), form.orderBySubjectCheck.isSelected(),
 				form.useOptionalPatternCheck.isSelected(), form.useUnionPatternCheck.isSelected(), limit, offset);
 		form.previewEditor.setContent(QueryTemplateGenerator.generate(options));
-
-		savePreferences(form, selectedType, parsedLimit, parsedOffset);
 	}
 
 	private static void configureOptionAvailability(CheckBox checkBox, boolean supported) {
@@ -332,20 +349,226 @@ public final class QueryTemplateDialog {
 		node.setManaged(visible);
 	}
 
+	private static NumericValidation validateNumericInputs(Form form, boolean validateLimit, boolean validateOffset) {
+		NumericFieldValidation limitValidation = validateNumericField(form.limitSpinner, DEFAULT_LIMIT, 1,
+				validateLimit, "LIMIT");
+		NumericFieldValidation offsetValidation = validateNumericField(form.offsetSpinner, DEFAULT_OFFSET, 0,
+				validateOffset, "OFFSET");
+
+		applyNumericValidationState(form.limitSpinner, limitValidation.invalid());
+		applyNumericValidationState(form.offsetSpinner, offsetValidation.invalid());
+
+		String message = "";
+		if (limitValidation.invalid()) {
+			message = limitValidation.message();
+		} else if (offsetValidation.invalid()) {
+			message = offsetValidation.message();
+		}
+		boolean valid = message.isBlank();
+		return new NumericValidation(valid, limitValidation.value(), offsetValidation.value(), message);
+	}
+
+	private static NumericFieldValidation validateNumericField(Spinner<Integer> spinner, int fallback, int minValue,
+			boolean required, String fieldName) {
+		if (!required) {
+			return new NumericFieldValidation(readSpinnerValue(spinner, fallback, minValue), false, "");
+		}
+
+		String text = normalize(spinner.getEditor().getText());
+		if (text.isBlank()) {
+			return new NumericFieldValidation(readSpinnerValue(spinner, fallback, minValue), true,
+					fieldName + " is required.");
+		}
+
+		long parsedValue;
+		try {
+			parsedValue = Long.parseLong(text);
+		} catch (NumberFormatException ignored) {
+			return new NumericFieldValidation(readSpinnerValue(spinner, fallback, minValue), true,
+					fieldName + " must be an integer.");
+		}
+
+		if (parsedValue < minValue || parsedValue > MAX_LIMIT_OFFSET) {
+			return new NumericFieldValidation(readSpinnerValue(spinner, fallback, minValue), true,
+					fieldName + " must be between " + minValue + " and " + MAX_LIMIT_OFFSET + ".");
+		}
+		return new NumericFieldValidation((int) parsedValue, false, "");
+	}
+
+	private static void applyNumericValidationState(Spinner<Integer> spinner, boolean invalid) {
+		toggleStyleClass(spinner, STYLE_CLASS_INPUT_INVALID, invalid);
+		toggleStyleClass(spinner.getEditor(), STYLE_CLASS_INPUT_INVALID, invalid);
+	}
+
+	private static void toggleStyleClass(Node node, String styleClass, boolean enabled) {
+		if (node == null || styleClass == null || styleClass.isBlank()) {
+			return;
+		}
+		if (enabled) {
+			if (!node.getStyleClass().contains(styleClass)) {
+				node.getStyleClass().add(styleClass);
+			}
+			return;
+		}
+		node.getStyleClass().remove(styleClass);
+	}
+
+	private static void showValidationError(Form form, String message) {
+		String safeMessage = normalize(message);
+		if (safeMessage.isBlank()) {
+			clearValidationError(form);
+			return;
+		}
+
+		stopValidationAnimation(form.validationLabel);
+		form.validationLabel.setText(safeMessage);
+		if (form.validationLabel.isManaged() && form.validationLabel.isVisible()) {
+			form.validationLabel.setOpacity(1);
+			form.validationLabel.setMinHeight(Region.USE_COMPUTED_SIZE);
+			form.validationLabel.setPrefHeight(Region.USE_COMPUTED_SIZE);
+			form.validationLabel.setMaxHeight(Region.USE_COMPUTED_SIZE);
+			return;
+		}
+		animateValidationMessageExpand(form.validationLabel);
+	}
+
+	private static void clearValidationError(Form form) {
+		hideValidationMessage(form.validationLabel);
+	}
+
+	private static void hideValidationMessage(Label validationLabel) {
+		if (!validationLabel.isManaged() && !validationLabel.isVisible()) {
+			validationLabel.setText("");
+			return;
+		}
+		animateValidationMessageCollapse(validationLabel);
+	}
+
+	private static void prepareCollapsedValidationLabel(Label validationLabel) {
+		validationLabel.setText("");
+		validationLabel.setOpacity(0);
+		validationLabel.setManaged(false);
+		validationLabel.setVisible(false);
+		validationLabel.setMinHeight(0);
+		validationLabel.setPrefHeight(0);
+		validationLabel.setMaxHeight(0);
+	}
+
+	private static void animateValidationMessageExpand(Label validationLabel) {
+		stopValidationAnimation(validationLabel);
+		Platform.runLater(() -> {
+			validationLabel.applyCss();
+			double targetHeight = resolveValidationLabelHeight(validationLabel);
+			validationLabel.setManaged(true);
+			validationLabel.setVisible(true);
+			validationLabel.setOpacity(0);
+			validationLabel.setMinHeight(0);
+			validationLabel.setPrefHeight(0);
+			validationLabel.setMaxHeight(0);
+
+			Timeline timeline = new Timeline(
+					new KeyFrame(Duration.ZERO,
+							new KeyValue(validationLabel.opacityProperty(), 0, Interpolator.EASE_BOTH),
+							new KeyValue(validationLabel.minHeightProperty(), 0, Interpolator.EASE_BOTH),
+							new KeyValue(validationLabel.prefHeightProperty(), 0, Interpolator.EASE_BOTH),
+							new KeyValue(validationLabel.maxHeightProperty(), 0, Interpolator.EASE_BOTH)),
+					new KeyFrame(MESSAGE_ANIMATION_DURATION,
+							new KeyValue(validationLabel.opacityProperty(), 1, Interpolator.EASE_OUT),
+							new KeyValue(validationLabel.minHeightProperty(), targetHeight, Interpolator.EASE_OUT),
+							new KeyValue(validationLabel.prefHeightProperty(), targetHeight, Interpolator.EASE_OUT),
+							new KeyValue(validationLabel.maxHeightProperty(), targetHeight, Interpolator.EASE_OUT)));
+			timeline.setOnFinished(event -> {
+				validationLabel.setOpacity(1);
+				validationLabel.setMinHeight(Region.USE_COMPUTED_SIZE);
+				validationLabel.setPrefHeight(Region.USE_COMPUTED_SIZE);
+				validationLabel.setMaxHeight(Region.USE_COMPUTED_SIZE);
+				validationLabel.getProperties().remove(VALIDATION_ANIMATION_KEY);
+			});
+			validationLabel.getProperties().put(VALIDATION_ANIMATION_KEY, timeline);
+			timeline.play();
+		});
+	}
+
+	private static void animateValidationMessageCollapse(Label validationLabel) {
+		stopValidationAnimation(validationLabel);
+		Platform.runLater(() -> {
+			double startHeight = resolveValidationLabelHeight(validationLabel);
+			double startOpacity = validationLabel.getOpacity() > 0 ? validationLabel.getOpacity() : 1;
+			validationLabel.setMinHeight(startHeight);
+			validationLabel.setPrefHeight(startHeight);
+			validationLabel.setMaxHeight(startHeight);
+
+			Timeline timeline = new Timeline(
+					new KeyFrame(Duration.ZERO,
+							new KeyValue(validationLabel.opacityProperty(), startOpacity, Interpolator.EASE_BOTH),
+							new KeyValue(validationLabel.minHeightProperty(), startHeight, Interpolator.EASE_BOTH),
+							new KeyValue(validationLabel.prefHeightProperty(), startHeight, Interpolator.EASE_BOTH),
+							new KeyValue(validationLabel.maxHeightProperty(), startHeight, Interpolator.EASE_BOTH)),
+					new KeyFrame(MESSAGE_ANIMATION_DURATION,
+							new KeyValue(validationLabel.opacityProperty(), 0, Interpolator.EASE_IN),
+							new KeyValue(validationLabel.minHeightProperty(), 0, Interpolator.EASE_IN),
+							new KeyValue(validationLabel.prefHeightProperty(), 0, Interpolator.EASE_IN),
+							new KeyValue(validationLabel.maxHeightProperty(), 0, Interpolator.EASE_IN)));
+			timeline.setOnFinished(event -> {
+				prepareCollapsedValidationLabel(validationLabel);
+				validationLabel.getProperties().remove(VALIDATION_ANIMATION_KEY);
+			});
+			validationLabel.getProperties().put(VALIDATION_ANIMATION_KEY, timeline);
+			timeline.play();
+		});
+	}
+
+	private static void stopValidationAnimation(Label validationLabel) {
+		Object animation = validationLabel.getProperties().remove(VALIDATION_ANIMATION_KEY);
+		if (animation instanceof Timeline timeline) {
+			timeline.stop();
+		}
+	}
+
+	private static double resolveValidationLabelHeight(Label label) {
+		if (label == null) {
+			return FALLBACK_MESSAGE_HEIGHT;
+		}
+		double measuredHeight = label.getHeight();
+		if (measuredHeight > 0) {
+			return measuredHeight;
+		}
+		double preferredHeight = label.prefHeight(-1);
+		if (preferredHeight > 0) {
+			return preferredHeight;
+		}
+		return FALLBACK_MESSAGE_HEIGHT;
+	}
+
+	private static Label createInlineErrorLabel() {
+		Label label = new Label();
+		label.getStyleClass().add(STYLE_CLASS_INLINE_ERROR);
+		label.setWrapText(true);
+		return label;
+	}
+
+	private static String normalize(String value) {
+		return value == null ? "" : value.trim();
+	}
+
 	private static int readSpinnerValue(Spinner<Integer> spinner, int fallback, int minValue) {
 		String text = spinner.getEditor().getText();
 		if (text != null && !text.isBlank()) {
 			try {
-				return Math.max(minValue, Integer.parseInt(text.trim()));
+				return clampNumericValue(Integer.parseInt(text.trim()), minValue);
 			} catch (NumberFormatException ignored) {
 				// Fallback to spinner value.
 			}
 		}
 		Integer value = spinner.getValue();
 		if (value == null) {
-			return fallback;
+			return clampNumericValue(fallback, minValue);
 		}
-		return Math.max(minValue, value);
+		return clampNumericValue(value, minValue);
+	}
+
+	private static int clampNumericValue(int value, int minValue) {
+		return Math.min(MAX_LIMIT_OFFSET, Math.max(minValue, value));
 	}
 
 	private static void restorePreferences(Form form) {
@@ -454,6 +677,7 @@ public final class QueryTemplateDialog {
 		previewEditor.setMode(SerializationFormat.SPARQL_QUERY);
 		previewEditor.setMinHeight(340);
 		previewEditor.zoomInForCurrentEditorOnly();
+		RoundedClipSupport.applyRoundedClip(previewEditor, 8);
 		previewEditor.sceneProperty().addListener((obs, oldScene, newScene) -> {
 			if (oldScene != null && newScene == null) {
 				previewEditor.close();
@@ -465,32 +689,43 @@ public final class QueryTemplateDialog {
 
 	private static final class Form {
 		private final ComboBox<QueryTemplateType> templateTypeCombo = createTypeCombo();
+		private final BooleanProperty hasValidationError = new SimpleBooleanProperty(false);
 
-		private final CheckBox useGraphPatternCheck = createOptionCheck("Use GRAPH ?g scope");
+		private final CheckBox useGraphPatternCheck = createOptionCheck("Use GRAPH block (?g)");
 		private final CheckBox useOptionalPatternCheck = createOptionCheck("Add OPTIONAL block");
 		private final CheckBox useUnionPatternCheck = createOptionCheck("Add UNION block");
 
 		private final CheckBox useDistinctCheck = createOptionCheck("Use DISTINCT");
-		private final CheckBox orderBySubjectCheck = createOptionCheck("Order by ?s");
+		private final CheckBox orderBySubjectCheck = createOptionCheck("Order by ?s (ASC)");
 
-		private final CheckBox applyLimitCheck = createOptionCheck("Use LIMIT");
+		private final CheckBox applyLimitCheck = createOptionCheck("Apply LIMIT");
 		private final Spinner<Integer> limitSpinner = createLimitSpinner();
 		private final HBox limitOptionRow = createNumericOptionRow(applyLimitCheck, limitSpinner);
 
-		private final CheckBox applyOffsetCheck = createOptionCheck("Use OFFSET");
+		private final CheckBox applyOffsetCheck = createOptionCheck("Apply OFFSET");
 		private final Spinner<Integer> offsetSpinner = createOffsetSpinner();
 		private final HBox offsetOptionRow = createNumericOptionRow(applyOffsetCheck, offsetSpinner);
+		private final Label validationLabel = createInlineErrorLabel();
 
 		private final CodeMirrorWidget previewEditor = createPreviewEditor();
 
 		private final VBox typeSection = createOptionsSection("Query Type", templateTypeCombo);
-		private final VBox patternSection = createOptionsSection("Pattern Scope", useGraphPatternCheck,
+		private final VBox patternSection = createOptionsSection("Pattern", useGraphPatternCheck,
 				useOptionalPatternCheck, useUnionPatternCheck);
-		private final VBox resultSection = createOptionsSection("Result", useDistinctCheck, orderBySubjectCheck);
-		private final VBox paginationSection = createOptionsSection("Pagination", limitOptionRow, offsetOptionRow);
+		private final VBox resultSection = createOptionsSection("Result Options", useDistinctCheck,
+				orderBySubjectCheck);
+		private final VBox paginationSection = createOptionsSection("Pagination", limitOptionRow, offsetOptionRow,
+				validationLabel);
 
 		private Form() {
 			setRowVisibilityImmediately(offsetOptionRow, false);
+			prepareCollapsedValidationLabel(validationLabel);
 		}
+	}
+
+	private record NumericFieldValidation(int value, boolean invalid, String message) {
+	}
+
+	private record NumericValidation(boolean valid, int limitValue, int offsetValue, String message) {
 	}
 }

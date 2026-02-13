@@ -60,7 +60,7 @@ public final class QueryTemplateGenerator {
 	}
 
 	private static String buildConstruct(QueryTemplateOptions options) {
-		String constructPattern = options.useGraphClause() ? "  GRAPH ?g { ?s ?p ?o }\n" : "  ?s ?p ?o .\n";
+		String constructPattern = options.useGraphClause() ? "  GRAPH ?g { ?s ?p ?o . }\n" : "  ?s ?p ?o .\n";
 		String query = """
 				CONSTRUCT {
 				%s}
@@ -185,14 +185,14 @@ public final class QueryTemplateGenerator {
 
 	private static String buildBasicPattern(QueryTemplateOptions options, String indent) {
 		if (options.useGraphClause()) {
-			return indent + "GRAPH ?g { ?s ?p ?o }";
+			return indent + "GRAPH ?g { ?s ?p ?o . }";
 		}
 		return indent + "?s ?p ?o .";
 	}
 
 	private static String buildOptionalPattern(QueryTemplateOptions options, String indent) {
 		if (options.useGraphClause()) {
-			return indent + "OPTIONAL { GRAPH ?g { ?s ?optionalPredicate ?optionalObject } }";
+			return indent + "OPTIONAL { GRAPH ?g { ?s ?optionalPredicate ?optionalObject . } }";
 		}
 		return indent + "OPTIONAL { ?s ?optionalPredicate ?optionalObject . }";
 	}
@@ -200,9 +200,9 @@ public final class QueryTemplateGenerator {
 	private static String buildUnionPattern(QueryTemplateOptions options, String indent) {
 		if (options.useGraphClause()) {
 			return """
-					%s{ GRAPH ?g { ?s ?p ?o } }
+					%s{ GRAPH ?g { ?s ?p ?o . } }
 					%sUNION
-					%s{ GRAPH ?g { ?s ?altPredicate ?altObject } }
+					%s{ GRAPH ?g { ?s ?altPredicate ?altObject . } }
 					""".formatted(indent, indent, indent).stripTrailing();
 		}
 		return """

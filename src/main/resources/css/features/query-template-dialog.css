@@ -56,6 +56,24 @@
     -fx-max-width: 110px;
 }
 
+.query-template-option-row .spinner.query-template-input-invalid,
+.query-template-option-row .text-field.query-template-input-invalid {
+    -fx-border-color: -color-danger-fg;
+    -fx-border-width: 1px;
+}
+
+.query-template-option-row .spinner.query-template-input-invalid:focused,
+.query-template-option-row .text-field.query-template-input-invalid:focused {
+    -fx-border-color: -color-danger-fg;
+    -fx-border-width: 1.5px;
+}
+
+.query-template-inline-error {
+    -fx-text-fill: -color-danger-fg;
+    -fx-font-size: 12px;
+    -fx-padding: 2px 0 0 0;
+}
+
 .query-template-section-title {
     -fx-font-weight: 700;
 }
