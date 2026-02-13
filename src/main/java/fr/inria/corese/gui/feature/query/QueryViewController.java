@@ -2,7 +2,6 @@ package fr.inria.corese.gui.feature.query;
 
 import java.io.File;
 import java.util.List;
-import java.util.prefs.Preferences;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,14 +44,10 @@ public class QueryViewController {
 	private static final String QUERY_NOTIFICATION_TITLE = "Query";
 	private static final String MSG_NO_SELECT_RESULTS = "No results found.";
 	private static final String MSG_NO_GRAPH_RESULTS = "No triples produced by this query.";
-	private static final Preferences PREFS = Preferences.userNodeForPackage(QueryViewController.class);
-	private static final String PREF_LAST_TABLE_TAB = "results.lastTab.table";
-	private static final String PREF_LAST_GRAPH_TAB = "results.lastTab.graph";
-	private static ResultViewConfig.TabType lastTableTab = loadTabPreference(PREF_LAST_TABLE_TAB);
-	private static ResultViewConfig.TabType lastGraphTab = loadTabPreference(PREF_LAST_GRAPH_TAB);
 
 	private final QueryView view;
 	private final QueryService queryService = QueryService.getInstance();
+	private final QueryResultTabPreferenceSupport tabPreferenceSupport = new QueryResultTabPreferenceSupport();
 	private TabEditorController tabEditorController;
 
 	public QueryViewController(QueryView view) {
@@ -238,7 +233,8 @@ public class QueryViewController {
 
 	private void configureForTableResult(ResultController controller, QueryResultRef resultRef) {
 		String resultId = resultRef.getId();
-		controller.configureTabsForResult(true, true, false, getPreferredTab(resultRef.getQueryType())); // Text + Table
+		controller.configureTabsForResult(true, true, false,
+				tabPreferenceSupport.preferredTab(resultRef.getQueryType())); // Text + Table
 		controller.configureTextFormats(SerializationFormat.sparqlResultFormats(), SerializationFormat.XML);
 		SerializationFormat preferredFormat = controller
 				.getPreferredTextFormat(SerializationFormat.sparqlResultFormats(), SerializationFormat.XML);
@@ -263,7 +259,8 @@ public class QueryViewController {
 
 	private void configureForGraphResult(ResultController controller, QueryResultRef resultRef) {
 		String resultId = resultRef.getId();
-		controller.configureTabsForResult(true, false, true, getPreferredTab(resultRef.getQueryType())); // Text + Graph
+		controller.configureTabsForResult(true, false, true,
+				tabPreferenceSupport.preferredTab(resultRef.getQueryType())); // Text + Graph
 		controller.configureTextFormats(SerializationFormat.rdfFormats(), SerializationFormat.TURTLE);
 		SerializationFormat preferredFormat = controller.getPreferredTextFormat(SerializationFormat.rdfFormats(),
 				SerializationFormat.TURTLE);
@@ -336,45 +333,8 @@ public class QueryViewController {
 			if (resultRef == null) {
 				return;
 			}
-			rememberPreferredTab(resultRef.getQueryType(), tabType);
+			tabPreferenceSupport.rememberPreferredTab(resultRef.getQueryType(), tabType);
 		});
-	}
-
-	private static ResultViewConfig.TabType getPreferredTab(QueryType queryType) {
-		if (queryType == QueryType.SELECT || queryType == QueryType.ASK) {
-			return isTableTab(lastTableTab) ? lastTableTab : null;
-		}
-		if (queryType == QueryType.CONSTRUCT || queryType == QueryType.DESCRIBE) {
-			return isGraphTab(lastGraphTab) ? lastGraphTab : null;
-		}
-		return null;
-	}
-
-	private static void rememberPreferredTab(QueryType queryType, ResultViewConfig.TabType tabType) {
-		if (queryType == null || tabType == null) {
-			return;
-		}
-		if (queryType == QueryType.SELECT || queryType == QueryType.ASK) {
-			if (!isTableTab(tabType)) {
-				return;
-			}
-			lastTableTab = tabType;
-			PREFS.put(PREF_LAST_TABLE_TAB, tabType.name());
-		} else if (queryType == QueryType.CONSTRUCT || queryType == QueryType.DESCRIBE) {
-			if (!isGraphTab(tabType)) {
-				return;
-			}
-			lastGraphTab = tabType;
-			PREFS.put(PREF_LAST_GRAPH_TAB, tabType.name());
-		}
-	}
-
-	private static boolean isTableTab(ResultViewConfig.TabType tabType) {
-		return tabType == ResultViewConfig.TabType.TABLE || tabType == ResultViewConfig.TabType.TEXT;
-	}
-
-	private static boolean isGraphTab(ResultViewConfig.TabType tabType) {
-		return tabType == ResultViewConfig.TabType.GRAPH || tabType == ResultViewConfig.TabType.TEXT;
 	}
 
 	private static boolean looksLikeReadQuery(String queryContent) {
@@ -385,18 +345,6 @@ public class QueryViewController {
 				+ " ";
 		return normalized.contains(" select ") || normalized.contains(" ask ") || normalized.contains(" construct ")
 				|| normalized.contains(" describe ");
-	}
-
-	private static ResultViewConfig.TabType loadTabPreference(String key) {
-		String value = PREFS.get(key, null);
-		if (value == null || value.isBlank()) {
-			return null;
-		}
-		try {
-			return ResultViewConfig.TabType.valueOf(value);
-		} catch (IllegalArgumentException _) {
-			return null;
-		}
 	}
 
 	// ==============================================================================================
