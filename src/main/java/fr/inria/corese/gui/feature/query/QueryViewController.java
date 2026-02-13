@@ -124,7 +124,7 @@ public class QueryViewController {
 			return;
 
 		final String queryContent = codeEditor.getContent();
-		if (!RdfDataService.getInstance().hasData() && looksLikeReadQuery(queryContent)) {
+		if (!RdfDataService.getInstance().hasData() && QueryExecutionSupport.looksLikeReadQuery(queryContent)) {
 			resultController.clearResults();
 			tabEditorController.hideResultPane();
 			tabEditorController.showError("No Data Loaded", "Query execution requires an RDF graph to be loaded.\n"
@@ -200,7 +200,7 @@ public class QueryViewController {
 			}
 			case ASK -> {
 				tabEditorController.hideResultPane();
-				showAskOutcomeNotification(resultRef);
+				QueryExecutionSupport.showAskOutcomeNotification(resultRef);
 			}
 			case CONSTRUCT, DESCRIBE -> {
 				if (showNoResultNotificationIfEmpty(resultRef, MSG_NO_GRAPH_RESULTS)) {
@@ -211,7 +211,7 @@ public class QueryViewController {
 			}
 			case UPDATE -> {
 				tabEditorController.hideResultPane();
-				showUpdateSummaryNotification(resultRef);
+				QueryExecutionSupport.showUpdateSummaryNotification(resultRef);
 			}
 			case UNKNOWN -> {
 				tabEditorController.hideResultPane();
@@ -288,45 +288,6 @@ public class QueryViewController {
 		});
 	}
 
-	private void showAskOutcomeNotification(QueryResultRef resultRef) {
-		Boolean askResult = resultRef.getAskResult();
-		if (Boolean.TRUE.equals(askResult)) {
-			NotificationWidget.getInstance().showSuccess("ASK", "True");
-			return;
-		}
-		if (Boolean.FALSE.equals(askResult)) {
-			NotificationWidget.getInstance().showError("ASK", "False");
-			return;
-		}
-		NotificationWidget.getInstance().showWarning("ASK", "Result unavailable.");
-	}
-
-	private void showUpdateSummaryNotification(QueryResultRef resultRef) {
-		int inserted = resultRef.getInsertedTriples();
-		int deleted = resultRef.getDeletedTriples();
-		if (inserted > 0 && deleted > 0) {
-			NotificationWidget.getInstance().showSuccess("Update",
-					countLabel(inserted, "triple") + " inserted, " + countLabel(deleted, "triple") + " deleted.");
-			return;
-		}
-		if (inserted > 0) {
-			NotificationWidget.getInstance().showSuccess("Insert", countLabel(inserted, "triple") + " inserted.");
-			return;
-		}
-		if (deleted > 0) {
-			NotificationWidget.getInstance().showSuccess("Delete", countLabel(deleted, "triple") + " deleted.");
-			return;
-		}
-		NotificationWidget.getInstance().showSuccess("Update", "No graph change detected.");
-	}
-
-	private static String countLabel(int count, String noun) {
-		if (count == 1) {
-			return "1 " + noun;
-		}
-		return count + " " + noun + "s";
-	}
-
 	private void registerResultTabPreference(Tab tab) {
 		TabContext context = TabContext.get(tab);
 		if (context == null) {
@@ -343,16 +304,6 @@ public class QueryViewController {
 			}
 			tabPreferenceSupport.rememberPreferredTab(resultRef.getQueryType(), tabType);
 		});
-	}
-
-	private static boolean looksLikeReadQuery(String queryContent) {
-		if (queryContent == null || queryContent.isBlank()) {
-			return false;
-		}
-		String normalized = " " + queryContent.toLowerCase().replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
-				+ " ";
-		return normalized.contains(" select ") || normalized.contains(" ask ") || normalized.contains(" construct ")
-				|| normalized.contains(" describe ");
 	}
 
 	// ==============================================================================================
