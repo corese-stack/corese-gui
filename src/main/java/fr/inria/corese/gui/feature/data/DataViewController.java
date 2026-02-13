@@ -250,28 +250,22 @@ public class DataViewController implements AutoCloseable {
 		}
 
 		FileDialogState.updateLastDirectory(safeFiles);
-		AppExecutors.execute(() -> {
+		runAsyncDataOperation(() -> {
 			List<String> errors = new ArrayList<>();
-			dataOperationInProgress.set(true);
-			try {
-				int loadedCount = loadFilesWithErrorCollection(safeFiles, errors);
-				if (loadedCount > 0) {
-					recomputeReasoningWithErrorCollection(errors);
-				}
-
-				int finalTripleCount = workspaceService.getTripleCount();
-				Platform.runLater(() -> {
-					if (loadedCount > 0) {
-						NotificationWidget.getInstance()
-								.showSuccess("Loaded " + DataUiMessageUtils.countLabel(loadedCount, "file")
-										+ ". Graph now has " + DataUiMessageUtils.countLabel(finalTripleCount, "triple")
-										+ ".");
-					}
-					showErrors(errors);
-				});
-			} finally {
-				finishDataOperation();
+			int loadedCount = loadFilesWithErrorCollection(safeFiles, errors);
+			if (loadedCount > 0) {
+				recomputeReasoningWithErrorCollection(errors);
 			}
+
+			int finalTripleCount = workspaceService.getTripleCount();
+			Platform.runLater(() -> {
+				if (loadedCount > 0) {
+					NotificationWidget.getInstance().showSuccess(
+							"Loaded " + DataUiMessageUtils.countLabel(loadedCount, "file") + ". Graph now has "
+									+ DataUiMessageUtils.countLabel(finalTripleCount, "triple") + ".");
+				}
+				showErrors(errors);
+			});
 		});
 	}
 
@@ -281,9 +275,8 @@ public class DataViewController implements AutoCloseable {
 
 	private void executeLoadUris(List<String> uris) {
 		List<String> urisToLoad = uris == null ? List.of() : List.copyOf(uris);
-		AppExecutors.execute(() -> {
+		runAsyncDataOperation(() -> {
 			List<String> errors = new ArrayList<>();
-			dataOperationInProgress.set(true);
 			try {
 				int loadedCount = loadUrisWithErrorCollection(urisToLoad, errors);
 				if (loadedCount > 0) {
@@ -303,8 +296,6 @@ public class DataViewController implements AutoCloseable {
 			} catch (Exception e) {
 				errors.add("Unexpected URI loading error: " + e.getMessage());
 				Platform.runLater(() -> showErrors(errors));
-			} finally {
-				finishDataOperation();
 			}
 		});
 	}
@@ -365,8 +356,7 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void executeReloadSources(List<DataSource> selectedSources) {
-		AppExecutors.execute(() -> {
-			dataOperationInProgress.set(true);
+		runAsyncDataOperation(() -> {
 			try {
 				reasoningService.resetAllProfiles();
 				int reloaded = workspaceService.reloadSources(selectedSources);
@@ -384,8 +374,6 @@ public class DataViewController implements AutoCloseable {
 				});
 			} catch (Exception e) {
 				Platform.runLater(() -> NotificationWidget.getInstance().showError("Reload failed: " + e.getMessage()));
-			} finally {
-				finishDataOperation();
 			}
 		});
 	}
@@ -432,9 +420,8 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void handleClearGraph() {
-		DataClearGraphDialog.show(() -> AppExecutors.execute(() -> {
+		DataClearGraphDialog.show(() -> runAsyncDataOperation(() -> {
 			try {
-				dataOperationInProgress.set(true);
 				int removedTriples = workspaceService.getTripleCount();
 				reasoningService.resetAllProfiles();
 				workspaceService.clearGraph();
@@ -449,8 +436,6 @@ public class DataViewController implements AutoCloseable {
 				});
 			} catch (Exception e) {
 				Platform.runLater(() -> NotificationWidget.getInstance().showError("Clear failed: " + e.getMessage()));
-			} finally {
-				finishDataOperation();
 			}
 		}));
 	}
@@ -479,7 +464,7 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void handleReasoningToggle(ReasoningProfile profile, boolean enabled) {
-		AppExecutors.execute(() -> {
+		runAsyncUiRefreshOperation(() -> {
 			try {
 				reasoningService.setEnabled(profile, enabled);
 				Platform.runLater(() -> NotificationWidget.getInstance()
@@ -487,6 +472,25 @@ public class DataViewController implements AutoCloseable {
 			} catch (Exception e) {
 				Platform.runLater(() -> NotificationWidget.getInstance()
 						.showError("Reasoning update failed for " + profile.label() + ": " + e.getMessage()));
+			}
+		});
+	}
+
+	private void runAsyncDataOperation(Runnable operation) {
+		AppExecutors.execute(() -> {
+			dataOperationInProgress.set(true);
+			try {
+				operation.run();
+			} finally {
+				finishDataOperation();
+			}
+		});
+	}
+
+	private void runAsyncUiRefreshOperation(Runnable operation) {
+		AppExecutors.execute(() -> {
+			try {
+				operation.run();
 			} finally {
 				Platform.runLater(() -> {
 					refreshReasoningUiState();
