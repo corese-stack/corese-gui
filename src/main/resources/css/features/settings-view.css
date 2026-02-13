@@ -18,6 +18,25 @@
     -fx-spacing: 20px;
 }
 
+.settings-inline-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-weight: 600;
+}
+
+.settings-scale-button {
+    -fx-min-width: 58px;
+    -fx-pref-width: 58px;
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+}
+
+.settings-scale-button:selected {
+    -fx-background-color: -color-accent-emphasis;
+    -fx-border-color: -color-accent-emphasis;
+    -fx-text-fill: white;
+}
+
 .settings-logo-wrapper {
     -fx-background-color: transparent;
     -fx-background-radius: 14px;

@@ -34,8 +34,10 @@ public final class SettingsController {
 
 	private void initializeView() {
 		view.getThemeComboBox().getItems().addAll(themeManager.getBaseThemes());
+		view.selectUiScale(themeManager.getUiScale());
 		updateThemeSelection();
 		updateControlsDisabledState();
+		updateScaleControlsDisabledState();
 	}
 
 	private void setupBindings() {
@@ -45,9 +47,12 @@ public final class SettingsController {
 		if (themeManager.getAccentColor() != null)
 			model.setAccentColor(themeManager.getAccentColor());
 		model.setUseSystemTheme(themeManager.isSystemThemeEnabled());
+		model.setUiScale(themeManager.getUiScale());
+		model.setAutoUiScale(themeManager.isAutoUiScaleEnabled());
 
 		// Update controls state after initial sync
 		updateControlsDisabledState();
+		updateScaleControlsDisabledState();
 
 		// 2. Model -> Manager (User inputs)
 		model.themeProperty().addListener((obs, oldVal, newVal) -> {
@@ -63,6 +68,13 @@ public final class SettingsController {
 		});
 
 		model.useSystemThemeProperty().addListener((obs, oldVal, newVal) -> themeManager.setSystemThemeEnabled(newVal));
+		model.uiScaleProperty().addListener((obs, oldVal, newVal) -> {
+			if (newVal != null && !model.isAutoUiScale()) {
+				themeManager.setUiScale(newVal.doubleValue());
+			}
+		});
+		model.autoUiScaleProperty()
+				.addListener((obs, oldVal, newVal) -> themeManager.setAutoUiScaleEnabled(Boolean.TRUE.equals(newVal)));
 
 		// 3. Manager -> Model (System changes or external updates)
 		themeManager.themeProperty().addListener((obs, oldVal, newVal) -> {
@@ -82,22 +94,41 @@ public final class SettingsController {
 				model.setUseSystemTheme(Boolean.TRUE.equals(newVal));
 			}
 		});
+		themeManager.uiScaleProperty().addListener((obs, oldVal, newVal) -> {
+			if (newVal != null && Math.abs(newVal.doubleValue() - model.getUiScale()) > 0.0001) {
+				model.setUiScale(newVal.doubleValue());
+			}
+		});
+		themeManager.autoUiScaleEnabledProperty().addListener((obs, oldVal, newVal) -> {
+			boolean enabled = Boolean.TRUE.equals(newVal);
+			if (model.isAutoUiScale() != enabled) {
+				model.setAutoUiScale(enabled);
+			}
+		});
 	}
 
 	private void setupViewBindings() {
 		view.getSystemThemeSwitch().selectedProperty().bindBidirectional(model.useSystemThemeProperty());
 		view.getAccentColorPicker().valueProperty().bindBidirectional(model.accentColorProperty());
+		view.getAutoUiScaleSwitch().selectedProperty().bindBidirectional(model.autoUiScaleProperty());
 
 		model.themeProperty().addListener((obs, oldTheme, newTheme) -> {
 			if (newTheme != null)
 				updateThemeSelection();
 		});
+		model.uiScaleProperty().addListener((obs, oldScale, newScale) -> {
+			if (newScale != null) {
+				view.selectUiScale(newScale.doubleValue());
+			}
+		});
 
 		model.useSystemThemeProperty().addListener((obs, oldValue, newValue) -> updateControlsDisabledState());
+		model.autoUiScaleProperty().addListener((obs, oldValue, newValue) -> updateScaleControlsDisabledState());
 	}
 
 	private void setupViewListeners() {
 		view.getThemeComboBox().setOnAction(e -> handleThemeChange());
+		view.setOnUiScaleSelection(model::setUiScale);
 
 		view.getLightModeButton().setOnAction(e -> {
 			if (view.getLightModeButton().isSelected())
@@ -154,6 +185,10 @@ public final class SettingsController {
 		view.getAccentColorPicker().setDisable(disable);
 		view.getLightModeButton().setDisable(disable);
 		view.getDarkModeButton().setDisable(disable);
+	}
+
+	private void updateScaleControlsDisabledState() {
+		view.setUiScaleOptionsDisabled(model.isAutoUiScale());
 	}
 
 	private void handleThemeChange() {

@@ -11,8 +11,10 @@ import fr.inria.corese.gui.core.bootstrap.LinuxInputMethodBootstrap;
 import java.util.Objects;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,6 +71,7 @@ public final class App extends Application {
 		}
 
 		primaryStage.setScene(scene);
+		applyInitialWindowSize(primaryStage, themeManager.getUiScale());
 		primaryStage.setOnCloseRequest(event -> Platform.exit());
 		primaryStage.show();
 	}
@@ -85,5 +88,23 @@ public final class App extends Application {
 		// Ensure the process exits even if a third-party non-daemon thread remains
 		// alive.
 		System.exit(0);
+	}
+
+	private static void applyInitialWindowSize(Stage stage, double uiScale) {
+		Screen screen = Screen.getPrimary();
+		Rectangle2D bounds = screen.getVisualBounds();
+
+		double scaledDefaultWidth = AppConstants.DEFAULT_WIDTH * uiScale;
+		double scaledDefaultHeight = AppConstants.DEFAULT_HEIGHT * uiScale;
+
+		double maxWidth = bounds.getWidth() * 0.92;
+		double maxHeight = bounds.getHeight() * 0.92;
+
+		double targetWidth = Math.min(scaledDefaultWidth, maxWidth);
+		double targetHeight = Math.min(scaledDefaultHeight, maxHeight);
+
+		stage.setWidth(Math.max(AppConstants.MIN_WIDTH, targetWidth));
+		stage.setHeight(Math.max(AppConstants.MIN_HEIGHT, targetHeight));
+		stage.centerOnScreen();
 	}
 }

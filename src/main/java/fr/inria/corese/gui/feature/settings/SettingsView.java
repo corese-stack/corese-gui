@@ -12,6 +12,9 @@ import fr.inria.corese.gui.utils.fx.SvgImageLoader;
 import atlantafx.base.controls.Tile;
 import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.function.Consumer;
 import javafx.geometry.Pos;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.control.*;
@@ -48,6 +51,8 @@ public final class SettingsView extends AbstractView {
 	private ToggleButton lightModeButton;
 	private ToggleButton darkModeButton;
 	private ColorPicker accentColorPicker;
+	private ToggleSwitch autoUiScaleSwitch;
+	private final Map<Double, ToggleButton> uiScaleButtons = new LinkedHashMap<>();
 
 	// ===== Constructor =====
 
@@ -121,8 +126,45 @@ public final class SettingsView extends AbstractView {
 		accentColorPicker = new ColorPicker();
 		accentColorTile.setAction(accentColorPicker);
 
-		section.getChildren().addAll(sectionTitle, systemThemeTile, themeTile, accentColorTile);
+		Tile uiScaleTile = createUiScaleTile();
+
+		section.getChildren().addAll(sectionTitle, systemThemeTile, themeTile, accentColorTile, uiScaleTile);
 		return section;
+	}
+
+	private Tile createUiScaleTile() {
+		Tile uiScaleTile = new Tile("Interface Scale", "Adjust global application zoom");
+
+		ToggleGroup scaleGroup = new ToggleGroup();
+		HBox presets = new HBox(6);
+		presets.setAlignment(Pos.CENTER_RIGHT);
+		uiScaleButtons.clear();
+		for (double preset : new double[]{0.9, 1.0, 1.1, 1.25, 1.5}) {
+			ToggleButton button = createUiScaleButton(preset);
+			button.setToggleGroup(scaleGroup);
+			uiScaleButtons.put(preset, button);
+			presets.getChildren().add(button);
+		}
+
+		autoUiScaleSwitch = new ToggleSwitch();
+		Label autoLabel = new Label("Auto");
+		autoLabel.getStyleClass().add("settings-inline-label");
+		HBox autoRow = new HBox(8, autoLabel, autoUiScaleSwitch);
+		autoRow.setAlignment(Pos.CENTER_RIGHT);
+
+		VBox actions = new VBox(8, presets, autoRow);
+		actions.setAlignment(Pos.CENTER_RIGHT);
+		uiScaleTile.setAction(actions);
+		return uiScaleTile;
+	}
+
+	private static ToggleButton createUiScaleButton(double preset) {
+		int percent = (int) Math.round(preset * 100);
+		ToggleButton button = new ToggleButton(percent + "%");
+		button.setUserData(preset);
+		button.getStyleClass().addAll(Styles.BUTTON_OUTLINED, "settings-scale-button");
+		button.setFocusTraversable(false);
+		return button;
 	}
 
 	// ===== Getters for Controller =====
@@ -145,6 +187,43 @@ public final class SettingsView extends AbstractView {
 
 	public ColorPicker getAccentColorPicker() {
 		return accentColorPicker;
+	}
+
+	public ToggleSwitch getAutoUiScaleSwitch() {
+		return autoUiScaleSwitch;
+	}
+
+	public void setOnUiScaleSelection(Consumer<Double> handler) {
+		if (handler == null) {
+			return;
+		}
+		uiScaleButtons.forEach((scale, button) -> button.setOnAction(event -> {
+			if (button.isSelected()) {
+				handler.accept(scale);
+			}
+		}));
+	}
+
+	public void selectUiScale(double scale) {
+		if (uiScaleButtons.isEmpty()) {
+			return;
+		}
+		ToggleButton nearestButton = null;
+		double nearestDistance = Double.MAX_VALUE;
+		for (Map.Entry<Double, ToggleButton> entry : uiScaleButtons.entrySet()) {
+			double distance = Math.abs(entry.getKey() - scale);
+			if (distance < nearestDistance) {
+				nearestDistance = distance;
+				nearestButton = entry.getValue();
+			}
+		}
+		if (nearestButton != null && !nearestButton.isSelected()) {
+			nearestButton.setSelected(true);
+		}
+	}
+
+	public void setUiScaleOptionsDisabled(boolean disabled) {
+		uiScaleButtons.values().forEach(button -> button.setDisable(disabled));
 	}
 
 	// ===== About Section =====

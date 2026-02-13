@@ -3,8 +3,10 @@ package fr.inria.corese.gui.feature.settings;
 import atlantafx.base.theme.Theme;
 import fr.inria.corese.gui.core.theme.ThemeManager;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.paint.Color;
 
@@ -36,6 +38,12 @@ public final class SettingsModel {
 
 	/** Whether to automatically detect and use the system theme. */
 	private final BooleanProperty useSystemTheme = new SimpleBooleanProperty(true); // Enabled by default
+
+	/** Global interface scale factor (1.0 = 100%). */
+	private final DoubleProperty uiScale = new SimpleDoubleProperty(ThemeManager.getDefaultUiScale());
+
+	/** Whether UI scale should auto-adapt to the current screen. */
+	private final BooleanProperty autoUiScale = new SimpleBooleanProperty(true);
 
 	// ===== Constructors =====
 
@@ -128,5 +136,61 @@ public final class SettingsModel {
 	 */
 	public void setUseSystemTheme(boolean useSystemTheme) {
 		this.useSystemTheme.set(useSystemTheme);
+	}
+
+	/**
+	 * Returns the global interface scale property.
+	 *
+	 * @return the UI scale property
+	 */
+	public DoubleProperty uiScaleProperty() {
+		return uiScale;
+	}
+
+	/**
+	 * Gets the current global UI scale.
+	 *
+	 * @return scale factor (1.0 = 100%)
+	 */
+	public double getUiScale() {
+		return uiScale.get();
+	}
+
+	/**
+	 * Sets the global UI scale.
+	 *
+	 * @param scale
+	 *            scale factor (1.0 = 100%)
+	 */
+	public void setUiScale(double scale) {
+		this.uiScale.set(scale);
+	}
+
+	/**
+	 * Returns the auto UI scale property.
+	 *
+	 * @return auto UI scale property
+	 */
+	public BooleanProperty autoUiScaleProperty() {
+		return autoUiScale;
+	}
+
+	/**
+	 * Gets whether auto UI scaling is enabled.
+	 *
+	 * @return true if auto UI scaling is enabled
+	 */
+	public boolean isAutoUiScale() {
+		return autoUiScale.get();
+	}
+
+	/**
+	 * Sets whether auto UI scaling is enabled.
+	 *
+	 * @param enabled
+	 *            true to enable automatic screen-based scaling
+	 */
+	public void setAutoUiScale(boolean enabled) {
+		this.autoUiScale.set(enabled);
 	}
 }

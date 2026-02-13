@@ -8,12 +8,17 @@ import java.util.Locale;
 import java.util.prefs.Preferences;
 import javafx.application.Application;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,8 +45,15 @@ public final class ThemeManager {
 	private static final String PREF_ACCENT_COLOR = "app.accentColor";
 	private static final String PREF_SYSTEM_THEME = "app.systemThemeEnabled";
 	private static final String PREF_SIDEBAR_COLLAPSED = "app.sidebarCollapsed";
+	private static final String PREF_UI_SCALE = "app.uiScale";
+	private static final String PREF_AUTO_UI_SCALE = "app.autoUiScaleEnabled";
 	private static final String DEFAULT_ACCENT_HEX = "#0078D4";
 	private static final String DEFAULT_WEB_THEME_NAME = "default";
+	private static final double DEFAULT_UI_SCALE = 1.0;
+	private static final double MIN_UI_SCALE = 0.9;
+	private static final double MAX_UI_SCALE = 1.5;
+	private static final double ROOT_BASE_FONT_SIZE = 13.0;
+	private static final double SCALE_EPSILON = 0.0001;
 	private static final String EDITOR_BG_LIGHT = "#FFFFFF";
 	private static final String EDITOR_BG_CUPERTINO_DARK = "#1E1E1E";
 	private static final String EDITOR_BG_PRIMER_DARK = "#010409";
@@ -62,6 +74,8 @@ public final class ThemeManager {
 	private final ObjectProperty<Color> accentColor = new SimpleObjectProperty<>(Color.web(DEFAULT_ACCENT_HEX));
 	private final BooleanProperty systemThemeEnabled = new SimpleBooleanProperty(false);
 	private final BooleanProperty sidebarCollapsed = new SimpleBooleanProperty(false);
+	private final DoubleProperty uiScale = new SimpleDoubleProperty(DEFAULT_UI_SCALE);
+	private final BooleanProperty autoUiScaleEnabled = new SimpleBooleanProperty(true);
 	private final Preferences preferences = Preferences.userNodeForPackage(ThemeManager.class);
 	private boolean loadingPreferences = false;
 
@@ -97,6 +111,11 @@ public final class ThemeManager {
 	/** Returns the default accent color used when no source color is available. */
 	public static Color getDefaultAccentColor() {
 		return Color.web(DEFAULT_ACCENT_HEX);
+	}
+
+	/** Returns the default global UI scale used when no preference is available. */
+	public static double getDefaultUiScale() {
+		return DEFAULT_UI_SCALE;
 	}
 
 	/**
@@ -179,6 +198,27 @@ public final class ThemeManager {
 		sidebarCollapsed.addListener((obs, oldVal, newVal) -> {
 			savePreferences();
 		});
+
+		// When UI scale changes, re-apply managed root styles and persist
+		uiScale.addListener((obs, oldVal, newVal) -> {
+			double safeScale = clampUiScale(newVal == null ? DEFAULT_UI_SCALE : newVal.doubleValue());
+			if (Math.abs(safeScale - uiScale.get()) > SCALE_EPSILON) {
+				uiScale.set(safeScale);
+				return;
+			}
+			if (accentColor.get() != null) {
+				applyAccentColorInternal(accentColor.get());
+			}
+			savePreferences();
+		});
+
+		// When automatic UI scaling toggles, apply or keep manual scale
+		autoUiScaleEnabled.addListener((obs, oldVal, newVal) -> {
+			if (Boolean.TRUE.equals(newVal)) {
+				applyRecommendedUiScaleForCurrentScreen();
+			}
+			savePreferences();
+		});
 	}
 
 	// ===== Public API =====
@@ -209,6 +249,11 @@ public final class ThemeManager {
 						applyAccentColorInternal(accentColor.get());
 					}
 				});
+			}
+		});
+		stage.addEventHandler(WindowEvent.WINDOW_SHOWN, event -> {
+			if (isAutoUiScaleEnabled()) {
+				applyRecommendedUiScaleForCurrentScreen();
 			}
 		});
 
@@ -293,6 +338,30 @@ public final class ThemeManager {
 		this.sidebarCollapsed.set(collapsed);
 	}
 
+	public DoubleProperty uiScaleProperty() {
+		return uiScale;
+	}
+
+	public double getUiScale() {
+		return uiScale.get();
+	}
+
+	public void setUiScale(double scale) {
+		this.uiScale.set(clampUiScale(scale));
+	}
+
+	public BooleanProperty autoUiScaleEnabledProperty() {
+		return autoUiScaleEnabled;
+	}
+
+	public boolean isAutoUiScaleEnabled() {
+		return autoUiScaleEnabled.get();
+	}
+
+	public void setAutoUiScaleEnabled(boolean enabled) {
+		autoUiScaleEnabled.set(enabled);
+	}
+
 	/** Releases background theme monitoring resources. */
 	public void shutdown() {
 		systemThemeMonitor.stop();
@@ -343,16 +412,65 @@ public final class ThemeManager {
 				"-color-accent-emphasis: %s; " + "-color-accent-fg: %s; " + "-color-accent-subtle: %s; "
 						+ "-color-accent-muted: %s; " + "-color-logo-shadow: %s; " + "-color-tab-overflow-shadow: %s; "
 						+ "-color-tab-overflow-shadow-transparent: %s; " + "-color-sidebar-separator: %s; "
-						+ "-color-sidebar-shadow: %s;",
+						+ "-color-sidebar-shadow: %s; " + "-fx-font-size: %.2fpx;",
 				cssColor, cssColor, toCssColor(color.deriveColor(0, 0.3, 1.0, 0.3)),
 				toCssColor(color.deriveColor(0, 0.5, 1.0, 0.5)), toCssRgbaColor(getLogoShadowColor()),
 				toCssRgbaColor(tabOverflowShadow), toCssRgbaColor(withOpacity(tabOverflowShadow, 0.0)),
-				toCssRgbaColor(getSidebarSeparatorColor()), toCssRgbaColor(getSidebarShadowColor()));
+				toCssRgbaColor(getSidebarSeparatorColor()), toCssRgbaColor(getSidebarShadowColor()),
+				computeRootFontSizePx(getUiScale()));
 
 		String previousManagedStyle = (String) root.getProperties().get(ROOT_MANAGED_STYLE_BLOCK_KEY);
 		String baseStyle = stripManagedStyle(root.getStyle(), previousManagedStyle);
 		root.setStyle(mergeStyle(baseStyle, newAccentStyle));
 		root.getProperties().put(ROOT_MANAGED_STYLE_BLOCK_KEY, newAccentStyle);
+	}
+
+	private void applyRecommendedUiScaleForCurrentScreen() {
+		Screen screen = resolveCurrentScreen();
+		setUiScale(computeRecommendedUiScale(screen));
+	}
+
+	private Screen resolveCurrentScreen() {
+		if (primaryStage != null) {
+			double centerX = primaryStage.getX() + Math.max(1, primaryStage.getWidth()) / 2.0;
+			double centerY = primaryStage.getY() + Math.max(1, primaryStage.getHeight()) / 2.0;
+			List<Screen> matchingScreens = Screen.getScreensForRectangle(centerX, centerY, 1, 1);
+			if (!matchingScreens.isEmpty()) {
+				return matchingScreens.getFirst();
+			}
+		}
+		return Screen.getPrimary();
+	}
+
+	private static double computeRecommendedUiScale(Screen screen) {
+		Screen target = screen == null ? Screen.getPrimary() : screen;
+		Rectangle2D bounds = target.getVisualBounds();
+		double width = bounds.getWidth();
+		double height = bounds.getHeight();
+		double outputScale = Math.max(target.getOutputScaleX(), target.getOutputScaleY());
+		double dpi = target.getDpi();
+
+		if (outputScale >= 1.9 || dpi >= 180 || width >= 3200 || height >= 2000) {
+			return 1.25;
+		}
+		if (outputScale >= 1.45 || dpi >= 140 || width >= 2560 || height >= 1600) {
+			return 1.1;
+		}
+		if (width <= 1366 || height <= 768) {
+			return 0.9;
+		}
+		return DEFAULT_UI_SCALE;
+	}
+
+	private static double clampUiScale(double scale) {
+		if (Double.isNaN(scale) || Double.isInfinite(scale)) {
+			return DEFAULT_UI_SCALE;
+		}
+		return Math.max(MIN_UI_SCALE, Math.min(MAX_UI_SCALE, scale));
+	}
+
+	private static double computeRootFontSizePx(double scale) {
+		return ROOT_BASE_FONT_SIZE * clampUiScale(scale);
 	}
 
 	/**
@@ -619,10 +737,16 @@ public final class ThemeManager {
 			String themeName = preferences.get(PREF_THEME, null);
 			String colorHex = preferences.get(PREF_ACCENT_COLOR, null);
 			boolean collapsed = preferences.getBoolean(PREF_SIDEBAR_COLLAPSED, false);
+			boolean autoScale = preferences.getBoolean(PREF_AUTO_UI_SCALE, true);
+			double savedScale = clampUiScale(preferences.getDouble(PREF_UI_SCALE, DEFAULT_UI_SCALE));
 
 			// Apply settings
 			setSystemThemeEnabled(useSystem);
 			setSidebarCollapsed(collapsed);
+			setAutoUiScaleEnabled(autoScale);
+			if (!autoScale) {
+				setUiScale(savedScale);
+			}
 
 			if (useSystem && getTheme() == null) {
 				// Provide a fast, safe fallback so CSS variables are available immediately.
@@ -670,6 +794,8 @@ public final class ThemeManager {
 		try {
 			preferences.putBoolean(PREF_SYSTEM_THEME, isSystemThemeEnabled());
 			preferences.putBoolean(PREF_SIDEBAR_COLLAPSED, isSidebarCollapsed());
+			preferences.putBoolean(PREF_AUTO_UI_SCALE, isAutoUiScaleEnabled());
+			preferences.putDouble(PREF_UI_SCALE, getUiScale());
 
 			if (!isSystemThemeEnabled()) {
 				if (getTheme() != null) {
