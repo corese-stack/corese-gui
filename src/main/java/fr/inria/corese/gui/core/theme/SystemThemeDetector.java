@@ -1,12 +1,17 @@
 package fr.inria.corese.gui.core.theme;
 
-import atlantafx.base.theme.*;
+import atlantafx.base.theme.CupertinoDark;
+import atlantafx.base.theme.CupertinoLight;
+import atlantafx.base.theme.PrimerDark;
+import atlantafx.base.theme.PrimerLight;
+import atlantafx.base.theme.Theme;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.TimeUnit;
 import javafx.scene.paint.Color;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +32,7 @@ import org.slf4j.LoggerFactory;
 public final class SystemThemeDetector {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(SystemThemeDetector.class);
+	private static final long COMMAND_TIMEOUT_SECONDS = 2;
 
 	// ===== OS Detection =====
 	private static final String OS = System.getProperty("os.name").toLowerCase();
@@ -356,24 +362,32 @@ public final class SystemThemeDetector {
 	private static String executeCommand(String... command) {
 		try {
 			ProcessBuilder pb = new ProcessBuilder(command);
+			pb.redirectErrorStream(true);
 			Process process = pb.start();
 
 			// Read output
 			StringBuilder output = new StringBuilder();
-			try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+			try (BufferedReader reader = new BufferedReader(
+					new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
 				String line;
 				while ((line = reader.readLine()) != null) {
 					output.append(line);
 				}
 			}
 
-			process.waitFor();
+			boolean finished = process.waitFor(COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+			if (!finished) {
+				process.destroyForcibly();
+				LOGGER.debug("Command timed out: {}", String.join(" ", command));
+				return null;
+			}
 			String result = output.toString().trim();
 			return result.isEmpty() ? null : result;
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 			return null;
 		} catch (Exception e) {
+			LOGGER.debug("Command execution failed: {}", String.join(" ", command));
 			return null;
 		}
 	}

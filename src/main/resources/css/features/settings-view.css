@@ -9,7 +9,7 @@
     -fx-padding: 40px;
     -fx-spacing: 30px;
     -fx-max-width: 900px;
-    -fx-min-width: 700px;
+    -fx-min-width: 560px;
     -fx-alignment: top-center;
 }
 
@@ -18,20 +18,33 @@
     -fx-spacing: 20px;
 }
 
-.settings-inline-label {
-    -fx-font-size: 12px;
-    -fx-text-fill: -color-fg-muted;
-    -fx-font-weight: 600;
+.settings-scale-segmented {
+    -fx-spacing: 0;
+    -fx-alignment: center-right;
 }
 
-.settings-scale-button {
-    -fx-min-width: 58px;
-    -fx-pref-width: 58px;
+.settings-scale-segment-button {
+    -fx-min-width: 56px;
+    -fx-pref-width: 56px;
     -fx-font-size: 12px;
     -fx-font-weight: 600;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-border-insets: 0 0 0 -1;
 }
 
-.settings-scale-button:selected {
+.settings-segment-first {
+    -fx-background-radius: 8 0 0 8;
+    -fx-border-radius: 8 0 0 8;
+    -fx-border-insets: 0;
+}
+
+.settings-segment-last {
+    -fx-background-radius: 0 8 8 0;
+    -fx-border-radius: 0 8 8 0;
+}
+
+.settings-scale-segment-button:selected {
     -fx-background-color: -color-accent-emphasis;
     -fx-border-color: -color-accent-emphasis;
     -fx-text-fill: white;
@@ -50,4 +63,32 @@
 
 .settings-logo-image {
     -fx-smooth: true;
+}
+
+.settings-about-header {
+    -fx-spacing: 14px;
+    -fx-alignment: center-left;
+}
+
+.settings-about-row {
+    -fx-alignment: center-left;
+}
+
+.settings-about-identity {
+    -fx-spacing: 2px;
+}
+
+.settings-about-name {
+    -fx-wrap-text: false;
+}
+
+.settings-about-version {
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+}
+
+.settings-about-links {
+    -fx-spacing: 10px;
+    -fx-alignment: center-right;
 }

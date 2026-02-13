@@ -42,9 +42,6 @@ public final class SettingsModel {
 	/** Global interface scale factor (1.0 = 100%). */
 	private final DoubleProperty uiScale = new SimpleDoubleProperty(ThemeManager.getDefaultUiScale());
 
-	/** Whether UI scale should auto-adapt to the current screen. */
-	private final BooleanProperty autoUiScale = new SimpleBooleanProperty(true);
-
 	// ===== Constructors =====
 
 	/** Creates a new SettingsModel with default values. */
@@ -164,33 +161,5 @@ public final class SettingsModel {
 	 */
 	public void setUiScale(double scale) {
 		this.uiScale.set(scale);
-	}
-
-	/**
-	 * Returns the auto UI scale property.
-	 *
-	 * @return auto UI scale property
-	 */
-	public BooleanProperty autoUiScaleProperty() {
-		return autoUiScale;
-	}
-
-	/**
-	 * Gets whether auto UI scaling is enabled.
-	 *
-	 * @return true if auto UI scaling is enabled
-	 */
-	public boolean isAutoUiScale() {
-		return autoUiScale.get();
-	}
-
-	/**
-	 * Sets whether auto UI scaling is enabled.
-	 *
-	 * @param enabled
-	 *            true to enable automatic screen-based scaling
-	 */
-	public void setAutoUiScale(boolean enabled) {
-		this.autoUiScale.set(enabled);
 	}
 }

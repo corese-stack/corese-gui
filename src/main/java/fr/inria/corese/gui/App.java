@@ -1,6 +1,7 @@
 package fr.inria.corese.gui;
 
 import fr.inria.corese.gui.core.theme.ThemeManager;
+import fr.inria.corese.gui.component.layout.GlobalZoomPane;
 import fr.inria.corese.gui.feature.main.MainController;
 import fr.inria.corese.gui.feature.main.MainView;
 import fr.inria.corese.gui.feature.main.ViewManager;
@@ -46,7 +47,8 @@ public final class App extends Application {
 		new MainController(mainView, navigationBar, viewManager);
 
 		// === Create scene ===
-		Scene scene = new Scene(mainView.getRoot(), AppConstants.DEFAULT_WIDTH, AppConstants.DEFAULT_HEIGHT);
+		Scene scene = new Scene(new GlobalZoomPane(mainView.getRoot()), AppConstants.DEFAULT_WIDTH,
+				AppConstants.DEFAULT_HEIGHT);
 
 		// === Configure stage ===
 		primaryStage.setTitle(AppConstants.APP_TITLE + " — " + AppConstants.APP_VERSION);
@@ -71,7 +73,7 @@ public final class App extends Application {
 		}
 
 		primaryStage.setScene(scene);
-		applyInitialWindowSize(primaryStage, themeManager.getUiScale());
+		applyInitialWindowSize(primaryStage);
 		primaryStage.setOnCloseRequest(event -> Platform.exit());
 		primaryStage.show();
 	}
@@ -90,18 +92,18 @@ public final class App extends Application {
 		System.exit(0);
 	}
 
-	private static void applyInitialWindowSize(Stage stage, double uiScale) {
+	private static void applyInitialWindowSize(Stage stage) {
 		Screen screen = Screen.getPrimary();
 		Rectangle2D bounds = screen.getVisualBounds();
 
-		double scaledDefaultWidth = AppConstants.DEFAULT_WIDTH * uiScale;
-		double scaledDefaultHeight = AppConstants.DEFAULT_HEIGHT * uiScale;
+		double defaultWidth = AppConstants.DEFAULT_WIDTH;
+		double defaultHeight = AppConstants.DEFAULT_HEIGHT;
 
 		double maxWidth = bounds.getWidth() * 0.92;
 		double maxHeight = bounds.getHeight() * 0.92;
 
-		double targetWidth = Math.min(scaledDefaultWidth, maxWidth);
-		double targetHeight = Math.min(scaledDefaultHeight, maxHeight);
+		double targetWidth = Math.min(defaultWidth, maxWidth);
+		double targetHeight = Math.min(defaultHeight, maxHeight);
 
 		stage.setWidth(Math.max(AppConstants.MIN_WIDTH, targetWidth));
 		stage.setHeight(Math.max(AppConstants.MIN_HEIGHT, targetHeight));

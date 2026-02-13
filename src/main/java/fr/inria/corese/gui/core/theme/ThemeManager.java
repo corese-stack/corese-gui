@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.core.theme;
 
 import atlantafx.base.theme.Theme;
+import fr.inria.corese.gui.component.layout.GlobalZoomPane;
 import fr.inria.corese.gui.utils.AppExecutors;
 import java.util.Arrays;
 import java.util.List;
@@ -13,12 +14,9 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
-import javafx.stage.Screen;
 import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,13 +44,11 @@ public final class ThemeManager {
 	private static final String PREF_SYSTEM_THEME = "app.systemThemeEnabled";
 	private static final String PREF_SIDEBAR_COLLAPSED = "app.sidebarCollapsed";
 	private static final String PREF_UI_SCALE = "app.uiScale";
-	private static final String PREF_AUTO_UI_SCALE = "app.autoUiScaleEnabled";
 	private static final String DEFAULT_ACCENT_HEX = "#0078D4";
 	private static final String DEFAULT_WEB_THEME_NAME = "default";
 	private static final double DEFAULT_UI_SCALE = 1.0;
-	private static final double MIN_UI_SCALE = 0.9;
-	private static final double MAX_UI_SCALE = 1.5;
-	private static final double ROOT_BASE_FONT_SIZE = 13.0;
+	private static final double MIN_UI_SCALE = 0.5;
+	private static final double MAX_UI_SCALE = 2.0;
 	private static final double SCALE_EPSILON = 0.0001;
 	private static final String EDITOR_BG_LIGHT = "#FFFFFF";
 	private static final String EDITOR_BG_CUPERTINO_DARK = "#1E1E1E";
@@ -75,7 +71,6 @@ public final class ThemeManager {
 	private final BooleanProperty systemThemeEnabled = new SimpleBooleanProperty(false);
 	private final BooleanProperty sidebarCollapsed = new SimpleBooleanProperty(false);
 	private final DoubleProperty uiScale = new SimpleDoubleProperty(DEFAULT_UI_SCALE);
-	private final BooleanProperty autoUiScaleEnabled = new SimpleBooleanProperty(true);
 	private final Preferences preferences = Preferences.userNodeForPackage(ThemeManager.class);
 	private boolean loadingPreferences = false;
 
@@ -201,22 +196,13 @@ public final class ThemeManager {
 
 		// When UI scale changes, re-apply managed root styles and persist
 		uiScale.addListener((obs, oldVal, newVal) -> {
-			double safeScale = clampUiScale(newVal == null ? DEFAULT_UI_SCALE : newVal.doubleValue());
-			if (Math.abs(safeScale - uiScale.get()) > SCALE_EPSILON) {
+			double requestedScale = newVal == null ? DEFAULT_UI_SCALE : newVal.doubleValue();
+			double safeScale = clampUiScale(requestedScale);
+			if (Math.abs(safeScale - requestedScale) > SCALE_EPSILON) {
 				uiScale.set(safeScale);
 				return;
 			}
-			if (accentColor.get() != null) {
-				applyAccentColorInternal(accentColor.get());
-			}
-			savePreferences();
-		});
-
-		// When automatic UI scaling toggles, apply or keep manual scale
-		autoUiScaleEnabled.addListener((obs, oldVal, newVal) -> {
-			if (Boolean.TRUE.equals(newVal)) {
-				applyRecommendedUiScaleForCurrentScreen();
-			}
+			applyUiScaleInternal();
 			savePreferences();
 		});
 	}
@@ -235,6 +221,12 @@ public final class ThemeManager {
 	 *            The primary JavaFX Stage.
 	 */
 	public void setPrimaryStage(Stage stage) {
+		if (stage == null) {
+			return;
+		}
+		if (this.primaryStage == stage) {
+			return;
+		}
 		this.primaryStage = stage;
 
 		// Listen for scene changes to re-apply accent color
@@ -243,17 +235,16 @@ public final class ThemeManager {
 				if (accentColor.get() != null) {
 					applyAccentColorInternal(accentColor.get());
 				}
+				applyUiScaleInternal();
 				// Also listen for root changes within the scene
 				newScene.rootProperty().addListener((o, oldRoot, newRoot) -> {
-					if (newRoot != null && accentColor.get() != null) {
-						applyAccentColorInternal(accentColor.get());
+					if (newRoot != null) {
+						if (accentColor.get() != null) {
+							applyAccentColorInternal(accentColor.get());
+						}
+						applyUiScaleInternal();
 					}
 				});
-			}
-		});
-		stage.addEventHandler(WindowEvent.WINDOW_SHOWN, event -> {
-			if (isAutoUiScaleEnabled()) {
-				applyRecommendedUiScaleForCurrentScreen();
 			}
 		});
 
@@ -262,6 +253,7 @@ public final class ThemeManager {
 			applyThemeInternal(theme.get());
 		if (accentColor.get() != null)
 			applyAccentColorInternal(accentColor.get());
+		applyUiScaleInternal();
 	}
 
 	/**
@@ -279,6 +271,9 @@ public final class ThemeManager {
 				Color systemAccent = SystemThemeDetector.getSystemAccentColor();
 
 				javafx.application.Platform.runLater(() -> {
+					if (!isSystemThemeEnabled()) {
+						return;
+					}
 					setTheme(systemTheme);
 					setAccentColor(systemAccent);
 				});
@@ -299,6 +294,13 @@ public final class ThemeManager {
 	}
 
 	public void setTheme(Theme theme) {
+		if (theme == null) {
+			return;
+		}
+		Theme current = this.theme.get();
+		if (current != null && current.getClass().equals(theme.getClass())) {
+			return;
+		}
 		this.theme.set(theme);
 	}
 
@@ -311,6 +313,13 @@ public final class ThemeManager {
 	}
 
 	public void setAccentColor(Color color) {
+		if (color == null) {
+			return;
+		}
+		Color current = this.accentColor.get();
+		if (current != null && current.equals(color)) {
+			return;
+		}
 		this.accentColor.set(color);
 	}
 
@@ -323,6 +332,9 @@ public final class ThemeManager {
 	}
 
 	public void setSystemThemeEnabled(boolean enabled) {
+		if (this.systemThemeEnabled.get() == enabled) {
+			return;
+		}
 		this.systemThemeEnabled.set(enabled);
 	}
 
@@ -335,6 +347,9 @@ public final class ThemeManager {
 	}
 
 	public void setSidebarCollapsed(boolean collapsed) {
+		if (this.sidebarCollapsed.get() == collapsed) {
+			return;
+		}
 		this.sidebarCollapsed.set(collapsed);
 	}
 
@@ -347,19 +362,11 @@ public final class ThemeManager {
 	}
 
 	public void setUiScale(double scale) {
-		this.uiScale.set(clampUiScale(scale));
-	}
-
-	public BooleanProperty autoUiScaleEnabledProperty() {
-		return autoUiScaleEnabled;
-	}
-
-	public boolean isAutoUiScaleEnabled() {
-		return autoUiScaleEnabled.get();
-	}
-
-	public void setAutoUiScaleEnabled(boolean enabled) {
-		autoUiScaleEnabled.set(enabled);
+		double safeScale = clampUiScale(scale);
+		if (Math.abs(this.uiScale.get() - safeScale) <= SCALE_EPSILON) {
+			return;
+		}
+		this.uiScale.set(safeScale);
 	}
 
 	/** Releases background theme monitoring resources. */
@@ -412,12 +419,11 @@ public final class ThemeManager {
 				"-color-accent-emphasis: %s; " + "-color-accent-fg: %s; " + "-color-accent-subtle: %s; "
 						+ "-color-accent-muted: %s; " + "-color-logo-shadow: %s; " + "-color-tab-overflow-shadow: %s; "
 						+ "-color-tab-overflow-shadow-transparent: %s; " + "-color-sidebar-separator: %s; "
-						+ "-color-sidebar-shadow: %s; " + "-fx-font-size: %.2fpx;",
+						+ "-color-sidebar-shadow: %s;",
 				cssColor, cssColor, toCssColor(color.deriveColor(0, 0.3, 1.0, 0.3)),
 				toCssColor(color.deriveColor(0, 0.5, 1.0, 0.5)), toCssRgbaColor(getLogoShadowColor()),
 				toCssRgbaColor(tabOverflowShadow), toCssRgbaColor(withOpacity(tabOverflowShadow, 0.0)),
-				toCssRgbaColor(getSidebarSeparatorColor()), toCssRgbaColor(getSidebarShadowColor()),
-				computeRootFontSizePx(getUiScale()));
+				toCssRgbaColor(getSidebarSeparatorColor()), toCssRgbaColor(getSidebarShadowColor()));
 
 		String previousManagedStyle = (String) root.getProperties().get(ROOT_MANAGED_STYLE_BLOCK_KEY);
 		String baseStyle = stripManagedStyle(root.getStyle(), previousManagedStyle);
@@ -425,41 +431,22 @@ public final class ThemeManager {
 		root.getProperties().put(ROOT_MANAGED_STYLE_BLOCK_KEY, newAccentStyle);
 	}
 
-	private void applyRecommendedUiScaleForCurrentScreen() {
-		Screen screen = resolveCurrentScreen();
-		setUiScale(computeRecommendedUiScale(screen));
-	}
+	private void applyUiScaleInternal() {
+		if (primaryStage == null) {
+			return;
+		}
+		var scene = primaryStage.getScene();
+		if (scene == null) {
+			return;
+		}
 
-	private Screen resolveCurrentScreen() {
-		if (primaryStage != null) {
-			double centerX = primaryStage.getX() + Math.max(1, primaryStage.getWidth()) / 2.0;
-			double centerY = primaryStage.getY() + Math.max(1, primaryStage.getHeight()) / 2.0;
-			List<Screen> matchingScreens = Screen.getScreensForRectangle(centerX, centerY, 1, 1);
-			if (!matchingScreens.isEmpty()) {
-				return matchingScreens.getFirst();
-			}
+		Node root = scene.getRoot();
+		if (!(root instanceof GlobalZoomPane zoomPane)) {
+			return;
 		}
-		return Screen.getPrimary();
-	}
 
-	private static double computeRecommendedUiScale(Screen screen) {
-		Screen target = screen == null ? Screen.getPrimary() : screen;
-		Rectangle2D bounds = target.getVisualBounds();
-		double width = bounds.getWidth();
-		double height = bounds.getHeight();
-		double outputScale = Math.max(target.getOutputScaleX(), target.getOutputScaleY());
-		double dpi = target.getDpi();
-
-		if (outputScale >= 1.9 || dpi >= 180 || width >= 3200 || height >= 2000) {
-			return 1.25;
-		}
-		if (outputScale >= 1.45 || dpi >= 140 || width >= 2560 || height >= 1600) {
-			return 1.1;
-		}
-		if (width <= 1366 || height <= 768) {
-			return 0.9;
-		}
-		return DEFAULT_UI_SCALE;
+		double scaleValue = clampUiScale(getUiScale());
+		zoomPane.setZoom(scaleValue);
 	}
 
 	private static double clampUiScale(double scale) {
@@ -467,10 +454,6 @@ public final class ThemeManager {
 			return DEFAULT_UI_SCALE;
 		}
 		return Math.max(MIN_UI_SCALE, Math.min(MAX_UI_SCALE, scale));
-	}
-
-	private static double computeRootFontSizePx(double scale) {
-		return ROOT_BASE_FONT_SIZE * clampUiScale(scale);
 	}
 
 	/**
@@ -668,39 +651,9 @@ public final class ThemeManager {
 	 * @return The name of the current theme (e.g., "NORD_DARK"), or null if none
 	 *         set.
 	 */
-	public String getCurrentThemeName() {
+	private String getCurrentThemeName() {
 		AppThemeRegistry appTheme = getCurrentAppTheme();
 		return appTheme != null ? appTheme.name() : null;
-	}
-
-	/**
-	 * Extracts the base name from a full theme name.
-	 *
-	 * @param themeName
-	 *            The full theme name (e.g., "NORD_DARK").
-	 * @return The base name (e.g., "Nord").
-	 */
-	public String getBaseThemeName(String themeName) {
-		try {
-			return AppThemeRegistry.valueOf(themeName).getBaseName();
-		} catch (IllegalArgumentException | NullPointerException e) {
-			return themeName;
-		}
-	}
-
-	/**
-	 * Checks if a given theme is a dark variant.
-	 *
-	 * @param themeName
-	 *            The full theme name.
-	 * @return True if the theme is dark, false otherwise.
-	 */
-	public boolean isDarkTheme(String themeName) {
-		try {
-			return AppThemeRegistry.valueOf(themeName).isDark();
-		} catch (IllegalArgumentException | NullPointerException e) {
-			return false;
-		}
 	}
 
 	/**
@@ -710,7 +663,7 @@ public final class ThemeManager {
 	 *            The name of the theme (e.g., "NORD_DARK" or "Nord Dark").
 	 * @return The Theme object, or null if not found.
 	 */
-	public Theme getThemeByName(String name) {
+	private Theme getThemeByName(String name) {
 		// Try to find by AppTheme name
 		try {
 			return AppThemeRegistry.valueOf(name).getTheme();
@@ -737,16 +690,12 @@ public final class ThemeManager {
 			String themeName = preferences.get(PREF_THEME, null);
 			String colorHex = preferences.get(PREF_ACCENT_COLOR, null);
 			boolean collapsed = preferences.getBoolean(PREF_SIDEBAR_COLLAPSED, false);
-			boolean autoScale = preferences.getBoolean(PREF_AUTO_UI_SCALE, true);
 			double savedScale = clampUiScale(preferences.getDouble(PREF_UI_SCALE, DEFAULT_UI_SCALE));
 
 			// Apply settings
 			setSystemThemeEnabled(useSystem);
 			setSidebarCollapsed(collapsed);
-			setAutoUiScaleEnabled(autoScale);
-			if (!autoScale) {
-				setUiScale(savedScale);
-			}
+			setUiScale(savedScale);
 
 			if (useSystem && getTheme() == null) {
 				// Provide a fast, safe fallback so CSS variables are available immediately.
@@ -794,7 +743,6 @@ public final class ThemeManager {
 		try {
 			preferences.putBoolean(PREF_SYSTEM_THEME, isSystemThemeEnabled());
 			preferences.putBoolean(PREF_SIDEBAR_COLLAPSED, isSidebarCollapsed());
-			preferences.putBoolean(PREF_AUTO_UI_SCALE, isAutoUiScaleEnabled());
 			preferences.putDouble(PREF_UI_SCALE, getUiScale());
 
 			if (!isSystemThemeEnabled()) {

@@ -17,10 +17,21 @@ import java.util.Map;
 import java.util.function.Consumer;
 import javafx.geometry.Pos;
 import javafx.scene.effect.DropShadow;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.*;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +62,6 @@ public final class SettingsView extends AbstractView {
 	private ToggleButton lightModeButton;
 	private ToggleButton darkModeButton;
 	private ColorPicker accentColorPicker;
-	private ToggleSwitch autoUiScaleSwitch;
 	private final Map<Double, ToggleButton> uiScaleButtons = new LinkedHashMap<>();
 
 	// ===== Constructor =====
@@ -136,25 +146,23 @@ public final class SettingsView extends AbstractView {
 		Tile uiScaleTile = new Tile("Interface Scale", "Adjust global application zoom");
 
 		ToggleGroup scaleGroup = new ToggleGroup();
-		HBox presets = new HBox(6);
+		HBox presets = new HBox(0);
+		presets.getStyleClass().add("settings-scale-segmented");
 		presets.setAlignment(Pos.CENTER_RIGHT);
 		uiScaleButtons.clear();
-		for (double preset : new double[]{0.9, 1.0, 1.1, 1.25, 1.5}) {
+		double[] presetValues = {0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0};
+		int segmentCount = presetValues.length;
+		int segmentIndex = 0;
+
+		for (double preset : presetValues) {
 			ToggleButton button = createUiScaleButton(preset);
 			button.setToggleGroup(scaleGroup);
+			applySegmentPositionStyle(button, segmentIndex++, segmentCount);
 			uiScaleButtons.put(preset, button);
 			presets.getChildren().add(button);
 		}
 
-		autoUiScaleSwitch = new ToggleSwitch();
-		Label autoLabel = new Label("Auto");
-		autoLabel.getStyleClass().add("settings-inline-label");
-		HBox autoRow = new HBox(8, autoLabel, autoUiScaleSwitch);
-		autoRow.setAlignment(Pos.CENTER_RIGHT);
-
-		VBox actions = new VBox(8, presets, autoRow);
-		actions.setAlignment(Pos.CENTER_RIGHT);
-		uiScaleTile.setAction(actions);
+		uiScaleTile.setAction(presets);
 		return uiScaleTile;
 	}
 
@@ -162,9 +170,20 @@ public final class SettingsView extends AbstractView {
 		int percent = (int) Math.round(preset * 100);
 		ToggleButton button = new ToggleButton(percent + "%");
 		button.setUserData(preset);
-		button.getStyleClass().addAll(Styles.BUTTON_OUTLINED, "settings-scale-button");
+		button.getStyleClass().addAll(Styles.BUTTON_OUTLINED, "settings-scale-segment-button");
 		button.setFocusTraversable(false);
 		return button;
+	}
+
+	private static void applySegmentPositionStyle(ToggleButton button, int index, int total) {
+		button.getStyleClass().removeAll("settings-segment-first", "settings-segment-middle", "settings-segment-last");
+		if (index == 0) {
+			button.getStyleClass().add("settings-segment-first");
+		} else if (index == total - 1) {
+			button.getStyleClass().add("settings-segment-last");
+		} else {
+			button.getStyleClass().add("settings-segment-middle");
+		}
 	}
 
 	// ===== Getters for Controller =====
@@ -187,10 +206,6 @@ public final class SettingsView extends AbstractView {
 
 	public ColorPicker getAccentColorPicker() {
 		return accentColorPicker;
-	}
-
-	public ToggleSwitch getAutoUiScaleSwitch() {
-		return autoUiScaleSwitch;
 	}
 
 	public void setOnUiScaleSelection(Consumer<Double> handler) {
@@ -222,10 +237,6 @@ public final class SettingsView extends AbstractView {
 		}
 	}
 
-	public void setUiScaleOptionsDisabled(boolean disabled) {
-		uiScaleButtons.values().forEach(button -> button.setDisable(disabled));
-	}
-
 	// ===== About Section =====
 
 	private VBox createAboutSection() {
@@ -236,20 +247,43 @@ public final class SettingsView extends AbstractView {
 		Label sectionTitle = new Label("About");
 		sectionTitle.getStyleClass().add(Styles.TITLE_3);
 
-		Tile aboutTile = new Tile(AppConstants.APP_NAME, "Version " + AppConstants.APP_VERSION);
-		aboutTile.setGraphic(createLogo());
+		HBox aboutRow = createAboutRow();
+		section.getChildren().addAll(sectionTitle, aboutRow);
+		return section;
+	}
 
-		HBox linksBox = new HBox(10);
-		linksBox.setAlignment(Pos.CENTER_RIGHT);
-		linksBox.getChildren().addAll(createLinkButton("Website", AppConstants.WEBSITE_URL, ButtonIcon.LINK_WEBSITE),
+	private HBox createAboutRow() {
+		HBox header = new HBox(14);
+		header.getStyleClass().add("settings-about-header");
+		header.setAlignment(Pos.CENTER_LEFT);
+
+		StackPane logo = createLogo();
+
+		VBox identity = new VBox(2);
+		identity.getStyleClass().add("settings-about-identity");
+		Label appName = new Label(AppConstants.APP_NAME);
+		appName.getStyleClass().addAll(Styles.TITLE_4, "settings-about-name");
+
+		Label version = new Label("Version " + AppConstants.APP_VERSION);
+		version.getStyleClass().add("settings-about-version");
+		version.setWrapText(false);
+
+		identity.getChildren().addAll(appName, version);
+		header.getChildren().addAll(logo, identity);
+
+		HBox links = new HBox(10);
+		links.getStyleClass().add("settings-about-links");
+		links.setAlignment(Pos.CENTER_RIGHT);
+		links.getChildren().addAll(createLinkButton("Website", AppConstants.WEBSITE_URL, ButtonIcon.LINK_WEBSITE),
 				createLinkButton("Repository", AppConstants.REPOSITORY_URL, ButtonIcon.LINK_REPOSITORY),
 				createLinkButton("Issues", AppConstants.ISSUES_URL, ButtonIcon.LINK_ISSUES),
 				createLinkButton("Forum", AppConstants.FORUM_URL, ButtonIcon.LINK_FORUM));
 
-		aboutTile.setAction(linksBox);
-
-		section.getChildren().addAll(sectionTitle, aboutTile);
-		return section;
+		Region spacer = new Region();
+		HBox.setHgrow(spacer, Priority.ALWAYS);
+		HBox aboutRow = new HBox(16, header, spacer, links);
+		aboutRow.getStyleClass().add("settings-about-row");
+		return aboutRow;
 	}
 
 	private StackPane createLogo() {
