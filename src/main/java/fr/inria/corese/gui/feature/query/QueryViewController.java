@@ -22,6 +22,9 @@ import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.editor.tab.TabContext;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
+import fr.inria.corese.gui.feature.query.support.QueryExecutionSupport;
+import fr.inria.corese.gui.feature.query.support.QueryResultTabPreferenceSupport;
+import fr.inria.corese.gui.feature.query.support.QueryResultRenderSupport;
 import fr.inria.corese.gui.feature.query.template.QueryTemplateDialog;
 import fr.inria.corese.gui.feature.result.ResultController;
 import fr.inria.corese.gui.utils.AppExecutors;
@@ -239,12 +242,12 @@ public class QueryViewController {
 		SerializationFormat preferredFormat = controller
 				.getPreferredTextFormat(SerializationFormat.sparqlResultFormats(), SerializationFormat.XML);
 
-		bindOnFormatChanged(controller, resultId);
+		QueryResultRenderSupport.bindOnFormatChanged(controller, resultId, queryService);
 
 		// Provide formatting capability to the table controller (for Export/Copy)
 		controller.setFormatProvider(format -> queryService.formatResult(resultId, format));
 
-		loadTableAndTextAsync(controller, resultId, preferredFormat);
+		QueryResultRenderSupport.loadTableAndTextAsync(controller, resultId, preferredFormat, queryService);
 	}
 
 	private void configureForGraphResult(ResultController controller, QueryResultRef resultRef) {
@@ -255,37 +258,8 @@ public class QueryViewController {
 		SerializationFormat preferredFormat = controller.getPreferredTextFormat(SerializationFormat.rdfFormats(),
 				SerializationFormat.TURTLE);
 
-		bindOnFormatChanged(controller, resultId);
-		loadGraphAndTextAsync(controller, resultId, preferredFormat);
-	}
-
-	private void bindOnFormatChanged(ResultController controller, String resultId) {
-		controller.setOnFormatChanged(format -> AppExecutors.execute(() -> {
-			String formattedResult = queryService.formatResult(resultId, format);
-			Platform.runLater(() -> controller.updateText(formattedResult));
-		}));
-	}
-
-	private void loadTableAndTextAsync(ResultController controller, String resultId, SerializationFormat textFormat) {
-		AppExecutors.execute(() -> {
-			String csvResult = queryService.formatResult(resultId, SerializationFormat.CSV);
-			String textResult = queryService.formatResult(resultId, textFormat);
-			Platform.runLater(() -> {
-				controller.updateTableView(csvResult);
-				controller.updateText(textResult);
-			});
-		});
-	}
-
-	private void loadGraphAndTextAsync(ResultController controller, String resultId, SerializationFormat textFormat) {
-		AppExecutors.execute(() -> {
-			String jsonLdResult = queryService.formatResult(resultId, SerializationFormat.JSON_LD);
-			String textResult = queryService.formatResult(resultId, textFormat);
-			Platform.runLater(() -> {
-				controller.displayGraph(jsonLdResult);
-				controller.updateText(textResult);
-			});
-		});
+		QueryResultRenderSupport.bindOnFormatChanged(controller, resultId, queryService);
+		QueryResultRenderSupport.loadGraphAndTextAsync(controller, resultId, preferredFormat, queryService);
 	}
 
 	private void registerResultTabPreference(Tab tab) {

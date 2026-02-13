@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.feature.query;
+package fr.inria.corese.gui.feature.query.support;
 
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.model.QueryResultRef;
@@ -6,13 +6,13 @@ import fr.inria.corese.gui.core.model.QueryResultRef;
 /**
  * Query execution helpers (classification and user feedback messages).
  */
-final class QueryExecutionSupport {
+public final class QueryExecutionSupport {
 
 	private QueryExecutionSupport() {
 		throw new AssertionError("Utility class");
 	}
 
-	static boolean looksLikeReadQuery(String queryContent) {
+	public static boolean looksLikeReadQuery(String queryContent) {
 		if (queryContent == null || queryContent.isBlank()) {
 			return false;
 		}
@@ -22,7 +22,7 @@ final class QueryExecutionSupport {
 				|| normalized.contains(" describe ");
 	}
 
-	static void showAskOutcomeNotification(QueryResultRef resultRef) {
+	public static void showAskOutcomeNotification(QueryResultRef resultRef) {
 		Boolean askResult = resultRef == null ? null : resultRef.getAskResult();
 		if (Boolean.TRUE.equals(askResult)) {
 			NotificationWidget.getInstance().showSuccess("ASK", "True");
@@ -35,7 +35,7 @@ final class QueryExecutionSupport {
 		NotificationWidget.getInstance().showWarning("ASK", "Result unavailable.");
 	}
 
-	static void showUpdateSummaryNotification(QueryResultRef resultRef) {
+	public static void showUpdateSummaryNotification(QueryResultRef resultRef) {
 		int inserted = resultRef == null ? 0 : resultRef.getInsertedTriples();
 		int deleted = resultRef == null ? 0 : resultRef.getDeletedTriples();
 		if (inserted > 0 && deleted > 0) {
