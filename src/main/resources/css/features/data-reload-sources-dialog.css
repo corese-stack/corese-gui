@@ -4,8 +4,8 @@
 }
 
 .data-reload-dialog-content {
-    -fx-spacing: 10px;
-    -fx-padding: 2px 0 0 0;
+    -fx-spacing: 12px;
+    -fx-padding: 4px 0 0 0;
 }
 
 .data-reload-dialog-source-scroll {
@@ -18,18 +18,35 @@
 }
 
 .data-reload-dialog-source-list {
-    -fx-spacing: 7px;
+    -fx-spacing: 9px;
     -fx-fill-width: true;
 }
 
 .data-reload-dialog-source-item {
     -fx-max-width: Infinity;
-    -fx-padding: 7px 10px;
+    -fx-padding: 9px 12px;
+    -fx-spacing: 8px;
     -fx-background-color: -color-bg-subtle;
     -fx-border-color: -color-border-muted;
     -fx-border-width: 1px;
     -fx-border-radius: 6px;
     -fx-background-radius: 6px;
+    -fx-content-display: graphic-only;
+    -fx-alignment: center-left;
+}
+
+.data-reload-dialog-item-text {
+    -fx-spacing: 3px;
+    -fx-padding: 1px 0 1px 10px;
+}
+
+.data-reload-dialog-item-primary {
+    -fx-font-weight: 700;
+}
+
+.data-reload-dialog-item-secondary {
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-size: 11px;
 }
 
 .data-reload-dialog-inline-error {

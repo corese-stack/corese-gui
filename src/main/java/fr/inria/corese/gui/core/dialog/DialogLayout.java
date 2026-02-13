@@ -43,6 +43,8 @@ import javafx.scene.layout.VBox;
  */
 public class DialogLayout extends VBox {
 
+	private static final String STYLE_CLASS_COMPACT = "compact";
+
 	/**
 	 * Visual tone used by reusable dialog impact blocks.
 	 */
@@ -82,15 +84,44 @@ public class DialogLayout extends VBox {
 	 *            Optional action buttons to display at the bottom.
 	 */
 	public DialogLayout(String title, Node content, Node... actions) {
+		this(title, null, content, actions);
+	}
+
+	/**
+	 * Creates a new dialog with title, optional subtitle, content, and actions.
+	 *
+	 * @param title
+	 *            dialog title
+	 * @param subtitle
+	 *            optional subtitle shown under the title
+	 * @param content
+	 *            main content node
+	 * @param actions
+	 *            optional action buttons
+	 */
+	public DialogLayout(String title, String subtitle, Node content, Node... actions) {
 		getStyleClass().addAll(Styles.ELEVATED_1, "app-dialog");
 		if (STYLESHEET != null) {
 			getStylesheets().add(STYLESHEET);
 		}
 		setMaxHeight(Region.USE_PREF_SIZE);
 
-		// Header with title and close button
-		Label titleLabel = new Label(title);
-		titleLabel.getStyleClass().add(Styles.TITLE_4);
+		String safeTitle = (title == null || title.isBlank()) ? "Dialog" : title.trim();
+		String safeSubtitle = subtitle == null ? "" : subtitle.trim();
+
+		// Header with title, optional subtitle, and close button
+		Label titleLabel = new Label(safeTitle);
+		titleLabel.getStyleClass().addAll(Styles.TITLE_4, "dialog-title");
+
+		VBox titleBox = new VBox(4);
+		titleBox.getStyleClass().add("dialog-title-box");
+		titleBox.getChildren().add(titleLabel);
+		if (!safeSubtitle.isBlank()) {
+			Label subtitleLabel = new Label(safeSubtitle);
+			subtitleLabel.getStyleClass().add("dialog-subtitle");
+			subtitleLabel.setWrapText(true);
+			titleBox.getChildren().add(subtitleLabel);
+		}
 
 		Region spacer = new Region();
 		HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -98,18 +129,26 @@ public class DialogLayout extends VBox {
 		IconButtonWidget closeBtn = new IconButtonWidget(
 				ButtonFactory.custom(ButtonIcon.CLOSE_WINDOW, "Close", ModalService.getInstance()::hide));
 
-		HBox header = new HBox(titleLabel, spacer, closeBtn);
+		HBox header = new HBox(titleBox, spacer, closeBtn);
 		header.getStyleClass().add("dialog-header");
 
 		// Content area
 		if (content instanceof Region region) {
 			region.setMaxWidth(Double.MAX_VALUE);
+			VBox.setVgrow(region, Priority.ALWAYS);
 		}
 		if (content instanceof Label label) {
 			label.getStyleClass().add("dialog-message");
+			label.setWrapText(true);
+		}
+		VBox body = new VBox(content);
+		body.getStyleClass().add("dialog-body");
+		body.setFillWidth(true);
+		if (actions == null || actions.length == 0) {
+			body.getStyleClass().add("no-actions");
 		}
 
-		getChildren().addAll(header, content);
+		getChildren().addAll(header, body);
 
 		// Action buttons
 		if (actions != null && actions.length > 0) {
@@ -118,6 +157,18 @@ public class DialogLayout extends VBox {
 			actionBox.getChildren().addAll(actions);
 			getChildren().add(actionBox);
 		}
+	}
+
+	/**
+	 * Applies compact spacing intended for short message dialogs.
+	 *
+	 * @return current dialog instance
+	 */
+	public DialogLayout compact() {
+		if (!getStyleClass().contains(STYLE_CLASS_COMPACT)) {
+			getStyleClass().add(STYLE_CLASS_COMPACT);
+		}
+		return this;
 	}
 
 	// ==============================================================================================
@@ -219,7 +270,7 @@ public class DialogLayout extends VBox {
 			}
 		});
 
-		return new DialogLayout(safeTitle, msgLabel, cancelBtn, confirmBtn);
+		return new DialogLayout(safeTitle, msgLabel, cancelBtn, confirmBtn).compact();
 	}
 
 	/**
@@ -278,7 +329,7 @@ public class DialogLayout extends VBox {
 		okBtn.getStyleClass().add(buttonStyle);
 		okBtn.setOnAction(e -> ModalService.getInstance().hide());
 
-		return new DialogLayout(title, msgLabel, okBtn);
+		return new DialogLayout(title, msgLabel, okBtn).compact();
 	}
 
 	private static List<String> sanitizeImpactItems(List<String> items) {

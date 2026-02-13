@@ -17,6 +17,7 @@ import javafx.scene.layout.VBox;
 public final class DataUriLoadDialog {
 
 	private static final String DIALOG_TITLE = "Load RDF from URI";
+	private static final String DIALOG_SUBTITLE = "Provide one or more RDF URIs to load into the graph.";
 	private static final String URI_PROMPT = "http://example.org/data.ttl";
 	private static final String INVALID_URI_MESSAGE = "Please fix invalid URI(s) highlighted in red.";
 	private static final String EMPTY_URI_MESSAGE = "Please provide at least one URI.";
@@ -59,6 +60,7 @@ public final class DataUriLoadDialog {
 			onLoadRequested.accept(urisToLoad);
 		});
 
-		ModalService.getInstance().show(new DialogLayout(DIALOG_TITLE, content, cancelButton, loadButton));
+		ModalService.getInstance()
+				.show(new DialogLayout(DIALOG_TITLE, DIALOG_SUBTITLE, content, cancelButton, loadButton));
 	}
 }

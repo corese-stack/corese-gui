@@ -4,7 +4,6 @@ import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.core.dialog.DialogLayout;
 import fr.inria.corese.gui.core.dialog.DialogLayout.ImpactTone;
 import fr.inria.corese.gui.core.service.DataSourceRegistryService.DataSource;
-import fr.inria.corese.gui.core.service.DataSourceRegistryService.SourceType;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import java.util.LinkedHashMap;
@@ -16,9 +15,7 @@ import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.VBox;
 
 /**
@@ -35,12 +32,11 @@ public final class DataReloadSourcesDialog {
 	private static final String STYLE_CLASS_INLINE_ERROR = "data-reload-dialog-inline-error";
 
 	private static final String DIALOG_TITLE = "Reload Sources";
+	private static final String DIALOG_SUBTITLE = "Select tracked sources to rebuild the graph.";
 	private static final String WARNING_TITLE = "Warning";
 	private static final List<String> WARNING_ITEMS = List.of("SPARQL UPDATE modifications are discarded.",
 			"Reasoning profiles are reset to OFF.", "Unchecked sources are excluded from future reloads.");
 	private static final String EMPTY_SELECTION_MESSAGE = "Select at least one source to reload.";
-	private static final int FILE_PATH_MAX_CHARS = 56;
-	private static final int URI_MAX_CHARS = 72;
 	private static final int SOURCE_VIEWPORT_HEIGHT = 240;
 	private static final int SOURCE_MIN_VIEWPORT_HEIGHT = 120;
 	private static final String VALIDATION_ANIMATION_KEY = "reloadSourcesValidationAnimation";
@@ -120,53 +116,21 @@ public final class DataReloadSourcesDialog {
 			onReloadRequested.accept(selectedSources);
 		});
 
-		DialogLayout dialog = new DialogLayout(DIALOG_TITLE, content, selectionErrorLabel, cancelButton, reloadButton);
+		DialogLayout dialog = new DialogLayout(DIALOG_TITLE, DIALOG_SUBTITLE, content, selectionErrorLabel,
+				cancelButton, reloadButton);
 		dialog.getStyleClass().add(STYLE_CLASS_DIALOG);
 		CssUtils.applyViewStyles(dialog, STYLESHEET);
 		ModalService.getInstance().show(dialog);
 	}
 
-	private static String formatDisplayLabel(DataSource source) {
-		if (source == null) {
-			return "Unknown source";
-		}
-		int maxChars = source.type() == SourceType.FILE ? FILE_PATH_MAX_CHARS : URI_MAX_CHARS;
-		return abbreviateKeepingTail(source.location(), maxChars);
-	}
-
 	private static CheckBox createSourceCheckBox(DataSource source, VBox sourceList) {
-		CheckBox checkBox = new CheckBox(formatDisplayLabel(source));
+		CheckBox checkBox = new CheckBox();
 		checkBox.setSelected(true);
-		checkBox.setWrapText(false);
-		checkBox.setTextOverrun(OverrunStyle.LEADING_ELLIPSIS);
 		checkBox.setMaxWidth(Double.MAX_VALUE);
 		checkBox.prefWidthProperty().bind(sourceList.widthProperty());
 		checkBox.getStyleClass().add(STYLE_CLASS_SOURCE_ITEM);
-		checkBox.setTooltip(new Tooltip(formatTooltipText(source)));
+		DataReloadDialogLabelSupport.applyCheckBoxDisplay(checkBox, sourceList,
+				DataReloadDialogLabelSupport.describeDataSource(source));
 		return checkBox;
-	}
-
-	private static String formatTooltipText(DataSource source) {
-		if (source == null) {
-			return "Unknown source";
-		}
-		if (source.type() == SourceType.FILE) {
-			return "File: " + source.location();
-		}
-		return "URI: " + source.location();
-	}
-
-	private static String abbreviateKeepingTail(String value, int maxChars) {
-		if (value == null || value.isBlank()) {
-			return "";
-		}
-		String normalized = value.trim();
-		if (normalized.length() <= maxChars) {
-			return normalized;
-		}
-		if (maxChars <= 3) {
-			return normalized.substring(normalized.length() - maxChars);
-		}
-		return "..." + normalized.substring(normalized.length() - (maxChars - 3));
 	}
 }

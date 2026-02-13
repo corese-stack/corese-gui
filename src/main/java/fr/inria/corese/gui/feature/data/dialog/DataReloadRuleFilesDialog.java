@@ -14,7 +14,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.VBox;
 
 /**
@@ -31,6 +30,7 @@ public final class DataReloadRuleFilesDialog {
 	private static final String STYLE_CLASS_INLINE_ERROR = "data-reload-dialog-inline-error";
 
 	private static final String DIALOG_TITLE = "Reload Rule Files";
+	private static final String DIALOG_SUBTITLE = "Select rule files to reapply.";
 	private static final String EMPTY_SELECTION_MESSAGE = "Select at least one rule file to reload.";
 	private static final int RULE_VIEWPORT_HEIGHT = 240;
 	private static final int RULE_MIN_VIEWPORT_HEIGHT = 120;
@@ -110,23 +110,21 @@ public final class DataReloadRuleFilesDialog {
 			onReloadRequested.accept(selectedRules);
 		});
 
-		DialogLayout dialog = new DialogLayout(DIALOG_TITLE, content, selectionErrorLabel, cancelButton, reloadButton);
+		DialogLayout dialog = new DialogLayout(DIALOG_TITLE, DIALOG_SUBTITLE, content, selectionErrorLabel,
+				cancelButton, reloadButton);
 		dialog.getStyleClass().add(STYLE_CLASS_DIALOG);
 		CssUtils.applyViewStyles(dialog, STYLESHEET);
 		ModalService.getInstance().show(dialog);
 	}
 
 	private static CheckBox createRuleCheckBox(RuleFileState rule, VBox ruleList) {
-		String label = (rule.label() == null || rule.label().isBlank()) ? "(unnamed rule file)" : rule.label();
-		CheckBox checkBox = new CheckBox(label);
+		CheckBox checkBox = new CheckBox();
 		checkBox.setSelected(rule.enabled());
-		checkBox.setWrapText(false);
 		checkBox.setMaxWidth(Double.MAX_VALUE);
 		checkBox.prefWidthProperty().bind(ruleList.widthProperty());
 		checkBox.getStyleClass().add(STYLE_CLASS_RULE_ITEM);
-		if (rule.sourcePath() != null && !rule.sourcePath().isBlank()) {
-			checkBox.setTooltip(new Tooltip(rule.sourcePath()));
-		}
+		DataReloadDialogLabelSupport.applyCheckBoxDisplay(checkBox, ruleList,
+				DataReloadDialogLabelSupport.describeRuleFile(rule));
 		return checkBox;
 	}
 }

@@ -24,6 +24,7 @@ public final class DataRulePreviewDialog {
 	private static final String STYLE_CLASS_CONTENT = "data-rule-preview-content";
 	private static final String STYLE_CLASS_PATH = "data-rule-preview-path";
 	private static final String STYLE_CLASS_EDITOR = "data-rule-preview-editor";
+	private static final String DIALOG_SUBTITLE = "Read-only source preview.";
 
 	private DataRulePreviewDialog() {
 		throw new AssertionError("Utility class");
@@ -66,7 +67,7 @@ public final class DataRulePreviewDialog {
 			ModalService.getInstance().hide();
 		});
 
-		DialogLayout dialog = new DialogLayout("Rule Preview - " + safeLabel, content, closeButton);
+		DialogLayout dialog = new DialogLayout("Rule Preview - " + safeLabel, DIALOG_SUBTITLE, content, closeButton);
 		dialog.getStyleClass().add(STYLE_CLASS_DIALOG);
 		CssUtils.applyViewStyles(dialog, STYLESHEET);
 		dialog.sceneProperty().addListener((observable, previousScene, currentScene) -> {

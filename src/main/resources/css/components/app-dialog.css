@@ -8,19 +8,70 @@
 .app-dialog {
     -fx-background-color: -color-bg-default;
     -fx-background-radius: 10;
+    -fx-border-color: -color-border-muted;
+    -fx-border-width: 1px;
+    -fx-border-radius: 10;
     -fx-min-width: 400px;
     -fx-max-width: 600px;
-    -fx-padding: 20;
-    -fx-spacing: 15;
+    -fx-padding: 0;
+    -fx-spacing: 0;
 }
 
 .app-dialog .dialog-header {
     -fx-alignment: center-left;
+    -fx-padding: 18px 20px 14px 20px;
+    -fx-spacing: 12px;
+    -fx-border-color: transparent transparent -color-border-muted transparent;
+    -fx-border-width: 0 0 1px 0;
+    -fx-background-color: -color-bg-default;
+    -fx-background-radius: 10 10 0 0;
+}
+
+.app-dialog .dialog-title-box {
+    -fx-spacing: 4px;
+}
+
+.app-dialog .dialog-title {
+    -fx-font-weight: 800;
+}
+
+.app-dialog .dialog-subtitle {
+    -fx-font-size: 12px;
+    -fx-text-fill: -color-fg-muted;
+    -fx-wrap-text: true;
+}
+
+.app-dialog .dialog-body {
+    -fx-padding: 16px 20px 10px 20px;
+    -fx-spacing: 10px;
+}
+
+.app-dialog .dialog-body.no-actions {
+    -fx-padding: 16px 20px 20px 20px;
 }
 
 .app-dialog .dialog-actions {
     -fx-alignment: center-right;
     -fx-spacing: 10;
+    -fx-padding: 14px 20px 18px 20px;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+}
+
+.app-dialog.compact .dialog-header {
+    -fx-padding: 14px 18px 10px 18px;
+}
+
+.app-dialog.compact .dialog-body {
+    -fx-padding: 12px 18px 6px 18px;
+}
+
+.app-dialog.compact .dialog-body.no-actions {
+    -fx-padding: 12px 18px 14px 18px;
+}
+
+.app-dialog.compact .dialog-actions {
+    -fx-padding: 10px 18px 14px 18px;
 }
 
 .app-dialog .dialog-message {
@@ -28,8 +79,8 @@
 }
 
 .app-dialog .dialog-impact {
-    -fx-spacing: 6px;
-    -fx-padding: 10px 12px;
+    -fx-spacing: 7px;
+    -fx-padding: 12px 14px;
     -fx-border-width: 1px;
     -fx-border-radius: 8px;
     -fx-background-radius: 8px;

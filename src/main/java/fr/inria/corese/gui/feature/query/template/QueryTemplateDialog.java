@@ -36,6 +36,7 @@ public final class QueryTemplateDialog {
 	private static final String STYLE_CLASS_PREVIEW = "query-template-preview";
 	private static final String STYLE_CLASS_INLINE_ROW = "query-template-inline-row";
 	private static final String STYLE_CLASS_SECTION_TITLE = "query-template-section-title";
+	private static final String DIALOG_SUBTITLE = "Generate a query template and review the preview before inserting.";
 
 	private static final int DEFAULT_LIMIT = 100;
 	private static final int DEFAULT_OFFSET = 0;
@@ -92,7 +93,7 @@ public final class QueryTemplateDialog {
 			ModalService.getInstance().hide();
 		});
 
-		DialogLayout dialog = new DialogLayout("Query Templates", content, cancelButton, okButton);
+		DialogLayout dialog = new DialogLayout("Query Templates", DIALOG_SUBTITLE, content, cancelButton, okButton);
 		dialog.getStyleClass().add(STYLE_CLASS_DIALOG);
 		CssUtils.applyViewStyles(dialog, STYLESHEET);
 		ModalService.getInstance().show(dialog);
