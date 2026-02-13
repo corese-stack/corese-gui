@@ -47,6 +47,7 @@ public class CodeEditorController {
 	private final CodeEditorView view;
 	private final CodeEditorModel model;
 	private final List<String> allowedExtensions;
+	private final CodeEditorModeDetector modeDetector;
 
 	/**
 	 * Creates a new CodeEditorController.
@@ -61,6 +62,7 @@ public class CodeEditorController {
 	 */
 	public CodeEditorController(List<ButtonConfig> buttons, String initialContent, List<String> allowedExtensions) {
 		this.allowedExtensions = FileTypeSupport.normalizeExtensions(allowedExtensions);
+		this.modeDetector = new CodeEditorModeDetector(this.allowedExtensions);
 		this.view = new CodeEditorView();
 		this.model = new CodeEditorModel();
 
@@ -160,199 +162,7 @@ public class CodeEditorController {
 	// ==============================================================================================
 
 	private void detectAndSetMode() {
-		SerializationFormat format = SerializationFormat.TEXT;
-		String path = model.getFilePath();
-		String content = model.getContent();
-
-		if (path != null) {
-			format = detectModeFromExtension(path);
-		} else if (content != null) {
-			format = detectModeFromContent(content);
-		}
-
-		view.getCodeMirrorView().setMode(format);
-	}
-
-	private SerializationFormat detectModeFromExtension(String path) {
-		if (path == null)
-			return SerializationFormat.TEXT;
-
-		String extension = FileTypeSupport.extractExtension(path);
-		if (extension == null) {
-			return SerializationFormat.TEXT;
-		}
-
-		// Use the Enum's built-in lookup
-		SerializationFormat format = SerializationFormat.forExtension(extension);
-
-		// Fallback if not found or restricted
-		if (format == null || !isModeAllowed(format)) {
-			return SerializationFormat.TEXT;
-		}
-
-		return format;
-	}
-
-	private SerializationFormat detectModeFromContent(String content) {
-		String lower = content.toLowerCase();
-		String trimmed = content.trim();
-
-		SerializationFormat format = detectXmlFormat(trimmed);
-		if (format != null && looksLikeXmlRuleDocument(lower, trimmed)) {
-			return format;
-		}
-
-		format = detectSparqlFormat(lower);
-		if (format != null) {
-			return format;
-		}
-
-		format = detectTurtleOrTrigFormat(trimmed, lower);
-		if (format != null) {
-			return format;
-		}
-
-		format = detectNTriplesOrQuadsFormat(trimmed);
-		if (format != null) {
-			return format;
-		}
-
-		format = detectJsonFormat(trimmed);
-		if (format != null) {
-			return format;
-		}
-
-		format = detectXmlFormat(trimmed);
-		return format != null ? format : SerializationFormat.TEXT;
-	}
-
-	private SerializationFormat detectSparqlFormat(String lower) {
-		if (!isModeAllowed(SerializationFormat.SPARQL_QUERY)) {
-			return null;
-		}
-
-		String normalized = " " + lower.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ') + " ";
-		boolean looksLikeSparql = normalized.contains(" select ") || normalized.contains(" construct ")
-				|| normalized.contains(" ask ") || normalized.contains(" describe ") || normalized.contains(" prefix ")
-				|| normalized.contains(" base ") || normalized.contains(" insert ") || normalized.contains(" delete ")
-				|| normalized.contains(" load ") || normalized.contains(" clear ") || normalized.contains(" create ")
-				|| normalized.contains(" drop ") || normalized.contains(" move ") || normalized.contains(" copy ")
-				|| normalized.contains(" add ") || normalized.contains(" with ") || normalized.contains(" using ");
-		return looksLikeSparql ? SerializationFormat.SPARQL_QUERY : null;
-	}
-
-	private SerializationFormat detectTurtleOrTrigFormat(String trimmed, String lower) {
-		if (!(isModeAllowed(SerializationFormat.TURTLE) || isModeAllowed(SerializationFormat.TRIG))) {
-			return null;
-		}
-		boolean looksLikeTurtle = lower.contains("@prefix") || lower.contains("@base") || lower.contains(" a ")
-				|| trimmed.endsWith(".");
-		if (!looksLikeTurtle) {
-			return null;
-		}
-		boolean trigLike = isModeAllowed(SerializationFormat.TRIG) && looksLikeTrig(trimmed, lower);
-		if (trigLike) {
-			return SerializationFormat.TRIG;
-		}
-		return isModeAllowed(SerializationFormat.TURTLE) ? SerializationFormat.TURTLE : SerializationFormat.TRIG;
-	}
-
-	private SerializationFormat detectNTriplesOrQuadsFormat(String trimmed) {
-		if (!(isModeAllowed(SerializationFormat.N_TRIPLES) || isModeAllowed(SerializationFormat.N_QUADS))) {
-			return null;
-		}
-		if (!looksLikeNTriplesOrQuads(trimmed)) {
-			return null;
-		}
-		return isModeAllowed(SerializationFormat.N_QUADS) ? SerializationFormat.N_QUADS : SerializationFormat.N_TRIPLES;
-	}
-
-	private SerializationFormat detectJsonFormat(String trimmed) {
-		if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) {
-			return null;
-		}
-		if (!(isModeAllowed(SerializationFormat.JSON_LD) || isModeAllowed(SerializationFormat.JSON))) {
-			return null;
-		}
-		if (isModeAllowed(SerializationFormat.JSON_LD) && looksLikeJsonLd(trimmed)) {
-			return SerializationFormat.JSON_LD;
-		}
-		if (isModeAllowed(SerializationFormat.JSON)) {
-			return SerializationFormat.JSON;
-		}
-		return SerializationFormat.JSON_LD;
-	}
-
-	private SerializationFormat detectXmlFormat(String trimmed) {
-		if (!trimmed.startsWith("<")) {
-			return null;
-		}
-		if (isModeAllowed(SerializationFormat.RDF_XML)) {
-			return SerializationFormat.RDF_XML;
-		}
-		if (isModeAllowed(SerializationFormat.XML)) {
-			return SerializationFormat.XML;
-		}
-		return null;
-	}
-
-	private boolean looksLikeXmlRuleDocument(String lower, String trimmed) {
-		if (trimmed.startsWith("<?xml")) {
-			return true;
-		}
-		return lower.startsWith("<rdf:rdf") || lower.startsWith("<rule") || lower.contains("<![cdata[")
-				|| (lower.contains("<rdf:rdf") && lower.contains("</rdf:rdf>"));
-	}
-
-	private boolean looksLikeJsonLd(String trimmed) {
-		String lower = trimmed.toLowerCase();
-		return lower.contains("\"@context\"") || lower.contains("\"@id\"") || lower.contains("\"@graph\"");
-	}
-
-	private boolean looksLikeTrig(String trimmed, String lower) {
-		if (trimmed.isEmpty()) {
-			return false;
-		}
-		return lower.contains("graph ") || (trimmed.contains("{") && trimmed.contains("}"));
-	}
-
-	private boolean looksLikeNTriplesOrQuads(String trimmed) {
-		if (trimmed.isEmpty()) {
-			return false;
-		}
-		String firstLine = trimmed.split("\n", 2)[0].trim();
-		if (firstLine.isEmpty()) {
-			return false;
-		}
-		boolean startsLikeTriple = firstLine.startsWith("<") || firstLine.startsWith("_:");
-		boolean endsWithDot = firstLine.endsWith(".");
-		return startsLikeTriple && endsWithDot && !firstLine.contains("{") && !firstLine.contains("}");
-	}
-
-	private boolean isModeAllowed(SerializationFormat format) {
-		// If no restriction, everything is allowed
-		if (allowedExtensions.isEmpty())
-			return true;
-		if (format == null)
-			return false;
-
-		// Check if the format's extension is in the allowed list
-		// Also consider related extensions (e.g. .ttl for TURTLE)
-		// For simplicity, we check if the format's primary extension is allowed
-		// Or if any of the allowed extensions map to this format
-
-		// Check main extension
-		if (allowedExtensions.contains(format.getExtension()))
-			return true;
-
-		// Check if any allowed extension maps to this format
-		for (String ext : allowedExtensions) {
-			SerializationFormat f = SerializationFormat.forExtension(ext);
-			if (f == format)
-				return true;
-		}
-
-		return false;
+		view.getCodeMirrorView().setMode(modeDetector.resolve(model.getFilePath(), model.getContent()));
 	}
 
 	// ==============================================================================================
@@ -624,7 +434,7 @@ public class CodeEditorController {
 		if (fromPath != null) {
 			return fromPath;
 		}
-		SerializationFormat fromContent = detectModeFromContent(model.getContent());
+		SerializationFormat fromContent = modeDetector.resolveFromContent(model.getContent());
 		if (fromContent != null && fromContent != SerializationFormat.TEXT) {
 			return fromContent;
 		}
@@ -694,7 +504,7 @@ public class CodeEditorController {
 	private String resolvePreferredSaveExtension() {
 		String fromPath = extractExtension(model.getFilePath());
 		if (fromPath == null || fromPath.isBlank()) {
-			SerializationFormat format = detectModeFromContent(model.getContent());
+			SerializationFormat format = modeDetector.resolveFromContent(model.getContent());
 			if (format != null) {
 				fromPath = format.getExtension();
 			}
