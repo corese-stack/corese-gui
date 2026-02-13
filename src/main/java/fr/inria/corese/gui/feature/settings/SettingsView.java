@@ -6,6 +6,7 @@ import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.utils.BrowserUtils;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.utils.fx.LogoShadowEffects;
+import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import fr.inria.corese.gui.utils.fx.SvgImageLoader;
 
 import atlantafx.base.controls.Tile;
@@ -40,6 +41,7 @@ public final class SettingsView extends AbstractView {
 	private static final String STYLESHEET_PATH = "/css/features/settings-view.css";
 	@SuppressWarnings("java:S1075")
 	private static final String COMMON_STYLESHEET_PATH = "/css/common/common.css";
+	private static final double SECTION_RADIUS = 8.0;
 	// ===== UI Components =====
 	private ToggleSwitch systemThemeSwitch;
 	private ComboBox<String> themeComboBox;
@@ -74,6 +76,7 @@ public final class SettingsView extends AbstractView {
 	private VBox createAppearanceSection() {
 		VBox section = new VBox();
 		section.getStyleClass().addAll("settings-section", "app-card", "app-card-subtle");
+		RoundedClipSupport.applyRoundedClip(section, SECTION_RADIUS);
 
 		Label sectionTitle = new Label("Appearance");
 		sectionTitle.getStyleClass().add(Styles.TITLE_3);
@@ -149,6 +152,7 @@ public final class SettingsView extends AbstractView {
 	private VBox createAboutSection() {
 		VBox section = new VBox();
 		section.getStyleClass().addAll("settings-section", "app-card", "app-card-subtle");
+		RoundedClipSupport.applyRoundedClip(section, SECTION_RADIUS);
 
 		Label sectionTitle = new Label("About");
 		sectionTitle.getStyleClass().add(Styles.TITLE_3);

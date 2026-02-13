@@ -10,6 +10,7 @@ import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.service.ModalService.UnsavedChangesResult;
+import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -44,6 +45,7 @@ import javafx.scene.layout.VBox;
 public class DialogLayout extends VBox {
 
 	private static final String STYLE_CLASS_COMPACT = "compact";
+	private static final double DIALOG_RADIUS = 10;
 
 	/**
 	 * Visual tone used by reusable dialog impact blocks.
@@ -105,6 +107,7 @@ public class DialogLayout extends VBox {
 			getStylesheets().add(STYLESHEET);
 		}
 		setMaxHeight(Region.USE_PREF_SIZE);
+		RoundedClipSupport.applyRoundedClip(this, DIALOG_RADIUS);
 
 		String safeTitle = (title == null || title.isBlank()) ? "Dialog" : title.trim();
 		String safeSubtitle = subtitle == null ? "" : subtitle.trim();

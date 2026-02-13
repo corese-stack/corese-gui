@@ -68,6 +68,7 @@ public class DataView extends AbstractView {
 	private static final String TOOLTIP_TITLE_SOURCES = "Sources";
 	private static final String TOOLTIP_TITLE_NAMED_GRAPHS = "Named Graphs";
 	private static final String TOOLTIP_TITLE_INFERRED = "Inferred";
+	private static final double CARD_RADIUS = 8.0;
 
 	private final GraphDisplayWidget graphWidget = new GraphDisplayWidget();
 	private final ToolbarWidget toolbarWidget = new ToolbarWidget();
@@ -128,6 +129,7 @@ public class DataView extends AbstractView {
 	private VBox createReasoningPane() {
 		VBox pane = new VBox(10);
 		pane.getStyleClass().addAll("data-left-pane", "app-card", "app-card-subtle");
+		RoundedClipSupport.applyRoundedClip(pane, CARD_RADIUS);
 
 		Label titleLabel = new Label("Reasoning");
 		titleLabel.getStyleClass().add("data-pane-title");
@@ -139,6 +141,7 @@ public class DataView extends AbstractView {
 				createBuiltInRuleRow("OWL RL Lite", owlRlLiteToggle, owlRlLiteViewButton),
 				createBuiltInRuleRow("OWL RL Ext", owlRlExtToggle, owlRlExtViewButton));
 		builtInRules.getStyleClass().addAll("data-rule-list", "app-card", "app-card-default");
+		RoundedClipSupport.applyRoundedClip(builtInRules, CARD_RADIUS);
 
 		VBox builtInCard = new VBox(8, builtInTitle, builtInRules);
 		builtInCard.getStyleClass().add(STYLE_CLASS_REASONING_SECTION);
@@ -155,6 +158,7 @@ public class DataView extends AbstractView {
 		VBox customRulesSurface = new VBox(ruleFilesContent, ruleFilesToolbar);
 		customRulesSurface.getStyleClass().addAll("data-custom-rules-surface", "app-card", "app-card-default");
 		customRulesSurface.setMaxHeight(Double.MAX_VALUE);
+		RoundedClipSupport.applyRoundedClip(customRulesSurface, CARD_RADIUS);
 		VBox.setVgrow(customRulesSurface, Priority.ALWAYS);
 
 		VBox customCard = new VBox(8, customHeader, customRulesSurface);
@@ -245,6 +249,7 @@ public class DataView extends AbstractView {
 
 		VBox graphCard = new VBox(graphBody, statusBar);
 		graphCard.getStyleClass().addAll("data-graph-card", "app-card", "app-card-default");
+		RoundedClipSupport.applyRoundedClip(graphCard, CARD_RADIUS);
 		VBox.setVgrow(graphBody, Priority.ALWAYS);
 
 		graphPane.setCenter(graphCard);

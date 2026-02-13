@@ -8,6 +8,7 @@ import fr.inria.corese.gui.component.tabstrip.TabStripController;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.theme.ThemeManager;
 import fr.inria.corese.gui.core.view.AbstractView;
+import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import java.io.File;
 import java.util.HashMap;
 import java.util.List;
@@ -75,6 +76,7 @@ public class TabEditorView extends AbstractView {
 	private static final String STYLE_CLASS_TAB_HEADER = "tab-header";
 	private static final String STYLE_CLASS_FILE_DROP_OVERLAY = "file-drop-overlay";
 	private static final String STYLE_CLASS_FILE_DROP_OVERLAY_ACTIVE = "file-drop-overlay-active";
+	private static final double WORKSPACE_RADIUS = 8.0;
 
 	// Result Pane Animation
 	private static final Duration SPLIT_ANIMATION_DURATION = Duration.millis(300);
@@ -176,6 +178,7 @@ public class TabEditorView extends AbstractView {
 
 		StackPane rootStack = (StackPane) getRoot();
 		rootStack.getChildren().add(mainContent);
+		RoundedClipSupport.applyRoundedClip(rootStack, WORKSPACE_RADIUS);
 
 		contentContainer.setId(TAB_CONTENT_WRAPPER_ID);
 		contentContainer.getChildren().add(fileDropOverlay);
