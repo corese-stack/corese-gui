@@ -1,0 +1,6 @@
+@prefix ex: <http://example.org/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+
+ex:ancestorOf a owl:TransitiveProperty .
+ex:alice ex:ancestorOf ex:bob .
+ex:bob ex:ancestorOf ex:carol .

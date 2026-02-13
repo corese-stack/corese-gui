@@ -1,0 +1,5 @@
+ui_label,reasoning_profile_enum,rule_engine_profile,built_in_source_path,toggle_action,view_action
+RDFS,RDFS,RDFS,/rule/rdfs.rul,Enable/disable built-in inference profile,Open read-only source preview (eye icon)
+OWL RL,OWL_RL,OWLRL,/rule/owlrl.rul,Enable/disable built-in inference profile,Open read-only source preview (eye icon)
+OWL RL Lite,OWL_RL_LITE,OWLRL_LITE,/rule/owlrllite.rul,Enable/disable built-in inference profile,Open read-only source preview (eye icon)
+OWL RL Ext,OWL_RL_EXT,OWLRL_EXT,/rule/owlrlext.rul,Enable/disable built-in inference profile,Open read-only source preview (eye icon)
