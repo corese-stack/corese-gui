@@ -155,7 +155,7 @@ public final class SettingsView extends AbstractView {
 		HBox linksBox = new HBox(10);
 		linksBox.setAlignment(Pos.CENTER_RIGHT);
 		linksBox.getChildren().addAll(createLinkButton("Website", AppConstants.WEBSITE_URL, ButtonIcon.LINK_WEBSITE),
-				createLinkButton("GitHub", AppConstants.GITHUB_URL, ButtonIcon.LINK_GITHUB),
+				createLinkButton("Repository", AppConstants.REPOSITORY_URL, ButtonIcon.LINK_REPOSITORY),
 				createLinkButton("Issues", AppConstants.ISSUES_URL, ButtonIcon.LINK_ISSUES),
 				createLinkButton("Forum", AppConstants.FORUM_URL, ButtonIcon.LINK_FORUM));
 

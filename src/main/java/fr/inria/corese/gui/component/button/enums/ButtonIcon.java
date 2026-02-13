@@ -165,8 +165,8 @@ public enum ButtonIcon {
 	/** Icon for website links. */
 	LINK_WEBSITE(MaterialDesignW.WEB),
 
-	/** Icon for GitHub links. */
-	LINK_GITHUB(MaterialDesignG.GITHUB),
+	/** Icon for source repository links (provider-agnostic). */
+	LINK_REPOSITORY(MaterialDesignF.FILE_CODE_OUTLINE),
 
 	/** Icon for issue tracker links. */
 	LINK_ISSUES(MaterialDesignA.ALERT_CIRCLE_OUTLINE),
