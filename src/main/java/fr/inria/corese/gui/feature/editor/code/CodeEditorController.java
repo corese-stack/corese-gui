@@ -6,7 +6,6 @@ import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-import fr.inria.corese.gui.core.io.DefaultFileNameResolver;
 import fr.inria.corese.gui.core.io.FileDialogState;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.service.ModalService;
@@ -190,7 +189,7 @@ public class CodeEditorController {
 		chooser.setTitle("Open File");
 		FileDialogState.applyInitialDirectory(chooser);
 
-		addOpenFilters(chooser);
+		CodeEditorFileSupport.addOpenFilters(chooser, allowedExtensions);
 
 		File file = chooser.showOpenDialog(view.getRoot().getScene().getWindow());
 		if (file != null) {
@@ -251,10 +250,13 @@ public class CodeEditorController {
 		FileChooser chooser = new FileChooser();
 		chooser.setTitle("Save File As");
 
-		chooser.setInitialFileName(resolveDefaultBaseName(false));
+		chooser.setInitialFileName(
+				CodeEditorFileSupport.resolveDefaultBaseName(model.getFilePath(), allowedExtensions, false));
 		FileDialogState.applyInitialDirectory(chooser, model.getFilePath());
-		addSaveFilters(chooser, true);
-		selectDefaultSaveFilter(chooser);
+		String preferredExtension = CodeEditorFileSupport.resolvePreferredSaveExtension(model.getFilePath(),
+				model.getContent(), allowedExtensions, modeDetector);
+		CodeEditorFileSupport.addSaveFilters(chooser, allowedExtensions, preferredExtension, true);
+		CodeEditorFileSupport.selectDefaultSaveFilter(chooser, preferredExtension);
 
 		File file = chooser.showSaveDialog(view.getRoot().getScene().getWindow());
 		if (file != null) {
@@ -311,17 +313,20 @@ public class CodeEditorController {
 			return;
 		}
 
-		if (isGraphEditor()) {
+		if (CodeEditorFileSupport.isGraphEditor(allowedExtensions)) {
 			exportGraphContent(content);
 			return;
 		}
 
 		FileChooser chooser = new FileChooser();
 		chooser.setTitle("Export File");
-		chooser.setInitialFileName(resolveDefaultBaseName(true));
+		chooser.setInitialFileName(
+				CodeEditorFileSupport.resolveDefaultBaseName(model.getFilePath(), allowedExtensions, true));
 		FileDialogState.applyInitialDirectory(chooser, model.getFilePath());
-		addSaveFilters(chooser, false);
-		selectDefaultSaveFilter(chooser);
+		String preferredExtension = CodeEditorFileSupport.resolvePreferredSaveExtension(model.getFilePath(),
+				model.getContent(), allowedExtensions, modeDetector);
+		CodeEditorFileSupport.addSaveFilters(chooser, allowedExtensions, preferredExtension, false);
+		CodeEditorFileSupport.selectDefaultSaveFilter(chooser, preferredExtension);
 
 		File file = chooser.showSaveDialog(view.getRoot().getScene().getWindow());
 		if (file != null) {
@@ -332,7 +337,7 @@ public class CodeEditorController {
 	}
 
 	private void exportGraphContent(String content) {
-		List<SerializationFormat> formats = getGraphExportFormats();
+		List<SerializationFormat> formats = CodeEditorFileSupport.graphExportFormats();
 		if (formats.isEmpty()) {
 			NotificationWidget.getInstance().showWarning("No export format is available.");
 			return;
@@ -343,7 +348,8 @@ public class CodeEditorController {
 			return;
 		}
 
-		SerializationFormat sourceFormat = resolveSourceGraphFormat();
+		SerializationFormat sourceFormat = CodeEditorFileSupport.resolveSourceGraphFormat(model.getFilePath(),
+				model.getContent(), modeDetector);
 		if (sourceFormat == null) {
 			ModalService.getInstance().showError("Export Error", "Unable to detect the source RDF format.");
 			return;
@@ -363,8 +369,10 @@ public class CodeEditorController {
 		FileChooser chooser = new FileChooser();
 		chooser.setTitle("Export Graph");
 
-		String preferredExt = resolvePreferredSaveExtension();
-		chooser.setInitialFileName(resolveDefaultBaseName(true));
+		String preferredExt = CodeEditorFileSupport.resolvePreferredSaveExtension(model.getFilePath(),
+				model.getContent(), allowedExtensions, modeDetector);
+		chooser.setInitialFileName(
+				CodeEditorFileSupport.resolveDefaultBaseName(model.getFilePath(), allowedExtensions, true));
 		FileDialogState.applyInitialDirectory(chooser, model.getFilePath());
 
 		Map<FileChooser.ExtensionFilter, SerializationFormat> filterMap = populateExportFilters(chooser, formats);
@@ -413,7 +421,7 @@ public class CodeEditorController {
 		if (targetFormat != null) {
 			return targetFormat;
 		}
-		targetFormat = SerializationFormat.forExtension(extractExtension(file.getName()));
+		targetFormat = SerializationFormat.forExtension(CodeEditorFileSupport.extractExtension(file.getName()));
 		return targetFormat != null ? targetFormat : formats.get(0);
 	}
 
@@ -427,149 +435,6 @@ public class CodeEditorController {
 	}
 
 	private record GraphExportSelection(File file, SerializationFormat format) {
-	}
-
-	private SerializationFormat resolveSourceGraphFormat() {
-		SerializationFormat fromPath = SerializationFormat.forExtension(extractExtension(model.getFilePath()));
-		if (fromPath != null) {
-			return fromPath;
-		}
-		SerializationFormat fromContent = modeDetector.resolveFromContent(model.getContent());
-		if (fromContent != null && fromContent != SerializationFormat.TEXT) {
-			return fromContent;
-		}
-		return SerializationFormat.TURTLE;
-	}
-
-	private List<SerializationFormat> getGraphExportFormats() {
-		return new ArrayList<>(List.of(SerializationFormat.rdfFormats()));
-	}
-
-	private void addOpenFilters(FileChooser chooser) {
-		List<String> allowed = getNormalizedAllowedExtensions();
-		if (allowed.isEmpty()) {
-			FileChooser.ExtensionFilter defaultFilter = FileTypeSupport.createExtensionFilter("RDF and SPARQL",
-					FileTypeSupport.defaultEditorOpenExtensions(), true);
-			chooser.getExtensionFilters().add(defaultFilter);
-			chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
-			chooser.setSelectedExtensionFilter(defaultFilter);
-			return;
-		}
-
-		FileChooser.ExtensionFilter allowedFilter = FileTypeSupport.createExtensionFilter("Allowed Files", allowed,
-				true);
-		chooser.getExtensionFilters().add(allowedFilter);
-		chooser.setSelectedExtensionFilter(allowedFilter);
-	}
-
-	private void addSaveFilters(FileChooser chooser, boolean restrictToCurrentFormat) {
-		List<String> allowed = getNormalizedAllowedExtensions();
-		String preferred = resolvePreferredSaveExtension();
-
-		if (restrictToCurrentFormat && preferred != null && !preferred.equals(".txt")
-				&& (allowed.isEmpty() || allowed.contains(preferred))) {
-			String label = formatLabelForExtension(preferred);
-			chooser.getExtensionFilters()
-					.add(new FileChooser.ExtensionFilter(label + " (*" + preferred + ")", "*" + preferred));
-			return;
-		}
-
-		if (allowed.isEmpty()) {
-			addDefaultSaveFilters(chooser);
-			return;
-		}
-
-		for (String ext : allowed) {
-			String label = formatLabelForExtension(ext);
-			chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(label + " (*" + ext + ")", "*" + ext));
-		}
-	}
-
-	private void selectDefaultSaveFilter(FileChooser chooser) {
-		if (chooser.getExtensionFilters().isEmpty()) {
-			return;
-		}
-		String preferred = resolvePreferredSaveExtension();
-		if (preferred != null) {
-			for (FileChooser.ExtensionFilter filter : chooser.getExtensionFilters()) {
-				if (filter.getExtensions().contains("*" + preferred)) {
-					chooser.setSelectedExtensionFilter(filter);
-					return;
-				}
-			}
-		}
-		chooser.setSelectedExtensionFilter(chooser.getExtensionFilters().get(0));
-	}
-
-	private String resolvePreferredSaveExtension() {
-		String fromPath = extractExtension(model.getFilePath());
-		if (fromPath == null || fromPath.isBlank()) {
-			SerializationFormat format = modeDetector.resolveFromContent(model.getContent());
-			if (format != null) {
-				fromPath = format.getExtension();
-			}
-		}
-
-		List<String> allowed = getNormalizedAllowedExtensions();
-		if (!allowed.isEmpty() && (fromPath == null || !allowed.contains(fromPath))) {
-			return allowed.get(0);
-		}
-
-		return fromPath != null ? fromPath : ".txt";
-	}
-
-	private void addDefaultSaveFilters(FileChooser chooser) {
-		addSaveFilter(chooser, SerializationFormat.TURTLE.getLabel(), SerializationFormat.TURTLE.getExtension());
-		for (String extension : FileTypeSupport.queryExtensions()) {
-			addSaveFilter(chooser, SerializationFormat.SPARQL_QUERY.getLabel(), extension);
-		}
-		addSaveFilter(chooser, SerializationFormat.RDF_XML.getLabel(), SerializationFormat.RDF_XML.getExtension());
-		addSaveFilter(chooser, SerializationFormat.JSON_LD.getLabel(), SerializationFormat.JSON_LD.getExtension());
-		chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
-	}
-
-	private void addSaveFilter(FileChooser chooser, String label, String extension) {
-		String normalizedExtension = FileTypeSupport.normalizeExtension(extension);
-		if (normalizedExtension == null) {
-			return;
-		}
-		chooser.getExtensionFilters().add(
-				new FileChooser.ExtensionFilter(label + " (*" + normalizedExtension + ")", "*" + normalizedExtension));
-	}
-
-	private String resolveDefaultBaseName(boolean forExport) {
-		return DefaultFileNameResolver.editorBaseName(model.getFilePath(), allowedExtensions, forExport);
-	}
-
-	private String extractExtension(String path) {
-		return FileTypeSupport.extractExtension(path);
-	}
-
-	private String formatLabelForExtension(String extension) {
-		SerializationFormat format = SerializationFormat.forExtension(extension);
-		if (format != null) {
-			return format.getLabel();
-		}
-		String ext = extension.startsWith(".") ? extension.substring(1) : extension;
-		return ext.toUpperCase();
-	}
-
-	private boolean isGraphEditor() {
-		List<String> allowed = getNormalizedAllowedExtensions();
-		if (allowed.isEmpty()) {
-			return false;
-		}
-		for (String ext : allowed) {
-			SerializationFormat format = SerializationFormat.forExtension(ext);
-			if (format != null && format != SerializationFormat.SPARQL_QUERY && format != SerializationFormat.TEXT) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	private List<String> getNormalizedAllowedExtensions() {
-		return allowedExtensions;
 	}
 
 	private void undo() {
