@@ -10,6 +10,7 @@ import fr.inria.corese.gui.core.io.FileDialogState;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.service.RdfConversionService;
+import fr.inria.corese.gui.feature.editor.code.support.CodeEditorFileSupport;
 import fr.inria.corese.gui.utils.AppExecutors;
 import java.io.File;
 import java.io.IOException;

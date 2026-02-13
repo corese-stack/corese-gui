@@ -1,6 +1,7 @@
-package fr.inria.corese.gui.feature.editor.tab;
+package fr.inria.corese.gui.feature.editor.tab.support;
 
 import fr.inria.corese.gui.core.io.FileTypeSupport;
+import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,15 +14,15 @@ import java.util.List;
  * declared in {@link TabEditorConfig}. It keeps controller logic focused on
  * orchestration while centralizing extension normalization and matching rules.
  */
-final class TabEditorDropFilePolicy {
+public final class TabEditorDropFilePolicy {
 
 	private final List<String> normalizedAllowedExtensions;
 
-	TabEditorDropFilePolicy(List<String> allowedExtensions) {
+	public TabEditorDropFilePolicy(List<String> allowedExtensions) {
 		this.normalizedAllowedExtensions = FileTypeSupport.normalizeExtensions(allowedExtensions);
 	}
 
-	DropEvaluation evaluate(List<File> droppedFiles) {
+	public DropEvaluation evaluate(List<File> droppedFiles) {
 		if (droppedFiles == null || droppedFiles.isEmpty()) {
 			return new DropEvaluation(List.of(), 0);
 		}
@@ -41,11 +42,11 @@ final class TabEditorDropFilePolicy {
 		return new DropEvaluation(List.copyOf(acceptedFiles), unsupportedFiles);
 	}
 
-	boolean hasRestrictions() {
+	public boolean hasRestrictions() {
 		return !normalizedAllowedExtensions.isEmpty();
 	}
 
-	String describeAllowedExtensions() {
+	public String describeAllowedExtensions() {
 		if (normalizedAllowedExtensions.isEmpty()) {
 			return "Expected extensions are configured for this editor.";
 		}
@@ -56,6 +57,6 @@ final class TabEditorDropFilePolicy {
 		return FileTypeSupport.matchesAllowedExtensions(file, normalizedAllowedExtensions);
 	}
 
-	record DropEvaluation(List<File> acceptedFiles, int unsupportedFiles) {
+	public record DropEvaluation(List<File> acceptedFiles, int unsupportedFiles) {
 	}
 }

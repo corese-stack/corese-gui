@@ -1,14 +1,19 @@
 package fr.inria.corese.gui.feature.editor.tab;
 
 import fr.inria.corese.gui.component.button.FloatingButtonWidget;
-import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.io.ImportHelper;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
+import fr.inria.corese.gui.feature.editor.tab.support.TabEditorDropFilePolicy;
+import fr.inria.corese.gui.feature.editor.tab.support.TabEditorFileMatcher;
+import fr.inria.corese.gui.feature.editor.tab.support.TabEditorDropNotificationSupport;
+import fr.inria.corese.gui.feature.editor.tab.support.TabEditorTitleAllocator;
 import fr.inria.corese.gui.feature.result.ResultController;
 import java.io.File;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -50,8 +55,6 @@ public class TabEditorController {
 
 	private static final String DEFAULT_TAB_TITLE = "untitled";
 	private static final String DEFAULT_TAB_LABEL = "Untitled";
-	private static final String DROP_WARNING_NONE_ACCEPTED_TEMPLATE = "No compatible files were dropped. %s";
-	private static final String DROP_WARNING_IGNORED_TEMPLATE = "Ignored %s. %s";
 	private static final Logger LOGGER = LoggerFactory.getLogger(TabEditorController.class);
 
 	// ===============================================================================
@@ -180,24 +183,7 @@ public class TabEditorController {
 		for (File file : evaluation.acceptedFiles()) {
 			openFile(file);
 		}
-
-		if (evaluation.unsupportedFiles() <= 0 || !dropFilePolicy.hasRestrictions()) {
-			return;
-		}
-		String hint = dropFilePolicy.describeAllowedExtensions();
-		if (evaluation.acceptedFiles().isEmpty()) {
-			NotificationWidget.getInstance().showWarning(String.format(DROP_WARNING_NONE_ACCEPTED_TEMPLATE, hint));
-			return;
-		}
-		NotificationWidget.getInstance().showWarning(String.format(DROP_WARNING_IGNORED_TEMPLATE,
-				countLabel(evaluation.unsupportedFiles(), "dropped file"), hint));
-	}
-
-	private static String countLabel(int count, String noun) {
-		if (count == 1) {
-			return "1 " + noun;
-		}
-		return count + " " + noun + "s";
+		TabEditorDropNotificationSupport.notifyWarnings(dropFilePolicy, evaluation);
 	}
 
 	@SuppressWarnings("deprecation")
@@ -241,27 +227,29 @@ public class TabEditorController {
 	 * @return The created Tab
 	 */
 	public Tab createNewTab(String title, String content) {
-		String effectiveTitle = resolveNewTabTitle(title);
+		String requestedTitle = title == null ? DEFAULT_TAB_TITLE : title;
+		String requestedContent = content == null ? "" : content;
+		String effectiveTitle = resolveNewTabTitle(requestedTitle);
 		// Use preloaded tab if available and parameters match default empty tab
-		if (preloadedTab != null && title.equals(DEFAULT_TAB_TITLE) && content.isEmpty()) {
+		if (preloadedTab != null && DEFAULT_TAB_TITLE.equals(requestedTitle) && requestedContent.isEmpty()) {
 			Tab tab = preloadedTab;
 			preloadedTab = null; // Clear after use - only first tab is preloaded
-			TabContext context = TabContext.get(tab);
+			TabContext context = getTabContext(tab);
 			if (context != null) {
 				context.getEditorController().getModel().setDisplayNameOverride(effectiveTitle);
 			}
 			view.addNewEditorTab(tab);
 			return tab;
 		}
-		return createTabWithContext(effectiveTitle, content, null);
+		return createTabWithContext(effectiveTitle, requestedContent, null);
 	}
 
 	private String resolveNewTabTitle(String requestedTitle) {
 		return titleAllocator.resolveTitle(requestedTitle, getExistingTabTitles());
 	}
 
-	private java.util.Set<String> getExistingTabTitles() {
-		java.util.Set<String> titles = new java.util.HashSet<>();
+	private Set<String> getExistingTabTitles() {
+		Set<String> titles = new HashSet<>();
 		for (Tab tab : view.getTabs()) {
 			String text = tab.getText();
 			if (text != null && !text.isBlank()) {
@@ -283,6 +271,9 @@ public class TabEditorController {
 	 * @return The created or existing Tab
 	 */
 	public Tab openFile(File file) {
+		if (file == null) {
+			return null;
+		}
 		// Check if already open
 		Tab existingTab = findTabByFile(file);
 		if (existingTab != null) {
@@ -315,7 +306,7 @@ public class TabEditorController {
 			return;
 		}
 
-		TabContext context = TabContext.get(tab);
+		TabContext context = getTabContext(tab);
 		if (context == null || !context.getEditorController().getModel().isModified()) {
 			closeTabImmediately(tab);
 			return;
@@ -348,7 +339,7 @@ public class TabEditorController {
 	public void showResultPane() {
 		Tab selectedTab = view.getSelectedTab();
 		if (selectedTab != null) {
-			TabContext context = TabContext.get(selectedTab);
+			TabContext context = getTabContext(selectedTab);
 			if (context != null && context.hasResultController()) {
 				view.showResultPane(context.getResultController().getViewRoot());
 			}
@@ -373,7 +364,7 @@ public class TabEditorController {
 	public void setExecutionState(boolean loading) {
 		Tab selectedTab = view.getSelectedTab();
 		if (selectedTab != null) {
-			TabContext context = TabContext.get(selectedTab);
+			TabContext context = getTabContext(selectedTab);
 			if (context != null) {
 				context.executionRunningProperty().set(loading);
 			}
@@ -415,22 +406,22 @@ public class TabEditorController {
 
 	public ResultController getCurrentResultController() {
 		Tab selectedTab = view.getSelectedTab();
-		TabContext context = TabContext.get(selectedTab);
+		TabContext context = getTabContext(selectedTab);
 		return context != null ? context.getResultController() : null;
 	}
 
 	public CodeEditorController getEditorControllerForTab(Tab tab) {
-		TabContext context = TabContext.get(tab);
+		TabContext context = getTabContext(tab);
 		return context != null ? context.getEditorController() : null;
 	}
 
 	public String getEditorContent(Tab tab) {
-		TabContext context = TabContext.get(tab);
+		TabContext context = getTabContext(tab);
 		return context != null ? context.getEditorController().getContent() : null;
 	}
 
 	public String getFilePathForTab(Tab tab) {
-		TabContext context = TabContext.get(tab);
+		TabContext context = getTabContext(tab);
 		return context != null ? context.getEditorController().getModel().getFilePath() : null;
 	}
 
@@ -684,21 +675,21 @@ public class TabEditorController {
 	}
 
 	private void lockTabUI(Tab tab) {
-		TabContext context = TabContext.get(tab);
+		TabContext context = getTabContext(tab);
 		if (context != null) {
 			context.getEditorController().setDisable(true);
 		}
 	}
 
 	private void unlockTabUI(Tab tab) {
-		TabContext context = TabContext.get(tab);
+		TabContext context = getTabContext(tab);
 		if (context != null) {
 			context.getEditorController().setDisable(false);
 		}
 	}
 
 	private void updateTabContent(Tab tab, String content) {
-		TabContext context = TabContext.get(tab);
+		TabContext context = getTabContext(tab);
 		if (context != null) {
 			CodeEditorController editor = context.getEditorController();
 			editor.getModel().setContent(content);
@@ -733,7 +724,7 @@ public class TabEditorController {
 		}
 
 		// Get context before clearing
-		TabContext context = TabContext.get(tab);
+		TabContext context = getTabContext(tab);
 
 		// Unbind to prevent memory leaks
 		tab.textProperty().unbind();
@@ -753,6 +744,10 @@ public class TabEditorController {
 
 	private Tab findTabByFile(File file) {
 		return TabEditorFileMatcher.findOpenTabByFile(view.getTabs(), this::getFilePathForTab, file);
+	}
+
+	private static TabContext getTabContext(Tab tab) {
+		return tab == null ? null : TabContext.get(tab);
 	}
 
 	// ===============================================================================

@@ -7,15 +7,15 @@ import java.util.List;
 /**
  * Resolves the editor syntax mode from a file path or raw content.
  */
-final class CodeEditorModeDetector {
+public final class CodeEditorModeDetector {
 
 	private final List<String> allowedExtensions;
 
-	CodeEditorModeDetector(List<String> allowedExtensions) {
+	public CodeEditorModeDetector(List<String> allowedExtensions) {
 		this.allowedExtensions = allowedExtensions == null ? List.of() : List.copyOf(allowedExtensions);
 	}
 
-	SerializationFormat resolve(String filePath, String content) {
+	public SerializationFormat resolve(String filePath, String content) {
 		if (filePath != null) {
 			return resolveFromExtension(filePath);
 		}
@@ -25,7 +25,7 @@ final class CodeEditorModeDetector {
 		return SerializationFormat.TEXT;
 	}
 
-	SerializationFormat resolveFromExtension(String path) {
+	public SerializationFormat resolveFromExtension(String path) {
 		if (path == null) {
 			return SerializationFormat.TEXT;
 		}
@@ -40,7 +40,7 @@ final class CodeEditorModeDetector {
 		return format;
 	}
 
-	SerializationFormat resolveFromContent(String content) {
+	public SerializationFormat resolveFromContent(String content) {
 		if (content == null || content.isBlank()) {
 			return SerializationFormat.TEXT;
 		}

@@ -1,8 +1,9 @@
-package fr.inria.corese.gui.feature.editor.code;
+package fr.inria.corese.gui.feature.editor.code.support;
 
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.io.DefaultFileNameResolver;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
+import fr.inria.corese.gui.feature.editor.code.CodeEditorModeDetector;
 import java.util.ArrayList;
 import java.util.List;
 import javafx.stage.FileChooser;
@@ -10,13 +11,13 @@ import javafx.stage.FileChooser;
 /**
  * Shared helpers for file extension rules and chooser setup in code editors.
  */
-final class CodeEditorFileSupport {
+public final class CodeEditorFileSupport {
 
 	private CodeEditorFileSupport() {
 		throw new AssertionError("Utility class");
 	}
 
-	static void addOpenFilters(FileChooser chooser, List<String> allowedExtensions) {
+	public static void addOpenFilters(FileChooser chooser, List<String> allowedExtensions) {
 		List<String> safeAllowedExtensions = normalizeAllowedExtensions(allowedExtensions);
 		if (safeAllowedExtensions.isEmpty()) {
 			FileChooser.ExtensionFilter defaultFilter = FileTypeSupport.createExtensionFilter("RDF and SPARQL",
@@ -33,7 +34,7 @@ final class CodeEditorFileSupport {
 		chooser.setSelectedExtensionFilter(allowedFilter);
 	}
 
-	static void addSaveFilters(FileChooser chooser, List<String> allowedExtensions, String preferredExtension,
+	public static void addSaveFilters(FileChooser chooser, List<String> allowedExtensions, String preferredExtension,
 			boolean restrictToCurrentFormat) {
 		List<String> safeAllowedExtensions = normalizeAllowedExtensions(allowedExtensions);
 		String safePreferredExtension = preferredExtension == null ? null : preferredExtension.trim().toLowerCase();
@@ -58,7 +59,7 @@ final class CodeEditorFileSupport {
 		}
 	}
 
-	static void selectDefaultSaveFilter(FileChooser chooser, String preferredExtension) {
+	public static void selectDefaultSaveFilter(FileChooser chooser, String preferredExtension) {
 		if (chooser.getExtensionFilters().isEmpty()) {
 			return;
 		}
@@ -74,7 +75,7 @@ final class CodeEditorFileSupport {
 		chooser.setSelectedExtensionFilter(chooser.getExtensionFilters().get(0));
 	}
 
-	static String resolvePreferredSaveExtension(String filePath, String content, List<String> allowedExtensions,
+	public static String resolvePreferredSaveExtension(String filePath, String content, List<String> allowedExtensions,
 			CodeEditorModeDetector modeDetector) {
 		String detectedExtension = extractExtension(filePath);
 		if (detectedExtension == null || detectedExtension.isBlank()) {
@@ -93,12 +94,12 @@ final class CodeEditorFileSupport {
 		return detectedExtension != null ? detectedExtension : ".txt";
 	}
 
-	static String resolveDefaultBaseName(String filePath, List<String> allowedExtensions, boolean forExport) {
+	public static String resolveDefaultBaseName(String filePath, List<String> allowedExtensions, boolean forExport) {
 		return DefaultFileNameResolver.editorBaseName(filePath, normalizeAllowedExtensions(allowedExtensions),
 				forExport);
 	}
 
-	static SerializationFormat resolveSourceGraphFormat(String filePath, String content,
+	public static SerializationFormat resolveSourceGraphFormat(String filePath, String content,
 			CodeEditorModeDetector detector) {
 		SerializationFormat fromPath = SerializationFormat.forExtension(extractExtension(filePath));
 		if (fromPath != null) {
@@ -111,11 +112,11 @@ final class CodeEditorFileSupport {
 		return SerializationFormat.TURTLE;
 	}
 
-	static List<SerializationFormat> graphExportFormats() {
+	public static List<SerializationFormat> graphExportFormats() {
 		return new ArrayList<>(List.of(SerializationFormat.rdfFormats()));
 	}
 
-	static boolean isGraphEditor(List<String> allowedExtensions) {
+	public static boolean isGraphEditor(List<String> allowedExtensions) {
 		List<String> safeAllowedExtensions = normalizeAllowedExtensions(allowedExtensions);
 		if (safeAllowedExtensions.isEmpty()) {
 			return false;
@@ -129,11 +130,11 @@ final class CodeEditorFileSupport {
 		return false;
 	}
 
-	static String extractExtension(String path) {
+	public static String extractExtension(String path) {
 		return FileTypeSupport.extractExtension(path);
 	}
 
-	static String formatLabelForExtension(String extension) {
+	public static String formatLabelForExtension(String extension) {
 		SerializationFormat format = SerializationFormat.forExtension(extension);
 		if (format != null) {
 			return format.getLabel();

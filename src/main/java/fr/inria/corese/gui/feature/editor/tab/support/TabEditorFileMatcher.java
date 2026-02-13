@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.feature.editor.tab;
+package fr.inria.corese.gui.feature.editor.tab.support;
 
 import java.io.File;
 import java.io.IOException;
@@ -10,13 +10,13 @@ import javafx.scene.control.Tab;
 /**
  * File matching helpers for tab-based editors.
  */
-final class TabEditorFileMatcher {
+public final class TabEditorFileMatcher {
 
 	private TabEditorFileMatcher() {
 		throw new AssertionError("Utility class");
 	}
 
-	static Tab findOpenTabByFile(List<Tab> tabs, Function<Tab, String> filePathResolver, File file) {
+	public static Tab findOpenTabByFile(List<Tab> tabs, Function<Tab, String> filePathResolver, File file) {
 		if (tabs == null || filePathResolver == null || file == null) {
 			return null;
 		}

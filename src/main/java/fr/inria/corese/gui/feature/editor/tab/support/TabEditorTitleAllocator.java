@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.feature.editor.tab;
+package fr.inria.corese.gui.feature.editor.tab.support;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -7,18 +7,18 @@ import java.util.Set;
 /**
  * Allocates unique tab titles for editor tabs.
  */
-final class TabEditorTitleAllocator {
+public final class TabEditorTitleAllocator {
 
 	private final String defaultRawTitle;
 	private final String defaultVisibleTitlePrefix;
 	private int untitledCounter;
 
-	TabEditorTitleAllocator(String defaultRawTitle, String defaultVisibleTitlePrefix) {
+	public TabEditorTitleAllocator(String defaultRawTitle, String defaultVisibleTitlePrefix) {
 		this.defaultRawTitle = defaultRawTitle;
 		this.defaultVisibleTitlePrefix = defaultVisibleTitlePrefix;
 	}
 
-	String resolveTitle(String requestedTitle, Collection<String> existingTitles) {
+	public String resolveTitle(String requestedTitle, Collection<String> existingTitles) {
 		Set<String> safeTitles = normalizeTitles(existingTitles);
 		if (defaultRawTitle.equals(requestedTitle)) {
 			return nextUntitledTitle(safeTitles);
