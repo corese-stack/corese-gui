@@ -180,6 +180,9 @@ public enum ButtonIcon {
 	/** Icon for template action buttons in empty states (colored buttons). */
 	EMPTY_ACTION_TEMPLATE(MaterialDesignF.FILE_DOCUMENT_MULTIPLE),
 
+	/** Icon for read-only view/preview actions. */
+	VIEW(MaterialDesignE.EYE_OUTLINE),
+
 	/** Icon for informational notifications. */
 	NOTIFICATION_INFO(MaterialDesignI.INFORMATION_OUTLINE),
 

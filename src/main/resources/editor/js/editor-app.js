@@ -255,7 +255,7 @@ globalThis.setMode = function (modeName) {
         case "rdf":
         case "owl":
             mime = "application/xml";
-            displayName = "XML/RDF";
+            displayName = "RDF/XML";
             break;
             
         case "json":

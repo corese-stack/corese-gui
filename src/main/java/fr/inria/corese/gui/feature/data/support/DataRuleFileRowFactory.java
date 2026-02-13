@@ -43,7 +43,7 @@ public final class DataRuleFileRowFactory {
 				(observable, previous, selected) -> onToggle.accept(rule.id(), Boolean.TRUE.equals(selected)));
 
 		MenuItem reloadItem = createRuleMenuItem("Reload", ButtonIcon.RELOAD, () -> onReload.accept(rule.id()));
-		MenuItem viewItem = createRuleMenuItem("View", ButtonIcon.TEMPLATE, () -> onView.accept(rule.id()));
+		MenuItem viewItem = createRuleMenuItem("View", ButtonIcon.VIEW, () -> onView.accept(rule.id()));
 		MenuItem removeItem = createRuleMenuItem("Remove", ButtonIcon.CLEAR, () -> onRemove.accept(rule.id()));
 
 		ContextMenu actionMenu = new ContextMenu(reloadItem, viewItem, removeItem);

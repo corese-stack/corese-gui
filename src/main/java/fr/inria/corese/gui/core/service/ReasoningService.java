@@ -28,6 +28,19 @@ public interface ReasoningService {
 	}
 
 	/**
+	 * Immutable descriptor for one built-in profile source file.
+	 *
+	 * @param label
+	 *            profile display label
+	 * @param sourcePath
+	 *            classpath location of the built-in source
+	 * @param sourceContent
+	 *            textual source content
+	 */
+	record BuiltInProfileSource(String label, String sourcePath, String sourceContent) {
+	}
+
+	/**
 	 * Enables/disables one reasoning profile and refreshes managed inferences.
 	 *
 	 * @param profile
@@ -52,6 +65,15 @@ public interface ReasoningService {
 	 * @return immutable state map
 	 */
 	Map<ReasoningProfile, Boolean> snapshotStates();
+
+	/**
+	 * Returns the built-in rule source associated with a profile.
+	 *
+	 * @param profile
+	 *            profile to inspect
+	 * @return source descriptor
+	 */
+	BuiltInProfileSource getBuiltInProfileSource(ReasoningProfile profile);
 
 	/**
 	 * Returns whether at least one reasoning profile or rule file is enabled.

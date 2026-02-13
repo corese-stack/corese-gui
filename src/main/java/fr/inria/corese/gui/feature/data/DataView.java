@@ -9,6 +9,7 @@ import fr.inria.corese.gui.component.graph.GraphDisplayWidget;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.service.DataWorkspaceStatus;
+import fr.inria.corese.gui.core.service.ReasoningProfile;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.feature.data.model.DataRuleFileItem;
@@ -23,6 +24,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
@@ -33,6 +35,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 /**
  * Main view for the Data page.
@@ -75,6 +78,10 @@ public class DataView extends AbstractView {
 	private final ToggleSwitch owlRlToggle = new ToggleSwitch();
 	private final ToggleSwitch owlRlLiteToggle = new ToggleSwitch();
 	private final ToggleSwitch owlRlExtToggle = new ToggleSwitch();
+	private final Button rdfsViewButton = createBuiltInRuleViewButton("View RDFS profile rule file");
+	private final Button owlRlViewButton = createBuiltInRuleViewButton("View OWL RL profile rule file");
+	private final Button owlRlLiteViewButton = createBuiltInRuleViewButton("View OWL RL Lite profile rule file");
+	private final Button owlRlExtViewButton = createBuiltInRuleViewButton("View OWL RL Ext profile rule file");
 	private final VBox ruleFilesList = new VBox(8);
 	private final ScrollPane ruleFilesScrollPane = new ScrollPane(ruleFilesList);
 	private final StackPane ruleFilesContent = new StackPane();
@@ -127,9 +134,10 @@ public class DataView extends AbstractView {
 
 		Label builtInTitle = new Label("Built-in Profiles");
 		builtInTitle.getStyleClass().add("data-section-title");
-		VBox builtInRules = new VBox(8, createBuiltInRuleRow("RDFS", rdfsToggle),
-				createBuiltInRuleRow("OWL RL", owlRlToggle), createBuiltInRuleRow("OWL RL Lite", owlRlLiteToggle),
-				createBuiltInRuleRow("OWL RL Ext", owlRlExtToggle));
+		VBox builtInRules = new VBox(8, createBuiltInRuleRow("RDFS", rdfsToggle, rdfsViewButton),
+				createBuiltInRuleRow("OWL RL", owlRlToggle, owlRlViewButton),
+				createBuiltInRuleRow("OWL RL Lite", owlRlLiteToggle, owlRlLiteViewButton),
+				createBuiltInRuleRow("OWL RL Ext", owlRlExtToggle, owlRlExtViewButton));
 		builtInRules.getStyleClass().add("data-rule-list");
 
 		VBox builtInCard = new VBox(8, builtInTitle, builtInRules);
@@ -158,7 +166,21 @@ public class DataView extends AbstractView {
 		return pane;
 	}
 
-	private HBox createBuiltInRuleRow(String labelText, ToggleSwitch toggle) {
+	private static Button createBuiltInRuleViewButton(String tooltipText) {
+		FontIcon icon = new FontIcon(ButtonIcon.VIEW.getIkon());
+		icon.getStyleClass().add("data-custom-rule-menu-button-icon");
+		icon.setIconSize(16);
+
+		Button button = new Button();
+		button.setGraphic(icon);
+		button.getStyleClass().addAll(Styles.BUTTON_OUTLINED, "data-custom-rule-menu-button");
+		button.setFocusTraversable(false);
+		button.setDisable(true);
+		button.setTooltip(new Tooltip(tooltipText));
+		return button;
+	}
+
+	private HBox createBuiltInRuleRow(String labelText, ToggleSwitch toggle, Button viewButton) {
 		Label label = new Label(labelText);
 		label.getStyleClass().add("data-rule-toggle-label");
 
@@ -168,7 +190,7 @@ public class DataView extends AbstractView {
 		Region spacer = new Region();
 		HBox.setHgrow(spacer, Priority.ALWAYS);
 
-		HBox row = new HBox(8, label, spacer, toggle);
+		HBox row = new HBox(8, label, spacer, viewButton, toggle);
 		row.getStyleClass().add("data-rule-row");
 		row.setAlignment(Pos.CENTER_LEFT);
 		return row;
@@ -620,6 +642,30 @@ public class DataView extends AbstractView {
 	 */
 	public List<ToggleSwitch> getBuiltInRuleToggles() {
 		return List.of(rdfsToggle, owlRlToggle, owlRlLiteToggle, owlRlExtToggle);
+	}
+
+	/**
+	 * Sets the view action for one built-in profile source.
+	 *
+	 * @param profile
+	 *            target built-in profile
+	 * @param action
+	 *            action to run on click
+	 */
+	public void setBuiltInRuleViewAction(ReasoningProfile profile, Runnable action) {
+		Button targetButton = switch (profile) {
+			case RDFS -> rdfsViewButton;
+			case OWL_RL -> owlRlViewButton;
+			case OWL_RL_LITE -> owlRlLiteViewButton;
+			case OWL_RL_EXT -> owlRlExtViewButton;
+		};
+		if (action == null) {
+			targetButton.setOnAction(null);
+			targetButton.setDisable(true);
+			return;
+		}
+		targetButton.setOnAction(event -> action.run());
+		targetButton.setDisable(false);
 	}
 
 	/**

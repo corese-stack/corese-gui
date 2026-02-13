@@ -9,6 +9,7 @@ import fr.inria.corese.core.rule.RuleEngine;
 import fr.inria.corese.core.sparql.api.IDatatype;
 import fr.inria.corese.core.sparql.datatype.DatatypeMap;
 import java.io.File;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -34,6 +35,7 @@ public final class DefaultReasoningService implements ReasoningService {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DefaultReasoningService.class);
 	private static final DefaultReasoningService INSTANCE = new DefaultReasoningService();
 	private static final String RULE_FILE_GRAPH_PREFIX = "urn:corese:inference:custom:";
+	private static final EnumMap<ReasoningProfile, String> BUILT_IN_PROFILE_SOURCE_PATHS = createProfileSourcePaths();
 
 	private final EnumMap<ReasoningProfile, Boolean> profileStates = new EnumMap<>(ReasoningProfile.class);
 	private final LinkedHashMap<String, RuleFileDefinition> ruleFiles = new LinkedHashMap<>();
@@ -79,6 +81,17 @@ public final class DefaultReasoningService implements ReasoningService {
 	@Override
 	public synchronized Map<ReasoningProfile, Boolean> snapshotStates() {
 		return Map.copyOf(profileStates);
+	}
+
+	@Override
+	public synchronized BuiltInProfileSource getBuiltInProfileSource(ReasoningProfile profile) {
+		validateProfile(profile);
+		String sourcePath = BUILT_IN_PROFILE_SOURCE_PATHS.get(profile);
+		if (sourcePath == null || sourcePath.isBlank()) {
+			throw new IllegalArgumentException("No built-in source declared for profile: " + profile);
+		}
+		String sourceContent = readBuiltInSource(sourcePath);
+		return new BuiltInProfileSource(profile.label(), sourcePath, sourceContent);
 	}
 
 	@Override
@@ -368,6 +381,26 @@ public final class DefaultReasoningService implements ReasoningService {
 			case OWL_RL_LITE -> RuleEngine.Profile.OWLRL_LITE;
 			case OWL_RL_EXT -> RuleEngine.Profile.OWLRL_EXT;
 		};
+	}
+
+	private static EnumMap<ReasoningProfile, String> createProfileSourcePaths() {
+		EnumMap<ReasoningProfile, String> paths = new EnumMap<>(ReasoningProfile.class);
+		paths.put(ReasoningProfile.RDFS, "/rule/rdfs.rul");
+		paths.put(ReasoningProfile.OWL_RL, "/rule/owlrl.rul");
+		paths.put(ReasoningProfile.OWL_RL_LITE, "/rule/owlrllite.rul");
+		paths.put(ReasoningProfile.OWL_RL_EXT, "/rule/owlrlext.rul");
+		return paths;
+	}
+
+	private String readBuiltInSource(String sourcePath) {
+		try (InputStream stream = DefaultReasoningService.class.getResourceAsStream(sourcePath)) {
+			if (stream == null) {
+				throw new IllegalStateException("Built-in rule resource not found: " + sourcePath);
+			}
+			return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+		} catch (Exception e) {
+			throw new ReasoningException("Failed to read built-in rule resource: " + sourcePath, e);
+		}
 	}
 
 	private void validateProfile(ReasoningProfile profile) {

@@ -19,6 +19,7 @@ import fr.inria.corese.gui.core.service.ReasoningProfile;
 import fr.inria.corese.gui.core.service.ReasoningService;
 import fr.inria.corese.gui.feature.data.dialog.DataClearGraphDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataReloadSourcesDialog;
+import fr.inria.corese.gui.feature.data.dialog.DataRulePreviewDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataUriLoadDialog;
 import fr.inria.corese.gui.feature.data.support.DataDroppedFilesSupport;
 import fr.inria.corese.gui.feature.data.support.DataLoadingSupport;
@@ -118,6 +119,9 @@ public class DataViewController implements AutoCloseable {
 				}
 				handleReasoningToggle(profile, Boolean.TRUE.equals(selected));
 			});
+		}
+		for (ReasoningProfile profile : ReasoningProfile.values()) {
+			view.setBuiltInRuleViewAction(profile, () -> handleBuiltInRuleViewRequested(profile));
 		}
 		ruleFileController.initialize();
 	}
@@ -427,6 +431,22 @@ public class DataViewController implements AutoCloseable {
 			} catch (Exception e) {
 				Platform.runLater(() -> NotificationWidget.getInstance()
 						.showError("Reasoning update failed for " + profile.label() + ": " + e.getMessage()));
+			}
+		});
+	}
+
+	private void handleBuiltInRuleViewRequested(ReasoningProfile profile) {
+		if (profile == null) {
+			return;
+		}
+		AppExecutors.execute(() -> {
+			try {
+				ReasoningService.BuiltInProfileSource source = reasoningService.getBuiltInProfileSource(profile);
+				Platform.runLater(
+						() -> DataRulePreviewDialog.show(source.label(), source.sourcePath(), source.sourceContent()));
+			} catch (Exception e) {
+				Platform.runLater(() -> NotificationWidget.getInstance().showError(
+						"Failed to open built-in profile source " + profile.label() + ": " + e.getMessage()));
 			}
 		});
 	}
