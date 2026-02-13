@@ -6,6 +6,8 @@ import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.io.FileDialogState;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
+import fr.inria.corese.gui.core.service.DataWorkspaceService;
+import fr.inria.corese.gui.core.service.DataWorkspaceStatus;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.service.ReasoningService;
 import fr.inria.corese.gui.core.service.ReasoningService.RuleFileState;
@@ -35,6 +37,7 @@ final class DataRuleFileController {
 	private static final List<String> RULE_FILE_EXTENSIONS = FileTypeSupport.ruleExtensions();
 
 	private final DataView view;
+	private final DataWorkspaceService workspaceService;
 	private final ReasoningService reasoningService;
 	private final Runnable refreshReasoningUi;
 	private final Runnable refreshGraphSnapshot;
@@ -45,9 +48,10 @@ final class DataRuleFileController {
 		}
 	}
 
-	DataRuleFileController(DataView view, ReasoningService reasoningService, Runnable refreshReasoningUi,
-			Runnable refreshGraphSnapshot) {
+	DataRuleFileController(DataView view, DataWorkspaceService workspaceService, ReasoningService reasoningService,
+			Runnable refreshReasoningUi, Runnable refreshGraphSnapshot) {
 		this.view = view;
+		this.workspaceService = workspaceService;
 		this.reasoningService = reasoningService;
 		this.refreshReasoningUi = refreshReasoningUi;
 		this.refreshGraphSnapshot = refreshGraphSnapshot;
@@ -134,9 +138,12 @@ final class DataRuleFileController {
 	private void handleRuleFileToggleRequested(String ruleId, boolean enabled) {
 		runAsyncWithRefresh(() -> {
 			try {
+				DataWorkspaceStatus beforeStatus = workspaceService.getStatus();
 				reasoningService.setRuleFileEnabled(ruleId, enabled);
-				Platform.runLater(() -> NotificationWidget.getInstance()
-						.showSuccess((enabled ? "Enabled rule file." : "Disabled rule file.")));
+				DataWorkspaceStatus afterStatus = workspaceService.getStatus();
+				String message = DataUiMessageUtils.buildTripleDeltaMessage(beforeStatus.inferredTripleCount(),
+						afterStatus.inferredTripleCount());
+				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess(message));
 			} catch (Exception e) {
 				Platform.runLater(
 						() -> NotificationWidget.getInstance().showError("Rule file update failed: " + e.getMessage()));

@@ -69,8 +69,8 @@ public class DataViewController implements AutoCloseable {
 		this.workspaceService = DefaultDataWorkspaceService.getInstance();
 		this.reasoningService = DefaultReasoningService.getInstance();
 		this.mutationBus = GraphMutationBus.getInstance();
-		this.ruleFileController = new DataRuleFileController(view, reasoningService, this::refreshReasoningUiState,
-				this::refreshGraphSnapshot);
+		this.ruleFileController = new DataRuleFileController(view, workspaceService, reasoningService,
+				this::refreshReasoningUiState, this::refreshGraphSnapshot);
 		initialize();
 	}
 
@@ -433,9 +433,12 @@ public class DataViewController implements AutoCloseable {
 	private void handleReasoningToggle(ReasoningProfile profile, boolean enabled) {
 		runAsyncUiRefreshOperation(() -> {
 			try {
+				DataWorkspaceStatus beforeStatus = workspaceService.getStatus();
 				reasoningService.setEnabled(profile, enabled);
-				Platform.runLater(() -> NotificationWidget.getInstance()
-						.showSuccess((enabled ? "Enabled " : "Disabled ") + profile.label() + "."));
+				DataWorkspaceStatus afterStatus = workspaceService.getStatus();
+				String message = DataUiMessageUtils.buildTripleDeltaMessage(beforeStatus.inferredTripleCount(),
+						afterStatus.inferredTripleCount());
+				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess(message));
 			} catch (Exception e) {
 				Platform.runLater(() -> NotificationWidget.getInstance()
 						.showError("Reasoning update failed for " + profile.label() + ": " + e.getMessage()));

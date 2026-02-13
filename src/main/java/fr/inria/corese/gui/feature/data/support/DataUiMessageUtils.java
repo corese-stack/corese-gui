@@ -27,4 +27,15 @@ public final class DataUiMessageUtils {
 		}
 		return "Expected extensions: " + String.join(", ", normalizedExtensions);
 	}
+
+	public static String buildTripleDeltaMessage(int beforeTripleCount, int afterTripleCount) {
+		int delta = afterTripleCount - beforeTripleCount;
+		if (delta > 0) {
+			return "Added " + countLabel(delta, "triple") + ".";
+		}
+		if (delta < 0) {
+			return "Removed " + countLabel(Math.abs(delta), "triple") + ".";
+		}
+		return "No triple change.";
+	}
 }
