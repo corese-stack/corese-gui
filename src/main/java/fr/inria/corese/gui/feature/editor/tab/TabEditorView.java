@@ -36,11 +36,15 @@ import javafx.scene.control.TabPane;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.util.Duration;
 
@@ -294,7 +298,8 @@ public class TabEditorView extends AbstractView {
 	}
 
 	private void applyEditorPlaceholderBackground(Region region) {
-		region.setStyle("-fx-background-color: " + resolveEditorPlaceholderBackground() + ";");
+		Color backgroundColor = Color.web(resolveEditorPlaceholderBackground());
+		region.setBackground(new Background(new BackgroundFill(backgroundColor, CornerRadii.EMPTY, Insets.EMPTY)));
 	}
 
 	private String resolveEditorPlaceholderBackground() {
