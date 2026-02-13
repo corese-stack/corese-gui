@@ -28,6 +28,7 @@ import javafx.stage.FileChooser;
 final class DataRuleFileController {
 
 	private static final String RULE_FILE_ALREADY_LOADED_MESSAGE = "Rule file is already loaded:";
+	private static final String RULE_FILE_NOT_FOUND_MESSAGE = "Rule file not found.";
 
 	private final DataView view;
 	private final ReasoningService reasoningService;
@@ -150,7 +151,7 @@ final class DataRuleFileController {
 	}
 
 	private void handleRuleFileToggleRequested(String ruleId, boolean enabled) {
-		AppExecutors.execute(() -> {
+		runAsyncWithRefresh(() -> {
 			try {
 				reasoningService.setRuleFileEnabled(ruleId, enabled);
 				Platform.runLater(() -> NotificationWidget.getInstance()
@@ -158,21 +159,17 @@ final class DataRuleFileController {
 			} catch (Exception e) {
 				Platform.runLater(
 						() -> NotificationWidget.getInstance().showError("Rule file update failed: " + e.getMessage()));
-			} finally {
-				Platform.runLater(this::refreshUiAndGraph);
 			}
 		});
 	}
 
 	private void handleRuleFileReloadRequested(String ruleId) {
-		RuleFileState rule = findRuleFile(ruleId);
+		RuleFileState rule = requireRuleFile(ruleId);
 		if (rule == null) {
-			NotificationWidget.getInstance().showWarning("Rule file not found.");
-			refreshReasoningUi.run();
 			return;
 		}
 
-		AppExecutors.execute(() -> {
+		runAsyncWithRefresh(() -> {
 			try {
 				File ruleFile = Path.of(rule.sourcePath()).toFile();
 				if (!ruleFile.isFile()) {
@@ -189,8 +186,6 @@ final class DataRuleFileController {
 			} catch (Exception e) {
 				Platform.runLater(() -> NotificationWidget.getInstance()
 						.showError("Failed to reload rule file " + rule.label() + ": " + e.getMessage()));
-			} finally {
-				Platform.runLater(this::refreshUiAndGraph);
 			}
 		});
 	}
@@ -217,7 +212,7 @@ final class DataRuleFileController {
 			return;
 		}
 
-		AppExecutors.execute(() -> {
+		runAsyncWithRefresh(() -> {
 			try {
 				List<String> missingRules = safeSelection.stream().filter(rule -> !isReadableFile(rule.sourcePath()))
 						.map(RuleFileState::label).toList();
@@ -235,8 +230,6 @@ final class DataRuleFileController {
 			} catch (Exception e) {
 				Platform.runLater(
 						() -> NotificationWidget.getInstance().showError("Rule file reload failed: " + e.getMessage()));
-			} finally {
-				Platform.runLater(this::refreshUiAndGraph);
 			}
 		});
 	}
@@ -254,7 +247,7 @@ final class DataRuleFileController {
 	}
 
 	private void executeClearRuleFiles(int removedCount) {
-		AppExecutors.execute(() -> {
+		runAsyncWithRefresh(() -> {
 			try {
 				reasoningService.removeAllRuleFiles();
 				Platform.runLater(() -> NotificationWidget.getInstance()
@@ -262,17 +255,13 @@ final class DataRuleFileController {
 			} catch (Exception e) {
 				Platform.runLater(() -> NotificationWidget.getInstance()
 						.showError("Failed to clear rule files: " + e.getMessage()));
-			} finally {
-				Platform.runLater(this::refreshUiAndGraph);
 			}
 		});
 	}
 
 	private void handleRuleFileViewRequested(String ruleId) {
-		RuleFileState rule = findRuleFile(ruleId);
+		RuleFileState rule = requireRuleFile(ruleId);
 		if (rule == null) {
-			NotificationWidget.getInstance().showWarning("Rule file not found.");
-			refreshReasoningUi.run();
 			return;
 		}
 
@@ -292,10 +281,8 @@ final class DataRuleFileController {
 			return;
 		}
 
-		RuleFileState rule = findRuleFile(ruleId);
+		RuleFileState rule = requireRuleFile(ruleId);
 		if (rule == null) {
-			NotificationWidget.getInstance().showWarning("Rule file not found.");
-			refreshReasoningUi.run();
 			return;
 		}
 
@@ -308,15 +295,13 @@ final class DataRuleFileController {
 	}
 
 	private void executeRuleFileRemoval(String ruleId) {
-		AppExecutors.execute(() -> {
+		runAsyncWithRefresh(() -> {
 			try {
 				reasoningService.removeRuleFile(ruleId);
 				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess("Rule file removed."));
 			} catch (Exception e) {
 				Platform.runLater(() -> NotificationWidget.getInstance()
 						.showError("Failed to remove rule file: " + e.getMessage()));
-			} finally {
-				Platform.runLater(this::refreshUiAndGraph);
 			}
 		});
 	}
@@ -338,6 +323,15 @@ final class DataRuleFileController {
 				.orElse(null);
 	}
 
+	private RuleFileState requireRuleFile(String ruleId) {
+		RuleFileState rule = findRuleFile(ruleId);
+		if (rule == null) {
+			NotificationWidget.getInstance().showWarning(RULE_FILE_NOT_FOUND_MESSAGE);
+			refreshReasoningUi.run();
+		}
+		return rule;
+	}
+
 	private static boolean isReadableFile(String filePath) {
 		if (filePath == null || filePath.isBlank()) {
 			return false;
@@ -352,5 +346,15 @@ final class DataRuleFileController {
 	private void refreshUiAndGraph() {
 		refreshReasoningUi.run();
 		refreshGraphSnapshot.run();
+	}
+
+	private void runAsyncWithRefresh(Runnable task) {
+		AppExecutors.execute(() -> {
+			try {
+				task.run();
+			} finally {
+				Platform.runLater(this::refreshUiAndGraph);
+			}
+		});
 	}
 }
