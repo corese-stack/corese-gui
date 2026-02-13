@@ -671,6 +671,7 @@ class KGGraphVis extends HTMLElement {
         const graph = { nodes: [], links: [] };
         this.graphColorMap = new Map();
         const nodeById = new Map();
+        const RDF_TYPE_PREDICATE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
 
         const normalizeArray = value => (Array.isArray(value) ? value : [value]);
         const isObject = value => value !== null && typeof value === 'object';
@@ -802,6 +803,22 @@ class KGGraphVis extends HTMLElement {
                 });
         };
 
+        const processTypePredicates = (item, subj, currentGraph) => {
+            normalizeArray(item['@type'] ?? []).forEach(rawType => {
+                if (rawType === undefined || rawType === null) {
+                    return;
+                }
+                const typeId = (isObject(rawType) && rawType['@id'])
+                    ? rawType['@id']
+                    : String(rawType);
+                if (!typeId || typeId.startsWith('@')) {
+                    return;
+                }
+                const typeNodeKind = typeId.startsWith('_:') ? 'Blank' : 'Class';
+                addLink(subj, RDF_TYPE_PREDICATE, typeId, typeNodeKind, {}, currentGraph);
+            });
+        };
+
         const processItem = (item, currentGraph) => {
             if (!isObject(item)) return;
             if (processGraphContainer(item, currentGraph)) return;
@@ -812,6 +829,7 @@ class KGGraphVis extends HTMLElement {
             const subjType = resolveSubjectType(item, subj);
             const isSubstantial = isSubstantialDefinition(item);
             upsertNode(subj, subjType, currentGraph, {}, isSubstantial);
+            processTypePredicates(item, subj, currentGraph);
             processPredicates(item, subj, currentGraph);
         };
 
