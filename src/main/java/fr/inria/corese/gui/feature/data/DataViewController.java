@@ -251,33 +251,15 @@ public class DataViewController implements AutoCloseable {
 
 		FileDialogState.updateLastDirectory(safeFiles);
 		AppExecutors.execute(() -> {
-			int successCount = 0;
-			int graphTripleCount = workspaceService.getTripleCount();
+			List<String> errors = new ArrayList<>();
 			dataOperationInProgress.set(true);
 			try {
-				for (File file : safeFiles) {
-					try {
-						workspaceService.loadFile(file);
-						successCount++;
-					} catch (Exception ex) {
-						String message = "File load failed for " + file.getName() + ": " + ex.getMessage();
-						Platform.runLater(() -> NotificationWidget.getInstance().showError(message));
-					}
+				int loadedCount = loadFilesWithErrorCollection(safeFiles, errors);
+				if (loadedCount > 0) {
+					recomputeReasoningWithErrorCollection(errors);
 				}
 
-				int loadedCount = successCount;
-				if (loadedCount > 0 && reasoningService.hasAnyEnabledProfile()) {
-					try {
-						reasoningService.recomputeEnabledProfiles();
-					} catch (Exception e) {
-						Platform.runLater(() -> NotificationWidget.getInstance()
-								.showError("Reasoning recompute failed: " + e.getMessage()));
-					}
-				}
-			} finally {
-				int loadedCount = successCount;
-				graphTripleCount = workspaceService.getTripleCount();
-				int finalTripleCount = graphTripleCount;
+				int finalTripleCount = workspaceService.getTripleCount();
 				Platform.runLater(() -> {
 					if (loadedCount > 0) {
 						NotificationWidget.getInstance()
@@ -285,7 +267,9 @@ public class DataViewController implements AutoCloseable {
 										+ ". Graph now has " + DataUiMessageUtils.countLabel(finalTripleCount, "triple")
 										+ ".");
 					}
+					showErrors(errors);
 				});
+			} finally {
 				finishDataOperation();
 			}
 		});
@@ -298,32 +282,15 @@ public class DataViewController implements AutoCloseable {
 	private void executeLoadUris(List<String> uris) {
 		List<String> urisToLoad = uris == null ? List.of() : List.copyOf(uris);
 		AppExecutors.execute(() -> {
-			int successCount = 0;
-			int graphTripleCount = workspaceService.getTripleCount();
 			List<String> errors = new ArrayList<>();
 			dataOperationInProgress.set(true);
 			try {
-				for (String uri : urisToLoad) {
-					try {
-						workspaceService.loadUri(uri);
-						successCount++;
-					} catch (Exception ex) {
-						errors.add("URI load failed for " + uri + ": " + ex.getMessage());
-					}
+				int loadedCount = loadUrisWithErrorCollection(urisToLoad, errors);
+				if (loadedCount > 0) {
+					recomputeReasoningWithErrorCollection(errors);
 				}
-				if (successCount > 0 && reasoningService.hasAnyEnabledProfile()) {
-					try {
-						reasoningService.recomputeEnabledProfiles();
-					} catch (Exception e) {
-						errors.add("Reasoning recompute failed: " + e.getMessage());
-					}
-				}
-			} catch (Exception e) {
-				errors.add("Unexpected URI loading error: " + e.getMessage());
-			} finally {
-				int loadedCount = successCount;
-				graphTripleCount = workspaceService.getTripleCount();
-				int finalTripleCount = graphTripleCount;
+
+				int finalTripleCount = workspaceService.getTripleCount();
 				Platform.runLater(() -> {
 					if (loadedCount > 0) {
 						NotificationWidget.getInstance()
@@ -331,15 +298,61 @@ public class DataViewController implements AutoCloseable {
 										+ ". Graph now has " + DataUiMessageUtils.countLabel(finalTripleCount, "triple")
 										+ ".");
 					}
-					if (!errors.isEmpty()) {
-						for (String error : errors) {
-							NotificationWidget.getInstance().showError(error);
-						}
-					}
+					showErrors(errors);
 				});
+			} catch (Exception e) {
+				errors.add("Unexpected URI loading error: " + e.getMessage());
+				Platform.runLater(() -> showErrors(errors));
+			} finally {
 				finishDataOperation();
 			}
 		});
+	}
+
+	private int loadFilesWithErrorCollection(List<File> files, List<String> errors) {
+		int loadedCount = 0;
+		for (File file : files) {
+			try {
+				workspaceService.loadFile(file);
+				loadedCount++;
+			} catch (Exception ex) {
+				errors.add("File load failed for " + file.getName() + ": " + ex.getMessage());
+			}
+		}
+		return loadedCount;
+	}
+
+	private int loadUrisWithErrorCollection(List<String> uris, List<String> errors) {
+		int loadedCount = 0;
+		for (String uri : uris) {
+			try {
+				workspaceService.loadUri(uri);
+				loadedCount++;
+			} catch (Exception ex) {
+				errors.add("URI load failed for " + uri + ": " + ex.getMessage());
+			}
+		}
+		return loadedCount;
+	}
+
+	private void recomputeReasoningWithErrorCollection(List<String> errors) {
+		if (!reasoningService.hasAnyEnabledProfile()) {
+			return;
+		}
+		try {
+			reasoningService.recomputeEnabledProfiles();
+		} catch (Exception e) {
+			errors.add("Reasoning recompute failed: " + e.getMessage());
+		}
+	}
+
+	private void showErrors(List<String> errors) {
+		if (errors == null || errors.isEmpty()) {
+			return;
+		}
+		for (String error : errors) {
+			NotificationWidget.getInstance().showError(error);
+		}
 	}
 
 	private void handleReloadSources() {
