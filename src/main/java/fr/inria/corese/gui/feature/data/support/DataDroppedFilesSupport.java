@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.feature.data;
+package fr.inria.corese.gui.feature.data.support;
 
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
@@ -10,18 +10,18 @@ import java.util.List;
  * Shared helpers for drag-and-drop file filtering and warnings in the Data
  * page.
  */
-final class DataDroppedFilesSupport {
+public final class DataDroppedFilesSupport {
 
 	private static final String DROP_WARNING_NONE_ACCEPTED_TEMPLATE = "No compatible files were dropped. %s";
 	private static final String DROP_WARNING_IGNORED_TEMPLATE = "Ignored %s. %s";
 
-	record DropEvaluation(List<File> acceptedFiles, int ignoredFiles) {
-		DropEvaluation {
+	public record DropEvaluation(List<File> acceptedFiles, int ignoredFiles) {
+		public DropEvaluation {
 			acceptedFiles = acceptedFiles == null ? List.of() : List.copyOf(acceptedFiles);
 			ignoredFiles = Math.max(ignoredFiles, 0);
 		}
 
-		boolean hasAcceptedFiles() {
+		public boolean hasAcceptedFiles() {
 			return !acceptedFiles.isEmpty();
 		}
 	}
@@ -30,7 +30,7 @@ final class DataDroppedFilesSupport {
 		throw new AssertionError("Utility class");
 	}
 
-	static DropEvaluation evaluate(List<File> droppedFiles, List<String> allowedExtensions) {
+	public static DropEvaluation evaluate(List<File> droppedFiles, List<String> allowedExtensions) {
 		List<File> safeDroppedFiles = droppedFiles == null ? List.of() : List.copyOf(droppedFiles);
 		if (safeDroppedFiles.isEmpty()) {
 			return new DropEvaluation(List.of(), 0);
@@ -48,7 +48,7 @@ final class DataDroppedFilesSupport {
 		return new DropEvaluation(compatibleFiles, ignoredCount);
 	}
 
-	static void notifyWarnings(DropEvaluation evaluation, String expectedExtensionsHint) {
+	public static void notifyWarnings(DropEvaluation evaluation, String expectedExtensionsHint) {
 		if (evaluation == null) {
 			return;
 		}

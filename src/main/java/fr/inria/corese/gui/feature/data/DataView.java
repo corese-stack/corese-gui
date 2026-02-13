@@ -11,19 +11,18 @@ import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.service.DataWorkspaceStatus;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.view.AbstractView;
+import fr.inria.corese.gui.feature.data.model.DataRuleFileItem;
+import fr.inria.corese.gui.feature.data.support.DataRuleFileRowFactory;
+import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javafx.geometry.Pos;
-import javafx.geometry.Side;
 import javafx.scene.control.Button;
-import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.Tooltip;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
@@ -34,7 +33,6 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
-import org.kordamp.ikonli.javafx.FontIcon;
 
 /**
  * Main view for the Data page.
@@ -91,21 +89,6 @@ public class DataView extends AbstractView {
 	private EmptyStateWidget ruleFilesEmptyStateWidget;
 	private Consumer<List<File>> onGraphFilesDropped;
 	private Consumer<List<File>> onRuleFilesDropped;
-
-	/**
-	 * Immutable rule-file item used by the view rendering API.
-	 *
-	 * @param id
-	 *            stable rule file id
-	 * @param label
-	 *            display label
-	 * @param sourcePath
-	 *            full source file path
-	 * @param enabled
-	 *            current toggle state
-	 */
-	public record RuleFileItem(String id, String label, String sourcePath, boolean enabled) {
-	}
 
 	/**
 	 * Creates the Data page view.
@@ -542,9 +525,9 @@ public class DataView extends AbstractView {
 	 * @param onRemove
 	 *            callback called when a rule is removed
 	 */
-	public void updateRuleFiles(List<RuleFileItem> rules, BiConsumer<String, Boolean> onToggle,
+	public void updateRuleFiles(List<DataRuleFileItem> rules, BiConsumer<String, Boolean> onToggle,
 			Consumer<String> onReload, Consumer<String> onView, Consumer<String> onRemove) {
-		List<RuleFileItem> safeRules = rules == null
+		List<DataRuleFileItem> safeRules = rules == null
 				? List.of()
 				: rules.stream().filter(rule -> rule != null && rule.id() != null && !rule.id().isBlank()).toList();
 		BiConsumer<String, Boolean> safeOnToggle = onToggle == null ? (id, enabled) -> {
@@ -557,9 +540,9 @@ public class DataView extends AbstractView {
 		} : onRemove;
 
 		ruleFilesList.getChildren().clear();
-		for (RuleFileItem rule : safeRules) {
+		for (DataRuleFileItem rule : safeRules) {
 			ruleFilesList.getChildren()
-					.add(createRuleFileRow(rule, safeOnToggle, safeOnReload, safeOnView, safeOnRemove));
+					.add(DataRuleFileRowFactory.createRow(rule, safeOnToggle, safeOnReload, safeOnView, safeOnRemove));
 		}
 
 		boolean hasRules = !safeRules.isEmpty();
@@ -567,67 +550,6 @@ public class DataView extends AbstractView {
 		ruleFilesScrollPane.setManaged(hasRules);
 		ruleFilesEmptyStateWidget.setVisible(!hasRules);
 		ruleFilesEmptyStateWidget.setManaged(!hasRules);
-	}
-
-	private HBox createRuleFileRow(RuleFileItem rule, BiConsumer<String, Boolean> onToggle, Consumer<String> onReload,
-			Consumer<String> onView, Consumer<String> onRemove) {
-		Label nameLabel = new Label(nonBlank(rule.label(), "Unnamed rule file"));
-		nameLabel.getStyleClass().add("data-custom-rule-name");
-
-		String sourcePath = nonBlank(rule.sourcePath(), "(unknown source)");
-		nameLabel.setTooltip(new Tooltip(sourcePath));
-
-		ToggleSwitch toggleSwitch = new ToggleSwitch();
-		toggleSwitch.getStyleClass().add("data-rule-toggle-switch");
-		toggleSwitch.setSelected(rule.enabled());
-		toggleSwitch.setFocusTraversable(false);
-		toggleSwitch.selectedProperty().addListener(
-				(observable, previous, selected) -> onToggle.accept(rule.id(), Boolean.TRUE.equals(selected)));
-
-		MenuItem reloadItem = createRuleMenuItem("Reload", ButtonIcon.RELOAD, () -> onReload.accept(rule.id()));
-		MenuItem viewItem = createRuleMenuItem("View", ButtonIcon.TEMPLATE, () -> onView.accept(rule.id()));
-		MenuItem removeItem = createRuleMenuItem("Remove", ButtonIcon.CLEAR, () -> onRemove.accept(rule.id()));
-
-		ContextMenu actionMenu = new ContextMenu(reloadItem, viewItem, removeItem);
-		actionMenu.getStyleClass().add("data-custom-rule-menu");
-
-		Button actionButton = new Button();
-		actionButton.getStyleClass().addAll(Styles.BUTTON_OUTLINED, "data-custom-rule-menu-button");
-		actionButton.setGraphic(createMenuIcon(ButtonIcon.MORE_ACTIONS, "data-custom-rule-menu-button-icon", 16));
-		actionButton.setTooltip(new Tooltip("Rule actions"));
-		actionButton.setFocusTraversable(false);
-		actionButton.setOnAction(event -> actionMenu.show(actionButton, Side.BOTTOM, 0, 0));
-
-		Region spacer = new Region();
-		HBox.setHgrow(spacer, Priority.ALWAYS);
-
-		HBox controls = new HBox(14, actionButton, toggleSwitch);
-		controls.getStyleClass().add("data-custom-rule-controls");
-		controls.setAlignment(Pos.CENTER_RIGHT);
-
-		HBox row = new HBox(8, nameLabel, spacer, controls);
-		row.getStyleClass().add("data-custom-rule-item");
-		row.setAlignment(Pos.CENTER_LEFT);
-		row.setMaxWidth(Double.MAX_VALUE);
-		Tooltip.install(row, new Tooltip(sourcePath));
-		return row;
-	}
-
-	private static MenuItem createRuleMenuItem(String label, ButtonIcon icon, Runnable action) {
-		MenuItem item = new MenuItem(label);
-		item.setGraphic(createMenuIcon(icon, "data-custom-rule-menu-item-icon", 14));
-		item.setStyle("-fx-font-weight: 400;");
-		if (action != null) {
-			item.setOnAction(event -> action.run());
-		}
-		return item;
-	}
-
-	private static FontIcon createMenuIcon(ButtonIcon icon, String styleClass, int iconSize) {
-		FontIcon fontIcon = new FontIcon(icon.getIkon());
-		fontIcon.setIconSize(iconSize);
-		fontIcon.getStyleClass().add(styleClass);
-		return fontIcon;
 	}
 
 	/**
@@ -728,7 +650,4 @@ public class DataView extends AbstractView {
 				safeStatus.inferredTripleCount(), DataStatusTooltipSupport.buildReasoningTooltipLines(safeStatus));
 	}
 
-	private static String nonBlank(String value, String fallback) {
-		return (value == null || value.isBlank()) ? fallback : value;
-	}
 }

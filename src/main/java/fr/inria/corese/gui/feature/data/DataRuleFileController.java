@@ -12,6 +12,9 @@ import fr.inria.corese.gui.core.service.ReasoningService.RuleFileState;
 import fr.inria.corese.gui.feature.data.dialog.DataClearRuleFilesDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataReloadRuleFilesDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataRulePreviewDialog;
+import fr.inria.corese.gui.feature.data.model.DataRuleFileItem;
+import fr.inria.corese.gui.feature.data.support.DataDroppedFilesSupport;
+import fr.inria.corese.gui.feature.data.support.DataUiMessageUtils;
 import fr.inria.corese.gui.utils.AppExecutors;
 import java.io.File;
 import java.nio.file.Files;
@@ -29,11 +32,18 @@ final class DataRuleFileController {
 
 	private static final String RULE_FILE_ALREADY_LOADED_MESSAGE = "Rule file is already loaded:";
 	private static final String RULE_FILE_NOT_FOUND_MESSAGE = "Rule file not found.";
+	private static final List<String> RULE_FILE_EXTENSIONS = FileTypeSupport.ruleExtensions();
 
 	private final DataView view;
 	private final ReasoningService reasoningService;
 	private final Runnable refreshReasoningUi;
 	private final Runnable refreshGraphSnapshot;
+
+	private record RuleFileLoadResult(int loadedCount, int duplicateCount, List<String> errors) {
+		RuleFileLoadResult {
+			errors = errors == null ? List.of() : List.copyOf(errors);
+		}
+	}
 
 	DataRuleFileController(DataView view, ReasoningService reasoningService, Runnable refreshReasoningUi,
 			Runnable refreshGraphSnapshot) {
@@ -51,7 +61,7 @@ final class DataRuleFileController {
 
 	void refreshRuleFileList() {
 		List<RuleFileState> ruleStates = reasoningService.snapshotRuleFiles();
-		List<DataView.RuleFileItem> items = ruleStates.stream().map(this::toRuleFileItem).toList();
+		List<DataRuleFileItem> items = ruleStates.stream().map(this::toRuleFileItem).toList();
 		view.updateRuleFiles(items, this::handleRuleFileToggleRequested, this::handleRuleFileReloadRequested,
 				this::handleRuleFileViewRequested, this::handleRuleFileRemoveRequested);
 		updateToolbarActionStates(ruleStates);
@@ -77,7 +87,7 @@ final class DataRuleFileController {
 		fileChooser.setTitle("Load Rule File");
 		FileDialogState.applyInitialDirectory(fileChooser);
 		FileChooser.ExtensionFilter ruleFilter = FileTypeSupport.createExtensionFilter("Rule Files (.rul)",
-				FileTypeSupport.ruleExtensions(), true);
+				RULE_FILE_EXTENSIONS, true);
 		fileChooser.getExtensionFilters().addAll(ruleFilter, new FileChooser.ExtensionFilter("All Files", "*.*"));
 		fileChooser.setSelectedExtensionFilter(ruleFilter);
 
@@ -87,66 +97,27 @@ final class DataRuleFileController {
 
 	private void handleRuleFilesDropped(List<File> droppedFiles) {
 		DataDroppedFilesSupport.DropEvaluation dropEvaluation = DataDroppedFilesSupport.evaluate(droppedFiles,
-				FileTypeSupport.ruleExtensions());
+				RULE_FILE_EXTENSIONS);
+		DataDroppedFilesSupport.notifyWarnings(dropEvaluation, expectedRuleExtensionsHint());
 		if (!dropEvaluation.hasAcceptedFiles()) {
-			DataDroppedFilesSupport.notifyWarnings(dropEvaluation,
-					DataUiMessageUtils.buildExpectedExtensionsHint(FileTypeSupport.ruleExtensions()));
 			return;
 		}
-		DataDroppedFilesSupport.notifyWarnings(dropEvaluation,
-				DataUiMessageUtils.buildExpectedExtensionsHint(FileTypeSupport.ruleExtensions()));
 		executeLoadRuleFiles(dropEvaluation.acceptedFiles());
 	}
 
 	private void executeLoadRuleFiles(List<File> ruleFiles) {
-		List<File> safeFiles = ruleFiles == null
-				? List.of()
-				: ruleFiles.stream()
-						.filter(file -> file != null && file.isFile()
-								&& FileTypeSupport.matchesAllowedExtensions(file, FileTypeSupport.ruleExtensions()))
-						.toList();
+		List<File> safeFiles = filterSupportedRuleFiles(ruleFiles);
 		if (safeFiles.isEmpty()) {
 			return;
 		}
 
 		FileDialogState.updateLastDirectory(safeFiles);
 		AppExecutors.execute(() -> {
-			int loadedCount = 0;
-			int duplicateCount = 0;
-			List<String> errors = new ArrayList<>();
-			try {
-				for (File file : safeFiles) {
-					try {
-						reasoningService.addRuleFile(file);
-						loadedCount++;
-					} catch (IllegalArgumentException e) {
-						if (isAlreadyLoadedRuleFileError(e)) {
-							duplicateCount++;
-						} else {
-							errors.add("Rule load failed for " + file.getName() + ": " + e.getMessage());
-						}
-					} catch (Exception e) {
-						errors.add("Rule load failed for " + file.getName() + ": " + e.getMessage());
-					}
-				}
-			} finally {
-				int finalLoadedCount = loadedCount;
-				int finalDuplicateCount = duplicateCount;
-				Platform.runLater(() -> {
-					if (finalLoadedCount > 0) {
-						NotificationWidget.getInstance().showSuccess(
-								"Loaded " + DataUiMessageUtils.countLabel(finalLoadedCount, "rule file") + ".");
-					}
-					if (finalDuplicateCount > 0) {
-						NotificationWidget.getInstance().showInfo("Reasoning", "Skipped "
-								+ DataUiMessageUtils.countLabel(finalDuplicateCount, "already loaded rule file") + ".");
-					}
-					for (String error : errors) {
-						NotificationWidget.getInstance().showError(error);
-					}
-					refreshUiAndGraph();
-				});
-			}
+			RuleFileLoadResult result = loadRuleFilesWithReport(safeFiles);
+			Platform.runLater(() -> {
+				showRuleFileLoadResult(result);
+				refreshUiAndGraph();
+			});
 		});
 	}
 
@@ -306,13 +277,62 @@ final class DataRuleFileController {
 		});
 	}
 
-	private DataView.RuleFileItem toRuleFileItem(RuleFileState rule) {
-		return new DataView.RuleFileItem(rule.id(), rule.label(), rule.sourcePath(), rule.enabled());
+	private DataRuleFileItem toRuleFileItem(RuleFileState rule) {
+		return new DataRuleFileItem(rule.id(), rule.label(), rule.sourcePath(), rule.enabled());
 	}
 
 	private boolean isAlreadyLoadedRuleFileError(IllegalArgumentException exception) {
 		String message = exception == null ? null : exception.getMessage();
 		return message != null && message.startsWith(RULE_FILE_ALREADY_LOADED_MESSAGE);
+	}
+
+	private List<File> filterSupportedRuleFiles(List<File> ruleFiles) {
+		if (ruleFiles == null || ruleFiles.isEmpty()) {
+			return List.of();
+		}
+		return ruleFiles.stream().filter(file -> file != null && file.isFile()
+				&& FileTypeSupport.matchesAllowedExtensions(file, RULE_FILE_EXTENSIONS)).toList();
+	}
+
+	private RuleFileLoadResult loadRuleFilesWithReport(List<File> ruleFiles) {
+		int loadedCount = 0;
+		int duplicateCount = 0;
+		List<String> errors = new ArrayList<>();
+
+		for (File file : ruleFiles) {
+			try {
+				reasoningService.addRuleFile(file);
+				loadedCount++;
+			} catch (IllegalArgumentException e) {
+				if (isAlreadyLoadedRuleFileError(e)) {
+					duplicateCount++;
+				} else {
+					errors.add("Rule load failed for " + file.getName() + ": " + e.getMessage());
+				}
+			} catch (Exception e) {
+				errors.add("Rule load failed for " + file.getName() + ": " + e.getMessage());
+			}
+		}
+
+		return new RuleFileLoadResult(loadedCount, duplicateCount, errors);
+	}
+
+	private void showRuleFileLoadResult(RuleFileLoadResult result) {
+		if (result.loadedCount() > 0) {
+			NotificationWidget.getInstance()
+					.showSuccess("Loaded " + DataUiMessageUtils.countLabel(result.loadedCount(), "rule file") + ".");
+		}
+		if (result.duplicateCount() > 0) {
+			NotificationWidget.getInstance().showInfo("Reasoning", "Skipped "
+					+ DataUiMessageUtils.countLabel(result.duplicateCount(), "already loaded rule file") + ".");
+		}
+		for (String error : result.errors()) {
+			NotificationWidget.getInstance().showError(error);
+		}
+	}
+
+	private String expectedRuleExtensionsHint() {
+		return DataUiMessageUtils.buildExpectedExtensionsHint(RULE_FILE_EXTENSIONS);
 	}
 
 	private RuleFileState findRuleFile(String ruleId) {

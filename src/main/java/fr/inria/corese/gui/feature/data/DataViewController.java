@@ -20,6 +20,9 @@ import fr.inria.corese.gui.core.service.ReasoningService;
 import fr.inria.corese.gui.feature.data.dialog.DataClearGraphDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataReloadSourcesDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataUriLoadDialog;
+import fr.inria.corese.gui.feature.data.support.DataDroppedFilesSupport;
+import fr.inria.corese.gui.feature.data.support.DataLoadingSupport;
+import fr.inria.corese.gui.feature.data.support.DataUiMessageUtils;
 import fr.inria.corese.gui.utils.AppExecutors;
 import java.io.File;
 import java.util.ArrayList;
@@ -58,6 +61,7 @@ public class DataViewController implements AutoCloseable {
 
 	private static final long GRAPH_REFRESH_DEBOUNCE_MS = 120L;
 	private static final long REASONING_REFRESH_DEBOUNCE_MS = 260L;
+	private static final List<String> RDF_FILE_EXTENSIONS = FileTypeSupport.rdfExtensions();
 
 	public DataViewController(DataView view) {
 		this.view = view;
@@ -219,8 +223,8 @@ public class DataViewController implements AutoCloseable {
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Open RDF Data File");
 		FileDialogState.applyInitialDirectory(fileChooser);
-		FileChooser.ExtensionFilter rdfFilter = FileTypeSupport.createExtensionFilter("RDF Files",
-				FileTypeSupport.rdfExtensions(), true);
+		FileChooser.ExtensionFilter rdfFilter = FileTypeSupport.createExtensionFilter("RDF Files", RDF_FILE_EXTENSIONS,
+				true);
 		fileChooser.getExtensionFilters().addAll(rdfFilter, new FileChooser.ExtensionFilter("All Files", "*.*"));
 		fileChooser.setSelectedExtensionFilter(rdfFilter);
 
@@ -230,14 +234,11 @@ public class DataViewController implements AutoCloseable {
 
 	private void handleGraphFilesDropped(List<File> droppedFiles) {
 		DataDroppedFilesSupport.DropEvaluation dropEvaluation = DataDroppedFilesSupport.evaluate(droppedFiles,
-				FileTypeSupport.rdfExtensions());
+				RDF_FILE_EXTENSIONS);
+		DataDroppedFilesSupport.notifyWarnings(dropEvaluation, expectedRdfExtensionsHint());
 		if (!dropEvaluation.hasAcceptedFiles()) {
-			DataDroppedFilesSupport.notifyWarnings(dropEvaluation,
-					DataUiMessageUtils.buildExpectedExtensionsHint(FileTypeSupport.rdfExtensions()));
 			return;
 		}
-		String expectedExtensionsHint = DataUiMessageUtils.buildExpectedExtensionsHint(FileTypeSupport.rdfExtensions());
-		DataDroppedFilesSupport.notifyWarnings(dropEvaluation, expectedExtensionsHint);
 		executeLoadFiles(dropEvaluation.acceptedFiles());
 	}
 
@@ -252,9 +253,9 @@ public class DataViewController implements AutoCloseable {
 		FileDialogState.updateLastDirectory(safeFiles);
 		runAsyncDataOperation(() -> {
 			List<String> errors = new ArrayList<>();
-			int loadedCount = loadFilesWithErrorCollection(safeFiles, errors);
+			int loadedCount = DataLoadingSupport.loadFiles(workspaceService, safeFiles, errors);
 			if (loadedCount > 0) {
-				recomputeReasoningWithErrorCollection(errors);
+				DataLoadingSupport.recomputeReasoning(reasoningService, errors);
 			}
 
 			int finalTripleCount = workspaceService.getTripleCount();
@@ -264,7 +265,7 @@ public class DataViewController implements AutoCloseable {
 							"Loaded " + DataUiMessageUtils.countLabel(loadedCount, "file") + ". Graph now has "
 									+ DataUiMessageUtils.countLabel(finalTripleCount, "triple") + ".");
 				}
-				showErrors(errors);
+				DataLoadingSupport.showErrors(errors);
 			});
 		});
 	}
@@ -278,9 +279,9 @@ public class DataViewController implements AutoCloseable {
 		runAsyncDataOperation(() -> {
 			List<String> errors = new ArrayList<>();
 			try {
-				int loadedCount = loadUrisWithErrorCollection(urisToLoad, errors);
+				int loadedCount = DataLoadingSupport.loadUris(workspaceService, urisToLoad, errors);
 				if (loadedCount > 0) {
-					recomputeReasoningWithErrorCollection(errors);
+					DataLoadingSupport.recomputeReasoning(reasoningService, errors);
 				}
 
 				int finalTripleCount = workspaceService.getTripleCount();
@@ -291,59 +292,13 @@ public class DataViewController implements AutoCloseable {
 										+ ". Graph now has " + DataUiMessageUtils.countLabel(finalTripleCount, "triple")
 										+ ".");
 					}
-					showErrors(errors);
+					DataLoadingSupport.showErrors(errors);
 				});
 			} catch (Exception e) {
 				errors.add("Unexpected URI loading error: " + e.getMessage());
-				Platform.runLater(() -> showErrors(errors));
+				Platform.runLater(() -> DataLoadingSupport.showErrors(errors));
 			}
 		});
-	}
-
-	private int loadFilesWithErrorCollection(List<File> files, List<String> errors) {
-		int loadedCount = 0;
-		for (File file : files) {
-			try {
-				workspaceService.loadFile(file);
-				loadedCount++;
-			} catch (Exception ex) {
-				errors.add("File load failed for " + file.getName() + ": " + ex.getMessage());
-			}
-		}
-		return loadedCount;
-	}
-
-	private int loadUrisWithErrorCollection(List<String> uris, List<String> errors) {
-		int loadedCount = 0;
-		for (String uri : uris) {
-			try {
-				workspaceService.loadUri(uri);
-				loadedCount++;
-			} catch (Exception ex) {
-				errors.add("URI load failed for " + uri + ": " + ex.getMessage());
-			}
-		}
-		return loadedCount;
-	}
-
-	private void recomputeReasoningWithErrorCollection(List<String> errors) {
-		if (!reasoningService.hasAnyEnabledProfile()) {
-			return;
-		}
-		try {
-			reasoningService.recomputeEnabledProfiles();
-		} catch (Exception e) {
-			errors.add("Reasoning recompute failed: " + e.getMessage());
-		}
-	}
-
-	private void showErrors(List<String> errors) {
-		if (errors == null || errors.isEmpty()) {
-			return;
-		}
-		for (String error : errors) {
-			NotificationWidget.getInstance().showError(error);
-		}
 	}
 
 	private void handleReloadSources() {
@@ -498,6 +453,10 @@ public class DataViewController implements AutoCloseable {
 				});
 			}
 		});
+	}
+
+	private String expectedRdfExtensionsHint() {
+		return DataUiMessageUtils.buildExpectedExtensionsHint(RDF_FILE_EXTENSIONS);
 	}
 
 	@Override

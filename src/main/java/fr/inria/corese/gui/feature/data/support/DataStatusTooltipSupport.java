@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.feature.data;
+package fr.inria.corese.gui.feature.data.support;
 
 import fr.inria.corese.gui.core.service.DataWorkspaceStatus;
 import java.text.NumberFormat;
@@ -12,7 +12,7 @@ import javafx.util.Duration;
 /**
  * Shared formatter/helper for Data status bar labels and tooltips.
  */
-final class DataStatusTooltipSupport {
+public final class DataStatusTooltipSupport {
 
 	private static final int TOOLTIP_MAX_WIDTH = 420;
 	private static final int TOOLTIP_SHOW_DELAY_MS = 150;
@@ -24,24 +24,24 @@ final class DataStatusTooltipSupport {
 		throw new AssertionError("Utility class");
 	}
 
-	static void updateStatusMetric(Label label, String title, int value, List<String> tooltipLines) {
+	public static void updateStatusMetric(Label label, String title, int value, List<String> tooltipLines) {
 		label.setText(title + ": " + formatCount(value));
 		applyTooltip(label, tooltipLines, title);
 	}
 
-	static List<String> buildTriplesTooltipLines(DataWorkspaceStatus status) {
+	public static List<String> buildTriplesTooltipLines(DataWorkspaceStatus status) {
 		int namedGraphTriples = Math.max(0, status.tripleCount() - status.defaultGraphTripleCount());
 		return List.of("Explicit triples: " + formatCount(status.explicitTripleCount()),
 				"Default graph triples: " + formatCount(status.defaultGraphTripleCount()),
 				"Triples in named graphs: " + formatCount(namedGraphTriples));
 	}
 
-	static List<String> buildSourcesTooltipLines(DataWorkspaceStatus status) {
+	public static List<String> buildSourcesTooltipLines(DataWorkspaceStatus status) {
 		return List.of("File sources: " + formatCount(status.fileSourceCount()),
 				"URI sources: " + formatCount(status.uriSourceCount()));
 	}
 
-	static List<String> buildNamedGraphTooltipLines(DataWorkspaceStatus status) {
+	public static List<String> buildNamedGraphTooltipLines(DataWorkspaceStatus status) {
 		if (status.namedGraphStats().isEmpty()) {
 			return List.of("No named graph currently contains triples.");
 		}
@@ -58,7 +58,7 @@ final class DataStatusTooltipSupport {
 		return lines;
 	}
 
-	static List<String> buildReasoningTooltipLines(DataWorkspaceStatus status) {
+	public static List<String> buildReasoningTooltipLines(DataWorkspaceStatus status) {
 		List<String> lines = new ArrayList<>();
 		for (DataWorkspaceStatus.ReasoningStat stat : status.reasoningStats()) {
 			lines.add(stat.profileLabel() + ": " + formatCount(stat.tripleCount()) + " triples");
