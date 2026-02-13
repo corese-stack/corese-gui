@@ -116,6 +116,17 @@ public final class FileTypeSupport {
 	}
 
 	/**
+	 * Checks whether the given file matches one of the allowed extensions exactly
+	 * (no format alias fallback).
+	 */
+	public static boolean matchesAllowedExtensionsStrict(File file, Collection<String> allowedExtensions) {
+		if (file == null) {
+			return false;
+		}
+		return matchesAllowedExtensionsStrict(file.getName(), allowedExtensions);
+	}
+
+	/**
 	 * Checks whether a file name/path is accepted by the provided extension
 	 * restrictions.
 	 *
@@ -149,6 +160,22 @@ public final class FileTypeSupport {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Checks whether a file name/path matches one of the allowed extensions
+	 * exactly, without comparing serialization-format aliases.
+	 */
+	public static boolean matchesAllowedExtensionsStrict(String fileNameOrPath, Collection<String> allowedExtensions) {
+		List<String> normalizedAllowed = normalizeExtensions(allowedExtensions);
+		if (normalizedAllowed.isEmpty()) {
+			return true;
+		}
+		String normalizedFileExtension = extractExtension(fileNameOrPath);
+		if (normalizedFileExtension == null) {
+			return false;
+		}
+		return normalizedAllowed.contains(normalizedFileExtension);
 	}
 
 	/**

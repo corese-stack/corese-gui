@@ -21,7 +21,7 @@ import fr.inria.corese.gui.feature.data.dialog.DataClearGraphDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataReloadSourcesDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataRulePreviewDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataUriLoadDialog;
-import fr.inria.corese.gui.feature.data.support.DataDroppedFilesSupport;
+import fr.inria.corese.gui.feature.data.support.DataFileSelectionSupport;
 import fr.inria.corese.gui.feature.data.support.DataLoadingSupport;
 import fr.inria.corese.gui.feature.data.support.DataUiMessageUtils;
 import fr.inria.corese.gui.utils.AppExecutors;
@@ -233,17 +233,25 @@ public class DataViewController implements AutoCloseable {
 		fileChooser.setSelectedExtensionFilter(rdfFilter);
 
 		List<File> files = fileChooser.showOpenMultipleDialog(view.getRoot().getScene().getWindow());
-		executeLoadFiles(files);
+		DataFileSelectionSupport.FileSelectionEvaluation selection = DataFileSelectionSupport.evaluateStrict(files,
+				RDF_FILE_EXTENSIONS);
+		DataFileSelectionSupport.notifyWarnings(selection, expectedRdfExtensionsHint(),
+				DataFileSelectionSupport.InputOrigin.SELECTED);
+		if (!selection.hasAcceptedFiles()) {
+			return;
+		}
+		executeLoadFiles(selection.acceptedFiles());
 	}
 
 	private void handleGraphFilesDropped(List<File> droppedFiles) {
-		DataDroppedFilesSupport.DropEvaluation dropEvaluation = DataDroppedFilesSupport.evaluate(droppedFiles,
-				RDF_FILE_EXTENSIONS);
-		DataDroppedFilesSupport.notifyWarnings(dropEvaluation, expectedRdfExtensionsHint());
-		if (!dropEvaluation.hasAcceptedFiles()) {
+		DataFileSelectionSupport.FileSelectionEvaluation selection = DataFileSelectionSupport
+				.evaluateStrict(droppedFiles, RDF_FILE_EXTENSIONS);
+		DataFileSelectionSupport.notifyWarnings(selection, expectedRdfExtensionsHint(),
+				DataFileSelectionSupport.InputOrigin.DROPPED);
+		if (!selection.hasAcceptedFiles()) {
 			return;
 		}
-		executeLoadFiles(dropEvaluation.acceptedFiles());
+		executeLoadFiles(selection.acceptedFiles());
 	}
 
 	private void executeLoadFiles(List<File> files) {

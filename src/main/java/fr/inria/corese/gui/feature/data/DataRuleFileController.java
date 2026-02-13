@@ -13,7 +13,7 @@ import fr.inria.corese.gui.feature.data.dialog.DataClearRuleFilesDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataReloadRuleFilesDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataRulePreviewDialog;
 import fr.inria.corese.gui.feature.data.model.DataRuleFileItem;
-import fr.inria.corese.gui.feature.data.support.DataDroppedFilesSupport;
+import fr.inria.corese.gui.feature.data.support.DataFileSelectionSupport;
 import fr.inria.corese.gui.feature.data.support.DataUiMessageUtils;
 import fr.inria.corese.gui.utils.AppExecutors;
 import java.io.File;
@@ -92,21 +92,31 @@ final class DataRuleFileController {
 		fileChooser.setSelectedExtensionFilter(ruleFilter);
 
 		List<File> files = fileChooser.showOpenMultipleDialog(view.getRoot().getScene().getWindow());
-		executeLoadRuleFiles(files);
+		DataFileSelectionSupport.FileSelectionEvaluation selection = DataFileSelectionSupport.evaluateStrict(files,
+				RULE_FILE_EXTENSIONS);
+		DataFileSelectionSupport.notifyWarnings(selection, expectedRuleExtensionsHint(),
+				DataFileSelectionSupport.InputOrigin.SELECTED);
+		if (!selection.hasAcceptedFiles()) {
+			return;
+		}
+		executeLoadRuleFiles(selection.acceptedFiles());
 	}
 
 	private void handleRuleFilesDropped(List<File> droppedFiles) {
-		DataDroppedFilesSupport.DropEvaluation dropEvaluation = DataDroppedFilesSupport.evaluate(droppedFiles,
-				RULE_FILE_EXTENSIONS);
-		DataDroppedFilesSupport.notifyWarnings(dropEvaluation, expectedRuleExtensionsHint());
-		if (!dropEvaluation.hasAcceptedFiles()) {
+		DataFileSelectionSupport.FileSelectionEvaluation selection = DataFileSelectionSupport
+				.evaluateStrict(droppedFiles, RULE_FILE_EXTENSIONS);
+		DataFileSelectionSupport.notifyWarnings(selection, expectedRuleExtensionsHint(),
+				DataFileSelectionSupport.InputOrigin.DROPPED);
+		if (!selection.hasAcceptedFiles()) {
 			return;
 		}
-		executeLoadRuleFiles(dropEvaluation.acceptedFiles());
+		executeLoadRuleFiles(selection.acceptedFiles());
 	}
 
 	private void executeLoadRuleFiles(List<File> ruleFiles) {
-		List<File> safeFiles = filterSupportedRuleFiles(ruleFiles);
+		List<File> safeFiles = ruleFiles == null
+				? List.of()
+				: ruleFiles.stream().filter(file -> file != null && file.isFile()).toList();
 		if (safeFiles.isEmpty()) {
 			return;
 		}
@@ -284,14 +294,6 @@ final class DataRuleFileController {
 	private boolean isAlreadyLoadedRuleFileError(IllegalArgumentException exception) {
 		String message = exception == null ? null : exception.getMessage();
 		return message != null && message.startsWith(RULE_FILE_ALREADY_LOADED_MESSAGE);
-	}
-
-	private List<File> filterSupportedRuleFiles(List<File> ruleFiles) {
-		if (ruleFiles == null || ruleFiles.isEmpty()) {
-			return List.of();
-		}
-		return ruleFiles.stream().filter(file -> file != null && file.isFile()
-				&& FileTypeSupport.matchesAllowedExtensions(file, RULE_FILE_EXTENSIONS)).toList();
 	}
 
 	private RuleFileLoadResult loadRuleFilesWithReport(List<File> ruleFiles) {
