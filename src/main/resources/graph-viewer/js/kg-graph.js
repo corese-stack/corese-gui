@@ -27,6 +27,15 @@ const GRAPH_PRESET_COLORS = Object.freeze({
     "urn:corese:inference:owlrl-ext": "#F08CA0"
 });
 
+const GRAPH_COLOR_GENERATION = Object.freeze({
+    hueSlotCount: 30,
+    hueStride: 11,
+    hueRetryStep: 7,
+    minDistanceFromPresetHue: 18,
+    saturationLevels: [42, 48, 54],
+    lightnessLevels: [64, 69, 74]
+});
+
 /**
  * Web Component for visualizing a Knowledge Graph.
  * Usage: <kg-graph></kg-graph>
@@ -84,7 +93,9 @@ class KGGraphVis extends HTMLElement {
 
         // Graph coloring
         this.graphColorMap = new Map();
+        this.graphContextPrefixes = new Map();
         this.defaultGraphColor = GRAPH_DEFAULTS.defaultGraphColor;
+        this.reservedGraphHues = [];
 
         // Performance optimization
         this.TICK_THROTTLE = 16; // ~60fps throttle for ticked()
@@ -304,6 +315,92 @@ class KGGraphVis extends HTMLElement {
         return normalized || GRAPH_DEFAULTS.defaultGraphId;
     }
 
+    rebuildGraphContextPrefixes() {
+        this.graphContextPrefixes = new Map();
+        this.collectJsonLdContexts(this.jsonLDOntology, context => this.mergeJsonLdContext(context, this.graphContextPrefixes));
+    }
+
+    collectJsonLdContexts(node, consumeContext) {
+        if (!node) {
+            return;
+        }
+        if (Array.isArray(node)) {
+            node.forEach(entry => this.collectJsonLdContexts(entry, consumeContext));
+            return;
+        }
+        if (typeof node !== "object") {
+            return;
+        }
+        if (Object.prototype.hasOwnProperty.call(node, "@context")) {
+            consumeContext(node["@context"]);
+        }
+        if (Object.prototype.hasOwnProperty.call(node, "@graph")) {
+            this.collectJsonLdContexts(node["@graph"], consumeContext);
+        }
+    }
+
+    mergeJsonLdContext(context, prefixMap) {
+        if (!context) {
+            return;
+        }
+        if (Array.isArray(context)) {
+            context.forEach(entry => this.mergeJsonLdContext(entry, prefixMap));
+            return;
+        }
+        if (typeof context !== "object") {
+            return;
+        }
+        Object.entries(context).forEach(([key, value]) => {
+            if (key === "@vocab" && typeof value === "string" && value) {
+                prefixMap.set("", value);
+                return;
+            }
+            if (key.startsWith("@")) {
+                return;
+            }
+            if (typeof value === "string" && value) {
+                prefixMap.set(key, value);
+                return;
+            }
+            if (value && typeof value === "object" && typeof value["@id"] === "string" && value["@id"]) {
+                prefixMap.set(key, value["@id"]);
+            }
+        });
+    }
+
+    resolveGraphColorKey(graphId) {
+        const gid = this.normalizeGraphId(graphId);
+        if (gid === GRAPH_DEFAULTS.defaultGraphId) {
+            return gid;
+        }
+        if (gid.startsWith("_:") || gid.includes("://") || gid.startsWith("urn:")) {
+            return gid;
+        }
+
+        const separatorIndex = gid.indexOf(":");
+        if (separatorIndex < 0) {
+            return gid;
+        }
+        const prefix = gid.substring(0, separatorIndex);
+        const localName = gid.substring(separatorIndex + 1);
+        if (!localName) {
+            return gid;
+        }
+
+        const namespace = this.graphContextPrefixes?.get(prefix);
+        if (typeof namespace === "string" && namespace) {
+            return `${namespace}${localName}`;
+        }
+        return gid;
+    }
+
+    resolveReservedGraphHues() {
+        return Object.values(GRAPH_PRESET_COLORS)
+            .map(color => this.hexToHsl(color))
+            .filter(hsl => Number.isFinite(hsl.h) && hsl.s > 0)
+            .map(hsl => hsl.h);
+    }
+
     stableHash(input) {
         const value = String(input ?? "");
         let hash = 2166136261;
@@ -314,12 +411,38 @@ class KGGraphVis extends HTMLElement {
         return hash >>> 0;
     }
 
-    buildStableGraphColor(graphId, attempt = 0) {
-        const hash = this.stableHash(`${graphId}#${attempt}`);
-        const hue = hash % 360;
-        const saturation = 34 + (hash % 16);
-        const lightness = this.isDarkTheme ? 62 + (hash % 8) : 68 + (hash % 8);
-        return this.hslToHex(hue, saturation, lightness);
+    hueDistance(left, right) {
+        const raw = Math.abs(left - right) % 360;
+        return raw > 180 ? 360 - raw : raw;
+    }
+
+    isHueTooCloseToReserved(candidateHue, minDistance = GRAPH_COLOR_GENERATION.minDistanceFromPresetHue) {
+        if (!Array.isArray(this.reservedGraphHues) || this.reservedGraphHues.length === 0) {
+            return false;
+        }
+        return this.reservedGraphHues.some(reservedHue => this.hueDistance(candidateHue, reservedHue) < minDistance);
+    }
+
+    buildStableGraphColor(graphId) {
+        const hueHash = this.stableHash(`${graphId}|h`);
+        const saturationHash = this.stableHash(`${graphId}|s`);
+        const lightnessHash = this.stableHash(`${graphId}|l`);
+
+        const config = GRAPH_COLOR_GENERATION;
+        const hueStep = 360 / config.hueSlotCount;
+        const baseHueIndex = (hueHash * config.hueStride) % config.hueSlotCount;
+        const saturation = config.saturationLevels[saturationHash % config.saturationLevels.length];
+        const lightness = config.lightnessLevels[lightnessHash % config.lightnessLevels.length];
+
+        for (let attempt = 0; attempt < config.hueSlotCount; attempt += 1) {
+            const candidateIndex = (baseHueIndex + attempt * config.hueRetryStep) % config.hueSlotCount;
+            const candidateHue = candidateIndex * hueStep;
+            if (!this.isHueTooCloseToReserved(candidateHue)) {
+                return this.hslToHex(candidateHue, saturation, lightness);
+            }
+        }
+
+        return this.hslToHex(baseHueIndex * hueStep, saturation, lightness);
     }
 
     resolvePresetGraphColor(graphId) {
@@ -336,23 +459,59 @@ class KGGraphVis extends HTMLElement {
         if (gid === GRAPH_DEFAULTS.defaultGraphId) {
             return this.defaultGraphColor;
         }
+        const graphColorKey = this.resolveGraphColorKey(gid);
 
-        if (!this.graphColorMap.has(gid)) {
-            const presetColor = this.resolvePresetGraphColor(gid);
+        if (this.reservedGraphHues.length === 0) {
+            this.reservedGraphHues = this.resolveReservedGraphHues();
+        }
+
+        if (!this.graphColorMap.has(graphColorKey)) {
+            const presetColor = this.resolvePresetGraphColor(graphColorKey);
             if (presetColor) {
-                this.graphColorMap.set(gid, presetColor);
+                this.graphColorMap.set(graphColorKey, presetColor);
                 return presetColor;
             }
-            const usedColors = new Set([...this.graphColorMap.values()]);
-            let attempt = 0;
-            let color = this.buildStableGraphColor(gid, attempt);
-            while (usedColors.has(color) && attempt < 24) {
-                attempt += 1;
-                color = this.buildStableGraphColor(gid, attempt);
-            }
-            this.graphColorMap.set(gid, color);
+            this.graphColorMap.set(graphColorKey, this.buildStableGraphColor(graphColorKey));
         }
-        return this.graphColorMap.get(gid);
+        return this.graphColorMap.get(graphColorKey);
+    }
+
+    hexToHsl(hex) {
+        const normalized = String(hex ?? "").trim();
+        const match = /^#([0-9a-fA-F]{6})$/.exec(normalized);
+        if (!match) {
+            return { h: NaN, s: 0, l: 0 };
+        }
+        const value = match[1];
+        const r = parseInt(value.substring(0, 2), 16) / 255;
+        const g = parseInt(value.substring(2, 4), 16) / 255;
+        const b = parseInt(value.substring(4, 6), 16) / 255;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const delta = max - min;
+        const lightness = (max + min) / 2;
+        let hue = NaN;
+        let saturation = 0;
+
+        if (delta !== 0) {
+            saturation = delta / (1 - Math.abs(2 * lightness - 1));
+            switch (max) {
+                case r:
+                    hue = 60 * (((g - b) / delta) % 6);
+                    break;
+                case g:
+                    hue = 60 * ((b - r) / delta + 2);
+                    break;
+                default:
+                    hue = 60 * ((r - g) / delta + 4);
+                    break;
+            }
+            if (hue < 0) {
+                hue += 360;
+            }
+        }
+
+        return { h: hue, s: saturation, l: lightness };
     }
 
     /**
@@ -1890,6 +2049,7 @@ class KGGraphVis extends HTMLElement {
             this.nodeLabelSelection = null;
             this.zoomLayer = null;
             this.currentTransform = d3.zoomIdentity;
+            this.graphContextPrefixes = new Map();
             this.graphSummary = this.createEmptyGraphSummary();
             this.refreshOverlayPanels();
             this.notifyGraphStats();
@@ -1899,6 +2059,7 @@ class KGGraphVis extends HTMLElement {
         let parsedGraph = null;
         try {
             this.jsonLDOntology = JSON.parse(this.jsonld);
+            this.rebuildGraphContextPrefixes();
             parsedGraph = this.createGraph();
         } catch (e) {
             console.error("Graph drawing error:", e);
