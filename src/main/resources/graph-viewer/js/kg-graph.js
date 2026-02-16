@@ -8,6 +8,25 @@
 
 "use strict";
 
+const GRAPH_NODE_FILL = Object.freeze({
+    Resource: "#1f77b4",
+    Literal: "#ff7f0e",
+    Blank: "#2ca02c"
+});
+
+const GRAPH_DEFAULTS = Object.freeze({
+    defaultGraphId: "default",
+    defaultGraphColor: "#6B7280",
+    rdfTypePredicate: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+});
+
+const GRAPH_PRESET_COLORS = Object.freeze({
+    "urn:corese:inference:rdfs": "#7BC8A4",
+    "urn:corese:inference:owlrl": "#F6B26B",
+    "urn:corese:inference:owlrl-lite": "#9A86E8",
+    "urn:corese:inference:owlrl-ext": "#F08CA0"
+});
+
 /**
  * Web Component for visualizing a Knowledge Graph.
  * Usage: <kg-graph></kg-graph>
@@ -25,12 +44,14 @@ class KGGraphVis extends HTMLElement {
         this.nodeSelection = null;
         this.linkLabelSelection = null;
         this.nodeLabelSelection = null;
+        this.zoomLayer = null;
 
         // Component state
         this.internalData = new WeakMap();
         this.internalData.set(this, {});
         this.resizeObserver = null;
         this.showEdgeLabels = true;
+        this.edgeLabelsAutoHidden = false;
         this.nodeLabelsVisible = true;
         this.edgeLabelsVisible = true;
         this.currentZoom = 1;
@@ -50,10 +71,20 @@ class KGGraphVis extends HTMLElement {
         this.interactionHideLinkThreshold = 600;
         this.width = 800;
         this.height = 600;
+        this.isDarkTheme = false;
+        this.graphSummary = this.createEmptyGraphSummary();
+        this.componentByNodeId = new Map();
+        this.componentTargets = new Map();
+        this.pendingAutoFit = false;
+        this.pendingAutoFitTimer = null;
+        this.pendingRecenterTimer = null;
+        this.legendStackElement = null;
+        this.globalLegendElement = null;
+        this.namedLegendElement = null;
 
         // Graph coloring
         this.graphColorMap = new Map();
-        this.defaultGraphColor = '#6B7280';
+        this.defaultGraphColor = GRAPH_DEFAULTS.defaultGraphColor;
 
         // Performance optimization
         this.TICK_THROTTLE = 16; // ~60fps throttle for ticked()
@@ -62,8 +93,24 @@ class KGGraphVis extends HTMLElement {
         this.lastLabelUpdate = 0;
         this.simulationStopped = false;
         this.AUTO_STOP_ALPHA = 0.005; // Alpha threshold for auto-stabilize (very low)
-        this.PARALLEL_LINK_SPACING = 22;
-        this.PARALLEL_LINK_MAX_CURVE = 90;
+        this.PARALLEL_LINK_SPACING = 30;
+        this.PARALLEL_LINK_MAX_CURVE = 140;
+        this.SELF_LOOP_ATTACH_HALF_GAP = 0.2;
+        this.SELF_LOOP_MAX_ANGULAR_SPREAD = 2.0;
+        this.SELF_LOOP_ANGULAR_STEP = 0.8;
+        this.SELF_LOOP_LENGTH_BASE = 92;
+        this.SELF_LOOP_LENGTH_STEP = 14;
+        this.SELF_LOOP_WIDTH_BASE = 26;
+        this.SELF_LOOP_WIDTH_STEP = 8;
+        this.SELF_LOOP_LABEL_OUTWARD = 44;
+        this.SELF_LOOP_LABEL_SIDE_STEP = 12;
+        this.LARGE_GRAPH_NODE_THRESHOLD = 220;
+        this.LARGE_GRAPH_LINK_THRESHOLD = 520;
+        this.AUTO_HIDE_EDGE_LABEL_THRESHOLD = 460;
+        this.AUTO_HIDE_NODE_LABEL_THRESHOLD = 760;
+        this.AUTO_OVERVIEW_PADDING = 760;
+        this.AUTO_OVERVIEW_MAX_SCALE = 0.09;
+        this.AUTO_RECENTER_DELAY_MS = 560;
     }
 
     /* -------------------------------------------------------------
@@ -87,6 +134,10 @@ class KGGraphVis extends HTMLElement {
             this.simulationStopped = false;
             this.simulation.alphaTarget(0).alpha(1).restart();
         }
+    }
+
+    recenter() {
+        this.fitToGraph(120, true);
     }
 
     /**
@@ -173,7 +224,8 @@ class KGGraphVis extends HTMLElement {
      * @param {boolean} isDark - Whether dark mode is active.
      */
     setTheme(isDark) {
-        // Future theme logic can go here
+        this.isDarkTheme = Boolean(isDark);
+        this.refreshOverlayPanels();
     }
 
     /* -------------------------------------------------------------
@@ -215,30 +267,75 @@ class KGGraphVis extends HTMLElement {
     disconnectedCallback() {
         if (this.resizeObserver) this.resizeObserver.disconnect();
         if (this.simulation) this.simulation.stop();
+        this.clearAutoFitTimers();
+        if (this.interactionTimer) {
+            clearTimeout(this.interactionTimer);
+            this.interactionTimer = null;
+        }
+        if (this.labelVisibilityRaf) {
+            cancelAnimationFrame(this.labelVisibilityRaf);
+            this.labelVisibilityRaf = null;
+        }
     }
 
     /* -------------------------------------------------------------
      * COLOR MANAGEMENT
      * ------------------------------------------------------------- */
 
+    normalizeGraphId(graphId) {
+        if (graphId == null) {
+            return GRAPH_DEFAULTS.defaultGraphId;
+        }
+        const normalized = String(graphId).trim();
+        return normalized || GRAPH_DEFAULTS.defaultGraphId;
+    }
+
+    stableHash(input) {
+        const value = String(input ?? "");
+        let hash = 2166136261;
+        for (let i = 0; i < value.length; i += 1) {
+            hash ^= value.charCodeAt(i);
+            hash = Math.imul(hash, 16777619);
+        }
+        return hash >>> 0;
+    }
+
+    buildStableGraphColor(graphId, attempt = 0) {
+        const hash = this.stableHash(`${graphId}#${attempt}`);
+        const hue = hash % 360;
+        const saturation = 34 + (hash % 16);
+        const lightness = this.isDarkTheme ? 62 + (hash % 8) : 68 + (hash % 8);
+        return this.hslToHex(hue, saturation, lightness);
+    }
+
+    resolvePresetGraphColor(graphId) {
+        return GRAPH_PRESET_COLORS[graphId] ?? null;
+    }
+
     /**
-     * Generate distinct colors for named graphs using the golden angle.
+     * Generate a deterministic color for each named graph.
      * @param {string} graphId - Graph identifier.
      * @returns {string} Hex color code.
      */
     getGraphColor(graphId = 'default') {
-        const gid = graphId ?? 'default';
-        if (gid === 'default') {
+        const gid = this.normalizeGraphId(graphId);
+        if (gid === GRAPH_DEFAULTS.defaultGraphId) {
             return this.defaultGraphColor;
         }
 
         if (!this.graphColorMap.has(gid)) {
-            const index = this.graphColorMap.size;
-            // Use golden angle approx (137.5) for optimal color distribution
-            const hue = (index * 137.508) % 360;
-            const saturation = 35 + (index % 4) * 10;
-            const lightness = 72 + (index % 3) * 6;
-            const color = this.hslToHex(hue, saturation, lightness);
+            const presetColor = this.resolvePresetGraphColor(gid);
+            if (presetColor) {
+                this.graphColorMap.set(gid, presetColor);
+                return presetColor;
+            }
+            const usedColors = new Set([...this.graphColorMap.values()]);
+            let attempt = 0;
+            let color = this.buildStableGraphColor(gid, attempt);
+            while (usedColors.has(color) && attempt < 24) {
+                attempt += 1;
+                color = this.buildStableGraphColor(gid, attempt);
+            }
             this.graphColorMap.set(gid, color);
         }
         return this.graphColorMap.get(gid);
@@ -336,24 +433,35 @@ class KGGraphVis extends HTMLElement {
         if (!Array.isArray(links)) return;
 
         const pairGroups = new Map();
-        const setCenteredOffsets = groupLinks => {
+        const selfLoopGroups = new Map();
+        const setCenteredOffsets = (groupLinks, fieldName = "parallelOffsetUnit") => {
             const center = (groupLinks.length - 1) / 2;
             groupLinks.forEach((link, index) => {
-                link.parallelOffsetUnit = index - center;
+                link[fieldName] = index - center;
             });
         };
         const setDirectionalOffsets = groupLinks => {
             groupLinks.forEach((link, index) => {
-                link.parallelOffsetUnit = index + 0.5;
+                link.parallelOffsetUnit = 0.9 + index;
             });
         };
 
         links.forEach(link => {
             link.parallelOffsetUnit = 0;
+            link.loopOffsetUnit = 0;
+            link.loopIndex = 0;
+            link.loopGroupSize = 1;
+            link.hasOppositeDirection = false;
             const sourceId = this.getLinkEndpointId(link?.source);
             const targetId = this.getLinkEndpointId(link?.target);
             if (!sourceId || !targetId) return;
-            if (sourceId === targetId) return;
+            if (sourceId === targetId) {
+                if (!selfLoopGroups.has(sourceId)) {
+                    selfLoopGroups.set(sourceId, []);
+                }
+                selfLoopGroups.get(sourceId).push(link);
+                return;
+            }
 
             const [minId, maxId] = sourceId <= targetId
                 ? [sourceId, targetId]
@@ -383,11 +491,27 @@ class KGGraphVis extends HTMLElement {
                 // paths on opposite sides and avoids overlap.
                 setDirectionalOffsets(group.forward);
                 setDirectionalOffsets(group.backward);
+                group.forward.forEach(link => {
+                    link.hasOppositeDirection = true;
+                });
+                group.backward.forEach(link => {
+                    link.hasOppositeDirection = true;
+                });
                 return;
             }
 
             const singleDirection = group.forward.length > 0 ? group.forward : group.backward;
             setCenteredOffsets(singleDirection);
+        });
+
+        selfLoopGroups.forEach(groupLinks => {
+            this.sortLinksForStableLayout(groupLinks);
+            setCenteredOffsets(groupLinks, "loopOffsetUnit");
+            const loopGroupSize = groupLinks.length;
+            groupLinks.forEach((link, index) => {
+                link.loopIndex = index;
+                link.loopGroupSize = loopGroupSize;
+            });
         });
     }
 
@@ -404,57 +528,118 @@ class KGGraphVis extends HTMLElement {
         const sy = source.y;
         const tx = target.x;
         const ty = target.y;
+        const sourceId = this.getLinkEndpointId(source);
+        const targetId = this.getLinkEndpointId(target);
+        const isSelfLoop = sourceId && targetId && sourceId === targetId;
         const dx = tx - sx;
         const dy = ty - sy;
         const distance = Math.hypot(dx, dy);
 
-        if (distance < 1e-6) {
-            const loopSize = 34 + Math.abs(link?.parallelOffsetUnit || 0) * 10;
-            const startX = sx;
-            const startY = sy - 20;
-            const endX = sx + 1;
-            const endY = sy - 20;
-            const c1x = sx + loopSize;
-            const c1y = sy - loopSize;
-            const c2x = sx + loopSize;
-            const c2y = sy + loopSize;
-            const labelX = sx + loopSize + 6;
-            const labelY = sy;
+        if (isSelfLoop || distance < 1e-6) {
+            const loopUnit = Number.isFinite(link?.loopOffsetUnit)
+                ? link.loopOffsetUnit
+                : (Number.isFinite(link?.parallelOffsetUnit) ? link.parallelOffsetUnit : 0);
+            const loopGroupSize = Number.isFinite(link?.loopGroupSize)
+                ? Math.max(1, Math.floor(link.loopGroupSize))
+                : 1;
+            const loopIndex = Number.isFinite(link?.loopIndex)
+                ? Math.max(0, Math.min(loopGroupSize - 1, Math.floor(link.loopIndex)))
+                : 0;
+            const nodeRadius = this.getNodeVisualRadius(source);
+            const rankDistance = Math.abs(loopUnit);
+            const normalizedIndex = loopGroupSize === 1
+                ? 0
+                : (loopIndex / (loopGroupSize - 1)) * 2 - 1;
+            const angularSpread = loopGroupSize === 1
+                ? 0
+                : Math.min(this.SELF_LOOP_MAX_ANGULAR_SPREAD, (loopGroupSize - 1) * this.SELF_LOOP_ANGULAR_STEP);
+            const loopAnchorAngle = -Math.PI / 2 + normalizedIndex * (angularSpread / 2);
+            const attachHalfGap = Math.min(0.42,
+                this.SELF_LOOP_ATTACH_HALF_GAP + rankDistance * 0.02 + Math.abs(normalizedIndex) * 0.07);
+            const attachRadius = nodeRadius + 2;
+            const outwardSide = normalizedIndex === 0 ? 1 : Math.sign(normalizedIndex);
+            // Keep marker end on the outer side of each loop so multi-loops do not
+            // cross arrow heads near the node.
+            const startAngle = loopAnchorAngle - outwardSide * attachHalfGap;
+            const endAngle = loopAnchorAngle + outwardSide * attachHalfGap;
+            const startX = sx + Math.cos(startAngle) * attachRadius;
+            const startY = sy + Math.sin(startAngle) * attachRadius;
+            const endX = sx + Math.cos(endAngle) * attachRadius;
+            const endY = sy + Math.sin(endAngle) * attachRadius;
+            const outwardX = Math.cos(loopAnchorAngle);
+            const outwardY = Math.sin(loopAnchorAngle);
+            const tangentX = -outwardY;
+            const tangentY = outwardX;
+            const sideOffset = normalizedIndex * (22 + rankDistance * 6);
+            const loopLength = this.SELF_LOOP_LENGTH_BASE + rankDistance * this.SELF_LOOP_LENGTH_STEP;
+            const loopWidth = this.SELF_LOOP_WIDTH_BASE + rankDistance * this.SELF_LOOP_WIDTH_STEP;
+            const controlBaseX = sx + outwardX * loopLength + tangentX * sideOffset;
+            const controlBaseY = sy + outwardY * loopLength + tangentY * sideOffset;
+            const control1X = controlBaseX + tangentX * loopWidth;
+            const control1Y = controlBaseY + tangentY * loopWidth;
+            const control2X = controlBaseX - tangentX * loopWidth;
+            const control2Y = controlBaseY - tangentY * loopWidth;
+            const labelSide = Math.sign(normalizedIndex) * (10 + Math.abs(normalizedIndex) * this.SELF_LOOP_LABEL_SIDE_STEP);
+            const labelOutward = this.SELF_LOOP_LABEL_OUTWARD + rankDistance * 8 + Math.abs(normalizedIndex) * 8;
+            // Place self-loop labels near the loop apex (farther from the node)
+            // and anchor text outward to avoid overlap between neighbor loops.
+            const labelX = controlBaseX + outwardX * labelOutward + tangentX * labelSide;
+            const labelY = controlBaseY + outwardY * labelOutward + tangentY * labelSide;
+            const labelAnchor = normalizedIndex > 0 ? "start" : (normalizedIndex < 0 ? "end" : "middle");
+
             return {
-                path: `M${startX},${startY} C${c1x},${c1y} ${c2x},${c2y} ${endX},${endY}`,
+                // Self-loop as an elongated tear-drop shape:
+                // start/end stay close to the node, while control points extend outward.
+                path: `M${startX},${startY} C${control1X},${control1Y} ${control2X},${control2Y} ${endX},${endY}`,
                 labelX,
-                labelY
+                labelY,
+                labelAnchor
             };
         }
 
-        const midpointX = (sx + tx) / 2;
-        const midpointY = (sy + ty) / 2;
         const offsetUnit = Number.isFinite(link?.parallelOffsetUnit) ? link.parallelOffsetUnit : 0;
-        const maxForDistance = Math.min(this.PARALLEL_LINK_MAX_CURVE, Math.max(distance * 0.35, 0));
+        const maxForDistance = Math.min(this.PARALLEL_LINK_MAX_CURVE, Math.max(distance * 0.42, 0));
         const rawCurveOffset = offsetUnit * this.PARALLEL_LINK_SPACING;
-        const curveOffset = Math.max(-maxForDistance, Math.min(maxForDistance, rawCurveOffset));
-
-        if (Math.abs(curveOffset) < 0.5) {
-            return {
-                path: `M${sx},${sy} L${tx},${ty}`,
-                labelX: midpointX,
-                labelY: midpointY
-            };
+        let curveOffset = Math.max(-maxForDistance, Math.min(maxForDistance, rawCurveOffset));
+        if (link?.hasOppositeDirection && Math.abs(offsetUnit) > 0.01) {
+            const minBidirectionalCurve = Math.min(maxForDistance, Math.max(22, distance * 0.24));
+            if (Math.abs(curveOffset) < minBidirectionalCurve) {
+                const sign = Math.sign(curveOffset || offsetUnit || 1);
+                curveOffset = sign * minBidirectionalCurve;
+            }
         }
 
         const normalX = -dy / distance;
         const normalY = dx / distance;
+        const endpointSpread = Math.max(-10, Math.min(10, offsetUnit * 3));
+        const startX = sx + normalX * endpointSpread;
+        const startY = sy + normalY * endpointSpread;
+        const endX = tx + normalX * endpointSpread;
+        const endY = ty + normalY * endpointSpread;
+        const midpointX = (startX + endX) / 2;
+        const midpointY = (startY + endY) / 2;
+
+        if (Math.abs(curveOffset) < 0.5) {
+            return {
+                path: `M${startX},${startY} L${endX},${endY}`,
+                labelX: midpointX,
+                labelY: midpointY,
+                labelAnchor: "middle"
+            };
+        }
+
         const controlX = midpointX + normalX * curveOffset;
         const controlY = midpointY + normalY * curveOffset;
         const t = 0.5;
         const invT = 1 - t;
-        const labelX = invT * invT * sx + 2 * invT * t * controlX + t * t * tx;
-        const labelY = invT * invT * sy + 2 * invT * t * controlY + t * t * ty;
+        const labelX = invT * invT * startX + 2 * invT * t * controlX + t * t * endX;
+        const labelY = invT * invT * startY + 2 * invT * t * controlY + t * t * endY;
 
         return {
-            path: `M${sx},${sy} Q${controlX},${controlY} ${tx},${ty}`,
+            path: `M${startX},${startY} Q${controlX},${controlY} ${endX},${endY}`,
             labelX,
-            labelY
+            labelY,
+            labelAnchor: "middle"
         };
     }
 
@@ -476,11 +661,15 @@ class KGGraphVis extends HTMLElement {
                     -webkit-user-select: none; 
                 }
                 .container { 
+                    position: relative;
                     width: 100%; 
                     height: 100%; 
                     box-sizing: border-box; 
+                    overflow: hidden;
                 }
                 svg { 
+                    position: absolute;
+                    inset: 0;
                     width: 100%; 
                     height: 100%; 
                     display: block; 
@@ -514,12 +703,118 @@ class KGGraphVis extends HTMLElement {
                 }
                 .edge-path {
                     fill: none;
+                    stroke-linecap: round;
+                    stroke-linejoin: round;
+                }
+                .overlay-panel {
+                    background: var(--bg-color, #ffffff);
+                    opacity: 0.72;
+                    border: 1px solid var(--status-bar-border, #d0d7de);
+                    border-radius: 6px;
+                    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+                    color: var(--text-color, #24292e);
+                    font-family: 'Segoe UI', system-ui, sans-serif;
+                    transition: opacity 0.2s ease;
+                }
+                .overlay-panel:hover {
+                    opacity: 1;
+                }
+                .legend-stack {
+                    position: absolute;
+                    z-index: 4;
+                    top: 12px;
+                    right: 12px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    align-items: stretch;
+                    pointer-events: none;
+                }
+                .legend-stack > .overlay-panel {
+                    pointer-events: auto;
+                }
+                .legend-global {
+                    min-width: 172px;
+                    padding: 8px 10px 8px;
+                }
+                .legend-named {
+                    min-width: 220px;
+                    max-width: min(360px, 45vw);
+                    max-height: min(260px, 40vh);
+                    overflow: auto;
+                    padding: 8px 10px;
+                }
+                .legend-title {
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 0.03em;
+                    text-transform: uppercase;
+                    color: var(--gutter-text, #6e7781);
+                    margin: 0 0 7px 0;
+                }
+                .legend-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 12px;
+                    line-height: 1.25;
+                    margin-bottom: 5px;
+                    white-space: nowrap;
+                }
+                .legend-row:last-child {
+                    margin-bottom: 0;
+                }
+                .legend-color-chip {
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 3px;
+                    background: transparent;
+                    border: 2px solid var(--legend-color, rgba(0, 0, 0, 0.42));
+                    flex-shrink: 0;
+                }
+                .legend-node-dot {
+                    width: 11px;
+                    height: 11px;
+                    border-radius: 999px;
+                    border: 1px solid rgba(0, 0, 0, 0.22);
+                    flex-shrink: 0;
+                }
+                .legend-node-rect {
+                    width: 14px;
+                    height: 10px;
+                    border-radius: 2px;
+                    border: 1px solid rgba(0, 0, 0, 0.22);
+                    flex-shrink: 0;
+                }
+                .legend-link-line {
+                    width: 14px;
+                    height: 2px;
+                    border-radius: 2px;
+                    background: var(--gutter-text, #6e7781);
+                    flex-shrink: 0;
+                }
+                .legend-count {
+                    margin-left: auto;
+                    color: var(--gutter-text, #6e7781);
+                    font-size: 11px;
+                }
+                .legend-placeholder {
+                    font-size: 12px;
+                    color: var(--gutter-text, #6e7781);
                 }
             </style>
             <div class="container" id="main-container">
                 <svg id="chart-container"></svg>
+                <div class="legend-stack" id="legend-stack">
+                    <div class="overlay-panel legend-global" id="legend-global"></div>
+                    <div class="overlay-panel legend-named" id="legend-named"></div>
+                </div>
             </div>
         `;
+        this.legendStackElement = this.shadowRoot.querySelector("#legend-stack");
+        this.globalLegendElement = this.shadowRoot.querySelector("#legend-global");
+        this.namedLegendElement = this.shadowRoot.querySelector("#legend-named");
+        this.refreshOverlayPanels();
     }
 
     /**
@@ -531,7 +826,19 @@ class KGGraphVis extends HTMLElement {
             if (this.svg) {
                 this.svg.attr('width', this.width).attr('height', this.height);
                 if (this.simulation) {
+                    this.buildConnectedComponents();
                     this.simulation.force("center", d3.forceCenter(this.width / 2, this.height / 2));
+                    if (this.componentTargets?.size > 1) {
+                        this.simulation
+                            .force("componentX", d3.forceX(node => {
+                                const componentIndex = this.componentByNodeId.get(node?.id) ?? 0;
+                                return (this.componentTargets.get(componentIndex) || { x: this.width / 2 }).x;
+                            }).strength(0.06))
+                            .force("componentY", d3.forceY(node => {
+                                const componentIndex = this.componentByNodeId.get(node?.id) ?? 0;
+                                return (this.componentTargets.get(componentIndex) || { y: this.height / 2 }).y;
+                            }).strength(0.06));
+                    }
                     this.simulation.alphaTarget(0.05).restart();
                     setTimeout(() => this.simulation.alphaTarget(0), 500);
                 }
@@ -553,7 +860,7 @@ class KGGraphVis extends HTMLElement {
         const zoom = scale;
         this.currentZoom = zoom;
         const showNodeLabels = zoom >= this.nodeLabelZoomThreshold;
-        const showEdgeLabels = zoom >= this.edgeLabelZoomThreshold && this.showEdgeLabels;
+        const showEdgeLabels = zoom >= this.edgeLabelZoomThreshold && this.showEdgeLabels && !this.edgeLabelsAutoHidden;
         this.nodeLabelsVisible = showNodeLabels;
         this.edgeLabelsVisible = showEdgeLabels;
 
@@ -620,6 +927,9 @@ class KGGraphVis extends HTMLElement {
 
         const showNodeLabels = this.nodeLabelsVisible && !!this.nodeLabelSelection;
         const showEdgeLabels = this.edgeLabelsVisible && !!this.linkLabelSelection;
+        if (showEdgeLabels) {
+            this.refreshEdgeLabelPositions(true);
+        }
         if (!showNodeLabels && this.nodeLabelSelection) {
             this.nodeLabelSelection.style('display', 'none');
         }
@@ -659,6 +969,257 @@ class KGGraphVis extends HTMLElement {
         }
     }
 
+    refreshEdgeLabelPositions(force = false) {
+        if (!this.linkLabelSelection || !this.graph || !Array.isArray(this.graph.links)) {
+            return;
+        }
+        if (!force && (!this.edgeLabelsVisible || this.labelsHiddenForInteraction)) {
+            return;
+        }
+
+        this.linkLabelSelection
+            .attr("x", d => {
+                if (!d?.source || !d?.target) return null;
+                const geometry = d.geometry ?? this.buildLinkGeometry(d);
+                return geometry ? geometry.labelX : null;
+            })
+            .attr("y", d => {
+                if (!d?.source || !d?.target) return null;
+                const geometry = d.geometry ?? this.buildLinkGeometry(d);
+                return geometry ? geometry.labelY : null;
+            })
+            .attr("text-anchor", d => {
+                const geometry = d?.geometry ?? this.buildLinkGeometry(d);
+                return geometry?.labelAnchor ?? "middle";
+            });
+    }
+
+    escapeHtml(value) {
+        const text = String(value ?? "");
+        return text
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll("\"", "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    shortenGraphName(graphId) {
+        const label = this.normalizeGraphId(graphId);
+        if (label === GRAPH_DEFAULTS.defaultGraphId) {
+            return "default";
+        }
+        if (label.length <= 42) {
+            return label;
+        }
+        return `${label.substring(0, 39)}...`;
+    }
+
+    formatLegendCount(value) {
+        if (!Number.isFinite(value)) {
+            return "0";
+        }
+        return Math.max(0, Math.floor(value)).toLocaleString();
+    }
+
+    createEmptyGraphSummary() {
+        return {
+            nodeCount: 0,
+            linkCount: 0,
+            namedGraphs: [],
+            componentCounts: {
+                resource: 0,
+                literal: 0,
+                blank: 0,
+                predicateLink: 0
+            }
+        };
+    }
+
+    resolveGraphSummary(summary) {
+        if (!summary || typeof summary !== "object") {
+            return this.createEmptyGraphSummary();
+        }
+        const safeSummary = this.createEmptyGraphSummary();
+        safeSummary.nodeCount = Number.isFinite(summary.nodeCount)
+            ? Math.max(0, Math.floor(summary.nodeCount))
+            : 0;
+        safeSummary.linkCount = Number.isFinite(summary.linkCount)
+            ? Math.max(0, Math.floor(summary.linkCount))
+            : 0;
+        safeSummary.namedGraphs = Array.isArray(summary.namedGraphs) ? summary.namedGraphs : [];
+        const counts = summary.componentCounts ?? {};
+        safeSummary.componentCounts.resource = Number.isFinite(counts.resource) ? Math.max(0, Math.floor(counts.resource)) : 0;
+        safeSummary.componentCounts.literal = Number.isFinite(counts.literal) ? Math.max(0, Math.floor(counts.literal)) : 0;
+        safeSummary.componentCounts.blank = Number.isFinite(counts.blank) ? Math.max(0, Math.floor(counts.blank)) : 0;
+        safeSummary.componentCounts.predicateLink = Number.isFinite(counts.predicateLink)
+            ? Math.max(0, Math.floor(counts.predicateLink))
+            : safeSummary.linkCount;
+        return safeSummary;
+    }
+
+    collectGraphSummary() {
+        const summary = this.createEmptyGraphSummary();
+        const graph = this.graph;
+        if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.links)) {
+            return summary;
+        }
+
+        summary.nodeCount = graph.nodes.length;
+        summary.linkCount = graph.links.length;
+        summary.componentCounts.predicateLink = summary.linkCount;
+
+        const namedGraphStats = new Map();
+        const upsertNamedGraphStat = graphId => {
+            const gid = this.normalizeGraphId(graphId);
+            if (gid === GRAPH_DEFAULTS.defaultGraphId) {
+                return null;
+            }
+            if (!namedGraphStats.has(gid)) {
+                namedGraphStats.set(gid, {
+                    id: gid,
+                    nodeCount: 0,
+                    linkCount: 0
+                });
+            }
+            return namedGraphStats.get(gid);
+        };
+
+        graph.nodes.forEach(node => {
+            switch (node?.type) {
+                case "Literal":
+                    summary.componentCounts.literal += 1;
+                    break;
+                case "Blank":
+                    summary.componentCounts.blank += 1;
+                    break;
+                default:
+                    // "Resource" and internal sub-types (e.g., "Class") share
+                    // the same visual component entry.
+                    summary.componentCounts.resource += 1;
+                    break;
+            }
+
+            const graphIds = node?.graphs instanceof Set
+                ? [...node.graphs]
+                : [node?.graph];
+            graphIds.forEach(graphId => {
+                const stat = upsertNamedGraphStat(graphId);
+                if (stat) {
+                    stat.nodeCount += 1;
+                }
+            });
+        });
+
+        graph.links.forEach(link => {
+            const stat = upsertNamedGraphStat(link?.graph);
+            if (stat) {
+                stat.linkCount += 1;
+            }
+        });
+
+        summary.namedGraphs = [...namedGraphStats.values()]
+            .map(stat => ({
+                ...stat,
+                color: this.getGraphColor(stat.id)
+            }))
+            .sort((left, right) => right.linkCount - left.linkCount || left.id.localeCompare(right.id));
+        return summary;
+    }
+
+    notifyGraphStats() {
+        const summary = this.resolveGraphSummary(this.graphSummary);
+        if (!window.bridge || typeof window.bridge.onGraphStatsUpdated !== "function") {
+            return;
+        }
+        try {
+            const namedGraphPayload = Array.isArray(summary.namedGraphs)
+                ? summary.namedGraphs.map(namedGraph => ({
+                    id: String(namedGraph?.id ?? ""),
+                    linkCount: Number.isFinite(namedGraph?.linkCount)
+                        ? Math.max(0, Math.floor(namedGraph.linkCount))
+                        : 0
+                }))
+                : [];
+            window.bridge.onGraphStatsUpdated(
+                String(summary.linkCount),
+                String(summary.namedGraphs.length),
+                namedGraphPayload
+            );
+        } catch (error) {
+            try {
+                window.bridge.onGraphStatsUpdated(String(summary.linkCount), String(summary.namedGraphs.length));
+            } catch (legacyError) {
+                // Ignore bridge callback failures to keep rendering resilient.
+            }
+        }
+    }
+
+    renderGlobalLegend(componentCounts) {
+        return `
+            <div class="legend-title">Components</div>
+            <div class="legend-row">
+                <span class="legend-node-dot" style="background:${GRAPH_NODE_FILL.Resource}"></span>
+                <span>Resource</span>
+                <span class="legend-count">${this.formatLegendCount(componentCounts.resource)}</span>
+            </div>
+            <div class="legend-row">
+                <span class="legend-node-rect" style="background:${GRAPH_NODE_FILL.Literal}"></span>
+                <span>Literal</span>
+                <span class="legend-count">${this.formatLegendCount(componentCounts.literal)}</span>
+            </div>
+            <div class="legend-row">
+                <span class="legend-node-dot" style="background:${GRAPH_NODE_FILL.Blank}"></span>
+                <span>Blank Node</span>
+                <span class="legend-count">${this.formatLegendCount(componentCounts.blank)}</span>
+            </div>
+            <div class="legend-row">
+                <span class="legend-link-line"></span>
+                <span>Predicate Link</span>
+                <span class="legend-count">${this.formatLegendCount(componentCounts.predicateLink)}</span>
+            </div>
+        `;
+    }
+
+    renderNamedGraphLegend(namedGraphs) {
+        if (!Array.isArray(namedGraphs) || namedGraphs.length === 0) {
+            return "";
+        }
+        const rows = namedGraphs
+            .map(namedGraph => `
+                <div class="legend-row" title="${this.escapeHtml(namedGraph.id)}">
+                    <span class="legend-color-chip" style="--legend-color:${namedGraph.color};"></span>
+                    <span>${this.escapeHtml(this.shortenGraphName(namedGraph.id))}</span>
+                    <span class="legend-count">${this.formatLegendCount(namedGraph.linkCount)}</span>
+                </div>
+            `)
+            .join("");
+        return `
+            <div class="legend-title">Named Graphs</div>
+            ${rows}
+        `;
+    }
+
+    refreshOverlayPanels() {
+        const summary = this.resolveGraphSummary(this.graphSummary);
+        const componentCounts = summary.componentCounts;
+
+        if (this.globalLegendElement) {
+            this.globalLegendElement.innerHTML = this.renderGlobalLegend(componentCounts);
+        }
+
+        if (this.namedLegendElement) {
+            const namedLegendHtml = this.renderNamedGraphLegend(summary.namedGraphs);
+            if (!namedLegendHtml) {
+                this.namedLegendElement.innerHTML = "";
+                this.namedLegendElement.style.display = "none";
+            } else {
+                this.namedLegendElement.innerHTML = namedLegendHtml;
+                this.namedLegendElement.style.display = "block";
+            }
+        }
+    }
+
     /* -------------------------------------------------------------
      * GRAPH PROCESSING
      * ------------------------------------------------------------- */
@@ -669,31 +1230,118 @@ class KGGraphVis extends HTMLElement {
      */
     createGraph() {
         const graph = { nodes: [], links: [] };
-        this.graphColorMap = new Map();
         const nodeById = new Map();
-        const RDF_TYPE_PREDICATE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
+        const linkDedup = new Set();
+        const subjectProcessingState = new Map();
+        const activeSubjectStack = new Set();
+        const RDF_TYPE_PREDICATE = GRAPH_DEFAULTS.rdfTypePredicate;
 
         const normalizeArray = value => (Array.isArray(value) ? value : [value]);
         const isObject = value => value !== null && typeof value === 'object';
-        const resolveGraphId = graphId => graphId || 'default';
+        const resolveGraphId = graphId => this.normalizeGraphId(graphId);
         const isInferenceGraphId = graphId => {
             const gid = resolveGraphId(graphId);
             return gid.startsWith('urn:corese:inference:')
                 || gid === 'http://ns.inria.fr/corese/rule'
                 || gid === 'http://ns.inria.fr/corese/constraint';
         };
-        const graphPriority = graphId => {
+        const isDefaultGraphId = graphId => resolveGraphId(graphId) === GRAPH_DEFAULTS.defaultGraphId;
+        const SUBJECT_WEIGHT = 100;
+        const MENTION_WEIGHT = 10;
+
+        const ensureGraphScore = (node, graphId) => {
+            if (!(node.graphScores instanceof Map)) {
+                node.graphScores = new Map();
+            }
             const gid = resolveGraphId(graphId);
-            if (gid === 'default') {
-                return 3;
+            if (!node.graphScores.has(gid)) {
+                node.graphScores.set(gid, {
+                    subjectMentions: 0,
+                    objectMentions: 0,
+                    totalWeight: 0
+                });
             }
-            if (isInferenceGraphId(gid)) {
-                return 1;
-            }
-            return 2;
+            return node.graphScores.get(gid);
         };
-        const shouldPreferGraph = (currentGraph, candidateGraph) =>
-            graphPriority(candidateGraph) > graphPriority(currentGraph);
+
+        const registerNodeGraphUsage = (node, graphId, isSubject) => {
+            if (!node.graphs) {
+                node.graphs = new Set();
+            }
+            const gid = resolveGraphId(graphId);
+            node.graphs.add(gid);
+            const score = ensureGraphScore(node, gid);
+            if (isSubject) {
+                score.subjectMentions += 1;
+                score.totalWeight += SUBJECT_WEIGHT;
+                return;
+            }
+            score.objectMentions += 1;
+            score.totalWeight += MENTION_WEIGHT;
+        };
+
+        const buildPriority = (graphId, score = null) => ({
+            graphId,
+            hasSubjectMentions: (score?.subjectMentions ?? 0) > 0 ? 1 : 0,
+            nonInference: isInferenceGraphId(graphId) ? 0 : 1,
+            subjectMentions: score?.subjectMentions ?? 0,
+            totalWeight: score?.totalWeight ?? 0,
+            named: isDefaultGraphId(graphId) ? 0 : 1
+        });
+
+        const comparePriority = (candidate, current) => {
+            // Any non-default graph must win over default to avoid serializer
+            // artifacts assigning nodes to "default" when they are actually
+            // defined in named graphs.
+            if (candidate.named !== current.named) {
+                return candidate.named > current.named;
+            }
+
+            if (candidate.hasSubjectMentions !== current.hasSubjectMentions) {
+                return candidate.hasSubjectMentions > current.hasSubjectMentions;
+            }
+
+            if (candidate.hasSubjectMentions > 0) {
+                if (candidate.subjectMentions !== current.subjectMentions) {
+                    return candidate.subjectMentions > current.subjectMentions;
+                }
+                if (candidate.nonInference !== current.nonInference) {
+                    return candidate.nonInference > current.nonInference;
+                }
+                if (candidate.totalWeight !== current.totalWeight) {
+                    return candidate.totalWeight > current.totalWeight;
+                }
+            } else {
+                if (candidate.nonInference !== current.nonInference) {
+                    return candidate.nonInference > current.nonInference;
+                }
+                if (candidate.totalWeight !== current.totalWeight) {
+                    return candidate.totalWeight > current.totalWeight;
+                }
+            }
+            return candidate.graphId.localeCompare(current.graphId) < 0;
+        };
+
+        const resolvePrimaryGraph = node => {
+            const candidateIds = node?.graphs instanceof Set
+                ? [...node.graphs]
+                : [resolveGraphId(node?.graph)];
+            if (candidateIds.length === 0) {
+                return GRAPH_DEFAULTS.defaultGraphId;
+            }
+            candidateIds.sort((left, right) => left.localeCompare(right));
+            let bestId = candidateIds[0];
+            const scoreMap = node?.graphScores instanceof Map ? node.graphScores : new Map();
+            for (let index = 1; index < candidateIds.length; index += 1) {
+                const candidateId = candidateIds[index];
+                const candidatePriority = buildPriority(candidateId, scoreMap.get(candidateId));
+                const bestPriority = buildPriority(bestId, scoreMap.get(bestId));
+                if (comparePriority(candidatePriority, bestPriority)) {
+                    bestId = candidateId;
+                }
+            }
+            return bestId;
+        };
 
         const upsertNode = (id, type, graphId, meta = {}, isSubject = false) => {
             if (!id) return null;
@@ -704,20 +1352,12 @@ class KGGraphVis extends HTMLElement {
                     existing.type = type;
                 }
 
-                if (!existing.graphs) existing.graphs = new Set([existing.graph]);
-                existing.graphs.add(resolvedGraph);
-
+                registerNodeGraphUsage(existing, resolvedGraph, isSubject);
                 if (isSubject) {
-                    if (!existing.isDefinedAsSubject) {
-                        existing.graph = resolvedGraph;
-                        existing.isDefinedAsSubject = true;
-                        existing.definitionGraph = resolvedGraph;
-                    } else if (shouldPreferGraph(existing.definitionGraph || existing.graph, resolvedGraph)) {
-                        existing.graph = resolvedGraph;
+                    existing.isDefinedAsSubject = true;
+                    if (!existing.definitionGraph) {
                         existing.definitionGraph = resolvedGraph;
                     }
-                } else if (!existing.isDefinedAsSubject && shouldPreferGraph(existing.graph, resolvedGraph)) {
-                    existing.graph = resolvedGraph;
                 }
 
                 Object.assign(existing, meta);
@@ -729,11 +1369,13 @@ class KGGraphVis extends HTMLElement {
                 name: id,
                 type,
                 graph: resolvedGraph,
-                graphs: new Set([resolvedGraph]),
+                graphs: new Set(),
+                graphScores: new Map(),
                 isDefinedAsSubject: isSubject,
                 definitionGraph: isSubject ? resolvedGraph : null,
                 ...meta
             };
+            registerNodeGraphUsage(node, resolvedGraph, isSubject);
             graph.nodes.push(node);
             nodeById.set(id, node);
             return node;
@@ -741,7 +1383,16 @@ class KGGraphVis extends HTMLElement {
 
         const resolveSubjectType = (item, subjectId) => {
             const types = normalizeArray(item['@type'] ?? []);
-            if (types.some(t => t.includes('Class'))) {
+            const hasClassType = types.some(typeValue => {
+                if (typeValue == null) {
+                    return false;
+                }
+                const typeLabel = (isObject(typeValue) && typeValue['@id'])
+                    ? typeValue['@id']
+                    : String(typeValue);
+                return typeLabel.includes('Class');
+            });
+            if (hasClassType) {
                 return 'Class';
             }
             if (subjectId.startsWith('_:')) {
@@ -757,6 +1408,12 @@ class KGGraphVis extends HTMLElement {
 
         const addLink = (subj, pred, objId, objType, meta, currentGraph) => {
             if (objId === undefined || objId === null || objId === 'undefined') return;
+            const resolvedGraph = resolveGraphId(currentGraph);
+            const dedupKey = `${resolvedGraph}\u0000${subj}\u0000${pred}\u0000${objId}`;
+            if (linkDedup.has(dedupKey)) {
+                return;
+            }
+            linkDedup.add(dedupKey);
             upsertNode(objId, objType, currentGraph, meta, false);
             graph.links.push({
                 source: subj,
@@ -826,15 +1483,54 @@ class KGGraphVis extends HTMLElement {
             const subj = item['@id'];
             if (!subj) return;
 
+            const resolvedGraph = resolveGraphId(currentGraph);
+            const subjectKey = `${resolvedGraph}\u0000${subj}`;
             const subjType = resolveSubjectType(item, subj);
             const isSubstantial = isSubstantialDefinition(item);
+            const previousState = subjectProcessingState.get(subjectKey);
+
+            if (previousState?.fullProcessed && isSubstantial) {
+                return;
+            }
+            if (previousState?.stubProcessed && !isSubstantial) {
+                return;
+            }
+
+            const alreadyOnStack = activeSubjectStack.has(subjectKey);
+            if (alreadyOnStack && isSubstantial) {
+                upsertNode(subj, subjType, currentGraph, {}, false);
+                return;
+            }
+
+            subjectProcessingState.set(subjectKey, {
+                stubProcessed: true,
+                fullProcessed: isSubstantial || Boolean(previousState?.fullProcessed)
+            });
+
             upsertNode(subj, subjType, currentGraph, {}, isSubstantial);
-            processTypePredicates(item, subj, currentGraph);
-            processPredicates(item, subj, currentGraph);
+            if (!isSubstantial) {
+                return;
+            }
+
+            activeSubjectStack.add(subjectKey);
+            try {
+                processTypePredicates(item, subj, currentGraph);
+                processPredicates(item, subj, currentGraph);
+            } finally {
+                activeSubjectStack.delete(subjectKey);
+            }
         };
 
         const root = this.jsonLDOntology;
-        normalizeArray(root).forEach(item => processItem(item, 'default'));
+        normalizeArray(root).forEach(item => processItem(item, GRAPH_DEFAULTS.defaultGraphId));
+        graph.nodes.forEach(node => {
+            const primaryGraph = resolvePrimaryGraph(node);
+            node.graph = primaryGraph;
+            if (node.isDefinedAsSubject) {
+                node.definitionGraph = primaryGraph;
+            }
+            delete node.graphScores;
+        });
         return graph;
     }
 
@@ -877,6 +1573,207 @@ class KGGraphVis extends HTMLElement {
         return { x: sumX / count, y: sumY / count };
     }
 
+    buildConnectedComponents() {
+        const graph = this.graph;
+        if (!graph || !Array.isArray(graph.nodes) || graph.nodes.length === 0) {
+            this.componentByNodeId = new Map();
+            this.componentTargets = new Map([[0, { x: this.width / 2, y: this.height / 2 }]]);
+            return [];
+        }
+
+        const adjacency = new Map();
+        graph.nodes.forEach(node => {
+            if (!node?.id) return;
+            adjacency.set(node.id, new Set());
+        });
+        graph.links.forEach(link => {
+            const sourceId = this.getLinkEndpointId(link?.source);
+            const targetId = this.getLinkEndpointId(link?.target);
+            if (!sourceId || !targetId || sourceId === targetId) {
+                return;
+            }
+            if (!adjacency.has(sourceId) || !adjacency.has(targetId)) {
+                return;
+            }
+            adjacency.get(sourceId).add(targetId);
+            adjacency.get(targetId).add(sourceId);
+        });
+
+        const visited = new Set();
+        const components = [];
+        adjacency.forEach((_, startId) => {
+            if (visited.has(startId)) {
+                return;
+            }
+            const queue = [startId];
+            const component = [];
+            visited.add(startId);
+            while (queue.length > 0) {
+                const current = queue.shift();
+                component.push(current);
+                adjacency.get(current).forEach(nextId => {
+                    if (visited.has(nextId)) {
+                        return;
+                    }
+                    visited.add(nextId);
+                    queue.push(nextId);
+                });
+            }
+            component.sort((left, right) => left.localeCompare(right));
+            components.push(component);
+        });
+
+        const sortedComponents = components
+            .map(component => [...component])
+            .sort((left, right) => right.length - left.length || left[0].localeCompare(right[0]));
+        this.componentByNodeId = new Map();
+        sortedComponents.forEach((component, componentIndex) => {
+            component.forEach(nodeId => {
+                this.componentByNodeId.set(nodeId, componentIndex);
+            });
+        });
+        this.componentTargets = this.computeComponentTargets(sortedComponents.length);
+        return sortedComponents;
+    }
+
+    computeComponentTargets(componentCount) {
+        const targets = new Map();
+        if (componentCount <= 0) {
+            targets.set(0, { x: this.width / 2, y: this.height / 2 });
+            return targets;
+        }
+        if (componentCount === 1) {
+            targets.set(0, { x: this.width / 2, y: this.height / 2 });
+            return targets;
+        }
+
+        const columns = Math.ceil(Math.sqrt(componentCount));
+        const rows = Math.ceil(componentCount / columns);
+        const horizontalSpacing = Math.max(190, Math.min(420, this.width / Math.max(2, columns)));
+        const verticalSpacing = Math.max(170, Math.min(360, this.height / Math.max(2, rows)));
+        const gridWidth = horizontalSpacing * Math.max(0, columns - 1);
+        const gridHeight = verticalSpacing * Math.max(0, rows - 1);
+        const originX = this.width / 2 - gridWidth / 2;
+        const originY = this.height / 2 - gridHeight / 2;
+
+        for (let index = 0; index < componentCount; index += 1) {
+            const row = Math.floor(index / columns);
+            const col = index % columns;
+            targets.set(index, {
+                x: originX + col * horizontalSpacing,
+                y: originY + row * verticalSpacing
+            });
+        }
+        return targets;
+    }
+
+    positionNewNode(node, fallbackAnchor) {
+        const nodeId = node?.id;
+        const componentIndex = this.componentByNodeId.get(nodeId) ?? 0;
+        const componentTarget = this.componentTargets.get(componentIndex) || fallbackAnchor;
+        const hash = this.stableHash(nodeId);
+        const angle = (hash % 360) * (Math.PI / 180);
+        const ring = (hash >>> 5) % 5;
+        const radius = 26 + ring * 18;
+
+        node.x = componentTarget.x + Math.cos(angle) * radius;
+        node.y = componentTarget.y + Math.sin(angle) * radius;
+        node.vx = 0;
+        node.vy = 0;
+    }
+
+    shouldApplyAutoFit(hadExistingLayout, addedRatio) {
+        if (!hadExistingLayout) {
+            return true;
+        }
+        return addedRatio > 0.82;
+    }
+
+    clearAutoFitTimers() {
+        this.pendingAutoFit = false;
+        if (this.pendingAutoFitTimer) {
+            clearTimeout(this.pendingAutoFitTimer);
+            this.pendingAutoFitTimer = null;
+        }
+        if (this.pendingRecenterTimer) {
+            clearTimeout(this.pendingRecenterTimer);
+            this.pendingRecenterTimer = null;
+        }
+    }
+
+    scheduleAutoFit(delayMs = 120, overviewAlreadyApplied = false) {
+        this.clearAutoFitTimers();
+        this.pendingAutoFit = true;
+        const startupDelay = Math.max(0, Number(delayMs) || 0);
+        this.pendingAutoFitTimer = setTimeout(() => {
+            this.pendingAutoFitTimer = null;
+            if (!this.graph || !Array.isArray(this.graph.nodes) || this.graph.nodes.length === 0) {
+                this.pendingAutoFit = false;
+                return;
+            }
+            if (overviewAlreadyApplied) {
+                this.pendingAutoFit = false;
+                this.fitToGraph(120, true);
+                return;
+            }
+
+            // Phase 1: very distant overview to keep heavy labels hidden while
+            // the simulation stabilizes.
+            this.fitToGraph(this.AUTO_OVERVIEW_PADDING, false, this.AUTO_OVERVIEW_MAX_SCALE);
+
+            // Phase 2: delayed center action, same visual effect as pressing
+            // the center button once the layout is more stable.
+            this.pendingRecenterTimer = setTimeout(() => {
+                this.pendingRecenterTimer = null;
+                this.pendingAutoFit = false;
+                this.fitToGraph(120, true);
+            }, this.AUTO_RECENTER_DELAY_MS);
+        }, startupDelay);
+    }
+
+    resolveFitTransform(padding = 90, maxScale = 2.4) {
+        if (!this.graph || !Array.isArray(this.graph.nodes)) {
+            return null;
+        }
+        const positionedNodes = this.graph.nodes.filter(node =>
+            Number.isFinite(node?.x) && Number.isFinite(node?.y));
+        if (positionedNodes.length === 0) {
+            return null;
+        }
+
+        const minX = d3.min(positionedNodes, node => node.x);
+        const maxX = d3.max(positionedNodes, node => node.x);
+        const minY = d3.min(positionedNodes, node => node.y);
+        const maxY = d3.max(positionedNodes, node => node.y);
+        const boundsWidth = Math.max(24, (maxX - minX) || 0);
+        const boundsHeight = Math.max(24, (maxY - minY) || 0);
+        const usableWidth = Math.max(120, this.width - padding);
+        const usableHeight = Math.max(120, this.height - padding);
+        const resolvedMaxScale = Number.isFinite(maxScale) ? Math.max(0.05, maxScale) : 2.4;
+        const scale = Math.max(0.05,
+            Math.min(resolvedMaxScale, Math.min(usableWidth / boundsWidth, usableHeight / boundsHeight)));
+        const centerX = (minX + maxX) / 2;
+        const centerY = (minY + maxY) / 2;
+        const translateX = this.width / 2 - centerX * scale;
+        const translateY = this.height / 2 - centerY * scale;
+        return d3.zoomIdentity.translate(translateX, translateY).scale(scale);
+    }
+
+    fitToGraph(padding = 90, animate = false, maxScale = 2.4) {
+        if (!this.svg || !this.zoomBehavior || !this.graph || !Array.isArray(this.graph.nodes)) {
+            return;
+        }
+        const targetTransform = this.resolveFitTransform(padding, maxScale);
+        if (!targetTransform) {
+            return;
+        }
+        if (animate) {
+            this.svg.transition().duration(450).call(this.zoomBehavior.transform, targetTransform);
+            return;
+        }
+        this.svg.call(this.zoomBehavior.transform, targetTransform);
+    }
+
     resolvePreservedTransform() {
         const t = this.currentTransform;
         if (!t
@@ -901,7 +1798,7 @@ class KGGraphVis extends HTMLElement {
         if (!this.width || !this.height) this.updateSize();
         const previousNodeStateById = this.captureNodeStateById();
         const hadExistingLayout = previousNodeStateById.size > 0;
-        const preservedTransform = this.resolvePreservedTransform();
+        let initialTransform = this.resolvePreservedTransform();
         if (this.simulation) this.simulation.stop();
         if (this.interactionTimer) {
             clearTimeout(this.interactionTimer);
@@ -911,32 +1808,55 @@ class KGGraphVis extends HTMLElement {
             cancelAnimationFrame(this.labelVisibilityRaf);
             this.labelVisibilityRaf = null;
         }
+        this.clearAutoFitTimers();
 
         const chartSvg = this.shadowRoot.querySelector("#chart-container");
         if (!chartSvg) return;
 
         this.svg = d3.select(chartSvg);
-        this.svg.selectAll("*").remove();
-        this.isInteracting = false;
-        this.labelsHiddenForInteraction = false;
-        this.lastLabelVisibilityUpdate = 0;
-        this.lastLabelUpdate = 0;
 
         if (!this.jsonld) {
+            this.svg.selectAll("*").remove();
+            this.isInteracting = false;
+            this.labelsHiddenForInteraction = false;
+            this.lastLabelVisibilityUpdate = 0;
+            this.lastLabelUpdate = 0;
             this.graph = { nodes: [], links: [] };
             this.simulation = null;
             this.linkSelection = null;
             this.nodeSelection = null;
             this.linkLabelSelection = null;
             this.nodeLabelSelection = null;
+            this.zoomLayer = null;
             this.currentTransform = d3.zoomIdentity;
+            this.graphSummary = this.createEmptyGraphSummary();
+            this.refreshOverlayPanels();
+            this.notifyGraphStats();
             return;
         }
 
+        let parsedGraph = null;
         try {
             this.jsonLDOntology = JSON.parse(this.jsonld);
-            const graph = this.createGraph();
-            this.graph = graph;
+            parsedGraph = this.createGraph();
+        } catch (e) {
+            console.error("Graph drawing error:", e);
+            return;
+        }
+
+        this.svg.selectAll("*").remove();
+        this.isInteracting = false;
+        this.labelsHiddenForInteraction = false;
+        this.lastLabelVisibilityUpdate = 0;
+        this.lastLabelUpdate = 0;
+
+        try {
+            this.graph = parsedGraph || { nodes: [], links: [] };
+            this.graphSummary = this.collectGraphSummary();
+            this.refreshOverlayPanels();
+            this.notifyGraphStats();
+
+            this.buildConnectedComponents();
             this.assignParallelLinkOffsets(this.graph.links);
             const anchor = this.computeLayoutAnchor(previousNodeStateById);
             let reusedNodeCount = 0;
@@ -953,10 +1873,7 @@ class KGGraphVis extends HTMLElement {
                     node.fy = previous.fy;
                     return;
                 }
-                node.x = anchor.x + (Math.random() - 0.5) * 220;
-                node.y = anchor.y + (Math.random() - 0.5) * 220;
-                node.vx = 0;
-                node.vy = 0;
+                this.positionNewNode(node, anchor);
             });
 
             const addedNodeCount = this.graph.nodes.length - reusedNodeCount;
@@ -967,7 +1884,19 @@ class KGGraphVis extends HTMLElement {
                 ? 1
                 : (addedRatio <= 0.12 ? 0.18 : (addedRatio <= 0.35 ? 0.30 : 0.55));
 
-            this.renderGraph(preservedTransform, initialAlpha);
+            const shouldAutoFit = this.shouldApplyAutoFit(hadExistingLayout, addedRatio);
+            if (shouldAutoFit) {
+                const overviewTransform = this.resolveFitTransform(this.AUTO_OVERVIEW_PADDING,
+                    this.AUTO_OVERVIEW_MAX_SCALE);
+                if (overviewTransform) {
+                    initialTransform = overviewTransform;
+                }
+            }
+
+            this.renderGraph(initialTransform, initialAlpha);
+            if (shouldAutoFit) {
+                this.scheduleAutoFit(this.AUTO_RECENTER_DELAY_MS, true);
+            }
         } catch (e) {
             console.error("Graph drawing error:", e);
         }
@@ -977,36 +1906,72 @@ class KGGraphVis extends HTMLElement {
      * Configures D3 forces, zoom, and appends visual elements.
      */
     renderGraph(initialTransform = d3.zoomIdentity, initialAlpha = 1) {
-        // Force Simulation Configuration with adaptive strength for large graphs
         const nodeCount = this.graph.nodes.length;
-        const isLargeGraph = nodeCount > 200;
+        const linkCount = this.graph.links.length;
+        const isLargeGraph = nodeCount >= this.LARGE_GRAPH_NODE_THRESHOLD || linkCount >= this.LARGE_GRAPH_LINK_THRESHOLD;
+        const isVeryLargeGraph = nodeCount >= this.AUTO_HIDE_NODE_LABEL_THRESHOLD;
+        this.edgeLabelsAutoHidden = linkCount >= this.AUTO_HIDE_EDGE_LABEL_THRESHOLD;
+        this.nodeLabelZoomThreshold = isVeryLargeGraph ? 0.62 : (isLargeGraph ? 0.38 : 0.2);
+        this.edgeLabelZoomThreshold = this.edgeLabelsAutoHidden ? 0.92 : (isLargeGraph ? 0.5 : 0.2);
+
         const nodeById = new Map(this.graph.nodes.map(node => [node.id, node]));
         const getSourceId = link => (link.source && link.source.id) ? link.source.id : link.source;
         const getTargetId = link => (link.target && link.target.id) ? link.target.id : link.target;
-        
-        // Adjust forces based on graph size
-        const chargeStrength = isLargeGraph ? -800 : -1500;
-        const linkDistance = isLargeGraph ? 100 : 160;
-        const collisionRadius = isLargeGraph ? 30 : 45;
-        
+
+        const componentCount = Math.max(1, this.componentTargets?.size || 0);
+        const chargeStrength = isVeryLargeGraph ? -360 : (isLargeGraph ? -680 : -1400);
+        const linkDistance = isVeryLargeGraph ? 70 : (isLargeGraph ? 92 : 158);
+        const collisionRadius = isVeryLargeGraph ? 18 : (isLargeGraph ? 30 : 44);
+        const componentForceStrength = componentCount > 1 ? (isLargeGraph ? 0.09 : 0.06) : 0;
+
         this.simulation = d3.forceSimulation(this.graph.nodes)
-            .force("link", d3.forceLink(this.graph.links).id(d => d.id).distance(linkDistance))
+            .force("link", d3.forceLink(this.graph.links)
+                .id(d => d.id)
+                .distance(link => {
+                    const sourceId = getSourceId(link);
+                    const targetId = getTargetId(link);
+                    if (sourceId && targetId) {
+                        const sourceComponent = this.componentByNodeId.get(sourceId);
+                        const targetComponent = this.componentByNodeId.get(targetId);
+                        if (sourceComponent !== undefined && targetComponent !== undefined
+                            && sourceComponent !== targetComponent) {
+                            return linkDistance * 1.18;
+                        }
+                    }
+                    return linkDistance;
+                }))
             .force("charge", d3.forceManyBody().strength(chargeStrength))
             .force("center", d3.forceCenter(this.width / 2, this.height / 2))
             .force("collision", d3.forceCollide().radius(collisionRadius))
-            .alphaDecay(isLargeGraph ? 0.05 : 0.0228) // Faster convergence for large graphs
-            .velocityDecay(isLargeGraph ? 0.5 : 0.4) // More damping for large graphs
+            .alphaDecay(isVeryLargeGraph ? 0.07 : (isLargeGraph ? 0.05 : 0.024))
+            .velocityDecay(isVeryLargeGraph ? 0.62 : (isLargeGraph ? 0.54 : 0.4))
             .on("tick", () => this.tickedThrottled())
             .on("end", () => {
                 this.simulationStopped = true;
+                this.refreshEdgeLabelPositions(true);
+                this.scheduleLabelVisibilityUpdate();
             });
-        
+
+        if (componentForceStrength > 0) {
+            this.simulation
+                .force("componentX", d3.forceX(node => {
+                    const componentIndex = this.componentByNodeId.get(node?.id) ?? 0;
+                    return (this.componentTargets.get(componentIndex) || { x: this.width / 2 }).x;
+                }).strength(componentForceStrength))
+                .force("componentY", d3.forceY(node => {
+                    const componentIndex = this.componentByNodeId.get(node?.id) ?? 0;
+                    return (this.componentTargets.get(componentIndex) || { y: this.height / 2 }).y;
+                }).strength(componentForceStrength));
+        } else {
+            this.simulation.force("componentX", null);
+            this.simulation.force("componentY", null);
+        }
+
         this.simulationStopped = false;
 
-        // Zoom Layer
-        const gZoom = this.svg.append("g").attr("class", "zoom-layer");
+        this.zoomLayer = this.svg.append("g").attr("class", "zoom-layer");
+        const gZoom = this.zoomLayer;
 
-        // Zoom Behavior
         this.zoomBehavior = d3.zoom()
             .scaleExtent([0.05, 10])
             .on("zoom", () => {
@@ -1019,24 +1984,27 @@ class KGGraphVis extends HTMLElement {
                     this.scheduleLabelVisibilityUpdate();
                     return;
                 }
-                const isWheel = sourceEvent?.type === 'wheel';
-                const isDblClick = sourceEvent?.type === 'dblclick';
+                const isWheel = sourceEvent?.type === "wheel";
+                const isDblClick = sourceEvent?.type === "dblclick";
                 this.onInteraction(!(isWheel || isDblClick));
             });
         this.svg.call(this.zoomBehavior);
         this.svg.call(this.zoomBehavior.transform, initialTransform || d3.zoomIdentity);
 
-        // Layers
         const linkGroup = gZoom.append("g").attr("class", "links-layer");
         const labelGroup = gZoom.append("g").attr("class", "labels-layer");
         const nodeGroup = gZoom.append("g").attr("class", "nodes-layer");
 
-        // SVG Definitions (Markers, Gradients)
         const defs = this.svg.append("defs");
+        const graphIds = new Set();
+        this.graph.nodes.forEach(node => {
+            graphIds.add(this.normalizeGraphId(node?.graph));
+        });
+        this.graph.links.forEach(link => {
+            graphIds.add(this.normalizeGraphId(link?.graph));
+        });
 
-        // Create Markers
-        const graphIds = [...new Set(this.graph.nodes.map(n => n.graph))];
-        graphIds.forEach(graphId => {
+        [...graphIds].forEach(graphId => {
             const color = this.getGraphColor(graphId);
             defs.append("marker")
                 .attr("id", `arrow-${this.sanitizeId(graphId)}`)
@@ -1048,135 +2016,114 @@ class KGGraphVis extends HTMLElement {
                 .append("path")
                 .attr("d", "M0,-5L10,0L0,5")
                 .attr("fill", color);
+
+            defs.append("marker")
+                .attr("id", `arrow-loop-${this.sanitizeId(graphId)}`)
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 10)
+                .attr("markerWidth", 6)
+                .attr("markerHeight", 6)
+                .attr("orient", "auto")
+                .append("path")
+                .attr("d", "M0,-5L10,0L0,5")
+                .attr("fill", color);
         });
 
-        // Create Gradients
-        this.graph.links.forEach((link, i) => {
+        const resolveLinkGraphId = link => {
             const sourceNode = nodeById.get(getSourceId(link));
             const targetNode = nodeById.get(getTargetId(link));
+            return this.normalizeGraphId(link?.graph || sourceNode?.graph || targetNode?.graph);
+        };
 
-            if (sourceNode && targetNode && sourceNode.graph !== targetNode.graph) {
-                const gradId = `gradient-${i}`;
-                const gradient = defs.append("linearGradient")
-                    .attr("id", gradId)
-                    .attr("gradientUnits", "userSpaceOnUse")
-                    .attr("x1", sourceNode.x || 0)
-                    .attr("y1", sourceNode.y || 0)
-                    .attr("x2", targetNode.x || 0)
-                    .attr("y2", targetNode.y || 0);
-
-                gradient.append("stop")
-                    .attr("offset", "0%")
-                    .attr("stop-color", this.getGraphColor(sourceNode.graph));
-
-                gradient.append("stop")
-                    .attr("offset", "100%")
-                    .attr("stop-color", this.getGraphColor(targetNode.graph));
-
-                link.gradientId = gradId;
-            }
-        });
-
-        // Draw Links
         this.linkSelection = linkGroup.selectAll("path")
-            .data(this.graph.links).enter().append("path")
+            .data(this.graph.links)
+            .enter()
+            .append("path")
             .attr("class", "edge-path")
-            .attr("stroke", d => {
-                const sNode = nodeById.get(getSourceId(d));
-                const tNode = nodeById.get(getTargetId(d));
-
-                if (sNode && tNode) {
-                    if (sNode.graph === tNode.graph) {
-                        return this.getGraphColor(sNode.graph);
-                    } else if (d.gradientId) {
-                        return `url(#${d.gradientId})`;
-                    }
-                }
-                return '#999';
-            })
-            .attr("stroke-width", 2)
-            .attr("marker-end", d => {
-                const tNode = nodeById.get(getTargetId(d));
-                if (tNode) {
-                    return `url(#arrow-${this.sanitizeId(tNode.graph)})`;
-                }
-                return null;
+            .attr("stroke", link => this.getGraphColor(resolveLinkGraphId(link)))
+            .attr("stroke-width", isLargeGraph ? 1.7 : 2)
+            .attr("marker-end", link => {
+                const sourceId = this.getLinkEndpointId(link?.source);
+                const targetId = this.getLinkEndpointId(link?.target);
+                const markerPrefix = sourceId && targetId && sourceId === targetId ? "arrow-loop" : "arrow";
+                return `url(#${markerPrefix}-${this.sanitizeId(resolveLinkGraphId(link))})`;
             });
 
-        // Draw Edge Labels
         this.linkLabelSelection = labelGroup.selectAll("text")
-            .data(this.graph.links).enter().append("text")
+            .data(this.graph.links)
+            .enter()
+            .append("text")
             .attr("class", "edge-label")
             .attr("text-anchor", "middle")
-            .text(d => this.formatLabel(d.name));
+            .text(link => this.formatLabel(link.name));
 
-        // Draw Nodes with Drag Behavior
         this.nodeSelection = nodeGroup.selectAll("g")
-            .data(this.graph.nodes).enter().append("g")
+            .data(this.graph.nodes)
+            .enter()
+            .append("g")
             .call(d3.drag()
-                .on("start", (d) => {
+                .on("start", node => {
+                    this.onInteraction(true);
                     if (!d3.event.active) {
-                        this.simulationStopped = false; // Re-enable ticking when dragging
-                        this.simulation.alphaTarget(0.3).restart();
+                        this.simulationStopped = false;
+                        this.simulation.alphaTarget(0.28).restart();
                     }
-                    d.fx = d.x;
-                    d.fy = d.y;
+                    node.fx = node.x;
+                    node.fy = node.y;
                 })
-                .on("drag", (d) => {
-                    d.fx = d3.event.x;
-                    d.fy = d3.event.y;
+                .on("drag", node => {
+                    this.onInteraction(true);
+                    node.fx = d3.event.x;
+                    node.fy = d3.event.y;
                 })
-                .on("end", (d) => {
+                .on("end", node => {
+                    this.onInteraction(false);
                     if (!d3.event.active) {
                         this.simulation.alphaTarget(0);
                     }
-                    d.fx = null;
-                    d.fy = null;
+                    node.fx = null;
+                    node.fy = null;
                 }));
 
-        // Node Shapes
-        this.nodeSelection.each((d, i, nodes) => {
-            const el = d3.select(nodes[i]);
-            const size = 20;
-            const strokeColor = this.getGraphColor(d.graph);
+        this.nodeSelection.each((node, index, nodes) => {
+            const element = d3.select(nodes[index]);
+            const size = isVeryLargeGraph ? 12 : 20;
+            const strokeColor = this.getGraphColor(node.graph);
+            const fillColor = this.resolveNodeFillColor(node.type);
 
-            if (d.type === 'Literal') {
-                el.append("rect")
-                    .attr("x", -size * 1.2)
-                    .attr("y", -size * 0.7)
-                    .attr("width", size * 2.4)
-                    .attr("height", size * 1.4)
+            if (node.type === "Literal") {
+                element.append("rect")
+                    .attr("x", -size * 1.1)
+                    .attr("y", -size * 0.6)
+                    .attr("width", size * 2.2)
+                    .attr("height", size * 1.2)
                     .attr("rx", 4)
-                    .attr("fill", '#ff7f0e')
+                    .attr("fill", fillColor)
                     .attr("stroke", strokeColor)
-                    .attr("stroke-width", 3);
-            } else {
-                el.append("circle")
-                    .attr("r", size)
-                    .attr("fill", d.type === 'Blank' ? '#2ca02c' : '#1f77b4')
-                    .attr("stroke", strokeColor)
-                    .attr("stroke-width", 3);
+                    .attr("stroke-width", 2.6);
+                return;
             }
+
+            element.append("circle")
+                .attr("r", size)
+                .attr("fill", fillColor)
+                .attr("stroke", strokeColor)
+                .attr("stroke-width", 2.6);
         });
 
-        // Node Labels
         this.nodeLabelSelection = this.nodeSelection.append("text")
             .attr("class", "node-label")
-            .attr("dy", 35)
+            .attr("dy", isVeryLargeGraph ? 24 : 35)
             .attr("text-anchor", "middle")
-            .text(d => this.truncateLabel(this.formatLabel(d.id)));
+            .text(node => this.truncateLabel(this.formatLabel(node.id)));
 
         this.updateLevelOfDetail(this.currentZoom);
 
-        // Tooltip Interaction
-        // Note: #global-tooltip is outside shadow DOM
         const tooltip = d3.select("#global-tooltip");
-        
-        // Throttle function to limit mousemove frequency
         let tooltipMoveTimer = null;
-        const throttleTooltip = (callback, delay = 16) => { // ~60fps
+        const throttleTooltip = (callback, delay = 16) => {
             return (...args) => {
-                const event = d3.event; // Capture event
+                const event = d3.event;
                 if (!tooltipMoveTimer) {
                     tooltipMoveTimer = setTimeout(() => {
                         callback(event, ...args);
@@ -1185,58 +2132,55 @@ class KGGraphVis extends HTMLElement {
                 }
             };
         };
-        
+
         this.nodeSelection
-            .on("mouseover", (d) => {
-                const isLiteral = d.type === 'Literal';
-                const title = isLiteral ? `"${this.formatLabel(d.id)}"` : this.formatLabel(d.id);
+            .on("mouseover", node => {
+                const isLiteral = node.type === "Literal";
+                const title = isLiteral ? `"${this.formatLabel(node.id)}"` : this.formatLabel(node.id);
                 let content = `<div class="tooltip-title">${title}</div>`;
 
                 if (isLiteral) {
-                    content += `<div class="tooltip-row"><strong>Value</strong> <span>"${d.id}"</span></div>`;
-                    let typeVal = 'xsd:string';
-                    if (d.datatype) {
-                        typeVal = this.formatLabel(d.datatype);
-                    } else if (!Number.isNaN(Number(d.id))) {
-                        typeVal = 'xsd:decimal';
+                    content += `<div class="tooltip-row"><strong>Value</strong> <span>"${node.id}"</span></div>`;
+                    let typeValue = "xsd:string";
+                    if (node.datatype) {
+                        typeValue = this.formatLabel(node.datatype);
+                    } else if (!Number.isNaN(Number(node.id))) {
+                        typeValue = "xsd:decimal";
                     }
-                    content += `<div class="tooltip-row"><strong>Type</strong> <span>${typeVal}</span></div>`;
-                    if (d.language) {
-                        content += `<div class="tooltip-row"><strong>Lang</strong> <span>${d.language}</span></div>`;
+                    content += `<div class="tooltip-row"><strong>Type</strong> <span>${typeValue}</span></div>`;
+                    if (node.language) {
+                        content += `<div class="tooltip-row"><strong>Lang</strong> <span>${node.language}</span></div>`;
                     }
-                } else if (d.type === 'Blank') {
-                    content += `<div class="tooltip-row"><strong>ID</strong> <span>${d.id}</span></div>`;
+                } else if (node.type === "Blank") {
+                    content += `<div class="tooltip-row"><strong>ID</strong> <span>${node.id}</span></div>`;
                     content += `<div class="tooltip-row"><strong>Type</strong> <span>Blank Node</span></div>`;
                 } else {
-                    content += `<div class="tooltip-row"><strong>URI</strong> <span>${d.id}</span></div>`;
-                    content += `<div class="tooltip-row"><strong>Type</strong> <span>${d.type}</span></div>`;
+                    content += `<div class="tooltip-row"><strong>URI</strong> <span>${node.id}</span></div>`;
+                    content += `<div class="tooltip-row"><strong>Type</strong> <span>${node.type}</span></div>`;
                 }
 
-                if (d.graphs?.size > 1) {
-                    const graphList = Array.from(d.graphs ?? []).join(', ');
+                if (node.graphs?.size > 1) {
+                    const graphList = Array.from(node.graphs).join(", ");
                     content += `<div class="tooltip-row"><strong>Graphs</strong> <span>${graphList}</span></div>`;
-                    content += `<div class="tooltip-row"><strong>Primary</strong> <span>${d.graph || 'default'}</span></div>`;
+                    content += `<div class="tooltip-row"><strong>Primary</strong> <span>${node.graph || GRAPH_DEFAULTS.defaultGraphId}</span></div>`;
                 } else {
-                    content += `<div class="tooltip-row"><strong>Graph</strong> <span>${d.graph || 'default'}</span></div>`;
+                    content += `<div class="tooltip-row"><strong>Graph</strong> <span>${node.graph || GRAPH_DEFAULTS.defaultGraphId}</span></div>`;
                 }
 
                 tooltip.style("opacity", 1).html(content);
-                
-                // Attach mousemove only when hovering over node
                 const target = d3.event?.currentTarget;
                 if (target) {
-                    d3.select(target).on("mousemove", throttleTooltip((event) => {
+                    d3.select(target).on("mousemove", throttleTooltip(event => {
                         if (event?.pageX != null && event?.pageY != null) {
                             tooltip
-                                .style("left", (event.pageX + 15) + "px")
-                                .style("top", (event.pageY - 10) + "px");
+                                .style("left", `${event.pageX + 15}px`)
+                                .style("top", `${event.pageY - 10}px`);
                         }
                     }));
                 }
             })
             .on("mouseout", () => {
                 tooltip.style("opacity", 0);
-                // Remove mousemove listener when leaving node
                 const target = d3.event?.currentTarget;
                 if (target) {
                     d3.select(target).on("mousemove", null);
@@ -1247,7 +2191,7 @@ class KGGraphVis extends HTMLElement {
                 }
             });
 
-        // Start!
+        this.refreshOverlayPanels();
         const clampedAlpha = Number.isFinite(initialAlpha)
             ? Math.max(0.05, Math.min(1, initialAlpha))
             : 1;
@@ -1289,24 +2233,6 @@ class KGGraphVis extends HTMLElement {
                 d.geometry = geometry;
                 return geometry ? geometry.path : null;
             });
-
-            // Update Gradients (throttled for performance)
-            // Only update every 3rd tick for large graphs
-            const shouldUpdateGradients = this.graph.nodes.length < 200 || (this.lastTickTime % 48) < this.TICK_THROTTLE;
-            if (shouldUpdateGradients) {
-                this.linkSelection.each((d) => {
-                    if (d.gradientId && hasPos(d.source) && hasPos(d.target)) {
-                        const gradient = this.svg.select(`#${d.gradientId}`);
-                        if (!gradient.empty()) {
-                            gradient
-                                .attr("x1", d.source.x)
-                                .attr("y1", d.source.y)
-                                .attr("x2", d.target.x)
-                                .attr("y2", d.target.y);
-                        }
-                    }
-                });
-            }
         }
 
         // Update Nodes
@@ -1318,21 +2244,11 @@ class KGGraphVis extends HTMLElement {
         }
 
         // Update Edge Labels (throttled)
-        if (this.linkLabelSelection && this.edgeLabelsVisible && !this.labelsHiddenForInteraction) {
+        if (this.linkLabelSelection) {
             const now = performance.now();
             if (now - this.lastLabelUpdate >= this.LABEL_TICK_THROTTLE) {
                 this.lastLabelUpdate = now;
-                this.linkLabelSelection
-                    .attr("x", d => {
-                        if (!hasPos(d.source) || !hasPos(d.target)) return null;
-                        const geometry = d.geometry ?? this.buildLinkGeometry(d);
-                        return geometry ? geometry.labelX : null;
-                    })
-                    .attr("y", d => {
-                        if (!hasPos(d.source) || !hasPos(d.target)) return null;
-                        const geometry = d.geometry ?? this.buildLinkGeometry(d);
-                        return geometry ? geometry.labelY : null;
-                    });
+                this.refreshEdgeLabelPositions(false);
             }
         }
     }
@@ -1341,6 +2257,24 @@ class KGGraphVis extends HTMLElement {
      * HELPERS
      * ------------------------------------------------------------- */
 
+    resolveNodeFillColor(nodeType) {
+        switch (nodeType) {
+            case "Literal":
+                return GRAPH_NODE_FILL.Literal;
+            case "Blank":
+                return GRAPH_NODE_FILL.Blank;
+            default:
+                return GRAPH_NODE_FILL.Resource;
+        }
+    }
+
+    getNodeVisualRadius(node) {
+        if (node?.type === "Literal") {
+            return 24;
+        }
+        return 20;
+    }
+
     /**
      * Formats a URI into a readable label.
      * @param {string} uri - The URI.
@@ -1348,6 +2282,7 @@ class KGGraphVis extends HTMLElement {
      */
     formatLabel(uri) {
         if (!uri) return "";
+        if (uri === GRAPH_DEFAULTS.rdfTypePredicate) return "rdf:type";
         if (uri.startsWith('_:')) return uri;
         const parts = uri.includes('#') ? uri.split('#') : uri.split('/');
         const last = parts.pop();
