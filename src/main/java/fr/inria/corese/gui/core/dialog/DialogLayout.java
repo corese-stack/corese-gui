@@ -14,6 +14,9 @@ import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -189,7 +192,61 @@ public class DialogLayout extends VBox {
 	 * @return A new error dialog instance.
 	 */
 	public static DialogLayout createError(String title, String message) {
-		return createSimpleDialog(title, message, Styles.DANGER);
+		return createError(title, message, null);
+	}
+
+	/**
+	 * Creates an error dialog with optional detailed technical information.
+	 *
+	 * @param title
+	 *            dialog title
+	 * @param message
+	 *            short user-facing message
+	 * @param details
+	 *            optional technical details (stack trace, diagnostics, etc.)
+	 * @return a new error dialog instance
+	 */
+	public static DialogLayout createError(String title, String message, String details) {
+		String safeTitle = (title == null || title.isBlank()) ? "Error" : title.trim();
+		String safeMessage = (message == null || message.isBlank()) ? "An unexpected error occurred." : message.trim();
+		String safeDetails = details == null ? "" : details.trim();
+
+		Label messageLabel = new Label(safeMessage);
+		messageLabel.getStyleClass().add("dialog-message");
+		messageLabel.setWrapText(true);
+
+		VBox content = new VBox(8, messageLabel);
+		content.setFillWidth(true);
+
+		Button closeButton = new Button("Close");
+		closeButton.getStyleClass().add(Styles.DANGER);
+		closeButton.setOnAction(e -> ModalService.getInstance().hide());
+
+		if (safeDetails.isBlank()) {
+			return new DialogLayout(safeTitle, content, closeButton).compact();
+		}
+
+		Label detailsTitle = new Label("Details");
+		detailsTitle.getStyleClass().addAll("dialog-error-details-title", Styles.TEXT_BOLD);
+
+		TextArea detailsArea = new TextArea(safeDetails);
+		detailsArea.getStyleClass().add("dialog-error-details");
+		detailsArea.setEditable(false);
+		detailsArea.setWrapText(false);
+		detailsArea.setPrefRowCount(12);
+		VBox.setVgrow(detailsArea, Priority.ALWAYS);
+
+		content.getChildren().addAll(detailsTitle, detailsArea);
+
+		Button copyDetailsButton = new Button("Copy Details");
+		copyDetailsButton.getStyleClass().add(Styles.BUTTON_OUTLINED);
+		copyDetailsButton.setOnAction(e -> {
+			ClipboardContent clipboardContent = new ClipboardContent();
+			clipboardContent.putString(safeDetails);
+			Clipboard.getSystemClipboard().setContent(clipboardContent);
+		});
+
+		return new DialogLayout(safeTitle, content, copyDetailsButton, closeButton);
 	}
 
 	/**

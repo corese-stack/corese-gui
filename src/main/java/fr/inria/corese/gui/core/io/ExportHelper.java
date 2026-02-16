@@ -108,13 +108,18 @@ public final class ExportHelper {
 			SerializationFormat selectedFormat = determineFormat(file, fileChooser, formats);
 			File finalFile = enforceExtension(file, selectedFormat);
 			AppExecutors.execute(() -> {
-				String content = contentProvider.apply(selectedFormat);
-				if (content == null) {
-					Platform.runLater(
-							() -> NotificationWidget.getInstance().showError("Export failed: no content available."));
-					return;
+				try {
+					String content = contentProvider.apply(selectedFormat);
+					if (content == null) {
+						Platform.runLater(() -> NotificationWidget.getInstance()
+								.showError("Export failed: no content available."));
+						return;
+					}
+					writeFileAsync(finalFile, content);
+				} catch (Exception e) {
+					Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Export Error",
+							"Export failed: " + e.getMessage(), e));
 				}
-				writeFileAsync(finalFile, content);
 			});
 		}
 	}
@@ -308,13 +313,18 @@ public final class ExportHelper {
 		if (rdfFormat != null) {
 			File finalFile = enforceExtension(file, rdfFormat);
 			AppExecutors.execute(() -> {
-				String content = rdfContentProvider != null ? rdfContentProvider.apply(rdfFormat) : null;
-				if (content == null) {
-					Platform.runLater(
-							() -> NotificationWidget.getInstance().showError("Export failed: no content available."));
-					return;
+				try {
+					String content = rdfContentProvider != null ? rdfContentProvider.apply(rdfFormat) : null;
+					if (content == null) {
+						Platform.runLater(() -> NotificationWidget.getInstance()
+								.showError("Export failed: no content available."));
+						return;
+					}
+					writeFileAsync(finalFile, content);
+				} catch (Exception e) {
+					Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Export Error",
+							"Export failed: " + e.getMessage(), e));
 				}
-				writeFileAsync(finalFile, content);
 			});
 			return;
 		}
@@ -342,6 +352,8 @@ public final class ExportHelper {
 	}
 
 	private static void writeFileAsync(File file, String content) {
+		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Export",
+				"Writing file " + file.getName() + "...");
 		Task<Void> task = new Task<>() {
 			@Override
 			protected Void call() throws Exception {
@@ -351,14 +363,26 @@ public final class ExportHelper {
 
 			@Override
 			protected void succeeded() {
-				Platform.runLater(
-						() -> NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + "."));
+				Platform.runLater(() -> {
+					loadingHandle.close();
+					NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + ".");
+				});
 			}
 
 			@Override
 			protected void failed() {
-				Platform.runLater(() -> NotificationWidget.getInstance()
-						.showError("Export failed: " + getException().getMessage()));
+				Platform.runLater(() -> {
+					loadingHandle.close();
+					Throwable error = getException();
+					String message = error != null ? error.getMessage() : "Unknown error";
+					NotificationWidget.getInstance().showErrorWithDetails("Export Error", "Export failed: " + message,
+							error);
+				});
+			}
+
+			@Override
+			protected void cancelled() {
+				Platform.runLater(loadingHandle::close);
 			}
 		};
 
@@ -366,6 +390,8 @@ public final class ExportHelper {
 	}
 
 	private static void transcodeSvgToPng(File file, String svgContent) {
+		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Export",
+				"Rendering PNG " + file.getName() + "...");
 		Task<Void> task = new Task<>() {
 			@Override
 			protected Void call() throws Exception {
@@ -385,14 +411,26 @@ public final class ExportHelper {
 
 			@Override
 			protected void succeeded() {
-				Platform.runLater(
-						() -> NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + "."));
+				Platform.runLater(() -> {
+					loadingHandle.close();
+					NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + ".");
+				});
 			}
 
 			@Override
 			protected void failed() {
-				Platform.runLater(() -> NotificationWidget.getInstance()
-						.showError("Export failed: " + getException().getMessage()));
+				Platform.runLater(() -> {
+					loadingHandle.close();
+					Throwable error = getException();
+					String message = error != null ? error.getMessage() : "Unknown error";
+					NotificationWidget.getInstance().showErrorWithDetails("Export Error", "Export failed: " + message,
+							error);
+				});
+			}
+
+			@Override
+			protected void cancelled() {
+				Platform.runLater(loadingHandle::close);
 			}
 		};
 
@@ -400,6 +438,8 @@ public final class ExportHelper {
 	}
 
 	private static void transcodeSvgToPdf(File file, String svgContent) {
+		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Export",
+				"Rendering PDF " + file.getName() + "...");
 		Task<Void> task = new Task<>() {
 			@Override
 			protected Void call() throws Exception {
@@ -414,14 +454,26 @@ public final class ExportHelper {
 
 			@Override
 			protected void succeeded() {
-				Platform.runLater(
-						() -> NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + "."));
+				Platform.runLater(() -> {
+					loadingHandle.close();
+					NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + ".");
+				});
 			}
 
 			@Override
 			protected void failed() {
-				Platform.runLater(() -> NotificationWidget.getInstance()
-						.showError("Export failed: " + getException().getMessage()));
+				Platform.runLater(() -> {
+					loadingHandle.close();
+					Throwable error = getException();
+					String message = error != null ? error.getMessage() : "Unknown error";
+					NotificationWidget.getInstance().showErrorWithDetails("Export Error", "Export failed: " + message,
+							error);
+				});
+			}
+
+			@Override
+			protected void cancelled() {
+				Platform.runLater(loadingHandle::close);
 			}
 		};
 

@@ -23,6 +23,7 @@ import fr.inria.corese.gui.feature.data.dialog.DataRulePreviewDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataUriLoadDialog;
 import fr.inria.corese.gui.feature.data.support.DataFileSelectionSupport;
 import fr.inria.corese.gui.feature.data.support.DataLoadingSupport;
+import fr.inria.corese.gui.feature.data.support.DataLoadingSupport.OperationIssue;
 import fr.inria.corese.gui.feature.data.support.DataUiMessageUtils;
 import fr.inria.corese.gui.utils.AppExecutors;
 import java.io.File;
@@ -158,8 +159,8 @@ public class DataViewController implements AutoCloseable {
 				Thread.sleep(REASONING_REFRESH_DEBOUNCE_MS);
 				reasoningService.recomputeEnabledProfiles();
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance()
-						.showError("Reasoning recompute failed: " + e.getMessage()));
+				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Reasoning Error",
+						"Reasoning recompute failed: " + e.getMessage(), e));
 			} finally {
 				reasoningRecomputeScheduled.set(false);
 				Platform.runLater(() -> {
@@ -263,8 +264,8 @@ public class DataViewController implements AutoCloseable {
 		}
 
 		FileDialogState.updateLastDirectory(safeFiles);
-		runAsyncDataOperation(() -> {
-			List<String> errors = new ArrayList<>();
+		runAsyncDataOperation("Data Load", "Loading RDF file(s)...", () -> {
+			List<OperationIssue> errors = new ArrayList<>();
 			int loadedCount = DataLoadingSupport.loadFiles(workspaceService, safeFiles, errors);
 			if (loadedCount > 0) {
 				DataLoadingSupport.recomputeReasoning(reasoningService, errors);
@@ -288,8 +289,8 @@ public class DataViewController implements AutoCloseable {
 
 	private void executeLoadUris(List<String> uris) {
 		List<String> urisToLoad = uris == null ? List.of() : List.copyOf(uris);
-		runAsyncDataOperation(() -> {
-			List<String> errors = new ArrayList<>();
+		runAsyncDataOperation("URI Load", "Loading RDF URI(s)...", () -> {
+			List<OperationIssue> errors = new ArrayList<>();
 			try {
 				int loadedCount = DataLoadingSupport.loadUris(workspaceService, urisToLoad, errors);
 				if (loadedCount > 0) {
@@ -307,7 +308,7 @@ public class DataViewController implements AutoCloseable {
 					DataLoadingSupport.showErrors(errors);
 				});
 			} catch (Exception e) {
-				errors.add("Unexpected URI loading error: " + e.getMessage());
+				errors.add(new OperationIssue("Unexpected URI loading error: " + e.getMessage(), e));
 				Platform.runLater(() -> DataLoadingSupport.showErrors(errors));
 			}
 		});
@@ -323,7 +324,7 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void executeReloadSources(List<DataSource> selectedSources) {
-		runAsyncDataOperation(() -> {
+		runAsyncDataOperation("Data Reload", "Reloading selected data sources...", () -> {
 			try {
 				reasoningService.resetAllProfiles();
 				int reloaded = workspaceService.reloadSources(selectedSources);
@@ -340,7 +341,8 @@ public class DataViewController implements AutoCloseable {
 					}
 				});
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance().showError("Reload failed: " + e.getMessage()));
+				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Reload Error",
+						"Reload failed: " + e.getMessage(), e));
 			}
 		});
 	}
@@ -360,8 +362,8 @@ public class DataViewController implements AutoCloseable {
 					try {
 						return workspaceService.serializeGraph(format);
 					} catch (Exception e) {
-						Platform.runLater(() -> NotificationWidget.getInstance()
-								.showError("RDF export preparation failed: " + e.getMessage()));
+						Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Export Error",
+								"RDF export preparation failed: " + e.getMessage(), e));
 						return null;
 					}
 				});
@@ -387,7 +389,7 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void handleClearGraph() {
-		DataClearGraphDialog.show(() -> runAsyncDataOperation(() -> {
+		DataClearGraphDialog.show(() -> runAsyncDataOperation("Data Clear", "Clearing graph...", () -> {
 			try {
 				int removedTriples = workspaceService.getTripleCount();
 				reasoningService.resetAllProfiles();
@@ -402,7 +404,8 @@ public class DataViewController implements AutoCloseable {
 					}
 				});
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance().showError("Clear failed: " + e.getMessage()));
+				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Clear Error",
+						"Clear failed: " + e.getMessage(), e));
 			}
 		}));
 	}
@@ -440,8 +443,8 @@ public class DataViewController implements AutoCloseable {
 						afterStatus.inferredTripleCount());
 				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess(message));
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance()
-						.showError("Reasoning update failed for " + profile.label() + ": " + e.getMessage()));
+				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Reasoning Error",
+						"Reasoning update failed for " + profile.label() + ": " + e.getMessage(), e));
 			}
 		});
 	}
@@ -456,18 +459,21 @@ public class DataViewController implements AutoCloseable {
 				Platform.runLater(
 						() -> DataRulePreviewDialog.show(source.label(), source.sourcePath(), source.sourceContent()));
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance().showError(
-						"Failed to open built-in profile source " + profile.label() + ": " + e.getMessage()));
+				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Rule Source Error",
+						"Failed to open built-in profile source " + profile.label() + ": " + e.getMessage(), e));
 			}
 		});
 	}
 
-	private void runAsyncDataOperation(Runnable operation) {
+	private void runAsyncDataOperation(String loadingTitle, String loadingMessage, Runnable operation) {
+		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading(loadingTitle,
+				loadingMessage);
 		AppExecutors.execute(() -> {
 			dataOperationInProgress.set(true);
 			try {
 				operation.run();
 			} finally {
+				loadingHandle.close();
 				finishDataOperation();
 			}
 		});

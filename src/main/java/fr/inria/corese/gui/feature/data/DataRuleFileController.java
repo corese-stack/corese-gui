@@ -42,7 +42,13 @@ final class DataRuleFileController {
 	private final Runnable refreshReasoningUi;
 	private final Runnable refreshGraphSnapshot;
 
-	private record RuleFileLoadResult(int loadedCount, int duplicateCount, List<String> errors) {
+	private record RuleFileIssue(String userMessage, Throwable cause) {
+		RuleFileIssue {
+			userMessage = userMessage == null ? "" : userMessage.trim();
+		}
+	}
+
+	private record RuleFileLoadResult(int loadedCount, int duplicateCount, List<RuleFileIssue> errors) {
 		RuleFileLoadResult {
 			errors = errors == null ? List.of() : List.copyOf(errors);
 		}
@@ -126,17 +132,23 @@ final class DataRuleFileController {
 		}
 
 		FileDialogState.updateLastDirectory(safeFiles);
+		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Rule Files",
+				"Loading rule file(s)...");
 		AppExecutors.execute(() -> {
-			RuleFileLoadResult result = loadRuleFilesWithReport(safeFiles);
-			Platform.runLater(() -> {
-				showRuleFileLoadResult(result);
-				refreshUiAndGraph();
-			});
+			try {
+				RuleFileLoadResult result = loadRuleFilesWithReport(safeFiles);
+				Platform.runLater(() -> {
+					showRuleFileLoadResult(result);
+					refreshUiAndGraph();
+				});
+			} finally {
+				loadingHandle.close();
+			}
 		});
 	}
 
 	private void handleRuleFileToggleRequested(String ruleId, boolean enabled) {
-		runAsyncWithRefresh(() -> {
+		runAsyncWithRefresh("Reasoning", "Updating rule file state...", () -> {
 			try {
 				DataWorkspaceStatus beforeStatus = workspaceService.getStatus();
 				reasoningService.setRuleFileEnabled(ruleId, enabled);
@@ -145,8 +157,8 @@ final class DataRuleFileController {
 						afterStatus.inferredTripleCount());
 				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess(message));
 			} catch (Exception e) {
-				Platform.runLater(
-						() -> NotificationWidget.getInstance().showError("Rule file update failed: " + e.getMessage()));
+				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Rule File Error",
+						"Rule file update failed: " + e.getMessage(), e));
 			}
 		});
 	}
@@ -157,7 +169,7 @@ final class DataRuleFileController {
 			return;
 		}
 
-		runAsyncWithRefresh(() -> {
+		runAsyncWithRefresh("Rule Reload", "Reloading rule file...", () -> {
 			try {
 				File ruleFile = Path.of(rule.sourcePath()).toFile();
 				if (!ruleFile.isFile()) {
@@ -172,8 +184,8 @@ final class DataRuleFileController {
 							"Rule source is available. Enable this rule file to apply it."));
 				}
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance()
-						.showError("Failed to reload rule file " + rule.label() + ": " + e.getMessage()));
+				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Rule Reload Error",
+						"Failed to reload rule file " + rule.label() + ": " + e.getMessage(), e));
 			}
 		});
 	}
@@ -200,7 +212,7 @@ final class DataRuleFileController {
 			return;
 		}
 
-		runAsyncWithRefresh(() -> {
+		runAsyncWithRefresh("Rule Reload", "Reloading selected rule files...", () -> {
 			try {
 				List<String> missingRules = safeSelection.stream().filter(rule -> !isReadableFile(rule.sourcePath()))
 						.map(RuleFileState::label).toList();
@@ -216,8 +228,8 @@ final class DataRuleFileController {
 				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess(
 						"Reloaded " + DataUiMessageUtils.countLabel(safeSelection.size(), "rule file") + "."));
 			} catch (Exception e) {
-				Platform.runLater(
-						() -> NotificationWidget.getInstance().showError("Rule file reload failed: " + e.getMessage()));
+				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Rule Reload Error",
+						"Rule file reload failed: " + e.getMessage(), e));
 			}
 		});
 	}
@@ -235,14 +247,14 @@ final class DataRuleFileController {
 	}
 
 	private void executeClearRuleFiles(int removedCount) {
-		runAsyncWithRefresh(() -> {
+		runAsyncWithRefresh("Rule Files", "Removing all rule files...", () -> {
 			try {
 				reasoningService.removeAllRuleFiles();
 				Platform.runLater(() -> NotificationWidget.getInstance()
 						.showSuccess("Removed " + DataUiMessageUtils.countLabel(removedCount, "rule file") + "."));
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance()
-						.showError("Failed to clear rule files: " + e.getMessage()));
+				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Rule File Error",
+						"Failed to clear rule files: " + e.getMessage(), e));
 			}
 		});
 	}
@@ -258,8 +270,8 @@ final class DataRuleFileController {
 				String content = Files.readString(Path.of(rule.sourcePath()));
 				Platform.runLater(() -> DataRulePreviewDialog.show(rule.label(), rule.sourcePath(), content));
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance()
-						.showError("Failed to open rule " + rule.label() + ": " + e.getMessage()));
+				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Rule Preview Error",
+						"Failed to open rule " + rule.label() + ": " + e.getMessage(), e));
 			}
 		});
 	}
@@ -283,13 +295,13 @@ final class DataRuleFileController {
 	}
 
 	private void executeRuleFileRemoval(String ruleId) {
-		runAsyncWithRefresh(() -> {
+		runAsyncWithRefresh("Rule Files", "Removing rule file...", () -> {
 			try {
 				reasoningService.removeRuleFile(ruleId);
 				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess("Rule file removed."));
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance()
-						.showError("Failed to remove rule file: " + e.getMessage()));
+				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Rule File Error",
+						"Failed to remove rule file: " + e.getMessage(), e));
 			}
 		});
 	}
@@ -306,7 +318,7 @@ final class DataRuleFileController {
 	private RuleFileLoadResult loadRuleFilesWithReport(List<File> ruleFiles) {
 		int loadedCount = 0;
 		int duplicateCount = 0;
-		List<String> errors = new ArrayList<>();
+		List<RuleFileIssue> errors = new ArrayList<>();
 
 		for (File file : ruleFiles) {
 			try {
@@ -316,10 +328,10 @@ final class DataRuleFileController {
 				if (isAlreadyLoadedRuleFileError(e)) {
 					duplicateCount++;
 				} else {
-					errors.add("Rule load failed for " + file.getName() + ": " + e.getMessage());
+					errors.add(new RuleFileIssue("Rule load failed for " + file.getName() + ": " + e.getMessage(), e));
 				}
 			} catch (Exception e) {
-				errors.add("Rule load failed for " + file.getName() + ": " + e.getMessage());
+				errors.add(new RuleFileIssue("Rule load failed for " + file.getName() + ": " + e.getMessage(), e));
 			}
 		}
 
@@ -335,8 +347,16 @@ final class DataRuleFileController {
 			NotificationWidget.getInstance().showInfo("Reasoning", "Skipped "
 					+ DataUiMessageUtils.countLabel(result.duplicateCount(), "already loaded rule file") + ".");
 		}
-		for (String error : result.errors()) {
-			NotificationWidget.getInstance().showError(error);
+		for (RuleFileIssue error : result.errors()) {
+			if (error == null || error.userMessage().isBlank()) {
+				continue;
+			}
+			if (error.cause() != null) {
+				NotificationWidget.getInstance().showErrorWithDetails("Rule File Error", error.userMessage(),
+						error.cause());
+			} else {
+				NotificationWidget.getInstance().showError(error.userMessage());
+			}
 		}
 	}
 
@@ -377,11 +397,14 @@ final class DataRuleFileController {
 		refreshGraphSnapshot.run();
 	}
 
-	private void runAsyncWithRefresh(Runnable task) {
+	private void runAsyncWithRefresh(String loadingTitle, String loadingMessage, Runnable task) {
+		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading(loadingTitle,
+				loadingMessage);
 		AppExecutors.execute(() -> {
 			try {
 				task.run();
 			} finally {
+				loadingHandle.close();
 				Platform.runLater(this::refreshUiAndGraph);
 			}
 		});

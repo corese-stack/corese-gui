@@ -1,15 +1,17 @@
 /* ============================================================================ */
-/* Notification Toast Widget                                                   */
+/* Notification Toast Widget                                                    */
 /* ============================================================================ */
 
 .notification-toast {
     -fx-background-color: -color-bg-default;
-    -fx-background-radius: 8px;
-    -fx-border-radius: 8px;
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
     -fx-border-color: -color-border-subtle;
     -fx-border-width: 0 0 0 4px;
-    -fx-padding: 12 16 12 16;
-    -fx-spacing: 10;
+    -fx-padding: 12px 14px;
+    -fx-spacing: 10px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.2), 14, 0.08, 0, 4);
+    -fx-effect: dropshadow(three-pass-box, -color-notification-shadow, 14, 0.08, 0, 4);
 }
 
 .notification-toast.accent {
@@ -32,12 +34,17 @@
     -fx-icon-color: -color-fg-default;
 }
 
+.notification-spinner {
+    -fx-progress-color: -color-accent-fg;
+}
+
 .notification-label {
     -fx-text-fill: -color-fg-default;
 }
 
 .notification-texts {
     -fx-alignment: center-left;
+    -fx-spacing: 2px;
 }
 
 .notification-title {
@@ -46,4 +53,14 @@
 
 .notification-message {
     -fx-text-fill: -color-fg-muted;
+}
+
+.notification-actions {
+    -fx-alignment: center-right;
+}
+
+.notification-action-button {
+    -fx-font-size: 11px;
+    -fx-padding: 3px 9px;
+    -fx-cursor: hand;
 }

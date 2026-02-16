@@ -63,6 +63,8 @@ public final class ThemeManager {
 	private static final Color SIDEBAR_SEPARATOR_DARK = Color.rgb(255, 255, 255, 0.18);
 	private static final Color SIDEBAR_SHADOW_LIGHT = Color.rgb(0, 0, 0, 0.14);
 	private static final Color SIDEBAR_SHADOW_DARK = Color.rgb(255, 255, 255, 0.14);
+	private static final Color NOTIFICATION_SHADOW_LIGHT = Color.rgb(0, 0, 0, 0.2);
+	private static final Color NOTIFICATION_SHADOW_DARK = Color.rgb(255, 255, 255, 0.12);
 
 	// ===== Properties =====
 
@@ -419,11 +421,12 @@ public final class ThemeManager {
 				"-color-accent-emphasis: %s; " + "-color-accent-fg: %s; " + "-color-accent-subtle: %s; "
 						+ "-color-accent-muted: %s; " + "-color-logo-shadow: %s; " + "-color-tab-overflow-shadow: %s; "
 						+ "-color-tab-overflow-shadow-transparent: %s; " + "-color-sidebar-separator: %s; "
-						+ "-color-sidebar-shadow: %s;",
+						+ "-color-sidebar-shadow: %s; " + "-color-notification-shadow: %s;",
 				cssColor, cssColor, toCssColor(color.deriveColor(0, 0.3, 1.0, 0.3)),
 				toCssColor(color.deriveColor(0, 0.5, 1.0, 0.5)), toCssRgbaColor(getLogoShadowColor()),
 				toCssRgbaColor(tabOverflowShadow), toCssRgbaColor(withOpacity(tabOverflowShadow, 0.0)),
-				toCssRgbaColor(getSidebarSeparatorColor()), toCssRgbaColor(getSidebarShadowColor()));
+				toCssRgbaColor(getSidebarSeparatorColor()), toCssRgbaColor(getSidebarShadowColor()),
+				toCssRgbaColor(getNotificationShadowColor()));
 
 		String previousManagedStyle = (String) root.getProperties().get(ROOT_MANAGED_STYLE_BLOCK_KEY);
 		String baseStyle = stripManagedStyle(root.getStyle(), previousManagedStyle);
@@ -608,6 +611,17 @@ public final class ThemeManager {
 			return SIDEBAR_SHADOW_DARK;
 		}
 		return SIDEBAR_SHADOW_LIGHT;
+	}
+
+	/**
+	 * Returns the toast-notification drop-shadow color matching the current
+	 * light/dark context.
+	 */
+	public Color getNotificationShadowColor() {
+		if (isCurrentThemeDark()) {
+			return NOTIFICATION_SHADOW_DARK;
+		}
+		return NOTIFICATION_SHADOW_LIGHT;
 	}
 
 	private Color getTabOverflowShadowColor() {

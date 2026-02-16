@@ -669,7 +669,7 @@ public class TabEditorController {
 
 			// Show user-friendly error message
 			String errorMsg = ex.getMessage() != null ? ex.getMessage() : "Unknown error";
-			view.showError("File Error", "Could not read file: " + errorMsg);
+			view.showError("File Error", "Could not read file: " + errorMsg, ModalService.formatThrowableDetails(ex));
 			Platform.runLater(() -> closeTabImmediately(tab));
 		});
 	}

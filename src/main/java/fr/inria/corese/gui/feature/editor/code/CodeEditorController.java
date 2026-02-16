@@ -195,17 +195,23 @@ public class CodeEditorController {
 		File file = chooser.showOpenDialog(view.getRoot().getScene().getWindow());
 		if (file != null) {
 			FileDialogState.updateLastDirectory(file);
+			NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("File Open",
+					"Opening " + file.getName() + "...");
 			AppExecutors.execute(() -> {
 				try {
 					String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
 					Platform.runLater(() -> {
+						loadingHandle.close();
 						model.setContent(content);
 						model.setFilePath(file.getAbsolutePath());
 						model.markAsSaved();
 					});
 				} catch (IOException e) {
 					LOGGER.error("Failed to open file", e);
-					Platform.runLater(() -> ModalService.getInstance().showError("Error Opening File", e.getMessage()));
+					Platform.runLater(() -> {
+						loadingHandle.close();
+						ModalService.getInstance().showException("Error Opening File", "Could not open file.", e);
+					});
 				}
 			});
 		}
@@ -220,10 +226,13 @@ public class CodeEditorController {
 		File file = chooser.showOpenDialog(view.getRoot().getScene().getWindow());
 		if (file != null) {
 			FileDialogState.updateLastDirectory(file);
+			NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Import",
+					"Importing " + file.getName() + "...");
 			AppExecutors.execute(() -> {
 				try {
 					String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
 					Platform.runLater(() -> {
+						loadingHandle.close();
 						// Append or Replace? Standard import usually replaces content in editors unless
 						// "Insert"
 						model.setContent(content);
@@ -231,8 +240,11 @@ public class CodeEditorController {
 					});
 				} catch (IOException e) {
 					LOGGER.error("Failed to import file", e);
-					Platform.runLater(
-							() -> NotificationWidget.getInstance().showError("Import failed: " + e.getMessage()));
+					Platform.runLater(() -> {
+						loadingHandle.close();
+						NotificationWidget.getInstance().showErrorWithDetails("Import Error",
+								"Import failed: " + e.getMessage(), e);
+					});
 				}
 			});
 		}
@@ -285,10 +297,15 @@ public class CodeEditorController {
 
 	private void writeToFile(File file, String content, boolean updateModel) {
 		String contentSnapshot = content != null ? content : "";
+		String loadingTitle = updateModel ? "Save" : "Export";
+		String loadingMessage = (updateModel ? "Saving " : "Exporting ") + file.getName() + "...";
+		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading(loadingTitle,
+				loadingMessage);
 		AppExecutors.execute(() -> {
 			try {
 				Files.writeString(file.toPath(), contentSnapshot, StandardCharsets.UTF_8);
 				Platform.runLater(() -> {
+					loadingHandle.close();
 					if (updateModel) {
 						model.setFilePath(file.getAbsolutePath());
 						if (contentSnapshot.equals(model.getContent())) {
@@ -301,8 +318,10 @@ public class CodeEditorController {
 				});
 			} catch (IOException e) {
 				LOGGER.error("Save failed", e);
-				Platform.runLater(() -> ModalService.getInstance().showError("Save Error",
-						"Could not save file: " + e.getMessage()));
+				Platform.runLater(() -> {
+					loadingHandle.close();
+					ModalService.getInstance().showException("Save Error", "Could not save file: " + e.getMessage(), e);
+				});
 			}
 		});
 	}
@@ -362,7 +381,7 @@ public class CodeEditorController {
 			writeToFile(selection.file(), converted, false);
 		} catch (Exception e) {
 			LOGGER.error("Export conversion failed", e);
-			ModalService.getInstance().showError("Export Error", e.getMessage());
+			ModalService.getInstance().showException("Export Error", e.getMessage(), e);
 		}
 	}
 

@@ -78,6 +78,15 @@
     -fx-wrap-text: true;
 }
 
+.app-dialog .dialog-error-details-title {
+    -fx-padding: 2px 0 0 0;
+}
+
+.app-dialog .dialog-error-details {
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 12px;
+}
+
 .app-dialog .dialog-impact {
     -fx-spacing: 7px;
     -fx-padding: 12px 14px;

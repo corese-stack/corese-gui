@@ -2,6 +2,8 @@ package fr.inria.corese.gui.core.service;
 
 import atlantafx.base.controls.ModalPane;
 import fr.inria.corese.gui.core.dialog.DialogLayout;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import java.util.function.Consumer;
@@ -132,12 +134,41 @@ public class ModalService {
 	 */
 	public void showError(String title, String message, String details) {
 		Platform.runLater(() -> {
-			String fullMessage = message;
-			if (details != null && !details.isBlank()) {
-				fullMessage += "\n\nDetails:\n" + details;
-			}
-			show(DialogLayout.createError(title, fullMessage));
+			show(DialogLayout.createError(title, message, details));
 		});
+	}
+
+	/**
+	 * Shows an error dialog with details generated from an exception chain.
+	 *
+	 * @param title
+	 *            dialog title
+	 * @param message
+	 *            short user-facing message
+	 * @param throwable
+	 *            source exception (optional)
+	 */
+	public void showException(String title, String message, Throwable throwable) {
+		showError(title, message, formatThrowableDetails(throwable));
+	}
+
+	/**
+	 * Formats a throwable with full stack trace and causes for detailed
+	 * diagnostics.
+	 *
+	 * @param throwable
+	 *            source throwable (optional)
+	 * @return formatted details string, or empty string when throwable is null
+	 */
+	public static String formatThrowableDetails(Throwable throwable) {
+		if (throwable == null) {
+			return "";
+		}
+		StringWriter writer = new StringWriter();
+		try (PrintWriter printWriter = new PrintWriter(writer)) {
+			throwable.printStackTrace(printWriter);
+		}
+		return writer.toString().trim();
 	}
 
 	/**

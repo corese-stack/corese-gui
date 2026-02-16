@@ -130,8 +130,11 @@ public final class ImportHelper {
 	public static void loadFileAsync(File file, Consumer<String> onSuccess, Consumer<Throwable> onFailure) {
 
 		Task<String> task = createLoadTask(file);
+		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Import",
+				"Importing file " + file.getName() + "...");
 
 		task.setOnSucceeded(event -> Platform.runLater(() -> {
+			loadingHandle.close();
 			if (onSuccess != null) {
 				onSuccess.accept(task.getValue());
 			}
@@ -139,14 +142,18 @@ public final class ImportHelper {
 		}));
 
 		task.setOnFailed(event -> Platform.runLater(() -> {
+			loadingHandle.close();
 			Throwable exception = task.getException();
 			if (onFailure != null) {
 				onFailure.accept(exception);
 			} else {
 				String message = exception != null ? exception.getMessage() : "Unknown error";
-				NotificationWidget.getInstance().showError("Import failed: " + message);
+				NotificationWidget.getInstance().showErrorWithDetails("Import Error", "Import failed: " + message,
+						exception);
 			}
 		}));
+
+		task.setOnCancelled(event -> Platform.runLater(loadingHandle::close));
 
 		AppExecutors.execute(task);
 	}

@@ -11,11 +11,25 @@ import java.util.List;
  */
 public final class DataLoadingSupport {
 
+	/**
+	 * Structured issue for data loading operations.
+	 *
+	 * @param userMessage
+	 *            short user-facing message
+	 * @param cause
+	 *            underlying cause (optional)
+	 */
+	public record OperationIssue(String userMessage, Throwable cause) {
+		public OperationIssue {
+			userMessage = userMessage == null ? "" : userMessage.trim();
+		}
+	}
+
 	private DataLoadingSupport() {
 		throw new AssertionError("Utility class");
 	}
 
-	public static int loadFiles(DataWorkspaceService workspaceService, List<File> files, List<String> errors) {
+	public static int loadFiles(DataWorkspaceService workspaceService, List<File> files, List<OperationIssue> errors) {
 		if (workspaceService == null || files == null || files.isEmpty()) {
 			return 0;
 		}
@@ -26,14 +40,15 @@ public final class DataLoadingSupport {
 				loadedCount++;
 			} catch (Exception ex) {
 				if (errors != null) {
-					errors.add("File load failed for " + file.getName() + ": " + ex.getMessage());
+					errors.add(
+							new OperationIssue("File load failed for " + file.getName() + ": " + ex.getMessage(), ex));
 				}
 			}
 		}
 		return loadedCount;
 	}
 
-	public static int loadUris(DataWorkspaceService workspaceService, List<String> uris, List<String> errors) {
+	public static int loadUris(DataWorkspaceService workspaceService, List<String> uris, List<OperationIssue> errors) {
 		if (workspaceService == null || uris == null || uris.isEmpty()) {
 			return 0;
 		}
@@ -44,14 +59,14 @@ public final class DataLoadingSupport {
 				loadedCount++;
 			} catch (Exception ex) {
 				if (errors != null) {
-					errors.add("URI load failed for " + uri + ": " + ex.getMessage());
+					errors.add(new OperationIssue("URI load failed for " + uri + ": " + ex.getMessage(), ex));
 				}
 			}
 		}
 		return loadedCount;
 	}
 
-	public static void recomputeReasoning(ReasoningService reasoningService, List<String> errors) {
+	public static void recomputeReasoning(ReasoningService reasoningService, List<OperationIssue> errors) {
 		if (reasoningService == null || !reasoningService.hasAnyEnabledProfile()) {
 			return;
 		}
@@ -59,17 +74,25 @@ public final class DataLoadingSupport {
 			reasoningService.recomputeEnabledProfiles();
 		} catch (Exception e) {
 			if (errors != null) {
-				errors.add("Reasoning recompute failed: " + e.getMessage());
+				errors.add(new OperationIssue("Reasoning recompute failed: " + e.getMessage(), e));
 			}
 		}
 	}
 
-	public static void showErrors(List<String> errors) {
+	public static void showErrors(List<OperationIssue> errors) {
 		if (errors == null || errors.isEmpty()) {
 			return;
 		}
-		for (String error : errors) {
-			NotificationWidget.getInstance().showError(error);
+		for (OperationIssue issue : errors) {
+			if (issue == null || issue.userMessage().isBlank()) {
+				continue;
+			}
+			if (issue.cause() != null) {
+				NotificationWidget.getInstance().showErrorWithDetails("Data Load Error", issue.userMessage(),
+						issue.cause());
+			} else {
+				NotificationWidget.getInstance().showError(issue.userMessage());
+			}
 		}
 	}
 }
