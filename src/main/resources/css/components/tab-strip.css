@@ -6,19 +6,33 @@
     -fx-max-height: 44px;
     -fx-background-color: -color-bg-subtle;
     -fx-spacing: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
 }
 
 .editor-tab-scroll {
     -fx-background-color: transparent;
     -fx-padding: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
 }
 
 .editor-tab-scroll > .viewport {
     -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
 }
 
 .editor-tab-scroll > .corner {
     -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
 }
 
 .editor-tab-track {
@@ -70,6 +84,12 @@
     -fx-border-width: 0 1 0 0;
     -fx-border-insets: 0;
     -fx-border-color: transparent -color-border-default transparent transparent;
+}
+
+.editor-tab-item:last-child,
+.editor-tab-item.selected:last-child {
+    -fx-border-width: 0;
+    -fx-border-color: transparent;
 }
 
 .editor-tab-title {

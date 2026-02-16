@@ -99,13 +99,15 @@ body {
     overflow: hidden;
     background-color: var(--bg-color);
     color: var(--text-color);
-    transition: background-color 0.3s, color 0.3s;
+    transition: none;
+    color-scheme: light dark;
 }
 
 #container {
     width: 100vw;
     height: 100vh;
     box-sizing: border-box;
+    background-color: var(--bg-color);
 }
 
 kg-graph {

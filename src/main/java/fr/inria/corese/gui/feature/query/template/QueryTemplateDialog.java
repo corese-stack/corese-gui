@@ -6,7 +6,6 @@ import fr.inria.corese.gui.core.dialog.DialogLayout;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.theme.CssUtils;
-import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -677,7 +676,6 @@ public final class QueryTemplateDialog {
 		previewEditor.setMode(SerializationFormat.SPARQL_QUERY);
 		previewEditor.setMinHeight(340);
 		previewEditor.zoomInForCurrentEditorOnly();
-		RoundedClipSupport.applyRoundedClip(previewEditor, 8);
 		previewEditor.sceneProperty().addListener((obs, oldScene, newScene) -> {
 			if (oldScene != null && newScene == null) {
 				previewEditor.close();

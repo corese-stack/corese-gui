@@ -140,17 +140,21 @@ final class DataRuleFileController {
 	}
 
 	private void handleRuleFileToggleRequested(String ruleId, boolean enabled) {
+		RuleFileState initialRuleState = findRuleFile(ruleId);
+		String ruleDisplayName = resolveRuleDisplayName(initialRuleState, ruleId);
 		runAsyncWithRefresh("Reasoning", "Updating rule file state...", () -> {
 			try {
 				DataWorkspaceStatus beforeStatus = workspaceService.getStatus();
 				reasoningService.setRuleFileEnabled(ruleId, enabled);
 				DataWorkspaceStatus afterStatus = workspaceService.getStatus();
-				String message = DataUiMessageUtils.buildTripleDeltaMessage(beforeStatus.inferredTripleCount(),
+				String stateLabel = enabled ? "enabled" : "disabled";
+				String deltaMessage = DataUiMessageUtils.buildTripleDeltaMessage(beforeStatus.inferredTripleCount(),
 						afterStatus.inferredTripleCount());
-				return () -> NotificationWidget.getInstance().showSuccess(message);
+				String message = ruleDisplayName + " " + stateLabel + ". " + deltaMessage;
+				return () -> NotificationWidget.getInstance().showSuccess("Rule File", message);
 			} catch (Exception e) {
 				return () -> NotificationWidget.getInstance().showErrorWithDetails("Rule File Error",
-						"Rule file update failed: " + e.getMessage(), e);
+						"Rule file update failed for " + ruleDisplayName + ": " + e.getMessage(), e);
 			}
 		});
 	}
@@ -169,10 +173,10 @@ final class DataRuleFileController {
 				}
 				if (rule.enabled()) {
 					reasoningService.recomputeEnabledProfiles();
-					return () -> NotificationWidget.getInstance()
-							.showSuccess("Reloaded rule file: " + rule.label() + ".");
+					return () -> NotificationWidget.getInstance().showSuccess("Rule File",
+							"Reloaded " + resolveRuleDisplayName(rule, rule.id()) + ".");
 				}
-				return () -> NotificationWidget.getInstance().showInfo("Reasoning",
+				return () -> NotificationWidget.getInstance().showInfo("Rule File",
 						"Rule source is available. Enable this rule file to apply it.");
 			} catch (Exception e) {
 				return () -> NotificationWidget.getInstance().showErrorWithDetails("Rule Reload Error",
@@ -198,7 +202,7 @@ final class DataRuleFileController {
 				: selectedRules.stream().filter(rule -> rule != null && rule.id() != null && !rule.id().isBlank())
 						.toList();
 		if (safeSelection.isEmpty()) {
-			NotificationWidget.getInstance().showInfo("Reasoning", "No rule file selected for reload.");
+			NotificationWidget.getInstance().showInfo("Rule Files", "No rule file selected for reload.");
 			refreshReasoningUi.run();
 			return;
 		}
@@ -215,7 +219,7 @@ final class DataRuleFileController {
 				Set<String> selectedRuleIds = safeSelection.stream().map(RuleFileState::id)
 						.collect(java.util.stream.Collectors.toUnmodifiableSet());
 				reasoningService.applyRuleFileSelection(selectedRuleIds);
-				return () -> NotificationWidget.getInstance().showSuccess(
+				return () -> NotificationWidget.getInstance().showSuccess("Rule Files",
 						"Reloaded " + DataUiMessageUtils.countLabel(safeSelection.size(), "rule file") + ".");
 			} catch (Exception e) {
 				return () -> NotificationWidget.getInstance().showErrorWithDetails("Rule Reload Error",
@@ -240,8 +244,8 @@ final class DataRuleFileController {
 		runAsyncWithRefresh("Rule Files", "Removing all rule files...", () -> {
 			try {
 				reasoningService.removeAllRuleFiles();
-				return () -> NotificationWidget.getInstance()
-						.showSuccess("Removed " + DataUiMessageUtils.countLabel(removedCount, "rule file") + ".");
+				return () -> NotificationWidget.getInstance().showSuccess("Rule Files",
+						"Removed " + DataUiMessageUtils.countLabel(removedCount, "rule file") + ".");
 			} catch (Exception e) {
 				return () -> NotificationWidget.getInstance().showErrorWithDetails("Rule File Error",
 						"Failed to clear rule files: " + e.getMessage(), e);
@@ -281,17 +285,17 @@ final class DataRuleFileController {
 				: "\"" + rule.label() + "\"";
 		String message = "Remove " + ruleLabel + " from this session?";
 		ModalService.getInstance().showConfirmation("Remove Rule File", message, "Remove", false,
-				() -> executeRuleFileRemoval(rule.id()));
+				() -> executeRuleFileRemoval(rule.id(), resolveRuleDisplayName(rule, rule.id())));
 	}
 
-	private void executeRuleFileRemoval(String ruleId) {
+	private void executeRuleFileRemoval(String ruleId, String ruleDisplayName) {
 		runAsyncWithRefresh("Rule Files", "Removing rule file...", () -> {
 			try {
 				reasoningService.removeRuleFile(ruleId);
-				return () -> NotificationWidget.getInstance().showSuccess("Rule file removed.");
+				return () -> NotificationWidget.getInstance().showSuccess("Rule File", ruleDisplayName + " removed.");
 			} catch (Exception e) {
 				return () -> NotificationWidget.getInstance().showErrorWithDetails("Rule File Error",
-						"Failed to remove rule file: " + e.getMessage(), e);
+						"Failed to remove " + ruleDisplayName + ": " + e.getMessage(), e);
 			}
 		});
 	}
@@ -330,11 +334,11 @@ final class DataRuleFileController {
 
 	private void showRuleFileLoadResult(RuleFileLoadResult result) {
 		if (result.loadedCount() > 0) {
-			NotificationWidget.getInstance()
-					.showSuccess("Loaded " + DataUiMessageUtils.countLabel(result.loadedCount(), "rule file") + ".");
+			NotificationWidget.getInstance().showSuccess("Rule Files",
+					"Loaded " + DataUiMessageUtils.countLabel(result.loadedCount(), "rule file") + ".");
 		}
 		if (result.duplicateCount() > 0) {
-			NotificationWidget.getInstance().showInfo("Reasoning", "Skipped "
+			NotificationWidget.getInstance().showInfo("Rule Files", "Skipped "
 					+ DataUiMessageUtils.countLabel(result.duplicateCount(), "already loaded rule file") + ".");
 		}
 		for (RuleFileIssue error : result.errors()) {
@@ -369,6 +373,16 @@ final class DataRuleFileController {
 			refreshReasoningUi.run();
 		}
 		return rule;
+	}
+
+	private static String resolveRuleDisplayName(RuleFileState rule, String fallbackRuleId) {
+		if (rule != null && rule.label() != null && !rule.label().isBlank()) {
+			return "\"" + rule.label() + "\"";
+		}
+		if (fallbackRuleId != null && !fallbackRuleId.isBlank()) {
+			return "\"" + fallbackRuleId + "\"";
+		}
+		return "Rule file";
 	}
 
 	private static boolean isReadableFile(String filePath) {

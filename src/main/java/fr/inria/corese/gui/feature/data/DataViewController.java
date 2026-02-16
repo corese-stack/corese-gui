@@ -95,6 +95,7 @@ public class DataViewController implements AutoCloseable {
 				ButtonFactory.exportData(this::handleExportData), ButtonFactory.clearGraph(this::handleClearGraph),
 				ButtonFactory.exportGraph(this::handleExportVisualGraph),
 				ButtonFactory.resetLayout(view.getGraphWidget()::resetLayout),
+				ButtonFactory.centerView(view.getGraphWidget()::centerView),
 				ButtonFactory.zoomIn(view.getGraphWidget()::zoomIn),
 				ButtonFactory.zoomOut(view.getGraphWidget()::zoomOut));
 
@@ -221,6 +222,7 @@ public class DataViewController implements AutoCloseable {
 		view.setToolbarButtonDisabled(ButtonIcon.EXPORT, !hasData);
 		view.setToolbarButtonDisabled(ButtonIcon.CLEAR, !hasData);
 		view.setToolbarButtonDisabled(ButtonIcon.LAYOUT_FORCE, !hasData);
+		view.setToolbarButtonDisabled(ButtonIcon.CENTER_VIEW, !hasData);
 		view.setToolbarButtonDisabled(ButtonIcon.ZOOM_IN, !hasData);
 		view.setToolbarButtonDisabled(ButtonIcon.ZOOM_OUT, !hasData);
 	}
@@ -427,9 +429,12 @@ public class DataViewController implements AutoCloseable {
 				DataWorkspaceStatus beforeStatus = workspaceService.getStatus();
 				reasoningService.setEnabled(profile, enabled);
 				DataWorkspaceStatus afterStatus = workspaceService.getStatus();
-				String message = DataUiMessageUtils.buildTripleDeltaMessage(beforeStatus.inferredTripleCount(),
+				String profileLabel = profile == null ? "Profile" : profile.label();
+				String stateLabel = enabled ? "enabled" : "disabled";
+				String deltaMessage = DataUiMessageUtils.buildTripleDeltaMessage(beforeStatus.inferredTripleCount(),
 						afterStatus.inferredTripleCount());
-				return () -> NotificationWidget.getInstance().showSuccess(message);
+				String message = profileLabel + " " + stateLabel + ". " + deltaMessage;
+				return () -> NotificationWidget.getInstance().showSuccess("Reasoning Profile", message);
 			} catch (Exception e) {
 				return () -> NotificationWidget.getInstance().showErrorWithDetails("Reasoning Error",
 						"Reasoning update failed for " + profile.label() + ": " + e.getMessage(), e);

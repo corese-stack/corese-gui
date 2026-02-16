@@ -231,15 +231,31 @@
     -fx-spacing: 0;
     -fx-background-color: -color-bg-default;
     -fx-background-radius: 8px 8px 0 0;
+    -fx-background-insets: 0;
 }
 
 .data-graph-container {
-    -fx-padding: 6px;
+    -fx-padding: 2px 0 0 2px;
     -fx-background-color: -color-bg-default;
     -fx-border-color: transparent;
     -fx-border-width: 0;
     -fx-border-radius: 0;
     -fx-background-radius: 8px 0 0 0;
+}
+
+.data-graph-container .graph-display-container {
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-border-radius: 0;
+    -fx-background-radius: 0;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
+}
+
+.data-graph-container .graph-display-webview {
+    -fx-border-color: transparent;
+    -fx-border-radius: 0;
+    -fx-background-radius: 0;
 }
 
 .data-graph-empty-state {

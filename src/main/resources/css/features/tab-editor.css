@@ -9,7 +9,7 @@
 .tab-header-toolbar {
     -fx-background-color: -color-bg-subtle;
     -fx-border-color: -color-border-default;
-    -fx-border-width: 0 0 1 0;
+    -fx-border-width: 0 0 1 1;
     -fx-padding: 0 4 0 4;
     -fx-pref-height: 44px;
     -fx-min-height: 44px;

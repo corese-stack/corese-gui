@@ -129,15 +129,13 @@ window.setTheme = function (isDark, accentColor, themeName) {
     const body = document.body;
     const root = document.documentElement;
 
-    // Toggle dark mode class
-    if (isDark) {
-        body.classList.add('dark-theme');
-    } else {
-        body.classList.remove('dark-theme');
-    }
+    const darkMode = Boolean(isDark);
+    body.classList.toggle('dark-theme', darkMode);
 
-    // Apply named theme
-    body.className = body.className.replace(/\btheme-\S+/g, '').trim();
+    // Replace theme-* classes without resetting the full className to avoid flashes
+    Array.from(body.classList)
+        .filter(className => className.startsWith('theme-'))
+        .forEach(className => body.classList.remove(className));
     if (themeName) {
         body.classList.add(`theme-${themeName.toLowerCase()}`);
     }

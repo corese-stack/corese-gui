@@ -249,7 +249,6 @@ public class DataView extends AbstractView {
 
 		VBox graphCard = new VBox(graphBody, statusBar);
 		graphCard.getStyleClass().addAll("data-graph-card", "app-card", "app-card-default");
-		RoundedClipSupport.applyRoundedClip(graphCard, CARD_RADIUS);
 		VBox.setVgrow(graphBody, Priority.ALWAYS);
 
 		graphPane.setCenter(graphCard);
@@ -286,6 +285,7 @@ public class DataView extends AbstractView {
 
 	private void initializeGraphContainer() {
 		graphContainer.getStyleClass().add("data-graph-container");
+		graphWidget.setBorderVisible(false);
 		graphContainer.getChildren().setAll(graphWidget, graphDropOverlay);
 
 		graphDropOverlay.getStyleClass().add(STYLE_CLASS_GRAPH_DROP_OVERLAY);
