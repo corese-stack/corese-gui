@@ -1339,43 +1339,37 @@ class KGGraphVis extends HTMLElement {
 
         const buildPriority = (graphId, score = null) => ({
             graphId,
-            hasSubjectMentions: (score?.subjectMentions ?? 0) > 0 ? 1 : 0,
             nonInference: isInferenceGraphId(graphId) ? 0 : 1,
+            hasSubjectMentions: (score?.subjectMentions ?? 0) > 0 ? 1 : 0,
             subjectMentions: score?.subjectMentions ?? 0,
             totalWeight: score?.totalWeight ?? 0,
             named: isDefaultGraphId(graphId) ? 0 : 1
         });
 
         const comparePriority = (candidate, current) => {
-            // Any non-default graph must win over default to avoid serializer
-            // artifacts assigning nodes to "default" when they are actually
-            // defined in named graphs.
-            if (candidate.named !== current.named) {
-                return candidate.named > current.named;
+            // Keep existing resources anchored to asserted graphs: any
+            // non-inference graph must win over inference graphs.
+            if (candidate.nonInference !== current.nonInference) {
+                return candidate.nonInference > current.nonInference;
             }
 
             if (candidate.hasSubjectMentions !== current.hasSubjectMentions) {
                 return candidate.hasSubjectMentions > current.hasSubjectMentions;
             }
 
-            if (candidate.hasSubjectMentions > 0) {
-                if (candidate.subjectMentions !== current.subjectMentions) {
-                    return candidate.subjectMentions > current.subjectMentions;
-                }
-                if (candidate.nonInference !== current.nonInference) {
-                    return candidate.nonInference > current.nonInference;
-                }
-                if (candidate.totalWeight !== current.totalWeight) {
-                    return candidate.totalWeight > current.totalWeight;
-                }
-            } else {
-                if (candidate.nonInference !== current.nonInference) {
-                    return candidate.nonInference > current.nonInference;
-                }
-                if (candidate.totalWeight !== current.totalWeight) {
-                    return candidate.totalWeight > current.totalWeight;
-                }
+            if (candidate.subjectMentions !== current.subjectMentions) {
+                return candidate.subjectMentions > current.subjectMentions;
             }
+
+            if (candidate.totalWeight !== current.totalWeight) {
+                return candidate.totalWeight > current.totalWeight;
+            }
+
+            // Keep named-over-default only as a late deterministic tie-breaker.
+            if (candidate.named !== current.named) {
+                return candidate.named > current.named;
+            }
+
             return candidate.graphId.localeCompare(current.graphId) < 0;
         };
 
@@ -1385,6 +1379,12 @@ class KGGraphVis extends HTMLElement {
                 : [resolveGraphId(node?.graph)];
             if (candidateIds.length === 0) {
                 return GRAPH_DEFAULTS.defaultGraphId;
+            }
+            // If a node was explicitly defined in a non-inference graph, keep
+            // that graph as its primary color source.
+            const definitionGraphId = resolveGraphId(node?.definitionGraph);
+            if (candidateIds.includes(definitionGraphId) && !isInferenceGraphId(definitionGraphId)) {
+                return definitionGraphId;
             }
             candidateIds.sort((left, right) => left.localeCompare(right));
             let bestId = candidateIds[0];
@@ -1412,7 +1412,11 @@ class KGGraphVis extends HTMLElement {
                 registerNodeGraphUsage(existing, resolvedGraph, isSubject);
                 if (isSubject) {
                     existing.isDefinedAsSubject = true;
-                    if (!existing.definitionGraph) {
+                    if (!existing.definitionGraph
+                        || (isInferenceGraphId(existing.definitionGraph) && !isInferenceGraphId(resolvedGraph))
+                        || (isDefaultGraphId(existing.definitionGraph)
+                            && !isDefaultGraphId(resolvedGraph)
+                            && !isInferenceGraphId(resolvedGraph))) {
                         existing.definitionGraph = resolvedGraph;
                     }
                 }
@@ -1583,7 +1587,7 @@ class KGGraphVis extends HTMLElement {
         graph.nodes.forEach(node => {
             const primaryGraph = resolvePrimaryGraph(node);
             node.graph = primaryGraph;
-            if (node.isDefinedAsSubject) {
+            if (node.isDefinedAsSubject && !node.definitionGraph) {
                 node.definitionGraph = primaryGraph;
             }
             delete node.graphScores;
