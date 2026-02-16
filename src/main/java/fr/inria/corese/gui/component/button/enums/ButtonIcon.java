@@ -117,7 +117,7 @@ public enum ButtonIcon {
 	NAV_SETTINGS(MaterialDesignC.COG),
 
 	/** Icon for navigating to the system logs view. */
-	NAV_LOGS(MaterialDesignI.INFORMATION_OUTLINE),
+	NAV_LOGS(MaterialDesignI.INFORMATION),
 
 	/** Icon for collapsing/expanding side navigation. */
 	NAV_TOGGLE(MaterialDesignC.CHEVRON_DOUBLE_LEFT),
