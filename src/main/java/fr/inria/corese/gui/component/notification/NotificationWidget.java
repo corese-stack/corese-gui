@@ -67,6 +67,7 @@ public final class NotificationWidget {
 	private static final Duration SUCCESS_DURATION = Duration.seconds(4);
 	private static final Duration WARNING_DURATION = Duration.seconds(5);
 	private static final Duration ERROR_DURATION = Duration.seconds(7);
+	private static final Duration LOADING_SHOW_DELAY = Duration.millis(180);
 
 	private static final int MAX_VISIBLE_TOASTS = 6;
 	private static final double ENTER_OFFSET_Y = 18.0;
@@ -184,6 +185,7 @@ public final class NotificationWidget {
 	private final class LoadingToastHandle implements LoadingHandle {
 		private final AtomicReference<HBox> toastRef = new AtomicReference<>();
 		private final AtomicBoolean closeRequested = new AtomicBoolean(false);
+		private final AtomicReference<PauseTransition> delayedShowRef = new AtomicReference<>();
 
 		private void bind(HBox toast) {
 			toastRef.set(toast);
@@ -192,9 +194,27 @@ public final class NotificationWidget {
 			}
 		}
 
+		private void bindDelayedShow(PauseTransition delayedShow) {
+			delayedShowRef.set(delayedShow);
+		}
+
+		private void clearDelayedShow(PauseTransition delayedShow) {
+			delayedShowRef.compareAndSet(delayedShow, null);
+		}
+
+		private boolean isCloseRequested() {
+			return closeRequested.get();
+		}
+
 		@Override
 		public void close() {
 			closeRequested.set(true);
+			runOnFxThread(() -> {
+				PauseTransition delayedShow = delayedShowRef.getAndSet(null);
+				if (delayedShow != null) {
+					delayedShow.stop();
+				}
+			});
 			HBox toast = toastRef.get();
 			if (toast != null) {
 				dismissToastAsync(toast, true);
@@ -311,8 +331,26 @@ public final class NotificationWidget {
 		String safeTitle = normalizeTitle(title, Tone.LOADING);
 		String safeMessage = normalizeMessage(message);
 		ToastRequest request = new ToastRequest(safeTitle, safeMessage, Tone.LOADING, Duration.ZERO, true, false, null);
-		show(request, handle::bind);
+		scheduleLoadingShow(request, handle);
 		return handle;
+	}
+
+	private void scheduleLoadingShow(ToastRequest request, LoadingToastHandle handle) {
+		runOnFxThread(() -> {
+			if (request == null || handle == null) {
+				return;
+			}
+			PauseTransition delayedShow = new PauseTransition(LOADING_SHOW_DELAY);
+			handle.bindDelayedShow(delayedShow);
+			delayedShow.setOnFinished(event -> {
+				handle.clearDelayedShow(delayedShow);
+				if (handle.isCloseRequested()) {
+					return;
+				}
+				show(request, handle::bind);
+			});
+			delayedShow.play();
+		});
 	}
 
 	private void show(String title, String message, Tone tone) {
