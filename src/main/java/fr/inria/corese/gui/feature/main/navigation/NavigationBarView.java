@@ -62,6 +62,7 @@ public final class NavigationBarView extends AbstractView {
 	private final Button dataButton;
 	private final Button queryButton;
 	private final Button validationButton;
+	private final Button systemLogsButton;
 	private final Button toggleButton;
 	private final Button settingsButton;
 
@@ -77,6 +78,8 @@ public final class NavigationBarView extends AbstractView {
 				"Execute SPARQL queries on loaded RDF datasets");
 		this.validationButton = createNavigationButton("Validation", ButtonIcon.NAV_VALIDATION,
 				"Validate RDF data against SHACL shapes and constraints");
+		this.systemLogsButton = createNavigationButton("System Logs", ButtonIcon.NAV_LOGS,
+				"Review graph-changing operations chronologically");
 		this.toggleButton = createToggleButton();
 		this.settingsButton = createNavigationButton("Settings", ButtonIcon.NAV_SETTINGS,
 				"Configure application preferences and appearance");
@@ -95,8 +98,8 @@ public final class NavigationBarView extends AbstractView {
 		Region spacer = new Region();
 		VBox.setVgrow(spacer, Priority.ALWAYS);
 
-		root.getChildren().setAll(logo, dataButton, queryButton, validationButton, spacer, toggleButton,
-				settingsButton);
+		root.getChildren().setAll(logo, dataButton, queryButton, validationButton, systemLogsButton, spacer,
+				toggleButton, settingsButton);
 	}
 
 	/** Creates the top logo button. */
@@ -200,7 +203,8 @@ public final class NavigationBarView extends AbstractView {
 		FontIcon toggleIcon = (FontIcon) toggleButton.getGraphic();
 		ImageView logoView = (ImageView) logo.getGraphic();
 
-		Button[] navigationButtons = new Button[]{dataButton, validationButton, queryButton, settingsButton};
+		Button[] navigationButtons = new Button[]{dataButton, validationButton, queryButton, systemLogsButton,
+				settingsButton};
 
 		currentTransition = NavigationBarAnimations.createToggleAnimation(root, toggleIcon, logoView, navigationButtons,
 				collapsed);
@@ -275,6 +279,7 @@ public final class NavigationBarView extends AbstractView {
 			case DATA -> dataButton;
 			case VALIDATION -> validationButton;
 			case QUERY -> queryButton;
+			case SYSTEM_LOGS -> systemLogsButton;
 			case SETTINGS -> settingsButton;
 		};
 	}

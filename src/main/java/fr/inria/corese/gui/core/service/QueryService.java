@@ -56,8 +56,10 @@ public class QueryService {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(QueryService.class);
 	private static final QueryService INSTANCE = new QueryService();
+	private static final int QUERY_PREVIEW_MAX_CHARS = 180;
 
 	private final Map<String, CacheEntry> resultCache;
+	private final GraphActivityLogService activityLogService;
 
 	// ==============================================================================================
 	// Constructor
@@ -65,6 +67,7 @@ public class QueryService {
 
 	private QueryService() {
 		this.resultCache = new ConcurrentHashMap<>();
+		this.activityLogService = GraphActivityLogService.getInstance();
 	}
 
 	// ==============================================================================================
@@ -136,6 +139,8 @@ public class QueryService {
 						deletedTriples = -delta;
 					}
 				}
+
+				logUpdateActivity(queryString, insertedTriples, deletedTriples);
 			}
 
 			Graph resultGraph = null;
@@ -265,6 +270,25 @@ public class QueryService {
 				throw fallbackFailure;
 			}
 		}
+	}
+
+	private void logUpdateActivity(String queryString, int insertedTriples, int deletedTriples) {
+		String action = "Executed SPARQL update";
+		String details = previewQuery(queryString);
+		activityLogService.log(GraphActivityLogEntry.Source.QUERY_SERVICE, action, details, insertedTriples,
+				deletedTriples);
+	}
+
+	private static String previewQuery(String queryString) {
+		if (queryString == null || queryString.isBlank()) {
+			return "";
+		}
+		String normalized = queryString.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ').trim()
+				.replaceAll("\\s{2,}", " ");
+		if (normalized.length() <= QUERY_PREVIEW_MAX_CHARS) {
+			return normalized;
+		}
+		return normalized.substring(0, QUERY_PREVIEW_MAX_CHARS - 3) + "...";
 	}
 
 	// ==============================================================================================

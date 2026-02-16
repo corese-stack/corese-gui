@@ -1,0 +1,92 @@
+/* ==========================================================================
+   System Logs View
+   ========================================================================== */
+
+.system-logs-root {
+    -fx-padding: 12px;
+}
+
+.system-logs-card {
+    -fx-padding: 0;
+    -fx-spacing: 0;
+}
+
+.system-logs-header {
+    -fx-padding: 12px 14px 8px 14px;
+    -fx-spacing: 2px;
+}
+
+.system-logs-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-fg-default;
+}
+
+.system-logs-subtitle {
+    -fx-font-size: 12px;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.system-logs-table-container {
+    -fx-min-height: 0;
+    -fx-padding: 0 0 1px 0;
+}
+
+.system-logs-table {
+    -fx-background-color: -color-bg-default;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+    -fx-table-cell-border-color: -color-border-muted;
+}
+
+.system-logs-table .column-header-background {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1px 0 1px 0;
+}
+
+.system-logs-table .column-header,
+.system-logs-table .filler {
+    -fx-background-color: transparent;
+}
+
+.system-logs-table .column-header .label {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-fg-default;
+}
+
+.system-logs-table .table-row-cell {
+    -fx-cell-size: 36px;
+}
+
+.system-logs-table .table-cell {
+    -fx-font-size: 12px;
+    -fx-text-fill: -color-fg-default;
+    -fx-padding: 6px 10px;
+}
+
+.system-logs-table .table-cell.system-log-delta-positive {
+    -fx-text-fill: #2f9e44;
+    -fx-font-weight: 700;
+}
+
+.system-logs-table .table-cell.system-log-delta-negative {
+    -fx-text-fill: #d9480f;
+    -fx-font-weight: 700;
+}
+
+.system-logs-table .table-cell.system-log-delta-mixed {
+    -fx-text-fill: -color-accent-emphasis;
+    -fx-font-weight: 700;
+}
+
+.system-logs-table .table-cell.system-log-delta-neutral {
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-weight: 700;
+}
+
+.system-logs-empty-state {
+    -fx-padding: 24px;
+    -fx-background-color: transparent;
+}

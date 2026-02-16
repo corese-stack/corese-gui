@@ -30,6 +30,7 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 	private final GraphProjectionService graphProjectionService = GraphProjectionService.getInstance();
 	private final ReasoningService reasoningService = DefaultReasoningService.getInstance();
 	private final GraphMutationBus mutationBus = GraphMutationBus.getInstance();
+	private final GraphActivityLogService activityLogService = GraphActivityLogService.getInstance();
 
 	private DefaultDataWorkspaceService() {
 	}
@@ -45,16 +46,25 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 
 	@Override
 	public void loadFile(File file) {
+		int beforeCount = rdfDataService.getTripleCount();
 		rdfDataService.loadFile(file);
 		sourceRegistryService.registerFile(file);
 		mutationBus.publish(GraphMutationEvent.bulkRefreshRequired(GraphMutationEvent.Source.DATA_WORKSPACE));
+		int insertedCount = Math.max(0, rdfDataService.getTripleCount() - beforeCount);
+		String filePath = file == null ? "" : file.getAbsolutePath();
+		activityLogService.log(GraphActivityLogEntry.Source.DATA_WORKSPACE, "Loaded RDF file",
+				filePath.isBlank() ? "Source: local file" : filePath, insertedCount, 0);
 	}
 
 	@Override
 	public void loadUri(String uri) {
+		int beforeCount = rdfDataService.getTripleCount();
 		rdfDataService.loadUri(uri);
 		sourceRegistryService.registerUri(uri);
 		mutationBus.publish(GraphMutationEvent.bulkRefreshRequired(GraphMutationEvent.Source.DATA_WORKSPACE));
+		int insertedCount = Math.max(0, rdfDataService.getTripleCount() - beforeCount);
+		activityLogService.log(GraphActivityLogEntry.Source.DATA_WORKSPACE, "Loaded RDF URI", safeString(uri),
+				insertedCount, 0);
 	}
 
 	@Override
@@ -64,12 +74,15 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 
 	@Override
 	public int reloadSources(List<DataSource> selectedSources) {
+		int beforeCount = rdfDataService.getTripleCount();
 		List<DataSource> normalizedSelection = selectedSources == null ? List.of() : List.copyOf(selectedSources);
 		sourceRegistryService.replaceAll(normalizedSelection);
 		rdfDataService.clearData();
 
 		if (normalizedSelection.isEmpty()) {
 			mutationBus.publish(GraphMutationEvent.clearAll(GraphMutationEvent.Source.DATA_WORKSPACE));
+			activityLogService.log(GraphActivityLogEntry.Source.DATA_WORKSPACE,
+					"Reloaded data sources (empty selection)", "No source selected. Graph cleared.", 0, beforeCount);
 			return 0;
 		}
 
@@ -84,14 +97,20 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 			}
 		}
 		mutationBus.publish(GraphMutationEvent.bulkRefreshRequired(GraphMutationEvent.Source.DATA_WORKSPACE));
+		int afterCount = rdfDataService.getTripleCount();
+		activityLogService.log(GraphActivityLogEntry.Source.DATA_WORKSPACE, "Reloaded data sources",
+				"Reloaded " + loadedCount + " source(s).", afterCount, beforeCount);
 		return loadedCount;
 	}
 
 	@Override
 	public void clearGraph() {
+		int removedTriples = rdfDataService.getTripleCount();
 		rdfDataService.clearData();
 		sourceRegistryService.clear();
 		mutationBus.publish(GraphMutationEvent.clearAll(GraphMutationEvent.Source.DATA_WORKSPACE));
+		activityLogService.log(GraphActivityLogEntry.Source.DATA_WORKSPACE, "Cleared data graph",
+				"Graph and tracked sources were cleared.", 0, removedTriples);
 	}
 
 	@Override
@@ -168,5 +187,9 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 	}
 
 	private record ReasoningStats(List<DataWorkspaceStatus.ReasoningStat> details, int inferredTripleCount) {
+	}
+
+	private static String safeString(String value) {
+		return value == null ? "" : value.trim();
 	}
 }

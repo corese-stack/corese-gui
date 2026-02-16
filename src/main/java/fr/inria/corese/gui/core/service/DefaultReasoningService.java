@@ -40,6 +40,7 @@ public final class DefaultReasoningService implements ReasoningService {
 	private final EnumMap<ReasoningProfile, Boolean> profileStates = new EnumMap<>(ReasoningProfile.class);
 	private final LinkedHashMap<String, RuleFileDefinition> ruleFiles = new LinkedHashMap<>();
 	private final GraphMutationBus mutationBus = GraphMutationBus.getInstance();
+	private final GraphActivityLogService activityLogService = GraphActivityLogService.getInstance();
 
 	private DefaultReasoningService() {
 		for (ReasoningProfile profile : ReasoningProfile.values()) {
@@ -63,9 +64,14 @@ public final class DefaultReasoningService implements ReasoningService {
 		if (previous == enabled) {
 			return;
 		}
+		int tripleCountBefore = graphSizeSnapshot();
 		profileStates.put(profile, enabled);
 		try {
-			recomputeEnabledProfiles();
+			recomputeEnabledProfilesInternal(false);
+			int tripleCountAfter = graphSizeSnapshot();
+			String action = enabled ? "Enabled reasoning profile" : "Disabled reasoning profile";
+			logActivityDelta(GraphActivityLogEntry.Source.REASONING_SERVICE, action, profile.label(), tripleCountBefore,
+					tripleCountAfter);
 		} catch (RuntimeException e) {
 			profileStates.put(profile, previous);
 			throw e;
@@ -119,9 +125,13 @@ public final class DefaultReasoningService implements ReasoningService {
 		String ruleId = UUID.randomUUID().toString();
 		String label = ruleFile.getName();
 		String namedGraphUri = createRuleFileGraphUri(sourcePath, label);
+		int tripleCountBefore = graphSizeSnapshot();
 		ruleFiles.put(ruleId, new RuleFileDefinition(ruleId, label, sourcePath, namedGraphUri, true));
 		try {
-			recomputeEnabledProfiles();
+			recomputeEnabledProfilesInternal(false);
+			int tripleCountAfter = graphSizeSnapshot();
+			logActivityDelta(GraphActivityLogEntry.Source.RULE_FILE_SERVICE, "Added rule file",
+					label + " -> " + namedGraphUri, tripleCountBefore, tripleCountAfter);
 		} catch (RuntimeException e) {
 			ruleFiles.remove(ruleId);
 			throw e;
@@ -135,8 +145,12 @@ public final class DefaultReasoningService implements ReasoningService {
 		if (removed == null) {
 			return;
 		}
+		int tripleCountBefore = graphSizeSnapshot();
 		try {
-			recomputeEnabledProfiles();
+			recomputeEnabledProfilesInternal(false);
+			int tripleCountAfter = graphSizeSnapshot();
+			logActivityDelta(GraphActivityLogEntry.Source.RULE_FILE_SERVICE, "Removed rule file", removed.label(),
+					tripleCountBefore, tripleCountAfter);
 		} catch (RuntimeException e) {
 			ruleFiles.put(removed.id(), removed);
 			throw e;
@@ -148,10 +162,15 @@ public final class DefaultReasoningService implements ReasoningService {
 		if (ruleFiles.isEmpty()) {
 			return;
 		}
+		int removedCount = ruleFiles.size();
+		int tripleCountBefore = graphSizeSnapshot();
 		LinkedHashMap<String, RuleFileDefinition> previousRules = new LinkedHashMap<>(ruleFiles);
 		ruleFiles.clear();
 		try {
-			recomputeEnabledProfiles();
+			recomputeEnabledProfilesInternal(false);
+			int tripleCountAfter = graphSizeSnapshot();
+			logActivityDelta(GraphActivityLogEntry.Source.RULE_FILE_SERVICE, "Removed all rule files",
+					removedCount + " file(s)", tripleCountBefore, tripleCountAfter);
 		} catch (RuntimeException e) {
 			ruleFiles.putAll(previousRules);
 			throw e;
@@ -168,9 +187,14 @@ public final class DefaultReasoningService implements ReasoningService {
 		if (current.enabled() == enabled) {
 			return;
 		}
+		int tripleCountBefore = graphSizeSnapshot();
 		ruleFiles.put(ruleId, current.withEnabled(enabled));
 		try {
-			recomputeEnabledProfiles();
+			recomputeEnabledProfilesInternal(false);
+			int tripleCountAfter = graphSizeSnapshot();
+			String action = enabled ? "Enabled rule file" : "Disabled rule file";
+			logActivityDelta(GraphActivityLogEntry.Source.RULE_FILE_SERVICE, action, current.label(), tripleCountBefore,
+					tripleCountAfter);
 		} catch (RuntimeException e) {
 			ruleFiles.put(ruleId, current);
 			throw e;
@@ -187,6 +211,7 @@ public final class DefaultReasoningService implements ReasoningService {
 		if (ruleFiles.isEmpty()) {
 			return;
 		}
+		int tripleCountBefore = graphSizeSnapshot();
 
 		LinkedHashSet<String> selectedIds = new LinkedHashSet<>();
 		if (enabledRuleIds != null) {
@@ -213,7 +238,10 @@ public final class DefaultReasoningService implements ReasoningService {
 		}
 
 		try {
-			recomputeEnabledProfiles();
+			recomputeEnabledProfilesInternal(false);
+			int tripleCountAfter = graphSizeSnapshot();
+			logActivityDelta(GraphActivityLogEntry.Source.RULE_FILE_SERVICE, "Updated rule file selection",
+					selectedIds.size() + " file(s) enabled", tripleCountBefore, tripleCountAfter);
 		} catch (RuntimeException e) {
 			ruleFiles.clear();
 			ruleFiles.putAll(previousRules);
@@ -223,7 +251,12 @@ public final class DefaultReasoningService implements ReasoningService {
 
 	@Override
 	public synchronized void recomputeEnabledProfiles() {
+		recomputeEnabledProfilesInternal(true);
+	}
+
+	private void recomputeEnabledProfilesInternal(boolean logActivity) {
 		Graph mainGraph = GraphStoreService.getInstance().getGraph();
+		int tripleCountBefore = Math.max(0, mainGraph.size());
 		try (AutoCloseable ignored = GraphMutationCollectorService.getInstance().suspendPublishing()) {
 			Graph assertedSnapshot = createAssertedSnapshot(mainGraph);
 			replaceGraphContent(mainGraph, assertedSnapshot);
@@ -231,6 +264,11 @@ public final class DefaultReasoningService implements ReasoningService {
 			if (!hasAnyEnabledProfile()) {
 				mainGraph.clean();
 				mutationBus.publish(GraphMutationEvent.bulkRefreshRequired(GraphMutationEvent.Source.REASONING));
+				if (logActivity) {
+					int tripleCountAfter = Math.max(0, mainGraph.size());
+					logActivityDelta(GraphActivityLogEntry.Source.REASONING_SERVICE, "Recomputed reasoning inferences",
+							"No reasoning profile or rule file is enabled.", tripleCountBefore, tripleCountAfter);
+				}
 				return;
 			}
 
@@ -250,10 +288,18 @@ public final class DefaultReasoningService implements ReasoningService {
 			throw new ReasoningException("Failed to recompute reasoning profiles.", e);
 		}
 		mutationBus.publish(GraphMutationEvent.bulkRefreshRequired(GraphMutationEvent.Source.REASONING));
+		if (logActivity) {
+			int tripleCountAfter = Math.max(0, mainGraph.size());
+			String details = countEnabledProfiles() + " profile(s), " + countEnabledRuleFiles()
+					+ " rule file(s) enabled";
+			logActivityDelta(GraphActivityLogEntry.Source.REASONING_SERVICE, "Recomputed reasoning inferences", details,
+					tripleCountBefore, tripleCountAfter);
+		}
 	}
 
 	@Override
 	public synchronized void resetAllProfiles() {
+		int tripleCountBefore = graphSizeSnapshot();
 		for (ReasoningProfile profile : ReasoningProfile.values()) {
 			profileStates.put(profile, false);
 		}
@@ -273,6 +319,9 @@ public final class DefaultReasoningService implements ReasoningService {
 			throw new ReasoningException("Failed to reset reasoning profiles.", e);
 		}
 		mutationBus.publish(GraphMutationEvent.bulkRefreshRequired(GraphMutationEvent.Source.REASONING));
+		int tripleCountAfter = graphSizeSnapshot();
+		logActivityDelta(GraphActivityLogEntry.Source.REASONING_SERVICE, "Reset reasoning profiles",
+				"All built-in profiles and rule files were disabled.", tripleCountBefore, tripleCountAfter);
 	}
 
 	private void applyProfileInference(Graph assertedSnapshot, Graph targetGraph, ReasoningProfile profile)
@@ -383,6 +432,37 @@ public final class DefaultReasoningService implements ReasoningService {
 		};
 	}
 
+	private int graphSizeSnapshot() {
+		return Math.max(0, GraphStoreService.getInstance().size());
+	}
+
+	private int countEnabledProfiles() {
+		int enabledProfileCount = 0;
+		for (ReasoningProfile profile : ReasoningProfile.values()) {
+			if (Boolean.TRUE.equals(profileStates.get(profile))) {
+				enabledProfileCount++;
+			}
+		}
+		return enabledProfileCount;
+	}
+
+	private int countEnabledRuleFiles() {
+		int enabledRuleFileCount = 0;
+		for (RuleFileDefinition ruleFile : ruleFiles.values()) {
+			if (ruleFile.enabled()) {
+				enabledRuleFileCount++;
+			}
+		}
+		return enabledRuleFileCount;
+	}
+
+	private void logActivityDelta(GraphActivityLogEntry.Source source, String action, String details,
+			int tripleCountBefore, int tripleCountAfter) {
+		int insertedCount = Math.max(0, tripleCountAfter - tripleCountBefore);
+		int deletedCount = Math.max(0, tripleCountBefore - tripleCountAfter);
+		activityLogService.log(source, action, details, insertedCount, deletedCount);
+	}
+
 	private static EnumMap<ReasoningProfile, String> createProfileSourcePaths() {
 		EnumMap<ReasoningProfile, String> paths = new EnumMap<>(ReasoningProfile.class);
 		paths.put(ReasoningProfile.RDFS, "/rule/rdfs.rul");
@@ -430,9 +510,7 @@ public final class DefaultReasoningService implements ReasoningService {
 	}
 
 	private static String toStablePathSuffix(String sourcePath) {
-		String uuid = UUID.nameUUIDFromBytes(sourcePath.getBytes(StandardCharsets.UTF_8))
-				.toString()
-				.replace("-", "");
+		String uuid = UUID.nameUUIDFromBytes(sourcePath.getBytes(StandardCharsets.UTF_8)).toString().replace("-", "");
 		return uuid.substring(0, 12);
 	}
 
