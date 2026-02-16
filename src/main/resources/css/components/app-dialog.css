@@ -87,7 +87,7 @@
 }
 
 .app-dialog .dialog-impact.warning {
-    -fx-background-color: -color-warning-muted;
+    -fx-background-color: -color-warning-subtle;
     -fx-border-color: -color-warning-emphasis;
 }
 
@@ -96,7 +96,7 @@
 }
 
 .app-dialog .dialog-impact.danger {
-    -fx-background-color: -color-danger-muted;
+    -fx-background-color: -color-danger-subtle;
     -fx-border-color: -color-danger-emphasis;
 }
 
