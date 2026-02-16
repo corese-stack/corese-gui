@@ -266,19 +266,23 @@ public class DataViewController implements AutoCloseable {
 		FileDialogState.updateLastDirectory(safeFiles);
 		runAsyncDataOperation("Data Load", "Loading RDF file(s)...", () -> {
 			List<OperationIssue> errors = new ArrayList<>();
-			int loadedCount = DataLoadingSupport.loadFiles(workspaceService, safeFiles, errors);
-			if (loadedCount > 0) {
-				DataLoadingSupport.recomputeReasoning(reasoningService, errors);
+			int loadedCount = 0;
+			int finalTripleCount = workspaceService.getTripleCount();
+			try {
+				loadedCount = DataLoadingSupport.loadFiles(workspaceService, safeFiles, errors);
+				if (loadedCount > 0) {
+					DataLoadingSupport.recomputeReasoning(reasoningService, errors);
+				}
+				finalTripleCount = workspaceService.getTripleCount();
+			} catch (Exception e) {
+				errors.add(new OperationIssue("Unexpected file loading error: " + e.getMessage(), e));
 			}
 
-			int finalTripleCount = workspaceService.getTripleCount();
+			int loadedCountSnapshot = loadedCount;
+			int tripleCountSnapshot = finalTripleCount;
+			List<OperationIssue> operationErrors = List.copyOf(errors);
 			Platform.runLater(() -> {
-				if (loadedCount > 0) {
-					NotificationWidget.getInstance().showSuccess(
-							"Loaded " + DataUiMessageUtils.countLabel(loadedCount, "file") + ". Graph now has "
-									+ DataUiMessageUtils.countLabel(finalTripleCount, "triple") + ".");
-				}
-				DataLoadingSupport.showErrors(errors);
+				notifyLoadOutcome("file", loadedCountSnapshot, tripleCountSnapshot, operationErrors, "Data Load Error");
 			});
 		});
 	}
@@ -291,26 +295,22 @@ public class DataViewController implements AutoCloseable {
 		List<String> urisToLoad = uris == null ? List.of() : List.copyOf(uris);
 		runAsyncDataOperation("URI Load", "Loading RDF URI(s)...", () -> {
 			List<OperationIssue> errors = new ArrayList<>();
+			int loadedCount = 0;
+			int finalTripleCount = workspaceService.getTripleCount();
 			try {
-				int loadedCount = DataLoadingSupport.loadUris(workspaceService, urisToLoad, errors);
+				loadedCount = DataLoadingSupport.loadUris(workspaceService, urisToLoad, errors);
 				if (loadedCount > 0) {
 					DataLoadingSupport.recomputeReasoning(reasoningService, errors);
 				}
-
-				int finalTripleCount = workspaceService.getTripleCount();
-				Platform.runLater(() -> {
-					if (loadedCount > 0) {
-						NotificationWidget.getInstance()
-								.showSuccess("Loaded " + DataUiMessageUtils.countLabel(loadedCount, "URI")
-										+ ". Graph now has " + DataUiMessageUtils.countLabel(finalTripleCount, "triple")
-										+ ".");
-					}
-					DataLoadingSupport.showErrors(errors);
-				});
+				finalTripleCount = workspaceService.getTripleCount();
 			} catch (Exception e) {
 				errors.add(new OperationIssue("Unexpected URI loading error: " + e.getMessage(), e));
-				Platform.runLater(() -> DataLoadingSupport.showErrors(errors));
 			}
+			int loadedCountSnapshot = loadedCount;
+			int tripleCountSnapshot = finalTripleCount;
+			List<OperationIssue> operationErrors = List.copyOf(errors);
+			Platform.runLater(() -> notifyLoadOutcome("URI", loadedCountSnapshot, tripleCountSnapshot, operationErrors,
+					"URI Load Error"));
 		});
 	}
 
@@ -490,6 +490,17 @@ public class DataViewController implements AutoCloseable {
 				});
 			}
 		});
+	}
+
+	private void notifyLoadOutcome(String sourceLabel, int loadedCount, int tripleCount,
+			List<OperationIssue> operationErrors, String errorTitle) {
+		if (loadedCount > 0) {
+			NotificationWidget.getInstance()
+					.showSuccess("Loaded " + DataUiMessageUtils.countLabel(loadedCount, sourceLabel)
+							+ ". Graph now has " + DataUiMessageUtils.countLabel(tripleCount, "triple") + ".");
+		}
+		DataLoadingSupport.showErrors(operationErrors);
+		DataLoadingSupport.showPrimaryErrorModalIfNothingLoaded(errorTitle, loadedCount, operationErrors);
 	}
 
 	private String expectedRdfExtensionsHint() {

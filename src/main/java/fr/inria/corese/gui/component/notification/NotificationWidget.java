@@ -3,7 +3,9 @@ package fr.inria.corese.gui.component.notification;
 import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.core.service.ModalService;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -63,7 +65,6 @@ public final class NotificationWidget {
 	private static final int MAX_VISIBLE_TOASTS = 6;
 	private static final double ENTER_OFFSET_Y = 18.0;
 	private static final double EXIT_OFFSET_Y = -10.0;
-	private static final double STACK_SHIFT_OFFSET_Y = 10.0;
 	private static final double TOAST_MIN_WIDTH = 320.0;
 	private static final double TOAST_MAX_WIDTH = 420.0;
 
@@ -131,6 +132,7 @@ public final class NotificationWidget {
 	private static final class ToastState {
 		private Animation entrance;
 		private PauseTransition hold;
+		private Animation reflow;
 		private final AtomicBoolean dismissing = new AtomicBoolean(false);
 		private final boolean persistent;
 
@@ -146,6 +148,10 @@ public final class NotificationWidget {
 			if (hold != null) {
 				hold.stop();
 				hold = null;
+			}
+			if (reflow != null) {
+				reflow.stop();
+				reflow = null;
 			}
 		}
 	}
@@ -184,6 +190,9 @@ public final class NotificationWidget {
 	public void setContainer(VBox container) {
 		runOnFxThread(() -> {
 			this.container = container;
+			if (this.container != null) {
+				this.container.setFillWidth(false);
+			}
 			ensureContainerStylesheet();
 		});
 	}
@@ -273,6 +282,7 @@ public final class NotificationWidget {
 				return;
 			}
 			ensureContainerStylesheet();
+			Map<HBox, Double> previousPositions = snapshotToastPositions();
 
 			HBox toast = createToast(request);
 			ToastState state = new ToastState(request.persistent());
@@ -283,7 +293,7 @@ public final class NotificationWidget {
 				onCreated.accept(toast);
 			}
 
-			animateStackOnInsert(toast);
+			animateToastReflow(previousPositions);
 			playToastLifecycle(toast, request, state);
 			enforceStackLimit();
 		});
@@ -481,44 +491,79 @@ public final class NotificationWidget {
 	}
 
 	private void removeToast(HBox toast) {
+		Map<HBox, Double> previousPositions = snapshotToastPositions();
 		toast.setOnMouseClicked(null);
 		activeToasts.remove(toast);
 		if (container != null) {
 			container.getChildren().remove(toast);
-			animateStackOnRemove();
+			previousPositions.remove(toast);
+			animateToastReflow(previousPositions);
 		}
 	}
 
-	private void animateStackOnInsert(HBox insertedToast) {
+	private Map<HBox, Double> snapshotToastPositions() {
+		Map<HBox, Double> positions = new HashMap<>();
 		if (container == null) {
-			return;
+			return positions;
 		}
-		for (Node child : container.getChildren()) {
-			if (!(child instanceof HBox toast) || toast == insertedToast) {
-				continue;
-			}
-			TranslateTransition shift = new TranslateTransition(STACK_SHIFT_DURATION, toast);
-			shift.setFromY(STACK_SHIFT_OFFSET_Y);
-			shift.setToY(0);
-			shift.setInterpolator(Interpolator.EASE_OUT);
-			shift.play();
-		}
-	}
-
-	private void animateStackOnRemove() {
-		if (container == null) {
-			return;
-		}
+		container.applyCss();
+		container.layout();
 		for (Node child : container.getChildren()) {
 			if (!(child instanceof HBox toast)) {
 				continue;
 			}
-			TranslateTransition shift = new TranslateTransition(STACK_SHIFT_DURATION, toast);
-			shift.setFromY(-STACK_SHIFT_OFFSET_Y);
-			shift.setToY(0);
-			shift.setInterpolator(Interpolator.EASE_OUT);
-			shift.play();
+			positions.put(toast, toast.getBoundsInParent().getMinY());
 		}
+		return positions;
+	}
+
+	private void animateToastReflow(Map<HBox, Double> previousPositions) {
+		if (container == null || previousPositions == null || previousPositions.isEmpty()) {
+			return;
+		}
+		List<HBox> trackedToasts = new ArrayList<>(previousPositions.keySet());
+		Platform.runLater(() -> {
+			if (container == null) {
+				return;
+			}
+			container.applyCss();
+			container.layout();
+			for (HBox toast : trackedToasts) {
+				if (toast == null || toast.getParent() != container) {
+					continue;
+				}
+				ToastState state = activeToasts.get(toast);
+				if (state == null || state.dismissing.get() || state.entrance != null) {
+					continue;
+				}
+				Double oldY = previousPositions.get(toast);
+				if (oldY == null) {
+					continue;
+				}
+				if (state.reflow != null) {
+					state.reflow.stop();
+					state.reflow = null;
+				}
+				double newY = toast.getBoundsInParent().getMinY();
+				double delta = oldY - newY;
+				if (Math.abs(delta) < 0.5) {
+					continue;
+				}
+				double startY = toast.getTranslateY() + delta;
+				toast.setTranslateY(startY);
+				TranslateTransition shift = new TranslateTransition(STACK_SHIFT_DURATION, toast);
+				shift.setFromY(startY);
+				shift.setToY(0);
+				shift.setInterpolator(Interpolator.EASE_OUT);
+				state.reflow = shift;
+				shift.setOnFinished(event -> {
+					if (state.reflow == shift) {
+						state.reflow = null;
+					}
+				});
+				shift.play();
+			}
+		});
 	}
 
 	private void ensureContainerStylesheet() {

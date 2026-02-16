@@ -2,6 +2,7 @@ package fr.inria.corese.gui.feature.data.support;
 
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.service.DataWorkspaceService;
+import fr.inria.corese.gui.core.service.ModalService;
 import fr.inria.corese.gui.core.service.ReasoningService;
 import java.io.File;
 import java.util.List;
@@ -94,5 +95,35 @@ public final class DataLoadingSupport {
 				NotificationWidget.getInstance().showError(issue.userMessage());
 			}
 		}
+	}
+
+	public static void showPrimaryErrorModalIfNothingLoaded(String title, int loadedCount,
+			List<OperationIssue> errors) {
+		if (loadedCount > 0 || errors == null || errors.isEmpty()) {
+			return;
+		}
+		OperationIssue primaryIssue = firstDisplayableIssue(errors);
+		if (primaryIssue == null) {
+			return;
+		}
+
+		String safeTitle = title == null || title.isBlank() ? "Data Load Error" : title.trim();
+		if (primaryIssue.cause() != null) {
+			ModalService.getInstance().showException(safeTitle, primaryIssue.userMessage(), primaryIssue.cause());
+		} else {
+			ModalService.getInstance().showError(safeTitle, primaryIssue.userMessage());
+		}
+	}
+
+	private static OperationIssue firstDisplayableIssue(List<OperationIssue> errors) {
+		if (errors == null) {
+			return null;
+		}
+		for (OperationIssue issue : errors) {
+			if (issue != null && !issue.userMessage().isBlank()) {
+				return issue;
+			}
+		}
+		return null;
 	}
 }
