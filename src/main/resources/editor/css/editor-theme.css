@@ -63,7 +63,7 @@ body.theme-primer {
     --text-color: #24292f;
     --gutter-bg: #f6f8fa;
     --gutter-text: #6e7781;
-    --status-bar-bg: #ffffff;
+    --status-bar-bg: #f6f8fa;
     --status-bar-border: #d0d7de;
     --status-bar-text: #57606a;
     --caret-color: #24292f;
@@ -104,7 +104,7 @@ body.dark-theme {
     --text-color: #d4d4d4;
     --gutter-bg: #252526;
     --gutter-text: #858585;
-    --status-bar-bg: #2d2d2d;
+    --status-bar-bg: #252526;
     --status-bar-border: #3e3e42;
     --status-bar-text: #cccccc;
     --caret-color: #d4d4d4;
@@ -150,7 +150,7 @@ body.theme-primer.dark-theme {
     --text-color: #c9d1d9;
     --gutter-bg: #0d1117;
     --gutter-text: #8b949e;
-    --status-bar-bg: #0d1117;
+    --status-bar-bg: #161b22;
     --status-bar-border: #30363d;
     --status-bar-text: #8b949e;
     --caret-color: #c9d1d9;
@@ -263,14 +263,14 @@ body {
  * ================================================================= */
 
 .status-bar {
-    height: 26px;
+    height: 28px;
     background-color: var(--status-bar-bg);
     border-top: 1px solid var(--status-bar-border);
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 10px;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--status-bar-text);
     user-select: none;
     z-index: 10;

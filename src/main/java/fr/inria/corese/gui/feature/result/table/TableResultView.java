@@ -32,7 +32,6 @@ import javafx.scene.layout.BorderPane;
  */
 public class TableResultView extends AbstractView {
 
-	private static final String STYLESHEET = "/css/features/table-result.css";
 	private static final int INDEX_COLUMN_WIDTH = 50;
 	private static final int SCROLLBAR_MARGIN = 20;
 
@@ -50,7 +49,7 @@ public class TableResultView extends AbstractView {
 	 *            Callback for when the page index changes via the pagination bar.
 	 */
 	public TableResultView(Consumer<Integer> pageChangeHandler) {
-		super(new BorderPane(), STYLESHEET);
+		super(new BorderPane(), null);
 
 		this.tableView = new TableView<>();
 		this.paginationBar = new TablePaginationWidget(pageChangeHandler);

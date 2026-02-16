@@ -4,10 +4,11 @@
 
 .table-pagination-footer {
     -fx-background-color: -color-bg-subtle;
-    -fx-border-color: -color-border-default;
-    -fx-border-width: 1 0 0 0;
-    -fx-padding: 5;
-    -fx-spacing: 10;
+    -fx-border-color: -color-border-default transparent transparent transparent;
+    -fx-border-width: 1px 0 0 0;
+    -fx-padding: 3px 10px;
+    -fx-spacing: 14px;
+    -fx-min-height: 24px;
 }
 
 .pagination-square-input {
