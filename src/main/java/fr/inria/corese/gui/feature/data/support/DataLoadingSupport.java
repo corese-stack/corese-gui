@@ -39,7 +39,8 @@ public final class DataLoadingSupport {
 			try {
 				workspaceService.loadFile(file);
 				loadedCount++;
-			} catch (Exception ex) {
+			} catch (Throwable ex) {
+				rethrowIfFatal(ex);
 				if (errors != null) {
 					errors.add(
 							new OperationIssue("File load failed for " + file.getName() + ": " + ex.getMessage(), ex));
@@ -58,7 +59,8 @@ public final class DataLoadingSupport {
 			try {
 				workspaceService.loadUri(uri);
 				loadedCount++;
-			} catch (Exception ex) {
+			} catch (Throwable ex) {
+				rethrowIfFatal(ex);
 				if (errors != null) {
 					errors.add(new OperationIssue("URI load failed for " + uri + ": " + ex.getMessage(), ex));
 				}
@@ -73,7 +75,8 @@ public final class DataLoadingSupport {
 		}
 		try {
 			reasoningService.recomputeEnabledProfiles();
-		} catch (Exception e) {
+		} catch (Throwable e) {
+			rethrowIfFatal(e);
 			if (errors != null) {
 				errors.add(new OperationIssue("Reasoning recompute failed: " + e.getMessage(), e));
 			}
@@ -125,5 +128,17 @@ public final class DataLoadingSupport {
 			}
 		}
 		return null;
+	}
+
+	private static void rethrowIfFatal(Throwable throwable) {
+		if (throwable instanceof VirtualMachineError error) {
+			throw error;
+		}
+		if (throwable instanceof Error error && "java.lang.ThreadDeath".equals(error.getClass().getName())) {
+			throw error;
+		}
+		if (throwable instanceof LinkageError error) {
+			throw error;
+		}
 	}
 }

@@ -110,7 +110,8 @@ public class RdfDataService {
 			Load loader = Load.create(GraphStoreService.getInstance().getGraph());
 			loader.parse(stream, format);
 			LOGGER.info("Successfully loaded {} triples from file.", GraphStoreService.getInstance().size());
-		} catch (Exception e) { // Generic catch is justified: Corese can throw various exception types
+		} catch (Throwable e) { // Corese parser may throw Error for malformed TTL
+			rethrowIfFatal(e);
 			String errorMsg = String.format("Failed to load RDF file '%s': %s", file.getName(), e.getMessage());
 			LOGGER.error(errorMsg, e);
 			throw new RdfLoadException(errorMsg, e);
@@ -159,7 +160,8 @@ public class RdfDataService {
 				loader.parse(stream, format);
 			}
 			LOGGER.info("Successfully loaded {} triples after URI load.", GraphStoreService.getInstance().size());
-		} catch (Exception e) { // Generic catch is justified: Corese can throw various exception types
+		} catch (Throwable e) { // Corese parser may throw Error for malformed payloads
+			rethrowIfFatal(e);
 			String details = DemoHttpFallbackSupport.isSslHandshakeFailure(e)
 					? "TLS certificate validation failed. The app retries HTTP only for known demo links under "
 							+ DemoHttpFallbackSupport.demoHost() + DemoHttpFallbackSupport.demoPathPrefix()
@@ -168,6 +170,18 @@ public class RdfDataService {
 			String errorMsg = String.format("Failed to load RDF URI '%s': %s", normalizedUri, details);
 			LOGGER.error(errorMsg, e);
 			throw new RdfLoadException(errorMsg, e);
+		}
+	}
+
+	private static void rethrowIfFatal(Throwable throwable) {
+		if (throwable instanceof VirtualMachineError error) {
+			throw error;
+		}
+		if (throwable instanceof Error error && "java.lang.ThreadDeath".equals(error.getClass().getName())) {
+			throw error;
+		}
+		if (throwable instanceof LinkageError error) {
+			throw error;
 		}
 	}
 
