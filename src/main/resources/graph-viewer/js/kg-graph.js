@@ -2319,6 +2319,14 @@ class KGGraphVis extends HTMLElement {
                     node.fy = null;
                 }));
 
+        // Apply initial coordinates immediately to avoid a one-frame flash at
+        // (0,0) before the first simulation tick.
+        this.nodeSelection.attr("transform", node => (
+            Number.isFinite(node?.x) && Number.isFinite(node?.y)
+                ? `translate(${node.x},${node.y})`
+                : null
+        ));
+
         this.nodeSelection.each((node, index, nodes) => {
             const element = d3.select(nodes[index]);
             const size = isVeryLargeGraph ? 12 : 20;
@@ -2351,6 +2359,9 @@ class KGGraphVis extends HTMLElement {
             .attr("text-anchor", "middle")
             .text(node => this.truncateLabel(this.formatLabel(node.id)));
 
+        // Render one immediate layout frame so links/labels are placed before
+        // the first animated tick.
+        this.ticked();
         this.updateLevelOfDetail(this.currentZoom);
 
         const tooltip = d3.select("#global-tooltip");
