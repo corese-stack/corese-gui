@@ -71,6 +71,24 @@ public final class UriInputListWidget extends VBox {
 	}
 
 	/**
+	 * Requests focus on the first URI input field.
+	 *
+	 * <p>
+	 * Used by dialogs so users can type immediately without an extra click.
+	 * </p>
+	 */
+	public void requestPrimaryFieldFocus() {
+		Platform.runLater(() -> {
+			if (uriFields.isEmpty()) {
+				return;
+			}
+			TextField firstField = uriFields.get(0);
+			firstField.requestFocus();
+			firstField.positionCaret(firstField.getLength());
+		});
+	}
+
+	/**
 	 * Validates all non-empty fields, updates invalid styling, and returns whether
 	 * at least one invalid URI exists.
 	 *

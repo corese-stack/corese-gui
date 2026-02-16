@@ -74,4 +74,8 @@ public class CodeEditorView extends AbstractView {
   public String getContent() {
     return codeMirrorView.getContent();
   }
+
+  public void requestEditorFocus() {
+    codeMirrorView.requestEditorFocus();
+  }
 }

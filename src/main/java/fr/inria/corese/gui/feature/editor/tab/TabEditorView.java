@@ -222,8 +222,10 @@ public class TabEditorView extends AbstractView {
 	}
 
 	private void setupTabSelectionListener() {
-		tabPane.getSelectionModel().selectedItemProperty()
-				.addListener((obs, oldTab, newTab) -> showContentForTab(newTab, false));
+		tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+			showContentForTab(newTab, false);
+			requestFocusForTab(newTab);
+		});
 	}
 
 	private void setupTabListChangeListener() {
@@ -361,6 +363,29 @@ public class TabEditorView extends AbstractView {
 
 	private Node getTabContent(Tab tab) {
 		return tabContentMap.get(tab);
+	}
+
+	private void requestFocusForTab(Tab tab) {
+		if (tab == null) {
+			return;
+		}
+		Platform.runLater(() -> {
+			TabContext context = TabContext.get(tab);
+			if (context != null) {
+				context.getEditorController().requestEditorFocus();
+				return;
+			}
+			Node content = tabContentMap.get(tab);
+			if (content == null) {
+				return;
+			}
+			Node focusTarget = resolveEditorFadeTarget(tab, content);
+			if (focusTarget instanceof CodeMirrorWidget codeMirrorWidget) {
+				codeMirrorWidget.requestEditorFocus();
+			} else if (focusTarget != null) {
+				focusTarget.requestFocus();
+			}
+		});
 	}
 
 	// ==============================================================================================

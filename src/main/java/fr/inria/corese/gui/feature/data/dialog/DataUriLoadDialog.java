@@ -62,5 +62,6 @@ public final class DataUriLoadDialog {
 
 		ModalService.getInstance()
 				.show(new DialogLayout(DIALOG_TITLE, DIALOG_SUBTITLE, content, cancelButton, loadButton));
+		uriInputWidget.requestPrimaryFieldFocus();
 	}
 }

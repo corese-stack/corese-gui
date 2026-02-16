@@ -316,6 +316,14 @@ globalThis.setEditorZoom = function (zoom) {
     root.style.setProperty('--editor-zoom', String(value));
 };
 
+/**
+ * Focuses the editor input so users can type immediately.
+ */
+globalThis.focusEditor = function () {
+    cm.focus();
+    updateStatusBar();
+};
+
 /* =================================================================
  * AUTO FORMAT (READ-ONLY RESULTS)
  * ================================================================= */

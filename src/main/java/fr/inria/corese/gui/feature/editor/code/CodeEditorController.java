@@ -506,6 +506,13 @@ public class CodeEditorController {
 		view.getRoot().setDisable(disable);
 	}
 
+	/**
+	 * Requests keyboard focus for the underlying editor.
+	 */
+	public void requestEditorFocus() {
+		view.requestEditorFocus();
+	}
+
 	/** Cleans up resources. */
 	public void dispose() {
 		view.getCodeMirrorView().contentProperty().unbindBidirectional(model.contentProperty());

@@ -72,6 +72,7 @@ public class CodeMirrorWidget extends VBox implements AutoCloseable {
 	private boolean autoFormat = false;
 	private boolean initialized = false;
 	private boolean isInternalUpdate = false;
+	private boolean pendingFocusRequest = false;
 	private final ChangeListener<Worker.State> loadStateListener;
 	private final ChangeListener<Theme> themeChangeListener;
 	private final ChangeListener<Color> accentColorChangeListener;
@@ -241,6 +242,7 @@ public class CodeMirrorWidget extends VBox implements AutoCloseable {
 			// Apply initial zoom (editor only)
 			applyEditorZoom(zoomProperty.get());
 			applyAutoFormatSetting();
+			applyPendingFocusRequest();
 
 		} catch (Exception e) {
 			LOGGER.error("Error during editor initialization", e);
@@ -341,6 +343,36 @@ public class CodeMirrorWidget extends VBox implements AutoCloseable {
 	// ==============================================================================================
 	// Public API
 	// ==============================================================================================
+
+	/**
+	 * Requests focus for the embedded editor surface.
+	 *
+	 * <p>
+	 * If the WebView page is not ready yet, the focus request is deferred and
+	 * applied as soon as initialization completes.
+	 * </p>
+	 */
+	public void requestEditorFocus() {
+		if (disposed) {
+			return;
+		}
+		pendingFocusRequest = true;
+		Platform.runLater(this::applyPendingFocusRequest);
+	}
+
+	@Override
+	public void requestFocus() {
+		requestEditorFocus();
+	}
+
+	private void applyPendingFocusRequest() {
+		if (!pendingFocusRequest || disposed || !initialized) {
+			return;
+		}
+		webView.requestFocus();
+		executeScriptSafe("if (typeof window.focusEditor === 'function') { window.focusEditor(); }");
+		pendingFocusRequest = false;
+	}
 
 	/**
 	 * Sets the editor content.
