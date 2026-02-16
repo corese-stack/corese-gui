@@ -363,21 +363,18 @@ public final class ExportHelper {
 
 			@Override
 			protected void succeeded() {
-				Platform.runLater(() -> {
-					loadingHandle.close();
-					NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + ".");
-				});
+				Platform.runLater(() -> loadingHandle.closeThen(
+						() -> NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + ".")));
 			}
 
 			@Override
 			protected void failed() {
-				Platform.runLater(() -> {
-					loadingHandle.close();
+				Platform.runLater(() -> loadingHandle.closeThen(() -> {
 					Throwable error = getException();
 					String message = error != null ? error.getMessage() : "Unknown error";
 					NotificationWidget.getInstance().showErrorWithDetails("Export Error", "Export failed: " + message,
 							error);
-				});
+				}));
 			}
 
 			@Override
@@ -411,21 +408,18 @@ public final class ExportHelper {
 
 			@Override
 			protected void succeeded() {
-				Platform.runLater(() -> {
-					loadingHandle.close();
-					NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + ".");
-				});
+				Platform.runLater(() -> loadingHandle.closeThen(
+						() -> NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + ".")));
 			}
 
 			@Override
 			protected void failed() {
-				Platform.runLater(() -> {
-					loadingHandle.close();
+				Platform.runLater(() -> loadingHandle.closeThen(() -> {
 					Throwable error = getException();
 					String message = error != null ? error.getMessage() : "Unknown error";
 					NotificationWidget.getInstance().showErrorWithDetails("Export Error", "Export failed: " + message,
 							error);
-				});
+				}));
 			}
 
 			@Override
@@ -454,21 +448,18 @@ public final class ExportHelper {
 
 			@Override
 			protected void succeeded() {
-				Platform.runLater(() -> {
-					loadingHandle.close();
-					NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + ".");
-				});
+				Platform.runLater(() -> loadingHandle.closeThen(
+						() -> NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + ".")));
 			}
 
 			@Override
 			protected void failed() {
-				Platform.runLater(() -> {
-					loadingHandle.close();
+				Platform.runLater(() -> loadingHandle.closeThen(() -> {
 					Throwable error = getException();
 					String message = error != null ? error.getMessage() : "Unknown error";
 					NotificationWidget.getInstance().showErrorWithDetails("Export Error", "Export failed: " + message,
 							error);
-				});
+				}));
 			}
 
 			@Override

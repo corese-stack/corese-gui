@@ -133,16 +133,14 @@ public final class ImportHelper {
 		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Import",
 				"Importing file " + file.getName() + "...");
 
-		task.setOnSucceeded(event -> Platform.runLater(() -> {
-			loadingHandle.close();
+		task.setOnSucceeded(event -> Platform.runLater(() -> loadingHandle.closeThen(() -> {
 			if (onSuccess != null) {
 				onSuccess.accept(task.getValue());
 			}
 			NotificationWidget.getInstance().showSuccess("Imported file: " + file.getName() + ".");
-		}));
+		})));
 
-		task.setOnFailed(event -> Platform.runLater(() -> {
-			loadingHandle.close();
+		task.setOnFailed(event -> Platform.runLater(() -> loadingHandle.closeThen(() -> {
 			Throwable exception = task.getException();
 			if (onFailure != null) {
 				onFailure.accept(exception);
@@ -151,7 +149,7 @@ public final class ImportHelper {
 				NotificationWidget.getInstance().showErrorWithDetails("Import Error", "Import failed: " + message,
 						exception);
 			}
-		}));
+		})));
 
 		task.setOnCancelled(event -> Platform.runLater(loadingHandle::close));
 

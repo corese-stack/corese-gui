@@ -93,9 +93,9 @@ public final class DataLoadingSupport {
 			}
 			if (issue.cause() != null) {
 				NotificationWidget.getInstance().showErrorWithDetails("Data Load Error", issue.userMessage(),
-						issue.cause());
+						issue.cause(), true);
 			} else {
-				NotificationWidget.getInstance().showError(issue.userMessage());
+				NotificationWidget.getInstance().showPersistentError("Data Load Error", issue.userMessage());
 			}
 		}
 	}
@@ -106,7 +106,7 @@ public final class DataLoadingSupport {
 			return;
 		}
 		OperationIssue primaryIssue = firstDisplayableIssue(errors);
-		if (primaryIssue == null) {
+		if (primaryIssue == null || countDisplayableIssues(errors) != 1) {
 			return;
 		}
 
@@ -128,6 +128,19 @@ public final class DataLoadingSupport {
 			}
 		}
 		return null;
+	}
+
+	private static int countDisplayableIssues(List<OperationIssue> errors) {
+		if (errors == null) {
+			return 0;
+		}
+		int count = 0;
+		for (OperationIssue issue : errors) {
+			if (issue != null && !issue.userMessage().isBlank()) {
+				count++;
+			}
+		}
+		return count;
 	}
 
 	private static void rethrowIfFatal(Throwable throwable) {

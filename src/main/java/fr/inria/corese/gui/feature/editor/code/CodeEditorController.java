@@ -200,18 +200,15 @@ public class CodeEditorController {
 			AppExecutors.execute(() -> {
 				try {
 					String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
-					Platform.runLater(() -> {
-						loadingHandle.close();
+					Platform.runLater(() -> loadingHandle.closeThen(() -> {
 						model.setContent(content);
 						model.setFilePath(file.getAbsolutePath());
 						model.markAsSaved();
-					});
+					}));
 				} catch (IOException e) {
 					LOGGER.error("Failed to open file", e);
-					Platform.runLater(() -> {
-						loadingHandle.close();
-						ModalService.getInstance().showException("Error Opening File", "Could not open file.", e);
-					});
+					Platform.runLater(() -> loadingHandle.closeThen(() -> ModalService.getInstance()
+							.showException("Error Opening File", "Could not open file.", e)));
 				}
 			});
 		}
@@ -231,20 +228,16 @@ public class CodeEditorController {
 			AppExecutors.execute(() -> {
 				try {
 					String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
-					Platform.runLater(() -> {
-						loadingHandle.close();
+					Platform.runLater(() -> loadingHandle.closeThen(() -> {
 						// Append or Replace? Standard import usually replaces content in editors unless
 						// "Insert"
 						model.setContent(content);
 						NotificationWidget.getInstance().showSuccess("Imported file: " + file.getName() + ".");
-					});
+					}));
 				} catch (IOException e) {
 					LOGGER.error("Failed to import file", e);
-					Platform.runLater(() -> {
-						loadingHandle.close();
-						NotificationWidget.getInstance().showErrorWithDetails("Import Error",
-								"Import failed: " + e.getMessage(), e);
-					});
+					Platform.runLater(() -> loadingHandle.closeThen(() -> NotificationWidget.getInstance()
+							.showErrorWithDetails("Import Error", "Import failed: " + e.getMessage(), e)));
 				}
 			});
 		}
@@ -304,8 +297,7 @@ public class CodeEditorController {
 		AppExecutors.execute(() -> {
 			try {
 				Files.writeString(file.toPath(), contentSnapshot, StandardCharsets.UTF_8);
-				Platform.runLater(() -> {
-					loadingHandle.close();
+				Platform.runLater(() -> loadingHandle.closeThen(() -> {
 					if (updateModel) {
 						model.setFilePath(file.getAbsolutePath());
 						if (contentSnapshot.equals(model.getContent())) {
@@ -315,13 +307,11 @@ public class CodeEditorController {
 					} else {
 						NotificationWidget.getInstance().showSuccess("Exported file: " + file.getName() + ".");
 					}
-				});
+				}));
 			} catch (IOException e) {
 				LOGGER.error("Save failed", e);
-				Platform.runLater(() -> {
-					loadingHandle.close();
-					ModalService.getInstance().showException("Save Error", "Could not save file: " + e.getMessage(), e);
-				});
+				Platform.runLater(() -> loadingHandle.closeThen(() -> ModalService.getInstance()
+						.showException("Save Error", "Could not save file: " + e.getMessage(), e)));
 			}
 		});
 	}

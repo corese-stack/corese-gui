@@ -3,17 +3,21 @@ package fr.inria.corese.gui.component.notification;
 import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.core.service.ModalService;
-import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import javafx.animation.Animation;
 import javafx.animation.FadeTransition;
 import javafx.animation.Interpolator;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
 import javafx.animation.ParallelTransition;
 import javafx.animation.PauseTransition;
+import javafx.animation.Timeline;
 import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
@@ -25,6 +29,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -34,7 +39,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
  *
  * <p>
  * Provides typed notifications (info/success/warning/error), persistent loading
- * notifications, optional action buttons, and stacked enter/exit animations.
+ * notifications, optional action buttons, and coherent stack animations.
  */
 @SuppressWarnings("java:S6548")
 public final class NotificationWidget {
@@ -50,11 +55,12 @@ public final class NotificationWidget {
 	private static final String STYLE_CLASS_TEXTS = "notification-texts";
 	private static final String STYLE_CLASS_ACTIONS = "notification-actions";
 	private static final String STYLE_CLASS_ACTION_BUTTON = "notification-action-button";
+	private static final String STYLE_CLASS_CLOSE_BUTTON = "notification-close-button";
 	private static final String STYLE_CLASS_SPINNER = "notification-spinner";
 
 	private static final Duration ENTER_DURATION = Duration.millis(230);
 	private static final Duration EXIT_DURATION = Duration.millis(180);
-	private static final Duration STACK_SHIFT_DURATION = Duration.millis(170);
+	private static final Duration COLLAPSE_DURATION = Duration.millis(180);
 	private static final Duration CLICK_DISMISS_DURATION = Duration.millis(140);
 
 	private static final Duration INFO_DURATION = Duration.seconds(4);
@@ -67,6 +73,7 @@ public final class NotificationWidget {
 	private static final double EXIT_OFFSET_Y = -10.0;
 	private static final double TOAST_MIN_WIDTH = 320.0;
 	private static final double TOAST_MAX_WIDTH = 420.0;
+	private static final double DEFAULT_TOAST_HEIGHT = 48.0;
 
 	private static final String DEFAULT_INFO_TITLE = "Info";
 	private static final String DEFAULT_SUCCESS_TITLE = "Success";
@@ -75,8 +82,10 @@ public final class NotificationWidget {
 	private static final String DEFAULT_LOADING_TITLE = "Loading";
 
 	private final Map<HBox, ToastState> activeToasts = new HashMap<>();
+	private final Deque<PendingShow> queuedShows = new ArrayDeque<>();
 
 	private VBox container;
+	private int dismissAnimationCount = 0;
 
 	/**
 	 * Handle for a persistent loading toast.
@@ -84,6 +93,17 @@ public final class NotificationWidget {
 	public interface LoadingHandle extends AutoCloseable {
 		@Override
 		void close();
+
+		/**
+		 * Requests loading toast dismissal, then schedules a follow-up action on the
+		 * JavaFX thread.
+		 */
+		default void closeThen(Runnable followUp) {
+			close();
+			if (followUp != null) {
+				Platform.runLater(followUp);
+			}
+		}
 	}
 
 	private enum Tone {
@@ -129,29 +149,34 @@ public final class NotificationWidget {
 			boolean dismissible, ToastAction action) {
 	}
 
-	private static final class ToastState {
-		private Animation entrance;
-		private PauseTransition hold;
-		private Animation reflow;
-		private final AtomicBoolean dismissing = new AtomicBoolean(false);
-		private final boolean persistent;
+	private record PendingShow(ToastRequest request, Consumer<HBox> onCreated) {
+	}
 
-		private ToastState(boolean persistent) {
-			this.persistent = persistent;
+	private static final class ToastState {
+		private final StackPane wrapper;
+		private final boolean dismissible;
+		private final AtomicBoolean dismissing = new AtomicBoolean(false);
+		private Animation lifecycle;
+		private PauseTransition hold;
+		private Animation dismiss;
+
+		private ToastState(StackPane wrapper, boolean dismissible) {
+			this.wrapper = wrapper;
+			this.dismissible = dismissible;
 		}
 
 		private void stopAnimations() {
-			if (entrance != null) {
-				entrance.stop();
-				entrance = null;
+			if (lifecycle != null) {
+				lifecycle.stop();
+				lifecycle = null;
 			}
 			if (hold != null) {
 				hold.stop();
 				hold = null;
 			}
-			if (reflow != null) {
-				reflow.stop();
-				reflow = null;
+			if (dismiss != null) {
+				dismiss.stop();
+				dismiss = null;
 			}
 		}
 	}
@@ -229,22 +254,46 @@ public final class NotificationWidget {
 		show(title, message, Tone.ERROR);
 	}
 
+	public void showPersistentError(String message) {
+		showPersistentError(null, message);
+	}
+
+	public void showPersistentError(String title, String message) {
+		show(title, message, Tone.ERROR, true);
+	}
+
 	/**
 	 * Displays an error toast with a Details action opening a modal with full
 	 * stacktrace.
 	 */
 	public void showErrorWithDetails(String title, String message, Throwable throwable) {
+		showErrorWithDetails(title, message, throwable, false);
+	}
+
+	/**
+	 * Displays an error toast with a Details action opening a modal with full
+	 * stacktrace.
+	 *
+	 * @param persistent
+	 *            true to keep toast visible until user dismisses it
+	 */
+	public void showErrorWithDetails(String title, String message, Throwable throwable, boolean persistent) {
 		String safeTitle = normalizeTitle(title, Tone.ERROR);
 		String safeMessage = normalizeMessage(message);
 		if (throwable == null) {
-			showError(safeTitle, safeMessage);
+			if (persistent) {
+				showPersistentError(safeTitle, safeMessage);
+			} else {
+				showError(safeTitle, safeMessage);
+			}
 			return;
 		}
 
 		String details = ModalService.formatThrowableDetails(throwable);
 		ToastAction action = new ToastAction("Details",
 				() -> ModalService.getInstance().showError(safeTitle, safeMessage, details));
-		show(new ToastRequest(safeTitle, safeMessage, Tone.ERROR, Tone.ERROR.defaultDuration(), false, true, action));
+		Duration duration = persistent ? Duration.ZERO : Tone.ERROR.defaultDuration();
+		show(new ToastRequest(safeTitle, safeMessage, Tone.ERROR, duration, persistent, true, action));
 	}
 
 	/**
@@ -267,36 +316,62 @@ public final class NotificationWidget {
 	}
 
 	private void show(String title, String message, Tone tone) {
+		show(title, message, tone, false);
+	}
+
+	private void show(String title, String message, Tone tone, boolean persistent) {
 		String safeTitle = normalizeTitle(title, tone);
 		String safeMessage = normalizeMessage(message);
-		show(new ToastRequest(safeTitle, safeMessage, tone, tone.defaultDuration(), false, true, null));
+		Duration duration = persistent ? Duration.ZERO : tone.defaultDuration();
+		show(new ToastRequest(safeTitle, safeMessage, tone, duration, persistent, true, null));
 	}
 
 	private void show(ToastRequest request) {
 		show(request, null);
 	}
 
-	private void show(ToastRequest request, java.util.function.Consumer<HBox> onCreated) {
+	private void show(ToastRequest request, Consumer<HBox> onCreated) {
 		runOnFxThread(() -> {
-			if (container == null) {
+			if (container == null || request == null) {
 				return;
 			}
-			ensureContainerStylesheet();
-			Map<HBox, Double> previousPositions = snapshotToastPositions();
-
-			HBox toast = createToast(request);
-			ToastState state = new ToastState(request.persistent());
-			activeToasts.put(toast, state);
-
-			container.getChildren().add(toast);
-			if (onCreated != null) {
-				onCreated.accept(toast);
+			if (dismissAnimationCount > 0) {
+				queuedShows.addLast(new PendingShow(request, onCreated));
+				return;
 			}
-
-			animateToastReflow(previousPositions);
-			playToastLifecycle(toast, request, state);
-			enforceStackLimit();
+			showNow(request, onCreated);
 		});
+	}
+
+	private void showNow(ToastRequest request, Consumer<HBox> onCreated) {
+		if (container == null || request == null) {
+			return;
+		}
+		ensureContainerStylesheet();
+
+		HBox toast = createToast(request);
+		StackPane wrapper = createWrapper(toast);
+		ToastState state = new ToastState(wrapper, request.dismissible());
+		activeToasts.put(toast, state);
+
+		container.getChildren().add(wrapper);
+		if (onCreated != null) {
+			onCreated.accept(toast);
+		}
+
+		playToastLifecycle(toast, request, state);
+		enforceStackLimit(toast);
+	}
+
+	private StackPane createWrapper(HBox toast) {
+		StackPane wrapper = new StackPane(toast);
+		wrapper.setAlignment(Pos.CENTER_RIGHT);
+		wrapper.setPickOnBounds(false);
+		wrapper.setMinHeight(0);
+		wrapper.setPrefHeight(0);
+		wrapper.setMaxHeight(0);
+		wrapper.setUserData(toast);
+		return wrapper;
 	}
 
 	private HBox createToast(ToastRequest request) {
@@ -340,20 +415,32 @@ public final class NotificationWidget {
 
 		toast.getChildren().addAll(leadingNode, texts);
 
-		if (request.action() != null && request.action().callback() != null) {
+		if ((request.action() != null && request.action().callback() != null) || request.dismissible()) {
 			Region spacer = new Region();
 			HBox.setHgrow(spacer, Priority.ALWAYS);
 
-			Button actionButton = new Button(actionLabel(request.action().label()));
-			actionButton.getStyleClass().addAll(Styles.BUTTON_OUTLINED, STYLE_CLASS_ACTION_BUTTON);
-			actionButton.setFocusTraversable(false);
-			actionButton.addEventFilter(MouseEvent.MOUSE_CLICKED, MouseEvent::consume);
-			actionButton.setOnAction(event -> request.action().callback().run());
-
-			HBox actions = new HBox(actionButton);
+			HBox actions = new HBox(6);
 			actions.getStyleClass().add(STYLE_CLASS_ACTIONS);
 			actions.setAlignment(Pos.CENTER_RIGHT);
 			actions.addEventFilter(MouseEvent.MOUSE_CLICKED, MouseEvent::consume);
+
+			if (request.action() != null && request.action().callback() != null) {
+				Button actionButton = new Button(actionLabel(request.action().label()));
+				actionButton.getStyleClass().addAll(Styles.BUTTON_OUTLINED, STYLE_CLASS_ACTION_BUTTON);
+				actionButton.setFocusTraversable(false);
+				actionButton.addEventFilter(MouseEvent.MOUSE_CLICKED, MouseEvent::consume);
+				actionButton.setOnAction(event -> request.action().callback().run());
+				actions.getChildren().add(actionButton);
+			}
+
+			if (request.dismissible()) {
+				Button closeButton = new Button("\u00D7");
+				closeButton.getStyleClass().addAll(Styles.FLAT, STYLE_CLASS_CLOSE_BUTTON);
+				closeButton.setFocusTraversable(false);
+				closeButton.addEventFilter(MouseEvent.MOUSE_CLICKED, MouseEvent::consume);
+				closeButton.setOnAction(event -> dismissToast(toast, false));
+				actions.getChildren().add(closeButton);
+			}
 
 			toast.getChildren().addAll(spacer, actions);
 		}
@@ -380,6 +467,9 @@ public final class NotificationWidget {
 	}
 
 	private void playToastLifecycle(HBox toast, ToastRequest request, ToastState state) {
+		double targetHeight = computeToastHeight(toast);
+		Animation expand = createHeightAnimation(state.wrapper, 0, targetHeight, ENTER_DURATION, Interpolator.EASE_OUT);
+
 		toast.setOpacity(0);
 		toast.setTranslateY(ENTER_OFFSET_Y);
 
@@ -392,15 +482,18 @@ public final class NotificationWidget {
 		slideIn.setToY(0);
 		slideIn.setInterpolator(Interpolator.EASE_OUT);
 
-		ParallelTransition entrance = new ParallelTransition(fadeIn, slideIn);
-		state.entrance = entrance;
+		ParallelTransition entrance = new ParallelTransition(expand, fadeIn, slideIn);
+		state.lifecycle = entrance;
 
 		if (request.dismissible()) {
 			toast.setOnMouseClicked(event -> dismissToast(toast, false));
 		}
 
 		entrance.setOnFinished(event -> {
-			state.entrance = null;
+			state.lifecycle = null;
+			state.wrapper.setPrefHeight(Region.USE_COMPUTED_SIZE);
+			state.wrapper.setMaxHeight(Region.USE_COMPUTED_SIZE);
+			toast.setTranslateY(0);
 			if (request.persistent()) {
 				return;
 			}
@@ -417,43 +510,30 @@ public final class NotificationWidget {
 		entrance.play();
 	}
 
-	private void enforceStackLimit() {
-		if (container == null) {
+	private void enforceStackLimit(HBox insertedToast) {
+		if (container == null || container.getChildren().size() <= MAX_VISIBLE_TOASTS) {
 			return;
 		}
-		while (container.getChildren().size() > MAX_VISIBLE_TOASTS) {
-			HBox candidate = findOldestDismissableToast();
-			if (candidate == null) {
-				candidate = findOldestToast();
-			}
-			if (candidate == null) {
-				break;
-			}
+		HBox candidate = findOldestOverflowCandidate(insertedToast);
+		if (candidate != null) {
 			dismissToast(candidate, true);
 		}
 	}
 
-	private HBox findOldestDismissableToast() {
+	private HBox findOldestOverflowCandidate(HBox insertedToast) {
 		if (container == null) {
 			return null;
 		}
 		for (Node child : container.getChildren()) {
-			if (child instanceof HBox toast) {
-				ToastState state = activeToasts.get(toast);
-				if (state != null && !state.persistent) {
-					return toast;
-				}
+			if (!(child instanceof StackPane wrapper)) {
+				continue;
 			}
-		}
-		return null;
-	}
-
-	private HBox findOldestToast() {
-		if (container == null) {
-			return null;
-		}
-		for (Node child : container.getChildren()) {
-			if (child instanceof HBox toast) {
+			Object userData = wrapper.getUserData();
+			if (!(userData instanceof HBox toast) || toast == insertedToast) {
+				continue;
+			}
+			ToastState state = activeToasts.get(toast);
+			if (state != null && state.dismissible && !state.dismissing.get()) {
 				return toast;
 			}
 		}
@@ -473,97 +553,91 @@ public final class NotificationWidget {
 			return;
 		}
 		state.stopAnimations();
+		dismissAnimationCount++;
 
-		Duration duration = fast ? CLICK_DISMISS_DURATION : EXIT_DURATION;
+		Duration fadeDuration = fast ? CLICK_DISMISS_DURATION : EXIT_DURATION;
+		Duration collapseDuration = fast ? CLICK_DISMISS_DURATION : COLLAPSE_DURATION;
+		double fromHeight = state.wrapper.getHeight();
+		if (fromHeight <= 0.5) {
+			fromHeight = computeToastHeight(toast);
+		}
+		Animation collapse = createHeightAnimation(state.wrapper, fromHeight, 0, collapseDuration,
+				Interpolator.EASE_IN);
 
-		FadeTransition fadeOut = new FadeTransition(duration, toast);
+		FadeTransition fadeOut = new FadeTransition(fadeDuration, toast);
 		fadeOut.setFromValue(toast.getOpacity());
 		fadeOut.setToValue(0);
 
-		TranslateTransition slideOut = new TranslateTransition(duration, toast);
-		slideOut.setFromY(toast.getTranslateY());
-		slideOut.setToY(EXIT_OFFSET_Y);
-		slideOut.setInterpolator(Interpolator.EASE_IN);
-
-		ParallelTransition exit = new ParallelTransition(fadeOut, slideOut);
-		exit.setOnFinished(event -> removeToast(toast));
+		ParallelTransition exit;
+		if (fast) {
+			exit = new ParallelTransition(collapse, fadeOut);
+		} else {
+			TranslateTransition slideOut = new TranslateTransition(EXIT_DURATION, toast);
+			slideOut.setFromY(toast.getTranslateY());
+			slideOut.setToY(EXIT_OFFSET_Y);
+			slideOut.setInterpolator(Interpolator.EASE_IN);
+			exit = new ParallelTransition(collapse, fadeOut, slideOut);
+		}
+		state.dismiss = exit;
+		exit.setOnFinished(event -> {
+			state.dismiss = null;
+			removeToast(toast);
+			onDismissAnimationFinished();
+		});
 		exit.play();
 	}
 
 	private void removeToast(HBox toast) {
-		Map<HBox, Double> previousPositions = snapshotToastPositions();
+		ToastState state = activeToasts.remove(toast);
 		toast.setOnMouseClicked(null);
-		activeToasts.remove(toast);
-		if (container != null) {
-			container.getChildren().remove(toast);
-			previousPositions.remove(toast);
-			animateToastReflow(previousPositions);
+		if (container != null && state != null) {
+			container.getChildren().remove(state.wrapper);
 		}
 	}
 
-	private Map<HBox, Double> snapshotToastPositions() {
-		Map<HBox, Double> positions = new HashMap<>();
-		if (container == null) {
-			return positions;
+	private void onDismissAnimationFinished() {
+		if (dismissAnimationCount > 0) {
+			dismissAnimationCount--;
 		}
-		container.applyCss();
-		container.layout();
-		for (Node child : container.getChildren()) {
-			if (!(child instanceof HBox toast)) {
-				continue;
-			}
-			positions.put(toast, toast.getBoundsInParent().getMinY());
-		}
-		return positions;
+		drainQueuedShows();
 	}
 
-	private void animateToastReflow(Map<HBox, Double> previousPositions) {
-		if (container == null || previousPositions == null || previousPositions.isEmpty()) {
+	private void drainQueuedShows() {
+		if (container == null || dismissAnimationCount > 0 || queuedShows.isEmpty()) {
 			return;
 		}
-		List<HBox> trackedToasts = new ArrayList<>(previousPositions.keySet());
-		Platform.runLater(() -> {
-			if (container == null) {
-				return;
+		while (dismissAnimationCount == 0 && !queuedShows.isEmpty()) {
+			PendingShow pendingShow = queuedShows.pollFirst();
+			if (pendingShow == null || pendingShow.request() == null) {
+				continue;
 			}
-			container.applyCss();
-			container.layout();
-			for (HBox toast : trackedToasts) {
-				if (toast == null || toast.getParent() != container) {
-					continue;
-				}
-				ToastState state = activeToasts.get(toast);
-				if (state == null || state.dismissing.get() || state.entrance != null) {
-					continue;
-				}
-				Double oldY = previousPositions.get(toast);
-				if (oldY == null) {
-					continue;
-				}
-				if (state.reflow != null) {
-					state.reflow.stop();
-					state.reflow = null;
-				}
-				double newY = toast.getBoundsInParent().getMinY();
-				double delta = oldY - newY;
-				if (Math.abs(delta) < 0.5) {
-					continue;
-				}
-				double startY = toast.getTranslateY() + delta;
-				toast.setTranslateY(startY);
-				TranslateTransition shift = new TranslateTransition(STACK_SHIFT_DURATION, toast);
-				shift.setFromY(startY);
-				shift.setToY(0);
-				shift.setInterpolator(Interpolator.EASE_OUT);
-				state.reflow = shift;
-				shift.setOnFinished(event -> {
-					if (state.reflow == shift) {
-						state.reflow = null;
-					}
-				});
-				shift.play();
-			}
-		});
+			showNow(pendingShow.request(), pendingShow.onCreated());
+		}
+	}
+
+	private static Animation createHeightAnimation(StackPane wrapper, double fromHeight, double toHeight,
+			Duration duration, Interpolator interpolator) {
+		return new Timeline(
+				new KeyFrame(Duration.ZERO, new KeyValue(wrapper.prefHeightProperty(), fromHeight),
+						new KeyValue(wrapper.maxHeightProperty(), fromHeight)),
+				new KeyFrame(duration, new KeyValue(wrapper.prefHeightProperty(), toHeight, interpolator),
+						new KeyValue(wrapper.maxHeightProperty(), toHeight, interpolator)));
+	}
+
+	private static double computeToastHeight(HBox toast) {
+		if (toast == null) {
+			return DEFAULT_TOAST_HEIGHT;
+		}
+		toast.applyCss();
+		double preferred = toast.prefHeight(TOAST_MIN_WIDTH);
+		if (preferred > 0) {
+			return preferred;
+		}
+		double minimum = toast.minHeight(-1);
+		if (minimum > 0) {
+			return minimum;
+		}
+		return DEFAULT_TOAST_HEIGHT;
 	}
 
 	private void ensureContainerStylesheet() {
@@ -586,8 +660,7 @@ public final class NotificationWidget {
 	}
 
 	private static String normalizeMessage(String message) {
-		String normalized = normalizeText(message);
-		return normalized;
+		return normalizeText(message);
 	}
 
 	private static String actionLabel(String actionLabel) {

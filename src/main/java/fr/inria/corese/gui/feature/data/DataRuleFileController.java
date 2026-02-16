@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import javafx.application.Platform;
 import javafx.stage.FileChooser;
 
@@ -132,18 +133,9 @@ final class DataRuleFileController {
 		}
 
 		FileDialogState.updateLastDirectory(safeFiles);
-		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Rule Files",
-				"Loading rule file(s)...");
-		AppExecutors.execute(() -> {
-			try {
-				RuleFileLoadResult result = loadRuleFilesWithReport(safeFiles);
-				Platform.runLater(() -> {
-					showRuleFileLoadResult(result);
-					refreshUiAndGraph();
-				});
-			} finally {
-				loadingHandle.close();
-			}
+		runAsyncWithRefresh("Rule Files", "Loading rule file(s)...", () -> {
+			RuleFileLoadResult result = loadRuleFilesWithReport(safeFiles);
+			return () -> showRuleFileLoadResult(result);
 		});
 	}
 
@@ -155,10 +147,10 @@ final class DataRuleFileController {
 				DataWorkspaceStatus afterStatus = workspaceService.getStatus();
 				String message = DataUiMessageUtils.buildTripleDeltaMessage(beforeStatus.inferredTripleCount(),
 						afterStatus.inferredTripleCount());
-				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess(message));
+				return () -> NotificationWidget.getInstance().showSuccess(message);
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Rule File Error",
-						"Rule file update failed: " + e.getMessage(), e));
+				return () -> NotificationWidget.getInstance().showErrorWithDetails("Rule File Error",
+						"Rule file update failed: " + e.getMessage(), e);
 			}
 		});
 	}
@@ -177,15 +169,14 @@ final class DataRuleFileController {
 				}
 				if (rule.enabled()) {
 					reasoningService.recomputeEnabledProfiles();
-					Platform.runLater(() -> NotificationWidget.getInstance()
-							.showSuccess("Reloaded rule file: " + rule.label() + "."));
-				} else {
-					Platform.runLater(() -> NotificationWidget.getInstance().showInfo("Reasoning",
-							"Rule source is available. Enable this rule file to apply it."));
+					return () -> NotificationWidget.getInstance()
+							.showSuccess("Reloaded rule file: " + rule.label() + ".");
 				}
+				return () -> NotificationWidget.getInstance().showInfo("Reasoning",
+						"Rule source is available. Enable this rule file to apply it.");
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Rule Reload Error",
-						"Failed to reload rule file " + rule.label() + ": " + e.getMessage(), e));
+				return () -> NotificationWidget.getInstance().showErrorWithDetails("Rule Reload Error",
+						"Failed to reload rule file " + rule.label() + ": " + e.getMessage(), e);
 			}
 		});
 	}
@@ -217,19 +208,18 @@ final class DataRuleFileController {
 				List<String> missingRules = safeSelection.stream().filter(rule -> !isReadableFile(rule.sourcePath()))
 						.map(RuleFileState::label).toList();
 				if (!missingRules.isEmpty()) {
-					Platform.runLater(() -> NotificationWidget.getInstance().showError(
-							"Cannot reload rule files. Missing source file(s): " + String.join(", ", missingRules)));
-					return;
+					return () -> NotificationWidget.getInstance().showError(
+							"Cannot reload rule files. Missing source file(s): " + String.join(", ", missingRules));
 				}
 
 				Set<String> selectedRuleIds = safeSelection.stream().map(RuleFileState::id)
 						.collect(java.util.stream.Collectors.toUnmodifiableSet());
 				reasoningService.applyRuleFileSelection(selectedRuleIds);
-				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess(
-						"Reloaded " + DataUiMessageUtils.countLabel(safeSelection.size(), "rule file") + "."));
+				return () -> NotificationWidget.getInstance().showSuccess(
+						"Reloaded " + DataUiMessageUtils.countLabel(safeSelection.size(), "rule file") + ".");
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Rule Reload Error",
-						"Rule file reload failed: " + e.getMessage(), e));
+				return () -> NotificationWidget.getInstance().showErrorWithDetails("Rule Reload Error",
+						"Rule file reload failed: " + e.getMessage(), e);
 			}
 		});
 	}
@@ -250,11 +240,11 @@ final class DataRuleFileController {
 		runAsyncWithRefresh("Rule Files", "Removing all rule files...", () -> {
 			try {
 				reasoningService.removeAllRuleFiles();
-				Platform.runLater(() -> NotificationWidget.getInstance()
-						.showSuccess("Removed " + DataUiMessageUtils.countLabel(removedCount, "rule file") + "."));
+				return () -> NotificationWidget.getInstance()
+						.showSuccess("Removed " + DataUiMessageUtils.countLabel(removedCount, "rule file") + ".");
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Rule File Error",
-						"Failed to clear rule files: " + e.getMessage(), e));
+				return () -> NotificationWidget.getInstance().showErrorWithDetails("Rule File Error",
+						"Failed to clear rule files: " + e.getMessage(), e);
 			}
 		});
 	}
@@ -298,10 +288,10 @@ final class DataRuleFileController {
 		runAsyncWithRefresh("Rule Files", "Removing rule file...", () -> {
 			try {
 				reasoningService.removeRuleFile(ruleId);
-				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess("Rule file removed."));
+				return () -> NotificationWidget.getInstance().showSuccess("Rule file removed.");
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Rule File Error",
-						"Failed to remove rule file: " + e.getMessage(), e));
+				return () -> NotificationWidget.getInstance().showErrorWithDetails("Rule File Error",
+						"Failed to remove rule file: " + e.getMessage(), e);
 			}
 		});
 	}
@@ -397,15 +387,25 @@ final class DataRuleFileController {
 		refreshGraphSnapshot.run();
 	}
 
-	private void runAsyncWithRefresh(String loadingTitle, String loadingMessage, Runnable task) {
+	private void runAsyncWithRefresh(String loadingTitle, String loadingMessage, Supplier<Runnable> task) {
 		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading(loadingTitle,
 				loadingMessage);
 		AppExecutors.execute(() -> {
+			Runnable uiFollowUp = null;
 			try {
-				task.run();
+				if (task != null) {
+					uiFollowUp = task.get();
+				}
 			} finally {
-				loadingHandle.close();
-				Platform.runLater(this::refreshUiAndGraph);
+				Runnable finalUiFollowUp = uiFollowUp;
+				// Close loading first so resulting notifications do not overlap the loader
+				// exit animation.
+				loadingHandle.closeThen(() -> {
+					if (finalUiFollowUp != null) {
+						finalUiFollowUp.run();
+					}
+					refreshUiAndGraph();
+				});
 			}
 		});
 	}

@@ -32,6 +32,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import javafx.application.Platform;
 import javafx.stage.FileChooser;
 import org.slf4j.Logger;
@@ -281,9 +282,8 @@ public class DataViewController implements AutoCloseable {
 			int loadedCountSnapshot = loadedCount;
 			int tripleCountSnapshot = finalTripleCount;
 			List<OperationIssue> operationErrors = List.copyOf(errors);
-			Platform.runLater(() -> {
-				notifyLoadOutcome("file", loadedCountSnapshot, tripleCountSnapshot, operationErrors, "Data Load Error");
-			});
+			return () -> notifyLoadOutcome("file", loadedCountSnapshot, tripleCountSnapshot, operationErrors,
+					"Data Load Error");
 		});
 	}
 
@@ -309,8 +309,8 @@ public class DataViewController implements AutoCloseable {
 			int loadedCountSnapshot = loadedCount;
 			int tripleCountSnapshot = finalTripleCount;
 			List<OperationIssue> operationErrors = List.copyOf(errors);
-			Platform.runLater(() -> notifyLoadOutcome("URI", loadedCountSnapshot, tripleCountSnapshot, operationErrors,
-					"URI Load Error"));
+			return () -> notifyLoadOutcome("URI", loadedCountSnapshot, tripleCountSnapshot, operationErrors,
+					"URI Load Error");
 		});
 	}
 
@@ -329,20 +329,16 @@ public class DataViewController implements AutoCloseable {
 				reasoningService.resetAllProfiles();
 				int reloaded = workspaceService.reloadSources(selectedSources);
 				int tripleCount = workspaceService.getTripleCount();
-				Platform.runLater(() -> {
-					resetReasoningUiState();
-					if (reloaded > 0) {
-						NotificationWidget.getInstance()
-								.showSuccess("Reloaded " + DataUiMessageUtils.countLabel(reloaded, "source")
-										+ ". Graph now has " + DataUiMessageUtils.countLabel(tripleCount, "triple")
-										+ ".");
-					} else {
-						NotificationWidget.getInstance().showInfo("Reload", "No source selected. Graph was cleared.");
-					}
-				});
+				if (reloaded > 0) {
+					return () -> NotificationWidget.getInstance()
+							.showSuccess("Reloaded " + DataUiMessageUtils.countLabel(reloaded, "source")
+									+ ". Graph now has " + DataUiMessageUtils.countLabel(tripleCount, "triple") + ".");
+				}
+				return () -> NotificationWidget.getInstance().showInfo("Reload",
+						"No source selected. Graph was cleared.");
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Reload Error",
-						"Reload failed: " + e.getMessage(), e));
+				return () -> NotificationWidget.getInstance().showErrorWithDetails("Reload Error",
+						"Reload failed: " + e.getMessage(), e);
 			}
 		});
 	}
@@ -394,18 +390,14 @@ public class DataViewController implements AutoCloseable {
 				int removedTriples = workspaceService.getTripleCount();
 				reasoningService.resetAllProfiles();
 				workspaceService.clearGraph();
-				Platform.runLater(() -> {
-					resetReasoningUiState();
-					if (removedTriples > 0) {
-						NotificationWidget.getInstance().showSuccess("Graph cleared. Removed "
-								+ DataUiMessageUtils.countLabel(removedTriples, "triple") + ".");
-					} else {
-						NotificationWidget.getInstance().showSuccess("Graph cleared.");
-					}
-				});
+				if (removedTriples > 0) {
+					return () -> NotificationWidget.getInstance().showSuccess(
+							"Graph cleared. Removed " + DataUiMessageUtils.countLabel(removedTriples, "triple") + ".");
+				}
+				return () -> NotificationWidget.getInstance().showSuccess("Graph cleared.");
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Clear Error",
-						"Clear failed: " + e.getMessage(), e));
+				return () -> NotificationWidget.getInstance().showErrorWithDetails("Clear Error",
+						"Clear failed: " + e.getMessage(), e);
 			}
 		}));
 	}
@@ -416,10 +408,6 @@ public class DataViewController implements AutoCloseable {
 			refreshReasoningUiState();
 			refreshGraphSnapshot();
 		});
-	}
-
-	private void resetReasoningUiState() {
-		refreshReasoningUiState();
 	}
 
 	private void syncReasoningToggleStates() {
@@ -434,17 +422,17 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void handleReasoningToggle(ReasoningProfile profile, boolean enabled) {
-		runAsyncUiRefreshOperation(() -> {
+		runAsyncUiRefreshOperation("Reasoning", buildReasoningToggleLoadingMessage(profile, enabled), () -> {
 			try {
 				DataWorkspaceStatus beforeStatus = workspaceService.getStatus();
 				reasoningService.setEnabled(profile, enabled);
 				DataWorkspaceStatus afterStatus = workspaceService.getStatus();
 				String message = DataUiMessageUtils.buildTripleDeltaMessage(beforeStatus.inferredTripleCount(),
 						afterStatus.inferredTripleCount());
-				Platform.runLater(() -> NotificationWidget.getInstance().showSuccess(message));
+				return () -> NotificationWidget.getInstance().showSuccess(message);
 			} catch (Exception e) {
-				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Reasoning Error",
-						"Reasoning update failed for " + profile.label() + ": " + e.getMessage(), e));
+				return () -> NotificationWidget.getInstance().showErrorWithDetails("Reasoning Error",
+						"Reasoning update failed for " + profile.label() + ": " + e.getMessage(), e);
 			}
 		});
 	}
@@ -465,31 +453,56 @@ public class DataViewController implements AutoCloseable {
 		});
 	}
 
-	private void runAsyncDataOperation(String loadingTitle, String loadingMessage, Runnable operation) {
+	private void runAsyncDataOperation(String loadingTitle, String loadingMessage, Supplier<Runnable> operation) {
 		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading(loadingTitle,
 				loadingMessage);
 		AppExecutors.execute(() -> {
 			dataOperationInProgress.set(true);
+			Runnable uiFollowUp = null;
 			try {
-				operation.run();
+				if (operation != null) {
+					uiFollowUp = operation.get();
+				}
 			} finally {
-				loadingHandle.close();
-				finishDataOperation();
+				Runnable finalUiFollowUp = uiFollowUp;
+				// Close the loader first so follow-up toasts are queued behind the dismiss
+				// animation instead of overlapping it.
+				loadingHandle.closeThen(() -> {
+					if (finalUiFollowUp != null) {
+						finalUiFollowUp.run();
+					}
+					finishDataOperation();
+				});
 			}
 		});
 	}
 
-	private void runAsyncUiRefreshOperation(Runnable operation) {
+	private void runAsyncUiRefreshOperation(String loadingTitle, String loadingMessage, Supplier<Runnable> operation) {
+		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading(loadingTitle,
+				loadingMessage);
 		AppExecutors.execute(() -> {
+			Runnable uiFollowUp = null;
 			try {
-				operation.run();
+				if (operation != null) {
+					uiFollowUp = operation.get();
+				}
 			} finally {
-				Platform.runLater(() -> {
+				Runnable finalUiFollowUp = uiFollowUp;
+				// Keep loading -> outcome transitions visually stable.
+				loadingHandle.closeThen(() -> {
+					if (finalUiFollowUp != null) {
+						finalUiFollowUp.run();
+					}
 					refreshReasoningUiState();
 					refreshGraphSnapshot();
 				});
 			}
 		});
+	}
+
+	private String buildReasoningToggleLoadingMessage(ReasoningProfile profile, boolean enabled) {
+		String profileLabel = profile == null ? "profile" : profile.label();
+		return enabled ? "Enabling " + profileLabel + "..." : "Disabling " + profileLabel + "...";
 	}
 
 	private void notifyLoadOutcome(String sourceLabel, int loadedCount, int tripleCount,

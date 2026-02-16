@@ -10,7 +10,6 @@
     -fx-border-width: 0 0 0 4px;
     -fx-padding: 12px 14px;
     -fx-spacing: 10px;
-    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.2), 14, 0.08, 0, 4);
     -fx-effect: dropshadow(three-pass-box, -color-notification-shadow, 14, 0.08, 0, 4);
 }
 
@@ -62,5 +61,17 @@
 .notification-action-button {
     -fx-font-size: 11px;
     -fx-padding: 3px 9px;
+    -fx-cursor: hand;
+}
+
+.notification-close-button {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-padding: 0 5px;
+    -fx-min-width: 20px;
+    -fx-min-height: 20px;
+    -fx-pref-width: 20px;
+    -fx-pref-height: 20px;
+    -fx-background-radius: 999px;
     -fx-cursor: hand;
 }

@@ -153,21 +153,19 @@ public class QueryViewController {
 			try {
 				QueryResultRef resultRef = queryService.executeQuery(queryContent);
 
-				Platform.runLater(() -> {
-					loadingHandle.close();
+				Platform.runLater(() -> loadingHandle.closeThen(() -> {
 					tabEditorController.setExecutionState(false);
 					if (resultRef != null) {
 						// Store result in context (Single Source of Truth)
 						context.setQueryResultRef(resultRef);
 						updateResultsForSelectedQueryTab(selectedTab, true);
 					}
-				});
+				}));
 			} catch (Exception e) {
-				Platform.runLater(() -> {
-					loadingHandle.close();
+				Platform.runLater(() -> loadingHandle.closeThen(() -> {
 					tabEditorController.setExecutionState(false);
 					ModalService.getInstance().showException("Query Execution Error", e.getMessage(), e);
-				});
+				}));
 				LOGGER.error("Error executing query", e);
 			}
 		});
