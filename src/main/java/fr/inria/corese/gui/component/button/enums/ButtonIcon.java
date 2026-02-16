@@ -88,6 +88,9 @@ public enum ButtonIcon {
 	/** Icon for zoom out operations. */
 	ZOOM_OUT(MaterialDesignM.MAGNIFY_MINUS_OUTLINE),
 
+	/** Icon for fitting/recentering the graph viewport. */
+	CENTER_VIEW(MaterialDesignM.MAGNIFY_SCAN),
+
 	// ===============================================================================
 	// Enum Constants - Navigation & Information
 	// ===============================================================================

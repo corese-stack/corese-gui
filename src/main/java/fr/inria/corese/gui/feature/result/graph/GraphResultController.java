@@ -36,8 +36,10 @@ public class GraphResultController implements AutoCloseable {
 	private void initialize() {
 		view.setToolbarActions(List.of(ButtonFactory.exportGraph(this::exportGraph),
 				ButtonFactory.resetLayout(view.getGraphWidget()::resetLayout),
+				ButtonFactory.centerView(view.getGraphWidget()::centerView),
 				ButtonFactory.zoomIn(view.getGraphWidget()::zoomIn),
 				ButtonFactory.zoomOut(view.getGraphWidget()::zoomOut)));
+		view.getGraphWidget().setOnGraphStatsChanged(view::updateGraphStatus);
 	}
 
 	/**

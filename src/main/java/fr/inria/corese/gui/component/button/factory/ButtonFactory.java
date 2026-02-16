@@ -328,6 +328,17 @@ public final class ButtonFactory {
 	}
 
 	/**
+	 * Creates a Fit/Recenter View button configuration for graph views.
+	 *
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @return A configured ButtonConfig with fit-view icon and tooltip
+	 */
+	public static ButtonConfig centerView(Runnable action) {
+		return new ButtonConfig(ButtonIcon.CENTER_VIEW, "Recenter View", action);
+	}
+
+	/**
 	 * Creates a Reset Layout button configuration.
 	 *
 	 * <p>

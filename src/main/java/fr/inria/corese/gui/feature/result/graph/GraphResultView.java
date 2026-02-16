@@ -1,189 +1,117 @@
 package fr.inria.corese.gui.feature.result.graph;
 
-import java.util.List;
-
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget;
+import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphStats;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.view.AbstractView;
-import javafx.animation.FadeTransition;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.Node;
+import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport;
+import fr.inria.corese.gui.feature.result.graph.support.GraphResultStatusTooltipSupport;
+import java.util.List;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
-import javafx.scene.shape.Rectangle;
-import javafx.scene.shape.Shape;
-import javafx.util.Duration;
 
 /**
  * View for displaying graph visualization results.
+ *
  * <p>
- * This view integrates a {@link GraphDisplayWidget} for the main visualization
- * and a
- * {@link ToolbarWidget} for actions. It also includes a floating legend that
- * explains the
- * node types (Resource, Literal, Blank Node).
+ * The status footer reuses the Data page visual language while focusing on the
+ * two metrics relevant to result graphs: triples and named graphs.
  * </p>
  */
 public class GraphResultView extends AbstractView {
 
-  @SuppressWarnings("java:S1075") // Hardcoded URI - not relevant for internal CSS resources
-  private static final String COMMON_STYLESHEET_PATH = "/css/common/common.css";
+	@SuppressWarnings("java:S1075") // Internal stylesheet path
+	private static final String COMMON_STYLESHEET_PATH = "/css/common/common.css";
 
-  @SuppressWarnings("java:S1075")
-  private static final String VIEW_STYLESHEET_PATH = "/css/features/graph-result.css";
+	@SuppressWarnings("java:S1075") // Internal stylesheet path
+	private static final String VIEW_STYLESHEET_PATH = "/css/features/graph-result.css";
 
-  // Animation constants
-  private static final double OPACITY_IDLE = 0.7;
-  private static final double OPACITY_HOVER = 1.0;
-  private static final int FADE_DURATION_MS = 200;
+	private static final String TOOLTIP_TITLE_TRIPLES = "Triples";
+	private static final String TOOLTIP_TITLE_NAMED_GRAPHS = "Named Graphs";
+	private static final String STYLE_CLASS_ROOT = "graph-result-root";
 
-  // Legend Colors (matching D3 visualization)
-  private static final Color COLOR_RESOURCE = Color.web("#1f77b4");
-  private static final Color COLOR_LITERAL = Color.web("#ff7f0e");
-  private static final Color COLOR_BLANK_NODE = Color.web("#2ca02c");
+	private final GraphDisplayWidget graphWidget;
+	private final ToolbarWidget toolbarWidget;
+	private final Label tripleCountLabel = new Label();
+	private final Label namedGraphCountLabel = new Label();
 
-  private final GraphDisplayWidget graphWidget;
-  private final ToolbarWidget toolbarWidget;
+	public GraphResultView() {
+		super(new BorderPane(), null);
+		CssUtils.applyViewStyles(getRoot(), COMMON_STYLESHEET_PATH);
+		CssUtils.applyViewStyles(getRoot(), VIEW_STYLESHEET_PATH);
 
-  /**
-   * Constructs a new GraphResultView.
-   * Initializes the layout, graph widget, toolbar, and the floating legend.
-   */
-  public GraphResultView() {
-    super(new BorderPane(), null);
+		this.graphWidget = new GraphDisplayWidget();
+		graphWidget.setBorderVisible(false);
+		this.toolbarWidget = new ToolbarWidget();
+		setupToolbar();
+		toolbarWidget.getStyleClass().add("graph-result-toolbar");
 
-    // Load common styles and view-specific styles
-    CssUtils.applyViewStyles(getRoot(), COMMON_STYLESHEET_PATH);
-    CssUtils.applyViewStyles(getRoot(), VIEW_STYLESHEET_PATH);
+		initializeStatusLabels();
+		HBox graphBody = new HBox(graphWidget, toolbarWidget);
+		graphBody.getStyleClass().add("graph-result-body");
+		HBox.setHgrow(graphWidget, Priority.ALWAYS);
 
-    this.graphWidget = new GraphDisplayWidget();
-    this.toolbarWidget = new ToolbarWidget();
+		VBox graphCard = new VBox(graphBody, createStatusBar());
+		graphCard.getStyleClass().add("graph-result-card");
+		VBox.setVgrow(graphBody, Priority.ALWAYS);
 
-    // Setup Toolbar Buttons
-    setupToolbar();
+		BorderPane root = (BorderPane) getRoot();
+		root.getStyleClass().add(STYLE_CLASS_ROOT);
+		root.setCenter(graphCard);
 
-    // Create Legend
-    VBox legendBox = createLegend();
+		updateGraphStatus(new GraphStats(0, 0, List.of()));
+	}
 
-    // Animation for legend
-    legendBox.setOpacity(OPACITY_IDLE);
-    setupHoverAnimation(legendBox);
+	private void setupToolbar() {
+		List<ButtonConfig> buttons = List.of(ButtonFactory.resetLayout(graphWidget::resetLayout),
+				ButtonFactory.centerView(graphWidget::centerView), ButtonFactory.zoomIn(graphWidget::zoomIn),
+				ButtonFactory.zoomOut(graphWidget::zoomOut));
+		toolbarWidget.setButtons(buttons);
+	}
 
-    // Stack graph and legend
-    StackPane centerStack = new StackPane(graphWidget, legendBox);
-    centerStack.getStyleClass().add("result-center-stack");
-    StackPane.setAlignment(legendBox, Pos.TOP_RIGHT);
-    StackPane.setMargin(legendBox, new Insets(15, 20, 0, 0));
+	private void initializeStatusLabels() {
+		tripleCountLabel.getStyleClass().add("data-status-label");
+		namedGraphCountLabel.getStyleClass().add("data-status-label");
+		tripleCountLabel.setFocusTraversable(false);
+		namedGraphCountLabel.setFocusTraversable(false);
+	}
 
-    BorderPane root = (BorderPane) getRoot();
-    root.setCenter(centerStack);
-    root.setRight(toolbarWidget);
-  }
+	private HBox createStatusBar() {
+		HBox primaryStatusGroup = createStatusGroup(tripleCountLabel, namedGraphCountLabel);
+		HBox statusBar = new HBox(10, primaryStatusGroup);
+		statusBar.getStyleClass().add("data-status-bar");
+		return statusBar;
+	}
 
-  /**
-   * Creates the floating legend panel explaining the graph node types.
-   *
-   * @return A VBox containing the legend items.
-   */
-  private VBox createLegend() {
-    VBox legend = new VBox(6);
-    legend.getStyleClass().add("legend-panel");
-    legend.getStyleClass().add("floating-panel"); // Inherit common floating panel styles
-    legend.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
-    legend.setMinWidth(140);
+	private static HBox createStatusGroup(Label... labels) {
+		HBox group = new HBox(14, labels);
+		group.getStyleClass().add("data-status-group");
+		return group;
+	}
 
-    Label title = new Label("Legend");
-    title.getStyleClass().add("legend-title");
+	public void updateGraphStatus(GraphStats stats) {
+		GraphStats safeStats = stats == null ? new GraphStats(0, 0, List.of()) : stats;
+		DataStatusTooltipSupport.updateStatusMetric(tripleCountLabel, TOOLTIP_TITLE_TRIPLES, safeStats.tripleCount(),
+				GraphResultStatusTooltipSupport.buildTriplesTooltipLines(safeStats));
+		DataStatusTooltipSupport.updateStatusMetric(namedGraphCountLabel, TOOLTIP_TITLE_NAMED_GRAPHS,
+				safeStats.namedGraphCount(), GraphResultStatusTooltipSupport.buildNamedGraphTooltipLines(safeStats));
+	}
 
-    legend.getChildren().add(title);
-    legend.getChildren().add(createLegendItem(new Circle(5, COLOR_RESOURCE), "Resource"));
-    legend.getChildren().add(createLegendItem(new Rectangle(10, 8, COLOR_LITERAL), "Literal"));
-    legend.getChildren().add(createLegendItem(new Circle(5, COLOR_BLANK_NODE), "Blank Node"));
+	public void updateGraphStatus(int tripleCount, int namedGraphCount) {
+		updateGraphStatus(new GraphStats(tripleCount, namedGraphCount, List.of()));
+	}
 
-    return legend;
-  }
+	public void setToolbarActions(List<ButtonConfig> buttons) {
+		toolbarWidget.setButtons(buttons);
+	}
 
-  /**
-   * Helper to create a single row in the legend.
-   *
-   * @param shape The shape representing the node type.
-   * @param text  The description of the node type.
-   * @return An HBox containing the shape and label.
-   */
-  private HBox createLegendItem(Shape shape, String text) {
-    HBox item = new HBox();
-    item.getStyleClass().add("legend-item");
-
-    Label label = new Label(text);
-    label.getStyleClass().add("legend-item-label");
-
-    item.getChildren().addAll(shape, label);
-    return item;
-  }
-
-  /**
-   * Sets up a fade animation for the given node on mouse hover.
-   *
-   * @param node The node to animate.
-   */
-  private void setupHoverAnimation(Node node) {
-    FadeTransition fade = new FadeTransition(Duration.millis(FADE_DURATION_MS), node);
-
-    node.setOnMouseEntered(
-        e -> {
-          fade.stop();
-          fade.setFromValue(node.getOpacity());
-          fade.setToValue(OPACITY_HOVER);
-          fade.play();
-        });
-
-    node.setOnMouseExited(
-        e -> {
-          fade.stop();
-          fade.setFromValue(node.getOpacity());
-          fade.setToValue(OPACITY_IDLE);
-          fade.play();
-        });
-  }
-
-  /**
-   * Configures the default toolbar buttons (Reset, Zoom In/Out).
-   */
-  private void setupToolbar() {
-    List<ButtonConfig> buttons = List.of(
-        ButtonFactory.resetLayout(graphWidget::resetLayout),
-        ButtonFactory.zoomIn(graphWidget::zoomIn),
-        ButtonFactory.zoomOut(graphWidget::zoomOut));
-
-    toolbarWidget.setButtons(buttons);
-  }
-
-  /**
-   * Updates the toolbar actions, allowing external controllers to add specific
-   * buttons.
-   *
-   * @param buttons The list of button configurations to display in the toolbar.
-   */
-  public void setToolbarActions(List<ButtonConfig> buttons) {
-    toolbarWidget.setButtons(buttons);
-  }
-
-  /**
-   * Returns the underlying graph widget.
-   *
-   * @return The GraphDisplayWidget instance.
-   */
-  public GraphDisplayWidget getGraphWidget() {
-    return graphWidget;
-  }
+	public GraphDisplayWidget getGraphWidget() {
+		return graphWidget;
+	}
 }
