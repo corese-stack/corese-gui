@@ -2018,6 +2018,8 @@ class KGGraphVis extends HTMLElement {
         if (!this.width || !this.height) this.updateSize();
         const previousNodeStateById = this.captureNodeStateById();
         const hadExistingLayout = previousNodeStateById.size > 0;
+        const hadPendingAutoFit = this.pendingAutoFit || Boolean(this.pendingAutoFitTimer)
+            || Boolean(this.pendingRecenterTimer);
         let initialTransform = this.resolvePreservedTransform();
         if (this.simulation) this.simulation.stop();
         if (this.interactionTimer) {
@@ -2106,7 +2108,7 @@ class KGGraphVis extends HTMLElement {
                 ? 1
                 : (addedRatio <= 0.12 ? 0.18 : (addedRatio <= 0.35 ? 0.30 : 0.55));
 
-            const shouldAutoFit = this.shouldApplyAutoFit(hadExistingLayout, addedRatio);
+            const shouldAutoFit = hadPendingAutoFit || this.shouldApplyAutoFit(hadExistingLayout, addedRatio);
             if (shouldAutoFit) {
                 const overviewTransform = this.resolveFitTransform(this.AUTO_OVERVIEW_PADDING,
                     this.AUTO_OVERVIEW_MAX_SCALE);
