@@ -58,7 +58,7 @@ class KGGraphVis extends HTMLElement {
         this.nodeLabelZoomThreshold = 0.2;
         this.edgeLabelZoomThreshold = 0.2;
         this.labelCullEnabled = true;
-        this.labelVisibilityThrottleMs = 80;
+        this.labelVisibilityThrottleMs = 16;
         this.lastLabelVisibilityUpdate = 0;
         this.labelVisibilityRaf = null;
         this.currentTransform = d3.zoomIdentity;
@@ -89,7 +89,13 @@ class KGGraphVis extends HTMLElement {
         // Performance optimization
         this.TICK_THROTTLE = 16; // ~60fps throttle for ticked()
         this.lastTickTime = 0;
-        this.LABEL_TICK_THROTTLE = 50; // Throttle label position updates
+        this.LABEL_TICK_THROTTLE_SMALL = 16; // ~60fps for small graphs
+        this.LABEL_TICK_THROTTLE_LARGE = 24;
+        this.LABEL_TICK_THROTTLE_VERY_LARGE = 50;
+        this.LABEL_VISIBILITY_THROTTLE_SMALL = 16;
+        this.LABEL_VISIBILITY_THROTTLE_LARGE = 40;
+        this.LABEL_VISIBILITY_THROTTLE_VERY_LARGE = 80;
+        this.LABEL_TICK_THROTTLE = this.LABEL_TICK_THROTTLE_SMALL;
         this.lastLabelUpdate = 0;
         this.simulationStopped = false;
         this.AUTO_STOP_ALPHA = 0.005; // Alpha threshold for auto-stabilize (very low)
@@ -102,8 +108,8 @@ class KGGraphVis extends HTMLElement {
         this.SELF_LOOP_LENGTH_STEP = 14;
         this.SELF_LOOP_WIDTH_BASE = 26;
         this.SELF_LOOP_WIDTH_STEP = 8;
-        this.SELF_LOOP_LABEL_OUTWARD = 44;
-        this.SELF_LOOP_LABEL_SIDE_STEP = 12;
+        this.SELF_LOOP_LABEL_OUTWARD = -18;
+        this.SELF_LOOP_LABEL_SIDE_STEP = 4;
         this.LARGE_GRAPH_NODE_THRESHOLD = 220;
         this.LARGE_GRAPH_LINK_THRESHOLD = 520;
         this.AUTO_HIDE_EDGE_LABEL_THRESHOLD = 460;
@@ -145,7 +151,8 @@ class KGGraphVis extends HTMLElement {
      */
     zoomIn() {
         if (this.svg && this.zoomBehavior) {
-            this.svg.transition().duration(300).call(this.zoomBehavior.scaleBy, 1.3);
+            this.svg.interrupt();
+            this.svg.call(this.zoomBehavior.scaleBy, 1.3);
         }
     }
 
@@ -154,7 +161,8 @@ class KGGraphVis extends HTMLElement {
      */
     zoomOut() {
         if (this.svg && this.zoomBehavior) {
-            this.svg.transition().duration(300).call(this.zoomBehavior.scaleBy, 1 / 1.3);
+            this.svg.interrupt();
+            this.svg.call(this.zoomBehavior.scaleBy, 1 / 1.3);
         }
     }
 
@@ -170,10 +178,12 @@ class KGGraphVis extends HTMLElement {
         const prevNodeVisible = this.nodeLabelsVisible;
         const prevEdgeVisible = this.edgeLabelsVisible;
         if (this.nodeLabelSelection) {
-            this.nodeLabelSelection.style('display', null);
+            this.nodeLabelSelection.style('visibility', 'visible').style('opacity', 1);
         }
         if (this.linkLabelSelection) {
-            this.linkLabelSelection.style('display', this.showEdgeLabels ? null : 'none');
+            this.linkLabelSelection
+                .style('visibility', this.showEdgeLabels ? 'visible' : 'hidden')
+                .style('opacity', this.showEdgeLabels ? 1 : 0);
         }
         if (this.nodeSelection) {
             this.nodeSelection.style('display', null);
@@ -208,10 +218,14 @@ class KGGraphVis extends HTMLElement {
         const result = serializer.serializeToString(clone);
 
         if (this.nodeLabelSelection) {
-            this.nodeLabelSelection.style('display', prevNodeVisible ? null : 'none');
+            this.nodeLabelSelection
+                .style('visibility', prevNodeVisible ? 'visible' : 'hidden')
+                .style('opacity', prevNodeVisible ? 1 : 0);
         }
         if (this.linkLabelSelection) {
-            this.linkLabelSelection.style('display', prevEdgeVisible ? null : 'none');
+            this.linkLabelSelection
+                .style('visibility', prevEdgeVisible ? 'visible' : 'hidden')
+                .style('opacity', prevEdgeVisible ? 1 : 0);
         }
         this.updateLevelOfDetail(this.currentZoom);
         this.scheduleLabelVisibilityUpdate();
@@ -579,10 +593,11 @@ class KGGraphVis extends HTMLElement {
             const control1Y = controlBaseY + tangentY * loopWidth;
             const control2X = controlBaseX - tangentX * loopWidth;
             const control2Y = controlBaseY - tangentY * loopWidth;
-            const labelSide = Math.sign(normalizedIndex) * (10 + Math.abs(normalizedIndex) * this.SELF_LOOP_LABEL_SIDE_STEP);
-            const labelOutward = this.SELF_LOOP_LABEL_OUTWARD + rankDistance * 8 + Math.abs(normalizedIndex) * 8;
-            // Place self-loop labels near the loop apex (farther from the node)
-            // and anchor text outward to avoid overlap between neighbor loops.
+            const labelSide = Math.sign(normalizedIndex)
+                * (2 + Math.abs(normalizedIndex) * this.SELF_LOOP_LABEL_SIDE_STEP);
+            // Negative outward offset pulls the label inside the loop area so it
+            // stays visually attached to the cycle instead of drifting too high.
+            const labelOutward = this.SELF_LOOP_LABEL_OUTWARD + rankDistance + Math.abs(normalizedIndex);
             const labelX = controlBaseX + outwardX * labelOutward + tangentX * labelSide;
             const labelY = controlBaseY + outwardY * labelOutward + tangentY * labelSide;
             const labelAnchor = normalizedIndex > 0 ? "start" : (normalizedIndex < 0 ? "end" : "middle");
@@ -675,19 +690,28 @@ class KGGraphVis extends HTMLElement {
                     display: block; 
                     cursor: grab; 
                     user-select: none; 
+                    background: var(--bg-color, #ffffff);
                 }
                 svg:active { 
                     cursor: grabbing; 
                 }
                 svg.labels-hidden .node-label,
                 svg.labels-hidden .edge-label {
-                    display: none;
+                    visibility: hidden;
+                    opacity: 0;
                 }
                 svg.node-labels-off .node-label {
-                    display: none;
+                    visibility: hidden;
+                    opacity: 0;
                 }
                 svg.edge-labels-off .edge-label {
-                    display: none;
+                    visibility: hidden;
+                    opacity: 0;
+                }
+                svg.interaction-active .node-label,
+                svg.interaction-active .edge-label {
+                    visibility: hidden;
+                    opacity: 0;
                 }
                 .node-label {
                     pointer-events: none; 
@@ -695,16 +719,23 @@ class KGGraphVis extends HTMLElement {
                     font-size: 13px; 
                     font-weight: 600;
                     fill: var(--text-color, #333);
+                    visibility: visible;
+                    opacity: 1;
+                    text-rendering: geometricPrecision;
                 }
                 .edge-label { 
                     font-size: 11px; 
                     pointer-events: none; 
                     fill: var(--text-color, #333);
+                    visibility: visible;
+                    opacity: 1;
+                    text-rendering: geometricPrecision;
                 }
                 .edge-path {
                     fill: none;
                     stroke-linecap: round;
                     stroke-linejoin: round;
+                    shape-rendering: geometricPrecision;
                 }
                 .overlay-panel {
                     background: var(--bg-color, #ffffff);
@@ -875,6 +906,8 @@ class KGGraphVis extends HTMLElement {
         if (!this.interactionHideLabels) return false;
         const nodeCount = this.graph?.nodes?.length ?? 0;
         const linkCount = this.graph?.links?.length ?? 0;
+        // In JavaFX WebView, hiding labels during interaction avoids visual trails
+        // on heavier graphs while preserving smooth motion on small graphs.
         return nodeCount >= this.interactionHideNodeThreshold
             || linkCount >= this.interactionHideLinkThreshold;
     }
@@ -883,13 +916,21 @@ class KGGraphVis extends HTMLElement {
         this.labelsHiddenForInteraction = true;
         if (this.svg) {
             this.svg.classed('labels-hidden', true);
+            this.svg.classed('interaction-active', true);
         }
     }
 
     onInteraction(shouldHideLabels = true) {
         this.isInteracting = true;
-        if (shouldHideLabels && this.shouldHideLabelsDuringInteraction()) {
+        const shouldHide = shouldHideLabels && this.shouldHideLabelsDuringInteraction();
+        if (shouldHide) {
             this.hideLabelsForInteraction();
+        } else {
+            this.labelsHiddenForInteraction = false;
+            if (this.svg) {
+                this.svg.classed('labels-hidden', false);
+                this.svg.classed('interaction-active', false);
+            }
         }
         if (this.interactionTimer) {
             clearTimeout(this.interactionTimer);
@@ -900,6 +941,7 @@ class KGGraphVis extends HTMLElement {
             this.labelsHiddenForInteraction = false;
             if (this.svg) {
                 this.svg.classed('labels-hidden', false);
+                this.svg.classed('interaction-active', false);
             }
             this.updateLabelVisibility();
         }, this.interactionDebounceMs);
@@ -931,10 +973,10 @@ class KGGraphVis extends HTMLElement {
             this.refreshEdgeLabelPositions(true);
         }
         if (!showNodeLabels && this.nodeLabelSelection) {
-            this.nodeLabelSelection.style('display', 'none');
+            this.nodeLabelSelection.style('visibility', 'hidden').style('opacity', 0);
         }
         if (!showEdgeLabels && this.linkLabelSelection) {
-            this.linkLabelSelection.style('display', 'none');
+            this.linkLabelSelection.style('visibility', 'hidden').style('opacity', 0);
         }
         if (!showNodeLabels && !showEdgeLabels) {
             return;
@@ -950,22 +992,37 @@ class KGGraphVis extends HTMLElement {
         const inView = (x, y) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
 
         if (showNodeLabels) {
-            this.nodeLabelSelection.style('display', d => {
-                if (!d || typeof d.x !== 'number' || typeof d.y !== 'number') {
-                    return null;
-                }
-                return inView(d.x, d.y) ? null : 'none';
-            });
+            this.nodeLabelSelection
+                .style('visibility', d => {
+                    if (!d || typeof d.x !== 'number' || typeof d.y !== 'number') {
+                        return 'visible';
+                    }
+                    return inView(d.x, d.y) ? 'visible' : 'hidden';
+                })
+                .style('opacity', d => {
+                    if (!d || typeof d.x !== 'number' || typeof d.y !== 'number') {
+                        return 1;
+                    }
+                    return inView(d.x, d.y) ? 1 : 0;
+                });
         }
 
         if (showEdgeLabels) {
-            this.linkLabelSelection.style('display', d => {
-                const geometry = d?.geometry ?? this.buildLinkGeometry(d);
-                if (!geometry) {
-                    return 'none';
-                }
-                return inView(geometry.labelX, geometry.labelY) ? null : 'none';
-            });
+            this.linkLabelSelection
+                .style('visibility', d => {
+                    const geometry = d?.geometry ?? this.buildLinkGeometry(d);
+                    if (!geometry) {
+                        return 'hidden';
+                    }
+                    return inView(geometry.labelX, geometry.labelY) ? 'visible' : 'hidden';
+                })
+                .style('opacity', d => {
+                    const geometry = d?.geometry ?? this.buildLinkGeometry(d);
+                    if (!geometry) {
+                        return 0;
+                    }
+                    return inView(geometry.labelX, geometry.labelY) ? 1 : 0;
+                });
         }
     }
 
@@ -1913,6 +1970,16 @@ class KGGraphVis extends HTMLElement {
         this.edgeLabelsAutoHidden = linkCount >= this.AUTO_HIDE_EDGE_LABEL_THRESHOLD;
         this.nodeLabelZoomThreshold = isVeryLargeGraph ? 0.62 : (isLargeGraph ? 0.38 : 0.2);
         this.edgeLabelZoomThreshold = this.edgeLabelsAutoHidden ? 0.92 : (isLargeGraph ? 0.5 : 0.2);
+        if (isVeryLargeGraph) {
+            this.LABEL_TICK_THROTTLE = this.LABEL_TICK_THROTTLE_VERY_LARGE;
+            this.labelVisibilityThrottleMs = this.LABEL_VISIBILITY_THROTTLE_VERY_LARGE;
+        } else if (isLargeGraph) {
+            this.LABEL_TICK_THROTTLE = this.LABEL_TICK_THROTTLE_LARGE;
+            this.labelVisibilityThrottleMs = this.LABEL_VISIBILITY_THROTTLE_LARGE;
+        } else {
+            this.LABEL_TICK_THROTTLE = this.LABEL_TICK_THROTTLE_SMALL;
+            this.labelVisibilityThrottleMs = this.LABEL_VISIBILITY_THROTTLE_SMALL;
+        }
 
         const nodeById = new Map(this.graph.nodes.map(node => [node.id, node]));
         const getSourceId = link => (link.source && link.source.id) ? link.source.id : link.source;
@@ -1984,9 +2051,7 @@ class KGGraphVis extends HTMLElement {
                     this.scheduleLabelVisibilityUpdate();
                     return;
                 }
-                const isWheel = sourceEvent?.type === "wheel";
-                const isDblClick = sourceEvent?.type === "dblclick";
-                this.onInteraction(!(isWheel || isDblClick));
+                this.onInteraction(true);
             });
         this.svg.call(this.zoomBehavior);
         this.svg.call(this.zoomBehavior.transform, initialTransform || d3.zoomIdentity);
@@ -2075,6 +2140,8 @@ class KGGraphVis extends HTMLElement {
                     this.onInteraction(true);
                     node.fx = d3.event.x;
                     node.fy = d3.event.y;
+                    // Keep links responsive while dragging, independent of tick throttle.
+                    this.ticked();
                 })
                 .on("end", node => {
                     this.onInteraction(false);
