@@ -118,7 +118,7 @@ public final class DefaultReasoningService implements ReasoningService {
 
 		String ruleId = UUID.randomUUID().toString();
 		String label = ruleFile.getName();
-		String namedGraphUri = createRuleFileGraphUri(sourcePath);
+		String namedGraphUri = createRuleFileGraphUri(sourcePath, label);
 		ruleFiles.put(ruleId, new RuleFileDefinition(ruleId, label, sourcePath, namedGraphUri, true));
 		try {
 			recomputeEnabledProfiles();
@@ -409,9 +409,31 @@ public final class DefaultReasoningService implements ReasoningService {
 		}
 	}
 
-	private static String createRuleFileGraphUri(String sourcePath) {
-		UUID deterministic = UUID.nameUUIDFromBytes(sourcePath.getBytes(StandardCharsets.UTF_8));
-		return RULE_FILE_GRAPH_PREFIX + deterministic;
+	private static String createRuleFileGraphUri(String sourcePath, String ruleLabel) {
+		String readableSegment = toGraphReadableSegment(ruleLabel, sourcePath);
+		String stableSuffix = toStablePathSuffix(sourcePath);
+		return RULE_FILE_GRAPH_PREFIX + readableSegment + ":" + stableSuffix;
+	}
+
+	private static String toGraphReadableSegment(String ruleLabel, String sourcePath) {
+		String candidate = ruleLabel;
+		if (candidate == null || candidate.isBlank()) {
+			candidate = new File(sourcePath).getName();
+		}
+		String normalized = candidate.trim().toLowerCase(Locale.ROOT);
+		if (normalized.endsWith(".rul")) {
+			normalized = normalized.substring(0, normalized.length() - 4);
+		}
+		normalized = normalized.replaceAll("[^a-z0-9]+", "-");
+		normalized = normalized.replaceAll("^-+|-+$", "");
+		return normalized.isBlank() ? "rule-file" : normalized;
+	}
+
+	private static String toStablePathSuffix(String sourcePath) {
+		String uuid = UUID.nameUUIDFromBytes(sourcePath.getBytes(StandardCharsets.UTF_8))
+				.toString()
+				.replace("-", "");
+		return uuid.substring(0, 12);
 	}
 
 	private String normalizeRuleFile(File ruleFile) {
