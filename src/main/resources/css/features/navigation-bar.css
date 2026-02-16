@@ -16,9 +16,9 @@
   -fx-pref-width: 200;
   -fx-max-width: 200;
   -fx-background-color: -color-bg-subtle;
-  -fx-border-width: 0 1 0 0;
+  -fx-border-width: 0 1px 0 0;
   -fx-border-color: -color-sidebar-separator;
-  -fx-effect: innershadow(gaussian, -color-sidebar-shadow, 6, 0.04, -1, 0);
+  -fx-effect: innershadow(gaussian, -color-sidebar-shadow, 10, 0.14, -2, 0);
 }
 
 .sidebar.collapsed {
@@ -44,51 +44,32 @@
 }
 
 /* ==========================================================================
-   TOGGLE BUTTON
+   INTERACTIVE BUTTONS
    ========================================================================== */
 
-.sidebar-toggle {
-  -fx-padding: 12 16;
-  -fx-min-height: 44;
-  -fx-background-radius: 4;
-}
-
-.sidebar-toggle:hover {
-  -fx-background-color: rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.08);
-  -fx-background-insets: 0, 0;
-  -fx-background-radius: 4, 4;
-}
-
-.sidebar-toggle:pressed {
-  -fx-background-color: rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18);
-  -fx-background-insets: 0, 0;
-  -fx-background-radius: 4, 4;
-}
-
-/* ==========================================================================
-   NAVIGATION BUTTONS
-   ========================================================================== */
-
+.sidebar-toggle,
 .sidebar-button {
   -fx-padding: 12 16;
   -fx-min-height: 44;
   -fx-background-radius: 4;
 }
 
+.sidebar-toggle:hover,
+.sidebar-button:hover {
+  -fx-background-color: -color-sidebar-hover;
+}
+
+.sidebar-toggle:pressed,
+.sidebar-button:pressed {
+  -fx-background-color: -color-sidebar-pressed;
+}
+
+/* ==========================================================================
+   NAVIGATION BUTTONS
+   ========================================================================== */
+
 .sidebar-button-content {
   -fx-spacing: 16;
-}
-
-.sidebar-button:hover {
-  -fx-background-color: rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.08);
-  -fx-background-insets: 0, 0;
-  -fx-background-radius: 4, 4;
-}
-
-.sidebar-button:pressed {
-  -fx-background-color: rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18);
-  -fx-background-insets: 0, 0;
-  -fx-background-radius: 4, 4;
 }
 
 .sidebar-button.accent {

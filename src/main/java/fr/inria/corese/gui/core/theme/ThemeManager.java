@@ -59,10 +59,14 @@ public final class ThemeManager {
 	private static final Color LOGO_SHADOW_DARK = Color.rgb(255, 255, 255, 0.25);
 	private static final Color TAB_OVERFLOW_SHADOW_LIGHT = Color.rgb(0, 0, 0, 0.16);
 	private static final Color TAB_OVERFLOW_SHADOW_DARK = Color.rgb(255, 255, 255, 0.12);
-	private static final Color SIDEBAR_SEPARATOR_LIGHT = Color.rgb(0, 0, 0, 0.16);
-	private static final Color SIDEBAR_SEPARATOR_DARK = Color.rgb(255, 255, 255, 0.18);
-	private static final Color SIDEBAR_SHADOW_LIGHT = Color.rgb(0, 0, 0, 0.14);
-	private static final Color SIDEBAR_SHADOW_DARK = Color.rgb(255, 255, 255, 0.14);
+	private static final Color SIDEBAR_SEPARATOR_LIGHT = Color.rgb(15, 23, 42, 0.14);
+	private static final Color SIDEBAR_SEPARATOR_DARK = Color.rgb(255, 255, 255, 0.1);
+	private static final Color SIDEBAR_SHADOW_LIGHT = Color.rgb(0, 0, 0, 0.1);
+	private static final Color SIDEBAR_SHADOW_DARK = Color.rgb(0, 0, 0, 0.32);
+	private static final Color SIDEBAR_HOVER_LIGHT = Color.rgb(0, 0, 0, 0.05);
+	private static final Color SIDEBAR_HOVER_DARK = Color.rgb(255, 255, 255, 0.06);
+	private static final Color SIDEBAR_PRESSED_LIGHT = Color.rgb(0, 0, 0, 0.1);
+	private static final Color SIDEBAR_PRESSED_DARK = Color.rgb(255, 255, 255, 0.11);
 	private static final Color NOTIFICATION_SHADOW_LIGHT = Color.rgb(0, 0, 0, 0.2);
 	private static final Color NOTIFICATION_SHADOW_DARK = Color.rgb(255, 255, 255, 0.12);
 
@@ -421,11 +425,13 @@ public final class ThemeManager {
 				"-color-accent-emphasis: %s; " + "-color-accent-fg: %s; " + "-color-accent-subtle: %s; "
 						+ "-color-accent-muted: %s; " + "-color-logo-shadow: %s; " + "-color-tab-overflow-shadow: %s; "
 						+ "-color-tab-overflow-shadow-transparent: %s; " + "-color-sidebar-separator: %s; "
-						+ "-color-sidebar-shadow: %s; " + "-color-notification-shadow: %s;",
+						+ "-color-sidebar-shadow: %s; " + "-color-sidebar-hover: %s; " + "-color-sidebar-pressed: %s; "
+						+ "-color-notification-shadow: %s;",
 				cssColor, cssColor, toCssColor(color.deriveColor(0, 0.3, 1.0, 0.3)),
 				toCssColor(color.deriveColor(0, 0.5, 1.0, 0.5)), toCssRgbaColor(getLogoShadowColor()),
 				toCssRgbaColor(tabOverflowShadow), toCssRgbaColor(withOpacity(tabOverflowShadow, 0.0)),
 				toCssRgbaColor(getSidebarSeparatorColor()), toCssRgbaColor(getSidebarShadowColor()),
+				toCssRgbaColor(getSidebarHoverColor()), toCssRgbaColor(getSidebarPressedColor()),
 				toCssRgbaColor(getNotificationShadowColor()));
 
 		String previousManagedStyle = (String) root.getProperties().get(ROOT_MANAGED_STYLE_BLOCK_KEY);
@@ -611,6 +617,28 @@ public final class ThemeManager {
 			return SIDEBAR_SHADOW_DARK;
 		}
 		return SIDEBAR_SHADOW_LIGHT;
+	}
+
+	/**
+	 * Returns the sidebar hover overlay color matching the current light/dark
+	 * context.
+	 */
+	public Color getSidebarHoverColor() {
+		if (isCurrentThemeDark()) {
+			return SIDEBAR_HOVER_DARK;
+		}
+		return SIDEBAR_HOVER_LIGHT;
+	}
+
+	/**
+	 * Returns the sidebar pressed overlay color matching the current light/dark
+	 * context.
+	 */
+	public Color getSidebarPressedColor() {
+		if (isCurrentThemeDark()) {
+			return SIDEBAR_PRESSED_DARK;
+		}
+		return SIDEBAR_PRESSED_LIGHT;
 	}
 
 	/**
