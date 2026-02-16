@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
+import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
@@ -139,16 +140,19 @@ public class ValidationController {
 
 		// UI: Indicate execution start
 		tabEditorController.setExecutionState(true);
+		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Validation",
+				"Running SHACL validation...");
 
 		// Execute validation asynchronously
-		AppExecutors.execute(() -> runValidationTask(model, shapesContent, resultController));
+		AppExecutors.execute(() -> runValidationTask(model, shapesContent, resultController, loadingHandle));
 	}
 
 	// ==============================================================================================
 	// Background Task & Callbacks
 	// ==============================================================================================
 
-	private void runValidationTask(ValidationModel model, String shapesContent, ResultController resultController) {
+	private void runValidationTask(ValidationModel model, String shapesContent, ResultController resultController,
+			NotificationWidget.LoadingHandle loadingHandle) {
 		try {
 			// Perform validation logic
 			ValidationResult result = model.validate(shapesContent);
@@ -160,8 +164,12 @@ public class ValidationController {
 			Platform.runLater(() -> {
 				tabEditorController.setExecutionState(false);
 				tabEditorController.hideResultPane();
-				ModalService.getInstance().showError("Validation Error", buildValidationErrorMessage(e));
+				ModalService.getInstance().showException("Validation Error", buildValidationErrorMessage(e), e);
 			});
+		} finally {
+			if (loadingHandle != null) {
+				loadingHandle.close();
+			}
 		}
 	}
 
@@ -209,18 +217,30 @@ public class ValidationController {
 				SerializationFormat.TURTLE);
 
 		// Display initial report using the preferred format
+		NotificationWidget.LoadingHandle renderLoading = NotificationWidget.getInstance().showLoading("Validation",
+				"Rendering validation report...");
 		AppExecutors.execute(() -> {
-			String initialReport = model.formatLastReport(preferredFormat.getLabel());
-			if (initialReport != null) {
-				Platform.runLater(() -> resultController.updateText(initialReport));
+			try {
+				String initialReport = model.formatLastReport(preferredFormat.getLabel());
+				if (initialReport != null) {
+					Platform.runLater(() -> resultController.updateText(initialReport));
+				}
+			} finally {
+				renderLoading.close();
 			}
 		});
 
 		// Configure callback for format changes
 		resultController.setOnFormatChanged(format -> AppExecutors.execute(() -> {
-			String formattedReport = model.formatLastReport(format.getLabel());
-			if (formattedReport != null) {
-				Platform.runLater(() -> resultController.updateText(formattedReport));
+			NotificationWidget.LoadingHandle formatLoading = NotificationWidget.getInstance().showLoading("Validation",
+					"Formatting validation report...");
+			try {
+				String formattedReport = model.formatLastReport(format.getLabel());
+				if (formattedReport != null) {
+					Platform.runLater(() -> resultController.updateText(formattedReport));
+				}
+			} finally {
+				formatLoading.close();
 			}
 		}));
 	}

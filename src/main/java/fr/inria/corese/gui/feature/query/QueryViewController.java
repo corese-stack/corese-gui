@@ -145,6 +145,8 @@ public class QueryViewController {
 		// Prepare UI
 		resultController.clearResults();
 		tabEditorController.setExecutionState(true);
+		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Query",
+				"Executing query...");
 
 		// Execute in background
 		AppExecutors.execute(() -> {
@@ -152,6 +154,7 @@ public class QueryViewController {
 				QueryResultRef resultRef = queryService.executeQuery(queryContent);
 
 				Platform.runLater(() -> {
+					loadingHandle.close();
 					tabEditorController.setExecutionState(false);
 					if (resultRef != null) {
 						// Store result in context (Single Source of Truth)
@@ -161,8 +164,9 @@ public class QueryViewController {
 				});
 			} catch (Exception e) {
 				Platform.runLater(() -> {
+					loadingHandle.close();
 					tabEditorController.setExecutionState(false);
-					ModalService.getInstance().showError("Query Execution Error", e.getMessage());
+					ModalService.getInstance().showException("Query Execution Error", e.getMessage(), e);
 				});
 				LOGGER.error("Error executing query", e);
 			}
@@ -247,7 +251,10 @@ public class QueryViewController {
 		// Provide formatting capability to the table controller (for Export/Copy)
 		controller.setFormatProvider(format -> queryService.formatResult(resultId, format));
 
-		QueryResultRenderSupport.loadTableAndTextAsync(controller, resultId, preferredFormat, queryService);
+		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Query",
+				"Rendering result...");
+		QueryResultRenderSupport.loadTableAndTextAsync(controller, resultId, preferredFormat, queryService,
+				loadingHandle::close);
 	}
 
 	private void configureForGraphResult(ResultController controller, QueryResultRef resultRef) {
@@ -259,7 +266,10 @@ public class QueryViewController {
 				SerializationFormat.TURTLE);
 
 		QueryResultRenderSupport.bindOnFormatChanged(controller, resultId, queryService);
-		QueryResultRenderSupport.loadGraphAndTextAsync(controller, resultId, preferredFormat, queryService);
+		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Query",
+				"Rendering result...");
+		QueryResultRenderSupport.loadGraphAndTextAsync(controller, resultId, preferredFormat, queryService,
+				loadingHandle::close);
 	}
 
 	private void registerResultTabPreference(Tab tab) {
