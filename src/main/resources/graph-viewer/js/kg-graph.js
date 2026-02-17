@@ -1652,14 +1652,22 @@ class KGGraphVis extends HTMLElement {
                     return { objId, objType, meta: {} };
                 }
                 if (obj['@value'] !== undefined) {
-                    const objId = String(obj['@value']);
-                    const meta = {};
-                    if (obj['@type']) meta.datatype = obj['@type'];
-                    if (obj['@language']) meta.language = obj['@language'];
+                    const literalValue = String(obj['@value']);
+                    const datatype = typeof obj['@type'] === "string" ? obj['@type'] : "";
+                    const language = typeof obj['@language'] === "string" ? obj['@language'] : "";
+                    const objId = this.buildLiteralNodeId(literalValue, datatype, language);
+                    const meta = { name: literalValue };
+                    if (datatype) meta.datatype = datatype;
+                    if (language) meta.language = language;
                     return { objId, objType: 'Literal', meta };
                 }
             }
-            return { objId: String(obj), objType: 'Literal', meta: {} };
+            const literalValue = String(obj);
+            return {
+                objId: this.buildLiteralNodeId(literalValue),
+                objType: 'Literal',
+                meta: { name: literalValue }
+            };
         };
 
         const processGraphContainer = (item, currentGraph) => {
@@ -2357,7 +2365,13 @@ class KGGraphVis extends HTMLElement {
             .attr("class", "node-label")
             .attr("dy", isVeryLargeGraph ? 24 : 35)
             .attr("text-anchor", "middle")
-            .text(node => this.truncateLabel(this.formatLabel(node.id)));
+            .text(node => {
+                const displayValue = this.resolveNodeDisplayValue(node);
+                if (node?.type === "Literal") {
+                    return this.truncateLabel(displayValue);
+                }
+                return this.truncateLabel(this.formatLabel(displayValue));
+            });
 
         // Render one immediate layout frame so links/labels are placed before
         // the first animated tick.
@@ -2381,15 +2395,18 @@ class KGGraphVis extends HTMLElement {
         this.nodeSelection
             .on("mouseover", node => {
                 const isLiteral = node.type === "Literal";
-                const title = isLiteral ? `"${this.formatLabel(node.id)}"` : this.formatLabel(node.id);
+                const displayValue = this.resolveNodeDisplayValue(node);
+                const title = isLiteral
+                    ? `"${this.formatLabel(displayValue)}"`
+                    : this.formatLabel(displayValue);
                 let content = `<div class="tooltip-title">${title}</div>`;
 
                 if (isLiteral) {
-                    content += `<div class="tooltip-row"><strong>Value</strong> <span>"${node.id}"</span></div>`;
+                    content += `<div class="tooltip-row"><strong>Value</strong> <span>"${displayValue}"</span></div>`;
                     let typeValue = "xsd:string";
                     if (node.datatype) {
                         typeValue = this.formatLabel(node.datatype);
-                    } else if (!Number.isNaN(Number(node.id))) {
+                    } else if (!Number.isNaN(Number(displayValue))) {
                         typeValue = "xsd:decimal";
                     }
                     content += `<div class="tooltip-row"><strong>Type</strong> <span>${typeValue}</span></div>`;
@@ -2518,6 +2535,27 @@ class KGGraphVis extends HTMLElement {
             return 24;
         }
         return 20;
+    }
+
+    encodeLiteralNodeIdPart(value) {
+        return encodeURIComponent(String(value ?? ""));
+    }
+
+    buildLiteralNodeId(value, datatype = "", language = "") {
+        const lexicalPart = this.encodeLiteralNodeIdPart(value);
+        const datatypePart = this.encodeLiteralNodeIdPart(datatype);
+        const languagePart = this.encodeLiteralNodeIdPart(language);
+        return `__lit__:${lexicalPart}|dt:${datatypePart}|lang:${languagePart}`;
+    }
+
+    resolveNodeDisplayValue(node) {
+        if (!node) {
+            return "";
+        }
+        if (node.type === "Literal") {
+            return String(node.name ?? "");
+        }
+        return String(node.id ?? "");
     }
 
     /**
