@@ -6,12 +6,10 @@ import fr.inria.corese.gui.feature.main.MainController;
 import fr.inria.corese.gui.feature.main.MainView;
 import fr.inria.corese.gui.feature.main.ViewManager;
 import fr.inria.corese.gui.feature.main.navigation.NavigationBarController;
-import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.utils.AppExecutors;
 import fr.inria.corese.gui.utils.fx.SvgImageLoader;
 import fr.inria.corese.gui.core.bootstrap.LinuxInputMethodBootstrap;
 import java.util.Objects;
-import java.util.Locale;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Rectangle2D;
@@ -51,7 +49,6 @@ public final class App extends Application {
 		// === Create scene ===
 		Scene scene = new Scene(new GlobalZoomPane(mainView.getRoot()), AppConstants.DEFAULT_WIDTH,
 				AppConstants.DEFAULT_HEIGHT);
-		applyMacTypographyOverrides(scene);
 		mainController.bindScene(scene);
 
 		// === Configure stage ===
@@ -112,17 +109,5 @@ public final class App extends Application {
 		stage.setWidth(Math.max(AppConstants.MIN_WIDTH, targetWidth));
 		stage.setHeight(Math.max(AppConstants.MIN_HEIGHT, targetHeight));
 		stage.centerOnScreen();
-	}
-
-	private static void applyMacTypographyOverrides(Scene scene) {
-		if (scene == null || !isMacOs()) {
-			return;
-		}
-		scene.getRoot().getStyleClass().add("os-macos");
-		CssUtils.applySceneStyles(scene, "/css/common/macos-typography.css");
-	}
-
-	private static boolean isMacOs() {
-		return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac");
 	}
 }
