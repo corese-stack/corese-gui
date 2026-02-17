@@ -33,6 +33,7 @@ This pass focused on release-readiness without behavior change:
     and async loading wrappers.
   - `GraphDisplayWidget`: centralized FX-thread deferral and worker-state guard helpers.
   - `SettingsView`: extracted shortcut grouping/token-render helpers and unified UI-scale button handler wiring.
+  - `SystemLogsView`: removed generic-varargs noise in table setup to keep compilation warning-free.
 
 ## Hotspots To Tackle In Phase 2
 

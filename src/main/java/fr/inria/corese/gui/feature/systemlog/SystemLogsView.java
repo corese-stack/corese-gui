@@ -5,6 +5,7 @@ import fr.inria.corese.gui.component.emptystate.EmptyStateWidget;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
+import java.util.ArrayList;
 import java.util.List;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
@@ -170,9 +171,15 @@ public final class SystemLogsView extends AbstractView {
 		stateColumn.setComparator((left, right) -> Long.compare(left.longValue(), right.longValue()));
 		stateColumn.setPrefWidth(260);
 
-		logTableView.getColumns()
-				.setAll(List.of(timeColumn, typeColumn, actionColumn, detailsColumn, diffColumn, stateColumn));
-		logTableView.getSortOrder().setAll(List.of(timeColumn));
+		List<TableColumn<SystemLogTableRow, ?>> columns = new ArrayList<>(6);
+		columns.add(timeColumn);
+		columns.add(typeColumn);
+		columns.add(actionColumn);
+		columns.add(detailsColumn);
+		columns.add(diffColumn);
+		columns.add(stateColumn);
+		logTableView.getColumns().setAll(columns);
+		logTableView.getSortOrder().setAll(java.util.Collections.singletonList(timeColumn));
 	}
 
 	public TableView<SystemLogTableRow> getLogTableView() {
