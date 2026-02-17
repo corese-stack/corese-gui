@@ -18,36 +18,61 @@
     -fx-spacing: 20px;
 }
 
-.settings-scale-segmented {
+.settings-scale-stepper {
     -fx-spacing: 0;
     -fx-alignment: center-right;
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-padding: 0;
 }
 
-.settings-scale-segment-button {
-    -fx-min-width: 56px;
-    -fx-pref-width: 56px;
+.settings-scale-stepper-button {
+    -fx-min-width: 34px;
+    -fx-pref-width: 34px;
+    -fx-min-height: 32px;
+    -fx-pref-height: 32px;
+    -fx-padding: 0;
     -fx-font-size: 12px;
-    -fx-font-weight: 600;
+    -fx-font-weight: 700;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
     -fx-background-radius: 0;
     -fx-border-radius: 0;
-    -fx-border-insets: 0 0 0 -1;
-}
-
-.settings-segment-first {
-    -fx-background-radius: 8 0 0 8;
-    -fx-border-radius: 8 0 0 8;
     -fx-border-insets: 0;
+    -fx-background-insets: 0;
 }
 
-.settings-segment-last {
-    -fx-background-radius: 0 8 8 0;
-    -fx-border-radius: 0 8 8 0;
+.settings-scale-stepper-button-left {
+    -fx-background-radius: 10 0 0 10;
+    -fx-border-radius: 10 0 0 10;
+    -fx-border-color: transparent -color-border-muted transparent transparent;
+    -fx-border-width: 0 1 0 0;
 }
 
-.settings-scale-segment-button:selected {
-    -fx-background-color: -color-accent-emphasis;
-    -fx-border-color: -color-accent-emphasis;
-    -fx-text-fill: white;
+.settings-scale-stepper-button-right {
+    -fx-background-radius: 0 10 10 0;
+    -fx-border-radius: 0 10 10 0;
+    -fx-border-color: transparent transparent transparent -color-border-muted;
+    -fx-border-width: 0 0 0 1;
+}
+
+.settings-scale-stepper-value {
+    -fx-min-width: 66px;
+    -fx-pref-width: 66px;
+    -fx-min-height: 32px;
+    -fx-pref-height: 32px;
+    -fx-alignment: center;
+    -fx-padding: 0 8px;
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-border-insets: 0;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-fg-default;
 }
 
 .settings-logo-wrapper {
@@ -91,4 +116,68 @@
 .settings-about-links {
     -fx-spacing: 10px;
     -fx-alignment: center-right;
+}
+
+.settings-shortcuts-subtitle {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.settings-shortcuts-groups {
+    -fx-spacing: 10px;
+}
+
+.settings-shortcuts-group {
+    -fx-spacing: 6px;
+    -fx-padding: 6px 0 2px 0;
+}
+
+.settings-shortcut-tile {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-padding: 8px 2px;
+}
+
+.settings-shortcut-keys-box {
+    -fx-spacing: 6px;
+    -fx-alignment: center-right;
+}
+
+.settings-shortcut-combo {
+    -fx-spacing: 4px;
+    -fx-alignment: center-right;
+}
+
+.settings-shortcut-option-separator {
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-size: 11px;
+    -fx-font-weight: 600;
+}
+
+.settings-shortcut-key-chip {
+    -fx-padding: 3px 8px;
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-muted;
+    -fx-background-radius: 6px;
+    -fx-border-radius: 6px;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+
+.settings-shortcut-key-separator {
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+
+.settings-shortcuts-group-title {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.settings-shortcut-tile:focused {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
 }

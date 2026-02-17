@@ -2,6 +2,7 @@ package fr.inria.corese.gui.feature.settings;
 
 import fr.inria.corese.gui.AppConstants;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
+import fr.inria.corese.gui.core.shortcut.KeyboardShortcutRegistry;
 import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.utils.BrowserUtils;
 import fr.inria.corese.gui.core.theme.CssUtils;
@@ -12,9 +13,10 @@ import fr.inria.corese.gui.utils.fx.SvgImageLoader;
 import atlantafx.base.controls.Tile;
 import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import javafx.geometry.Pos;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.control.Button;
@@ -56,13 +58,20 @@ public final class SettingsView extends AbstractView {
 	@SuppressWarnings("java:S1075")
 	private static final String COMMON_STYLESHEET_PATH = "/css/common/common.css";
 	private static final double SECTION_RADIUS = 8.0;
+
+	private record ShortcutDisplayEntry(String description, String availability,
+			List<KeyboardShortcutRegistry.Shortcut> variants) {
+	}
+
 	// ===== UI Components =====
 	private ToggleSwitch systemThemeSwitch;
 	private ComboBox<String> themeComboBox;
 	private ToggleButton lightModeButton;
 	private ToggleButton darkModeButton;
 	private ColorPicker accentColorPicker;
-	private final Map<Double, ToggleButton> uiScaleButtons = new LinkedHashMap<>();
+	private Button uiScaleDecreaseButton;
+	private Button uiScaleIncreaseButton;
+	private Label uiScaleValueLabel;
 
 	// ===== Constructor =====
 
@@ -81,7 +90,7 @@ public final class SettingsView extends AbstractView {
 		VBox content = new VBox();
 		content.getStyleClass().add("settings-content");
 
-		content.getChildren().addAll(createAppearanceSection(), createAboutSection());
+		content.getChildren().addAll(createAppearanceSection(), createKeyboardShortcutsSection(), createAboutSection());
 
 		scrollPane.setContent(content);
 	}
@@ -145,45 +154,28 @@ public final class SettingsView extends AbstractView {
 	private Tile createUiScaleTile() {
 		Tile uiScaleTile = new Tile("Interface Scale", "Adjust global application zoom");
 
-		ToggleGroup scaleGroup = new ToggleGroup();
-		HBox presets = new HBox(0);
-		presets.getStyleClass().add("settings-scale-segmented");
-		presets.setAlignment(Pos.CENTER_RIGHT);
-		uiScaleButtons.clear();
-		double[] presetValues = {0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0};
-		int segmentCount = presetValues.length;
-		int segmentIndex = 0;
+		uiScaleDecreaseButton = createUiScaleStepperButton("-");
+		uiScaleDecreaseButton.getStyleClass().add("settings-scale-stepper-button-left");
 
-		for (double preset : presetValues) {
-			ToggleButton button = createUiScaleButton(preset);
-			button.setToggleGroup(scaleGroup);
-			applySegmentPositionStyle(button, segmentIndex++, segmentCount);
-			uiScaleButtons.put(preset, button);
-			presets.getChildren().add(button);
-		}
+		uiScaleIncreaseButton = createUiScaleStepperButton("+");
+		uiScaleIncreaseButton.getStyleClass().add("settings-scale-stepper-button-right");
 
-		uiScaleTile.setAction(presets);
+		uiScaleValueLabel = new Label("100%");
+		uiScaleValueLabel.getStyleClass().add("settings-scale-stepper-value");
+
+		HBox stepper = new HBox(0, uiScaleDecreaseButton, uiScaleValueLabel, uiScaleIncreaseButton);
+		stepper.getStyleClass().add("settings-scale-stepper");
+		stepper.setAlignment(Pos.CENTER_RIGHT);
+
+		uiScaleTile.setAction(stepper);
 		return uiScaleTile;
 	}
 
-	private static ToggleButton createUiScaleButton(double preset) {
-		int percent = (int) Math.round(preset * 100);
-		ToggleButton button = new ToggleButton(percent + "%");
-		button.setUserData(preset);
-		button.getStyleClass().addAll(Styles.BUTTON_OUTLINED, "settings-scale-segment-button");
+	private static Button createUiScaleStepperButton(String label) {
+		Button button = new Button(label);
+		button.getStyleClass().addAll(Styles.BUTTON_OUTLINED, "settings-scale-stepper-button");
 		button.setFocusTraversable(false);
 		return button;
-	}
-
-	private static void applySegmentPositionStyle(ToggleButton button, int index, int total) {
-		button.getStyleClass().removeAll("settings-segment-first", "settings-segment-middle", "settings-segment-last");
-		if (index == 0) {
-			button.getStyleClass().add("settings-segment-first");
-		} else if (index == total - 1) {
-			button.getStyleClass().add("settings-segment-last");
-		} else {
-			button.getStyleClass().add("settings-segment-middle");
-		}
 	}
 
 	// ===== Getters for Controller =====
@@ -208,33 +200,144 @@ public final class SettingsView extends AbstractView {
 		return accentColorPicker;
 	}
 
-	public void setOnUiScaleSelection(Consumer<Double> handler) {
-		if (handler == null) {
+	public void setOnUiScaleDecrease(Runnable handler) {
+		if (uiScaleDecreaseButton == null) {
 			return;
 		}
-		uiScaleButtons.forEach((scale, button) -> button.setOnAction(event -> {
-			if (button.isSelected()) {
-				handler.accept(scale);
+		uiScaleDecreaseButton.setOnAction(event -> {
+			if (handler != null) {
+				handler.run();
 			}
-		}));
+		});
 	}
 
-	public void selectUiScale(double scale) {
-		if (uiScaleButtons.isEmpty()) {
+	public void setOnUiScaleIncrease(Runnable handler) {
+		if (uiScaleIncreaseButton == null) {
 			return;
 		}
-		ToggleButton nearestButton = null;
-		double nearestDistance = Double.MAX_VALUE;
-		for (Map.Entry<Double, ToggleButton> entry : uiScaleButtons.entrySet()) {
-			double distance = Math.abs(entry.getKey() - scale);
-			if (distance < nearestDistance) {
-				nearestDistance = distance;
-				nearestButton = entry.getValue();
+		uiScaleIncreaseButton.setOnAction(event -> {
+			if (handler != null) {
+				handler.run();
+			}
+		});
+	}
+
+	public void updateUiScaleDisplay(double scale) {
+		if (uiScaleValueLabel == null) {
+			return;
+		}
+		int percent = (int) Math.round(scale * 100);
+		uiScaleValueLabel.setText(percent + "%");
+	}
+
+	public void setUiScaleDecreaseDisabled(boolean disabled) {
+		if (uiScaleDecreaseButton != null) {
+			uiScaleDecreaseButton.setDisable(disabled);
+		}
+	}
+
+	public void setUiScaleIncreaseDisabled(boolean disabled) {
+		if (uiScaleIncreaseButton != null) {
+			uiScaleIncreaseButton.setDisable(disabled);
+		}
+	}
+
+	private VBox createKeyboardShortcutsSection() {
+		VBox section = new VBox(12);
+		section.getStyleClass().addAll("settings-section", "settings-shortcuts-section", "app-card", "app-card-subtle");
+		RoundedClipSupport.applyRoundedClip(section, SECTION_RADIUS);
+
+		Label sectionTitle = new Label("Keyboard Shortcuts");
+		sectionTitle.getStyleClass().add(Styles.TITLE_3);
+
+		Label sectionSubtitle = new Label("Global shortcuts and contextual shortcuts by page.");
+		sectionSubtitle.getStyleClass().add("settings-shortcuts-subtitle");
+
+		VBox groupsBox = new VBox(10);
+		groupsBox.getStyleClass().add("settings-shortcuts-groups");
+
+		Map<String, Map<String, List<KeyboardShortcutRegistry.Shortcut>>> groupedShortcuts = new LinkedHashMap<>();
+		for (KeyboardShortcutRegistry.Shortcut shortcut : KeyboardShortcutRegistry.shortcuts()) {
+			Map<String, List<KeyboardShortcutRegistry.Shortcut>> categoryGroup = groupedShortcuts
+					.computeIfAbsent(shortcut.category(), ignored -> new LinkedHashMap<>());
+			String actionKey = shortcut.scope() + "|" + shortcut.action() + "|" + shortcut.description() + "|"
+					+ shortcut.availability();
+			categoryGroup.computeIfAbsent(actionKey, ignored -> new ArrayList<>()).add(shortcut);
+		}
+
+		for (Map.Entry<String, Map<String, List<KeyboardShortcutRegistry.Shortcut>>> entry : groupedShortcuts
+				.entrySet()) {
+			List<ShortcutDisplayEntry> displayEntries = entry.getValue().values().stream().map(variants -> {
+				KeyboardShortcutRegistry.Shortcut first = variants.get(0);
+				return new ShortcutDisplayEntry(first.description(), first.availability(), List.copyOf(variants));
+			}).toList();
+			groupsBox.getChildren().add(createShortcutGroup(entry.getKey(), displayEntries));
+		}
+
+		section.getChildren().addAll(sectionTitle, sectionSubtitle, groupsBox);
+		return section;
+	}
+
+	private VBox createShortcutGroup(String title, List<ShortcutDisplayEntry> entries) {
+		VBox group = new VBox(6);
+		group.getStyleClass().add("settings-shortcuts-group");
+		Label groupTitle = new Label(title);
+		groupTitle.getStyleClass().add("settings-shortcuts-group-title");
+		group.getChildren().add(groupTitle);
+		for (ShortcutDisplayEntry entry : entries) {
+			group.getChildren().add(createShortcutTile(entry));
+		}
+		return group;
+	}
+
+	private Tile createShortcutTile(ShortcutDisplayEntry entry) {
+		Tile tile = new Tile(entry.description(), entry.availability());
+		tile.getStyleClass().add("settings-shortcut-tile");
+		tile.setAction(createShortcutKeysBox(entry.variants()));
+		return tile;
+	}
+
+	private HBox createShortcutKeysBox(List<KeyboardShortcutRegistry.Shortcut> shortcuts) {
+		HBox keysBox = new HBox(6);
+		keysBox.getStyleClass().add("settings-shortcut-keys-box");
+		keysBox.setAlignment(Pos.CENTER_RIGHT);
+
+		List<KeyboardShortcutRegistry.Shortcut> safeShortcuts = shortcuts == null ? List.of() : shortcuts;
+		Map<String, List<String>> uniqueTokenGroups = new LinkedHashMap<>();
+		for (KeyboardShortcutRegistry.Shortcut shortcut : safeShortcuts) {
+			List<String> tokens = KeyboardShortcutRegistry.displayKeyTokens(shortcut);
+			if (tokens == null || tokens.isEmpty()) {
+				continue;
+			}
+			String key = String.join("\u0001", tokens);
+			uniqueTokenGroups.putIfAbsent(key, tokens);
+		}
+
+		List<List<String>> tokenGroups = List.copyOf(uniqueTokenGroups.values());
+		for (int shortcutIndex = 0; shortcutIndex < tokenGroups.size(); shortcutIndex++) {
+			HBox comboBox = new HBox(4);
+			comboBox.getStyleClass().add("settings-shortcut-combo");
+			comboBox.setAlignment(Pos.CENTER_RIGHT);
+
+			List<String> tokens = tokenGroups.get(shortcutIndex);
+			for (int tokenIndex = 0; tokenIndex < tokens.size(); tokenIndex++) {
+				Label tokenLabel = new Label(tokens.get(tokenIndex));
+				tokenLabel.getStyleClass().add("settings-shortcut-key-chip");
+				comboBox.getChildren().add(tokenLabel);
+				if (tokenIndex < tokens.size() - 1) {
+					Label tokenSeparator = new Label("+");
+					tokenSeparator.getStyleClass().add("settings-shortcut-key-separator");
+					comboBox.getChildren().add(tokenSeparator);
+				}
+			}
+			keysBox.getChildren().add(comboBox);
+			if (shortcutIndex < tokenGroups.size() - 1) {
+				Label optionSeparator = new Label("or");
+				optionSeparator.getStyleClass().add("settings-shortcut-option-separator");
+				keysBox.getChildren().add(optionSeparator);
 			}
 		}
-		if (nearestButton != null && !nearestButton.isSelected()) {
-			nearestButton.setSelected(true);
-		}
+		return keysBox;
 	}
 
 	// ===== About Section =====

@@ -119,6 +119,16 @@ public final class ThemeManager {
 		return DEFAULT_UI_SCALE;
 	}
 
+	/** Returns the minimum supported global UI scale. */
+	public static double getMinUiScale() {
+		return MIN_UI_SCALE;
+	}
+
+	/** Returns the maximum supported global UI scale. */
+	public static double getMaxUiScale() {
+		return MAX_UI_SCALE;
+	}
+
 	/**
 	 * Normalized theme payload used by embedded web views (CodeMirror and graph
 	 * viewer).

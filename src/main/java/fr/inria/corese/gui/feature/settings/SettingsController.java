@@ -19,6 +19,7 @@ public final class SettingsController {
 	private final SettingsView view;
 	private final ThemeManager themeManager;
 	private static final double SCALE_EPSILON = 0.0001;
+	private static final double UI_SCALE_STEP = 0.1;
 
 	public SettingsController(SettingsModel model, SettingsView view) {
 		this.model = model;
@@ -33,7 +34,8 @@ public final class SettingsController {
 
 	private void initializeView() {
 		view.getThemeComboBox().getItems().addAll(themeManager.getBaseThemes());
-		view.selectUiScale(themeManager.getUiScale());
+		view.updateUiScaleDisplay(themeManager.getUiScale());
+		updateUiScaleStepperState(themeManager.getUiScale());
 		updateThemeSelection();
 		updateControlsDisabledState();
 	}
@@ -105,7 +107,9 @@ public final class SettingsController {
 		});
 		model.uiScaleProperty().addListener((obs, oldScale, newScale) -> {
 			if (newScale != null) {
-				view.selectUiScale(newScale.doubleValue());
+				double scaleValue = newScale.doubleValue();
+				view.updateUiScaleDisplay(scaleValue);
+				updateUiScaleStepperState(scaleValue);
 			}
 		});
 
@@ -114,7 +118,8 @@ public final class SettingsController {
 
 	private void setupViewListeners() {
 		view.getThemeComboBox().setOnAction(e -> handleThemeChange());
-		view.setOnUiScaleSelection(model::setUiScale);
+		view.setOnUiScaleDecrease(() -> adjustUiScale(-UI_SCALE_STEP));
+		view.setOnUiScaleIncrease(() -> adjustUiScale(+UI_SCALE_STEP));
 
 		view.getLightModeButton().setOnAction(e -> {
 			if (view.getLightModeButton().isSelected())
@@ -188,5 +193,16 @@ public final class SettingsController {
 		if (theme != null) {
 			model.setTheme(theme);
 		}
+	}
+
+	private void adjustUiScale(double delta) {
+		model.setUiScale(model.getUiScale() + delta);
+	}
+
+	private void updateUiScaleStepperState(double scale) {
+		double minScale = ThemeManager.getMinUiScale();
+		double maxScale = ThemeManager.getMaxUiScale();
+		view.setUiScaleDecreaseDisabled(scale <= minScale + SCALE_EPSILON);
+		view.setUiScaleIncreaseDisabled(scale >= maxScale - SCALE_EPSILON);
 	}
 }
