@@ -23,11 +23,7 @@ public enum ViewId {
 	// ====== Defined Application Views ==========================================
 
 	/** View displaying dataset loading and management features. */
-	DATA("data-view", () -> {
-		DataView view = new DataView();
-		new DataViewController(view);
-		return view;
-	}),
+	DATA("data-view", ViewId::createDataView),
 
 	/** View for writing and executing SPARQL queries. */
 	QUERY("query-view", () -> {
@@ -67,6 +63,14 @@ public enum ViewId {
 
 	/** Factory to create an instance of the view. */
 	private final Supplier<AbstractView> factory;
+
+	private static AbstractView createDataView() {
+		DataView view = new DataView();
+		// Lifecycle is owned by the view and closed through the UI disposal path.
+		DataViewController controller = new DataViewController(view);
+		view.setController(controller);
+		return view;
+	}
 
 	// ===========================================================================
 	// Constructor

@@ -25,6 +25,7 @@ public class QueryView extends AbstractView {
 	private static final String COMMON_STYLESHEET_PATH = "/css/common/common.css";
 
 	private final StackPane workspaceCard = new StackPane();
+	private QueryViewController controller;
 
 	public QueryView() {
 		super(new BorderPane(), STYLESHEET_PATH);
@@ -52,6 +53,14 @@ public class QueryView extends AbstractView {
 			region.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		}
 		workspaceCard.getChildren().setAll(node);
+	}
+
+	public void setController(QueryViewController controller) {
+		this.controller = controller;
+	}
+
+	public QueryViewController getController() {
+		return controller;
 	}
 
 	/**

@@ -44,11 +44,12 @@ public final class App extends Application {
 		NavigationBarController navigationBar = new NavigationBarController();
 		ViewManager viewManager = new ViewManager();
 
-		new MainController(mainView, navigationBar, viewManager);
+		MainController mainController = new MainController(mainView, navigationBar, viewManager);
 
 		// === Create scene ===
 		Scene scene = new Scene(new GlobalZoomPane(mainView.getRoot()), AppConstants.DEFAULT_WIDTH,
 				AppConstants.DEFAULT_HEIGHT);
+		mainController.bindScene(scene);
 
 		// === Configure stage ===
 		primaryStage.setTitle(AppConstants.APP_TITLE + " — " + AppConstants.APP_VERSION);

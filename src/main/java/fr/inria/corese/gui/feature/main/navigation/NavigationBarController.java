@@ -26,95 +26,99 @@ import javafx.scene.Parent;
  */
 public final class NavigationBarController {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(NavigationBarController.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(NavigationBarController.class);
 
-  private final NavigationBarView view;
-  private final NavigationBarModel model;
+	private final NavigationBarView view;
+	private final NavigationBarModel model;
 
-  /** Callback invoked when navigation occurs. */
-  private Consumer<ViewId> onNavigate;
+	/** Callback invoked when navigation occurs. */
+	private Consumer<ViewId> onNavigate;
 
-  public NavigationBarController() {
-    this.model = new NavigationBarModel();
-    this.view = new NavigationBarView();
+	public NavigationBarController() {
+		this.model = new NavigationBarModel();
+		this.view = new NavigationBarView();
 
-    initializeBindings();
+		initializeBindings();
 
-    // Bind model collapsed state to ThemeManager preference
-    model.collapsedProperty().bindBidirectional(ThemeManager.getInstance().sidebarCollapsedProperty());
+		// Bind model collapsed state to ThemeManager preference
+		model.collapsedProperty().bindBidirectional(ThemeManager.getInstance().sidebarCollapsedProperty());
 
-    initializeHandlers();
+		initializeHandlers();
 
-    // Ensure default view is highlighted at startup
-    view.setActiveView(model.getActiveView());
-  }
+		// Ensure default view is highlighted at startup
+		view.setActiveView(model.getActiveView());
+	}
 
-  // ===== Initialization =====
+	// ===== Initialization =====
 
-  /** Wires model changes to view updates. */
-  private void initializeBindings() {
-    // When model.collapsed changes → update view
-    model
-        .collapsedProperty()
-        .addListener(
-            (obs, oldVal, newVal) -> {
-              if (newVal.booleanValue() != view.isCollapsed()) {
-                view.setCollapsed(newVal);
-              }
-            });
+	/** Wires model changes to view updates. */
+	private void initializeBindings() {
+		// When model.collapsed changes → update view
+		model.collapsedProperty().addListener((obs, oldVal, newVal) -> {
+			if (newVal.booleanValue() != view.isCollapsed()) {
+				view.setCollapsed(newVal);
+			}
+		});
 
-    // When model.activeView changes → update selected button
-    model.activeViewProperty().addListener((obs, oldVal, newVal) -> view.setActiveView(newVal));
-  }
+		// When model.activeView changes → update selected button
+		model.activeViewProperty().addListener((obs, oldVal, newVal) -> view.setActiveView(newVal));
+	}
 
-  /** Wires view events to model updates and navigation callback. */
-  private void initializeHandlers() {
-    // Navigation clicks in the view → update model + notify external handler
-    view.setNavigationHandler(this::navigate);
+	/** Wires view events to model updates and navigation callback. */
+	private void initializeHandlers() {
+		// Navigation clicks in the view → update model + notify external handler
+		view.setNavigationHandler(this::navigate);
 
-    // Toggle button in the view → update model.collapsed
-    view.setOnToggle(model::setCollapsed);
+		// Toggle button in the view → update model.collapsed
+		view.setOnToggle(model::setCollapsed);
 
-    // Logo click -> open website
-    view.setOnLogoClick(() -> BrowserUtils.openUrl(AppConstants.PROJECT_URL));
-  }
+		// Logo click -> open website
+		view.setOnLogoClick(() -> BrowserUtils.openUrl(AppConstants.PROJECT_URL));
+	}
 
-  // ===== Internal behavior =====
+	// ===== Internal behavior =====
 
-  /** Called when the user clicks a navigation button. */
-  private void navigate(ViewId viewId) {
-    LOGGER.debug("Navigation triggered: {}", viewId);
-    model.setActiveView(viewId);
+	/** Called when the user clicks a navigation button. */
+	private void navigate(ViewId viewId) {
+		LOGGER.debug("Navigation triggered: {}", viewId);
+		model.setActiveView(viewId);
 
-    if (onNavigate != null) {
-      onNavigate.accept(viewId);
-    }
-  }
+		if (onNavigate != null) {
+			onNavigate.accept(viewId);
+		}
+	}
 
-  // ===== Public API =====
+	// ===== Public API =====
 
-  /**
-   * Returns the root node of the navigation bar for embedding in parent layouts.
-   */
-  public Parent getRoot() {
-    return view.getRoot();
-  }
+	/**
+	 * Returns the root node of the navigation bar for embedding in parent layouts.
+	 */
+	public Parent getRoot() {
+		return view.getRoot();
+	}
 
-  /**
-   * Sets the callback to be invoked when navigation occurs.
-   *
-   * @param handler callback accepting the target ViewId
-   */
-  public void setOnNavigate(Consumer<ViewId> handler) {
-    this.onNavigate = Objects.requireNonNull(handler, "handler must not be null");
-  }
+	/**
+	 * Sets the callback to be invoked when navigation occurs.
+	 *
+	 * @param handler
+	 *            callback accepting the target ViewId
+	 */
+	public void setOnNavigate(Consumer<ViewId> handler) {
+		this.onNavigate = Objects.requireNonNull(handler, "handler must not be null");
+	}
 
-  /**
-   * Programmatically selects a view by updating the model.
-   *
-   * @param viewId the view to select
-   */
-  public void selectView(ViewId viewId) {
-    model.setActiveView(viewId);
-  }
+	/**
+	 * Programmatically selects a view by updating the model.
+	 *
+	 * @param viewId
+	 *            the view to select
+	 */
+	public void selectView(ViewId viewId) {
+		model.setActiveView(viewId);
+	}
+
+	/** Toggles the sidebar collapsed state. */
+	public void toggleCollapsed() {
+		model.setCollapsed(!model.isCollapsed());
+	}
 }

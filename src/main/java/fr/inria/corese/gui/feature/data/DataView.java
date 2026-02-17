@@ -17,7 +17,6 @@ import fr.inria.corese.gui.feature.data.support.DataRuleFileRowFactory;
 import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport;
 import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import java.io.File;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -93,6 +92,7 @@ public class DataView extends AbstractView {
 	private final Label sourceCountLabel = new Label();
 	private final Label namedGraphCountLabel = new Label();
 	private final Label inferredTripleCountLabel = new Label();
+	private DataViewController controller;
 	private EmptyStateWidget graphEmptyStateWidget;
 	private EmptyStateWidget ruleFilesEmptyStateWidget;
 	private Consumer<List<File>> onGraphFilesDropped;
@@ -111,6 +111,14 @@ public class DataView extends AbstractView {
 		}, id -> {
 		}, id -> {
 		});
+	}
+
+	public void setController(DataViewController controller) {
+		this.controller = controller;
+	}
+
+	public DataViewController getController() {
+		return controller;
 	}
 
 	private void initializeLayout() {
