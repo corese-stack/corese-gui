@@ -66,7 +66,7 @@
 
 .notification-close-button {
     -fx-font-size: 12px;
-    -fx-font-weight: 700;
+    -fx-font-weight: 600;
     -fx-padding: 0 5px;
     -fx-min-width: 20px;
     -fx-min-height: 20px;

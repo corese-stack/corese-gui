@@ -93,7 +93,6 @@
 .graph-safety-title {
     -fx-text-fill: -color-fg-default;
     -fx-font-size: 14px;
-    -fx-font-weight: 700;
 }
 
 .graph-safety-message {

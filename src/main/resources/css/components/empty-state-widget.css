@@ -15,7 +15,6 @@
 
 .empty-state-title {
     -fx-font-size: 24px;
-    -fx-font-weight: bold;
     -fx-text-alignment: center;
     -fx-text-fill: -color-fg-default;
 }

@@ -31,10 +31,6 @@
     -fx-spacing: 4px;
 }
 
-.app-dialog .dialog-title {
-    -fx-font-weight: 800;
-}
-
 .app-dialog .dialog-subtitle {
     -fx-font-size: 12px;
     -fx-text-fill: -color-fg-muted;
@@ -111,10 +107,6 @@
 
 .app-dialog .dialog-impact.danger .dialog-impact-title {
     -fx-text-fill: -color-danger-emphasis;
-}
-
-.app-dialog .dialog-impact .dialog-impact-title {
-    -fx-font-weight: 700;
 }
 
 .app-dialog .dialog-impact .dialog-impact-list {

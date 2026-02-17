@@ -18,7 +18,6 @@
 
 .system-logs-title {
     -fx-font-size: 16px;
-    -fx-font-weight: 700;
     -fx-text-fill: -color-fg-default;
 }
 
@@ -52,7 +51,6 @@
 
 .system-logs-table .column-header .label {
     -fx-font-size: 12px;
-    -fx-font-weight: 700;
     -fx-text-fill: -color-fg-default;
 }
 
@@ -68,22 +66,22 @@
 
 .system-logs-table .table-cell.system-log-delta-positive {
     -fx-text-fill: #2f9e44;
-    -fx-font-weight: 700;
+    -fx-font-weight: 600;
 }
 
 .system-logs-table .table-cell.system-log-delta-negative {
     -fx-text-fill: #d9480f;
-    -fx-font-weight: 700;
+    -fx-font-weight: 600;
 }
 
 .system-logs-table .table-cell.system-log-delta-mixed {
     -fx-text-fill: -color-accent-emphasis;
-    -fx-font-weight: 700;
+    -fx-font-weight: 600;
 }
 
 .system-logs-table .table-cell.system-log-delta-neutral {
     -fx-text-fill: -color-fg-muted;
-    -fx-font-weight: 700;
+    -fx-font-weight: 600;
 }
 
 .system-logs-empty-state {

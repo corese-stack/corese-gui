@@ -1,0 +1,36 @@
+/* ==========================================================================
+   Corese GUI Typography Foundations
+   --------------------------------------------------------------------------
+   Single place for global typography defaults and cross-feature heading rules.
+   ========================================================================== */
+
+.root {
+    /* Keep platform-native rendering for better readability across OSes. */
+    -fx-font-family: "System";
+}
+
+/* AtlantaFX title hierarchy tuning: avoid overly heavy compact headings. */
+.title-1,
+.title-2 {
+    -fx-font-weight: 700;
+}
+
+.title-3,
+.title-4,
+.title-5 {
+    -fx-font-weight: 600;
+}
+
+/* Shared app headings/titles. */
+.data-pane-title,
+.data-section-title,
+.system-logs-title,
+.system-logs-table .column-header .label,
+.query-template-section-title,
+.settings-shortcuts-group-title,
+.graph-safety-title,
+.empty-state-title,
+.app-dialog .dialog-title,
+.app-dialog .dialog-impact .dialog-impact-title {
+    -fx-font-weight: 600;
+}

@@ -36,7 +36,7 @@
     -fx-pref-height: 32px;
     -fx-padding: 0;
     -fx-font-size: 12px;
-    -fx-font-weight: 700;
+    -fx-font-weight: 600;
     -fx-background-color: transparent;
     -fx-border-color: transparent;
     -fx-background-radius: 0;
@@ -71,7 +71,7 @@
     -fx-border-width: 0;
     -fx-border-insets: 0;
     -fx-font-size: 12px;
-    -fx-font-weight: 700;
+    -fx-font-weight: 600;
     -fx-text-fill: -color-fg-default;
 }
 
@@ -162,18 +162,18 @@
     -fx-background-radius: 6px;
     -fx-border-radius: 6px;
     -fx-font-size: 11px;
-    -fx-font-weight: 700;
+    -fx-font-weight: 600;
 }
 
 .settings-shortcut-key-separator {
     -fx-text-fill: -color-fg-muted;
     -fx-font-size: 11px;
-    -fx-font-weight: 700;
+    -fx-font-weight: 600;
 }
 
 .settings-shortcuts-group-title {
     -fx-font-size: 12px;
-    -fx-font-weight: 700;
+    -fx-font-weight: 600;
     -fx-text-fill: -color-fg-muted;
 }
 

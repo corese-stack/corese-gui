@@ -1,6 +1,7 @@
 package fr.inria.corese.gui;
 
 import fr.inria.corese.gui.core.theme.ThemeManager;
+import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.component.layout.GlobalZoomPane;
 import fr.inria.corese.gui.feature.main.MainController;
 import fr.inria.corese.gui.feature.main.MainView;
@@ -49,6 +50,7 @@ public final class App extends Application {
 		// === Create scene ===
 		Scene scene = new Scene(new GlobalZoomPane(mainView.getRoot()), AppConstants.DEFAULT_WIDTH,
 				AppConstants.DEFAULT_HEIGHT);
+		CssUtils.applySceneStyles(scene, "/css/common/typography.css");
 		mainController.bindScene(scene);
 
 		// === Configure stage ===

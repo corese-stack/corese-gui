@@ -16,7 +16,6 @@
 
 .data-pane-title {
     -fx-font-size: 16px;
-    -fx-font-weight: 700;
     -fx-text-fill: -color-fg-default;
 }
 
@@ -28,7 +27,6 @@
 .data-section-title {
     -fx-padding: 0;
     -fx-font-size: 12px;
-    -fx-font-weight: 700;
     -fx-text-fill: -color-fg-default;
 }
 
@@ -174,7 +172,6 @@
 
 .data-custom-rules-empty-state .empty-state-title {
     -fx-font-size: 16px;
-    -fx-font-weight: 700;
 }
 
 .data-custom-rules-empty-state .empty-state-description {
