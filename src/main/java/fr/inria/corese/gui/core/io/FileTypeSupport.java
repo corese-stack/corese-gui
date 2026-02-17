@@ -256,6 +256,10 @@ public final class FileTypeSupport {
 		extensions.add(".n3");
 		extensions.add(".owl");
 		extensions.add(".xml");
+		// RDFa documents embedded in HTML/XHTML.
+		extensions.add(".html");
+		extensions.add(".xhtml");
+		extensions.add(".htm");
 		return List.copyOf(extensions);
 	}
 

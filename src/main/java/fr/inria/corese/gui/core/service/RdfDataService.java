@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URLConnection;
+import java.util.Locale;
 
 /**
  * Service for loading RDF data into the shared graph.
@@ -55,7 +56,8 @@ public class RdfDataService {
 	private static final int CONNECT_TIMEOUT_MS = 10_000;
 	private static final int READ_TIMEOUT_MS = 30_000;
 	private static final String ACCEPT_HEADER = String.join(", ", "text/turtle", "application/ld+json",
-			"application/rdf+xml", "application/n-triples", "application/trig", "*/*");
+			"application/rdf+xml", "application/n-triples", "application/trig", "text/html", "application/xhtml+xml",
+			"*/*");
 
 	// ==============================================================================================
 	// Constructor
@@ -102,7 +104,7 @@ public class RdfDataService {
 
 		LOGGER.info("Loading RDF file: {}", file.getAbsolutePath());
 
-		fr.inria.corese.core.api.Loader.format format = LoadFormat.getFormat(file.getName());
+		fr.inria.corese.core.api.Loader.format format = resolveLoadFormat(file.getName());
 		if (format == fr.inria.corese.core.api.Loader.format.UNDEF_FORMAT) {
 			LOGGER.warn("Could not detect format from extension for {}, Corese will attempt auto-detection.",
 					file.getName());
@@ -110,7 +112,7 @@ public class RdfDataService {
 
 		try (InputStream stream = new FileInputStream(file)) {
 			Load loader = Load.create(GraphStoreService.getInstance().getGraph());
-			loader.parse(stream, format);
+			parseWithBestFormat(loader, stream, format);
 			LOGGER.info("Successfully loaded {} triples from file.", GraphStoreService.getInstance().size());
 		} catch (IOException | LoadException e) {
 			String errorMsg = String.format("Failed to load RDF file '%s': %s", file.getName(), e.getMessage());
@@ -154,12 +156,8 @@ public class RdfDataService {
 		LOGGER.info("Loading RDF URI: {}", normalizedUri);
 		try (InputStream stream = openUriStream(uri)) {
 			Load loader = Load.create(GraphStoreService.getInstance().getGraph());
-			fr.inria.corese.core.api.Loader.format format = LoadFormat.getFormat(uri.getPath());
-			if (format == fr.inria.corese.core.api.Loader.format.UNDEF_FORMAT) {
-				loader.parse(stream);
-			} else {
-				loader.parse(stream, format);
-			}
+			fr.inria.corese.core.api.Loader.format format = resolveLoadFormat(uri.getPath());
+			parseWithBestFormat(loader, stream, format);
 			LOGGER.info("Successfully loaded {} triples after URI load.", GraphStoreService.getInstance().size());
 		} catch (IOException | LoadException e) {
 			String details = DemoHttpFallbackSupport.isSslHandshakeFailure(e)
@@ -193,6 +191,38 @@ public class RdfDataService {
 		connection.setReadTimeout(READ_TIMEOUT_MS);
 		connection.setRequestProperty("Accept", ACCEPT_HEADER);
 		return connection.getInputStream();
+	}
+
+	private fr.inria.corese.core.api.Loader.format resolveLoadFormat(String sourceNameOrPath) {
+		fr.inria.corese.core.api.Loader.format format = LoadFormat.getFormat(sourceNameOrPath);
+		if (format != fr.inria.corese.core.api.Loader.format.UNDEF_FORMAT) {
+			return format;
+		}
+		String extension = extractExtension(sourceNameOrPath);
+		if (".htm".equals(extension)) {
+			return fr.inria.corese.core.api.Loader.format.RDFA_FORMAT;
+		}
+		return fr.inria.corese.core.api.Loader.format.UNDEF_FORMAT;
+	}
+
+	private void parseWithBestFormat(Load loader, InputStream stream, fr.inria.corese.core.api.Loader.format format)
+			throws LoadException {
+		if (format == fr.inria.corese.core.api.Loader.format.UNDEF_FORMAT) {
+			loader.parse(stream);
+			return;
+		}
+		loader.parse(stream, format);
+	}
+
+	private String extractExtension(String sourceNameOrPath) {
+		if (sourceNameOrPath == null || sourceNameOrPath.isBlank()) {
+			return "";
+		}
+		int dotIndex = sourceNameOrPath.lastIndexOf('.');
+		if (dotIndex < 0 || dotIndex >= sourceNameOrPath.length() - 1) {
+			return "";
+		}
+		return sourceNameOrPath.substring(dotIndex).toLowerCase(Locale.ROOT);
 	}
 
 	/**
