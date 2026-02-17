@@ -430,6 +430,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 
 	private void showSafetyOverlay() {
 		safetyMessageLabel.setText(String.format("%s%n%s", SAFETY_HINT, SAFETY_RISK_HINT));
+		setGraphCanvasVisible(false);
 		safetyOverlay.setManaged(true);
 		safetyOverlay.setVisible(true);
 	}
@@ -437,6 +438,11 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	private void hideSafetyOverlay() {
 		safetyOverlay.setVisible(false);
 		safetyOverlay.setManaged(false);
+		setGraphCanvasVisible(true);
+	}
+
+	private void setGraphCanvasVisible(boolean visible) {
+		webView.setVisible(visible);
 	}
 
 	private void loadGraphPage() {
