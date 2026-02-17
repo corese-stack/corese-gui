@@ -162,7 +162,22 @@ public class DialogLayout extends VBox {
 			HBox actionBox = new HBox();
 			actionBox.getStyleClass().add("dialog-actions");
 			actionBox.getChildren().addAll(actions);
+			markDefaultActionButton(actionBox);
 			getChildren().add(actionBox);
+		}
+	}
+
+	private static void markDefaultActionButton(HBox actionBox) {
+		if (actionBox == null || actionBox.getChildren().isEmpty()) {
+			return;
+		}
+		List<Node> children = actionBox.getChildren();
+		for (int i = children.size() - 1; i >= 0; i--) {
+			Node child = children.get(i);
+			if (child instanceof Button button) {
+				button.setDefaultButton(true);
+				return;
+			}
 		}
 	}
 

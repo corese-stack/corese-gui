@@ -4,8 +4,26 @@ import atlantafx.base.controls.ModalPane;
 import fr.inria.corese.gui.core.dialog.DialogLayout;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.List;
 import javafx.application.Platform;
+import javafx.event.EventHandler;
 import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBase;
+import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ComboBoxBase;
+import javafx.scene.control.ListView;
+import javafx.scene.control.Slider;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextInputControl;
+import javafx.scene.control.TreeTableView;
+import javafx.scene.control.TreeView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import java.util.function.Consumer;
 
 /**
@@ -52,6 +70,8 @@ public class ModalService {
 	// ==============================================================================================
 
 	private static final ModalService INSTANCE = new ModalService();
+	private static final String MODAL_CTRL_ENTER_FILTER_KEY = "corese.modal.ctrlEnterFilter";
+	private static final String MODAL_KEYBOARD_NAV_FILTER_KEY = "corese.modal.keyboardNavFilter";
 	private ModalPane modalPane;
 
 	// ==============================================================================================
@@ -97,7 +117,13 @@ public class ModalService {
 	public void show(Node content) {
 		if (modalPane != null) {
 			modalPane.show(content);
-			content.requestFocus();
+			installCtrlEnterSubmitShortcut(content);
+			installKeyboardNavigationShortcut(content);
+			Platform.runLater(() -> {
+				if (!focusFirstFocusableNode(content)) {
+					content.requestFocus();
+				}
+			});
 		}
 	}
 
@@ -219,5 +245,229 @@ public class ModalService {
 
 			show(DialogLayout.createUnsavedChanges(message, callback));
 		});
+	}
+
+	@SuppressWarnings("unchecked")
+	private void installCtrlEnterSubmitShortcut(Node content) {
+		if (content == null) {
+			return;
+		}
+		Object existingHandler = content.getProperties().get(MODAL_CTRL_ENTER_FILTER_KEY);
+		if (existingHandler instanceof EventHandler<?> handler) {
+			content.removeEventFilter(KeyEvent.KEY_PRESSED, (EventHandler<KeyEvent>) handler);
+		}
+
+		EventHandler<KeyEvent> handler = event -> {
+			if (event == null || event.isConsumed()) {
+				return;
+			}
+			if (!event.isShortcutDown() || event.getCode() != KeyCode.ENTER) {
+				return;
+			}
+			Button submitButton = resolveSubmitButton(content);
+			if (submitButton == null || submitButton.isDisabled() || !submitButton.isVisible()) {
+				return;
+			}
+			submitButton.fire();
+			event.consume();
+		};
+
+		content.addEventFilter(KeyEvent.KEY_PRESSED, handler);
+		content.getProperties().put(MODAL_CTRL_ENTER_FILTER_KEY, handler);
+	}
+
+	@SuppressWarnings("unchecked")
+	private void installKeyboardNavigationShortcut(Node content) {
+		if (content == null) {
+			return;
+		}
+		Object existingHandler = content.getProperties().get(MODAL_KEYBOARD_NAV_FILTER_KEY);
+		if (existingHandler instanceof EventHandler<?> handler) {
+			content.removeEventFilter(KeyEvent.KEY_PRESSED, (EventHandler<KeyEvent>) handler);
+		}
+
+		EventHandler<KeyEvent> handler = event -> {
+			if (event == null || event.isConsumed()) {
+				return;
+			}
+
+			KeyCode code = event.getCode();
+			if (code == null) {
+				return;
+			}
+
+			if (code == KeyCode.LEFT || code == KeyCode.UP || code == KeyCode.RIGHT || code == KeyCode.DOWN) {
+				if (isArrowNavigationHandledByControl(event.getTarget())) {
+					return;
+				}
+				int direction = (code == KeyCode.RIGHT || code == KeyCode.DOWN) ? 1 : -1;
+				if (moveFocus(content, direction)) {
+					event.consume();
+				}
+				return;
+			}
+
+			if (code != KeyCode.ENTER || event.isShortcutDown()) {
+				return;
+			}
+			if (isInsideTextArea(event.getTarget())) {
+				return;
+			}
+			Node focusOwner = resolveFocusOwner(content);
+			if (fireFocusableAction(focusOwner) || fireSubmitButton(content)) {
+				event.consume();
+			}
+		};
+
+		content.addEventFilter(KeyEvent.KEY_PRESSED, handler);
+		content.getProperties().put(MODAL_KEYBOARD_NAV_FILTER_KEY, handler);
+	}
+
+	private boolean fireSubmitButton(Node root) {
+		Button submitButton = resolveSubmitButton(root);
+		if (submitButton == null || submitButton.isDisabled() || !submitButton.isVisible()) {
+			return false;
+		}
+		submitButton.fire();
+		return true;
+	}
+
+	private boolean fireFocusableAction(Node focusOwner) {
+		if (!(focusOwner instanceof ButtonBase buttonBase)) {
+			return false;
+		}
+		if (buttonBase.isDisabled() || !buttonBase.isVisible()) {
+			return false;
+		}
+		buttonBase.fire();
+		return true;
+	}
+
+	private boolean moveFocus(Node root, int direction) {
+		List<Node> focusableNodes = collectFocusableNodes(root);
+		if (focusableNodes.isEmpty()) {
+			return false;
+		}
+
+		Node currentFocusOwner = resolveFocusOwner(root);
+		int currentIndex = focusableNodes.indexOf(currentFocusOwner);
+		if (currentIndex < 0) {
+			Node firstTarget = direction >= 0 ? focusableNodes.get(0) : focusableNodes.get(focusableNodes.size() - 1);
+			firstTarget.requestFocus();
+			return true;
+		}
+
+		int safeDirection = direction >= 0 ? 1 : -1;
+		int nextIndex = Math.floorMod(currentIndex + safeDirection, focusableNodes.size());
+		focusableNodes.get(nextIndex).requestFocus();
+		return true;
+	}
+
+	private boolean focusFirstFocusableNode(Node root) {
+		List<Node> focusableNodes = collectFocusableNodes(root);
+		if (focusableNodes.isEmpty()) {
+			return false;
+		}
+		focusableNodes.get(0).requestFocus();
+		return true;
+	}
+
+	private List<Node> collectFocusableNodes(Node root) {
+		List<Node> focusableNodes = new ArrayList<>();
+		collectFocusableNodesDepthFirst(root, focusableNodes);
+		return focusableNodes;
+	}
+
+	private void collectFocusableNodesDepthFirst(Node node, List<Node> output) {
+		if (node == null || output == null) {
+			return;
+		}
+		if (isFocusableNode(node)) {
+			output.add(node);
+		}
+		if (node instanceof Parent parent) {
+			for (Node child : parent.getChildrenUnmodifiable()) {
+				collectFocusableNodesDepthFirst(child, output);
+			}
+		}
+	}
+
+	private boolean isFocusableNode(Node node) {
+		return node.isVisible() && node.isManaged() && !node.isDisabled() && node.isFocusTraversable();
+	}
+
+	private Node resolveFocusOwner(Node root) {
+		if (root == null || root.getScene() == null) {
+			return null;
+		}
+		Node focusOwner = root.getScene().getFocusOwner();
+		if (focusOwner == null) {
+			return null;
+		}
+		return isDescendantOf(root, focusOwner) ? focusOwner : null;
+	}
+
+	private boolean isDescendantOf(Node ancestor, Node candidate) {
+		if (ancestor == null || candidate == null) {
+			return false;
+		}
+		for (Node current = candidate; current != null; current = current.getParent()) {
+			if (current == ancestor) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean isInsideTextArea(Object target) {
+		return hasControlAncestor(target, TextArea.class);
+	}
+
+	private boolean isArrowNavigationHandledByControl(Object target) {
+		return hasControlAncestor(target, TextInputControl.class) || hasControlAncestor(target, ComboBoxBase.class)
+				|| hasControlAncestor(target, ChoiceBox.class) || hasControlAncestor(target, Spinner.class)
+				|| hasControlAncestor(target, ListView.class) || hasControlAncestor(target, TableView.class)
+				|| hasControlAncestor(target, TreeView.class) || hasControlAncestor(target, TreeTableView.class)
+				|| hasControlAncestor(target, Slider.class);
+	}
+
+	private boolean hasControlAncestor(Object target, Class<?> controlType) {
+		if (controlType == null || !(target instanceof Node node)) {
+			return false;
+		}
+		for (Node current = node; current != null; current = current.getParent()) {
+			if (controlType.isInstance(current)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private Button resolveSubmitButton(Node root) {
+		List<Button> buttons = new ArrayList<>();
+		collectButtonsDepthFirst(root, buttons);
+		if (buttons.isEmpty()) {
+			return null;
+		}
+		for (Button button : buttons) {
+			if (button.isDefaultButton()) {
+				return button;
+			}
+		}
+		return buttons.get(buttons.size() - 1);
+	}
+
+	private void collectButtonsDepthFirst(Node node, List<Button> output) {
+		if (node == null || output == null) {
+			return;
+		}
+		if (node instanceof Button button) {
+			output.add(button);
+		}
+		if (node instanceof Parent parent) {
+			for (Node child : parent.getChildrenUnmodifiable()) {
+				collectButtonsDepthFirst(child, output);
+			}
+		}
 	}
 }
