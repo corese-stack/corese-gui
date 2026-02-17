@@ -24,6 +24,9 @@ This pass focused on release-readiness without behavior change:
   - reduced duplicated tab lock/unlock logic
 - Simplified `TabStripView` constructor by extracting shared overflow-shadow setup
   (same behavior, less duplication for left/right branches).
+- Small pragmatic cleanups (no architecture changes):
+  - `QueryTemplateDialog`: centralized listener binding helper for preview refresh.
+  - `NotificationWidget`: reduced duplicated tone wrappers and toast action/button creation.
 
 ## Hotspots To Tackle In Phase 2
 

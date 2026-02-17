@@ -13,6 +13,7 @@ import java.util.prefs.Preferences;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.binding.Bindings;
+import javafx.beans.value.ObservableValue;
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
@@ -122,18 +123,22 @@ public final class QueryTemplateDialog {
 	}
 
 	private static void bindRefreshListeners(Form form, Runnable refreshPreview) {
-		form.templateTypeCombo.valueProperty().addListener((obs, oldVal, newVal) -> refreshPreview.run());
-		form.useGraphPatternCheck.selectedProperty().addListener((obs, oldVal, newVal) -> refreshPreview.run());
-		form.useDistinctCheck.selectedProperty().addListener((obs, oldVal, newVal) -> refreshPreview.run());
-		form.orderBySubjectCheck.selectedProperty().addListener((obs, oldVal, newVal) -> refreshPreview.run());
-		form.useOptionalPatternCheck.selectedProperty().addListener((obs, oldVal, newVal) -> refreshPreview.run());
-		form.useUnionPatternCheck.selectedProperty().addListener((obs, oldVal, newVal) -> refreshPreview.run());
-		form.applyLimitCheck.selectedProperty().addListener((obs, oldVal, newVal) -> refreshPreview.run());
-		form.limitSpinner.valueProperty().addListener((obs, oldVal, newVal) -> refreshPreview.run());
-		form.limitSpinner.getEditor().textProperty().addListener((obs, oldVal, newVal) -> refreshPreview.run());
-		form.applyOffsetCheck.selectedProperty().addListener((obs, oldVal, newVal) -> refreshPreview.run());
-		form.offsetSpinner.valueProperty().addListener((obs, oldVal, newVal) -> refreshPreview.run());
-		form.offsetSpinner.getEditor().textProperty().addListener((obs, oldVal, newVal) -> refreshPreview.run());
+		bindRefresh(refreshPreview, form.templateTypeCombo.valueProperty());
+		bindRefresh(refreshPreview, form.useGraphPatternCheck.selectedProperty());
+		bindRefresh(refreshPreview, form.useDistinctCheck.selectedProperty());
+		bindRefresh(refreshPreview, form.orderBySubjectCheck.selectedProperty());
+		bindRefresh(refreshPreview, form.useOptionalPatternCheck.selectedProperty());
+		bindRefresh(refreshPreview, form.useUnionPatternCheck.selectedProperty());
+		bindRefresh(refreshPreview, form.applyLimitCheck.selectedProperty());
+		bindRefresh(refreshPreview, form.limitSpinner.valueProperty());
+		bindRefresh(refreshPreview, form.limitSpinner.getEditor().textProperty());
+		bindRefresh(refreshPreview, form.applyOffsetCheck.selectedProperty());
+		bindRefresh(refreshPreview, form.offsetSpinner.valueProperty());
+		bindRefresh(refreshPreview, form.offsetSpinner.getEditor().textProperty());
+	}
+
+	private static void bindRefresh(Runnable refreshPreview, ObservableValue<?> source) {
+		source.addListener((obs, oldVal, newVal) -> refreshPreview.run());
 	}
 
 	private static VBox buildOptionsColumn(Form form) {

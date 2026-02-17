@@ -243,35 +243,35 @@ public final class NotificationWidget {
 	}
 
 	public void showInfo(String message) {
-		show(null, message, Tone.INFO);
+		showMessage(Tone.INFO, message);
 	}
 
 	public void showInfo(String title, String message) {
-		show(title, message, Tone.INFO);
+		showMessage(Tone.INFO, title, message);
 	}
 
 	public void showSuccess(String message) {
-		show(null, message, Tone.SUCCESS);
+		showMessage(Tone.SUCCESS, message);
 	}
 
 	public void showSuccess(String title, String message) {
-		show(title, message, Tone.SUCCESS);
+		showMessage(Tone.SUCCESS, title, message);
 	}
 
 	public void showWarning(String message) {
-		show(null, message, Tone.WARNING);
+		showMessage(Tone.WARNING, message);
 	}
 
 	public void showWarning(String title, String message) {
-		show(title, message, Tone.WARNING);
+		showMessage(Tone.WARNING, title, message);
 	}
 
 	public void showError(String message) {
-		show(null, message, Tone.ERROR);
+		showMessage(Tone.ERROR, message);
 	}
 
 	public void showError(String title, String message) {
-		show(title, message, Tone.ERROR);
+		showMessage(Tone.ERROR, title, message);
 	}
 
 	public void showPersistentError(String message) {
@@ -351,6 +351,14 @@ public final class NotificationWidget {
 			});
 			delayedShow.play();
 		});
+	}
+
+	private void showMessage(Tone tone, String message) {
+		show(null, message, tone);
+	}
+
+	private void showMessage(Tone tone, String title, String message) {
+		show(title, message, tone);
 	}
 
 	private void show(String title, String message, Tone tone) {
@@ -453,7 +461,7 @@ public final class NotificationWidget {
 
 		toast.getChildren().addAll(leadingNode, texts);
 
-		if ((request.action() != null && request.action().callback() != null) || request.dismissible()) {
+		if (hasActions(request)) {
 			Region spacer = new Region();
 			HBox.setHgrow(spacer, Priority.ALWAYS);
 
@@ -463,27 +471,39 @@ public final class NotificationWidget {
 			actions.addEventFilter(MouseEvent.MOUSE_CLICKED, MouseEvent::consume);
 
 			if (request.action() != null && request.action().callback() != null) {
-				Button actionButton = new Button(actionLabel(request.action().label()));
-				actionButton.getStyleClass().addAll(Styles.BUTTON_OUTLINED, STYLE_CLASS_ACTION_BUTTON);
-				actionButton.setFocusTraversable(false);
-				actionButton.addEventFilter(MouseEvent.MOUSE_CLICKED, MouseEvent::consume);
-				actionButton.setOnAction(event -> request.action().callback().run());
-				actions.getChildren().add(actionButton);
+				actions.getChildren().add(createActionButton(request.action()));
 			}
 
 			if (request.dismissible()) {
-				Button closeButton = new Button("\u00D7");
-				closeButton.getStyleClass().addAll(Styles.FLAT, STYLE_CLASS_CLOSE_BUTTON);
-				closeButton.setFocusTraversable(false);
-				closeButton.addEventFilter(MouseEvent.MOUSE_CLICKED, MouseEvent::consume);
-				closeButton.setOnAction(event -> dismissToast(toast, false));
-				actions.getChildren().add(closeButton);
+				actions.getChildren().add(createCloseButton(toast));
 			}
 
 			toast.getChildren().addAll(spacer, actions);
 		}
 
 		return toast;
+	}
+
+	private static boolean hasActions(ToastRequest request) {
+		return (request.action() != null && request.action().callback() != null) || request.dismissible();
+	}
+
+	private Button createActionButton(ToastAction action) {
+		Button actionButton = new Button(actionLabel(action.label()));
+		actionButton.getStyleClass().addAll(Styles.BUTTON_OUTLINED, STYLE_CLASS_ACTION_BUTTON);
+		actionButton.setFocusTraversable(false);
+		actionButton.addEventFilter(MouseEvent.MOUSE_CLICKED, MouseEvent::consume);
+		actionButton.setOnAction(event -> action.callback().run());
+		return actionButton;
+	}
+
+	private Button createCloseButton(HBox toast) {
+		Button closeButton = new Button("\u00D7");
+		closeButton.getStyleClass().addAll(Styles.FLAT, STYLE_CLASS_CLOSE_BUTTON);
+		closeButton.setFocusTraversable(false);
+		closeButton.addEventFilter(MouseEvent.MOUSE_CLICKED, MouseEvent::consume);
+		closeButton.setOnAction(event -> dismissToast(toast, false));
+		return closeButton;
 	}
 
 	private Node createLeadingNode(Tone tone) {
