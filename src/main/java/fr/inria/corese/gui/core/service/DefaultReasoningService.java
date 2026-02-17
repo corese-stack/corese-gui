@@ -352,7 +352,7 @@ public final class DefaultReasoningService implements ReasoningService {
 			Load ruleLoad = Load.create(workingGraph);
 			ruleLoad.setEngine(engine);
 			ruleLoad.setQueryProcess(engine.getQueryProcess());
-			ruleLoad.parse(ruleFile.sourcePath(), Loader.format.RULE_FORMAT);
+			ruleLoad.parse(resolveRuleFileLoadSource(ruleFile.sourcePath()), Loader.format.RULE_FORMAT);
 			engine.processWithoutWorkflow();
 
 			int insertedCount = insertInferredEdges(workingGraph, targetGraph, ruleFile.namedGraphUri());
@@ -360,6 +360,19 @@ public final class DefaultReasoningService implements ReasoningService {
 		} catch (LoadException | EngineException e) {
 			throw new ReasoningException("Failed to apply rule file " + ruleFile.label() + ".", e);
 		}
+	}
+
+	private String resolveRuleFileLoadSource(String sourcePath) {
+		if (sourcePath == null || sourcePath.isBlank()) {
+			return "";
+		}
+		File sourceFile = new File(sourcePath);
+		if (sourceFile.isFile()) {
+			// Corese rule loader expects a URL-compatible source string; file URIs
+			// keep behavior stable for local paths with spaces or non-ASCII chars.
+			return sourceFile.toURI().toString();
+		}
+		return sourcePath;
 	}
 
 	private int insertInferredEdges(Graph sourceGraph, Graph targetGraph, String namedGraphUri) {

@@ -55,6 +55,9 @@ public class RdfDataService {
 	private static final RdfDataService INSTANCE = new RdfDataService();
 	private static final int CONNECT_TIMEOUT_MS = 10_000;
 	private static final int READ_TIMEOUT_MS = 30_000;
+	private static final int READ_LOCK_PARSE_RETRY_MAX_ATTEMPTS = 4;
+	private static final long READ_LOCK_PARSE_RETRY_DELAY_MS = 120L;
+	private static final String READ_LOCK_PARSING_ERROR_TOKEN = "Read lock while parsing";
 	private static final String ACCEPT_HEADER = String.join(", ", "text/turtle", "application/ld+json",
 			"application/rdf+xml", "application/n-triples", "application/trig", "text/html", "application/xhtml+xml",
 			"*/*");
@@ -110,9 +113,8 @@ public class RdfDataService {
 					file.getName());
 		}
 
-		try (InputStream stream = new FileInputStream(file)) {
-			Load loader = Load.create(GraphStoreService.getInstance().getGraph());
-			parseWithBestFormat(loader, stream, format);
+		try {
+			parseWithRetry(file.getAbsolutePath(), format, () -> new FileInputStream(file));
 			LOGGER.info("Successfully loaded {} triples from file.", GraphStoreService.getInstance().size());
 		} catch (IOException | LoadException e) {
 			String errorMsg = String.format("Failed to load RDF file '%s': %s", file.getName(), e.getMessage());
@@ -154,10 +156,9 @@ public class RdfDataService {
 		}
 
 		LOGGER.info("Loading RDF URI: {}", normalizedUri);
-		try (InputStream stream = openUriStream(uri)) {
-			Load loader = Load.create(GraphStoreService.getInstance().getGraph());
-			fr.inria.corese.core.api.Loader.format format = resolveLoadFormat(uri.getPath());
-			parseWithBestFormat(loader, stream, format);
+		fr.inria.corese.core.api.Loader.format format = resolveLoadFormat(uri.getPath());
+		try {
+			parseWithRetry(normalizedUri, format, () -> openUriStream(uri));
 			LOGGER.info("Successfully loaded {} triples after URI load.", GraphStoreService.getInstance().size());
 		} catch (IOException | LoadException e) {
 			String details = DemoHttpFallbackSupport.isSslHandshakeFailure(e)
@@ -205,6 +206,55 @@ public class RdfDataService {
 		return fr.inria.corese.core.api.Loader.format.UNDEF_FORMAT;
 	}
 
+	private void parseWithRetry(String sourceLabel, fr.inria.corese.core.api.Loader.format format,
+			CheckedInputStreamSupplier streamSupplier) throws IOException, LoadException {
+		int attempt = 1;
+		while (true) {
+			try (InputStream stream = streamSupplier.get()) {
+				Load loader = Load.create(GraphStoreService.getInstance().getGraph());
+				parseWithBestFormat(loader, stream, format);
+				return;
+			} catch (LoadException loadException) {
+				if (!shouldRetryReadLockConflict(sourceLabel, attempt, loadException)) {
+					throw loadException;
+				}
+				attempt++;
+			}
+		}
+	}
+
+	private boolean shouldRetryReadLockConflict(String sourceLabel, int attempt, LoadException loadException) {
+		if (!isReadLockParsingConflict(loadException)) {
+			return false;
+		}
+		if (attempt >= READ_LOCK_PARSE_RETRY_MAX_ATTEMPTS) {
+			LOGGER.warn("Read-lock conflict while parsing {} persisted after {} attempts.", sourceLabel, attempt);
+			return false;
+		}
+		long delay = READ_LOCK_PARSE_RETRY_DELAY_MS * attempt;
+		LOGGER.warn("Read-lock conflict while parsing {} (attempt {}/{}). Retrying in {} ms.", sourceLabel, attempt,
+				READ_LOCK_PARSE_RETRY_MAX_ATTEMPTS, delay);
+		try {
+			Thread.sleep(delay);
+			return true;
+		} catch (InterruptedException interruptedException) {
+			Thread.currentThread().interrupt();
+			return false;
+		}
+	}
+
+	private boolean isReadLockParsingConflict(Throwable throwable) {
+		Throwable current = throwable;
+		while (current != null) {
+			String message = current.getMessage();
+			if (message != null && message.contains(READ_LOCK_PARSING_ERROR_TOKEN)) {
+				return true;
+			}
+			current = current.getCause();
+		}
+		return false;
+	}
+
 	private void parseWithBestFormat(Load loader, InputStream stream, fr.inria.corese.core.api.Loader.format format)
 			throws LoadException {
 		if (format == fr.inria.corese.core.api.Loader.format.UNDEF_FORMAT) {
@@ -223,6 +273,11 @@ public class RdfDataService {
 			return "";
 		}
 		return sourceNameOrPath.substring(dotIndex).toLowerCase(Locale.ROOT);
+	}
+
+	@FunctionalInterface
+	private interface CheckedInputStreamSupplier {
+		InputStream get() throws IOException;
 	}
 
 	/**

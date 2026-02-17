@@ -56,4 +56,18 @@ class ReasoningCustomRuleGraphNameTest {
 		assertEquals(firstNamedGraphUri, secondNamedGraphUri,
 				"Named graph URI should remain stable for the same custom rule file path.");
 	}
+
+	@Test
+	void customRuleFile_inUnicodeDirectory_loadsWithoutMalformedUrl() throws IOException {
+		Path unicodeDir = tempDir.resolve("d\u00e9mo");
+		Files.createDirectories(unicodeDir);
+		Path customRule = unicodeDir.resolve("sym-trans.rul");
+		String builtInRuleSource = reasoningService.getBuiltInProfileSource(ReasoningProfile.RDFS).sourceContent();
+		Files.writeString(customRule, builtInRuleSource, StandardCharsets.UTF_8);
+
+		reasoningService.addRuleFile(customRule.toFile());
+
+		assertEquals(1, reasoningService.snapshotRuleFiles().size(),
+				"Rule file should load successfully from a path containing non-ASCII characters.");
+	}
 }

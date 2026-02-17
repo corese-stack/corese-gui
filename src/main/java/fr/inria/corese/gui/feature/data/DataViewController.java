@@ -179,6 +179,9 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void scheduleGraphRefresh() {
+		if (dataOperationInProgress.get()) {
+			return;
+		}
 		if (!refreshScheduled.compareAndSet(false, true)) {
 			return;
 		}
@@ -190,6 +193,9 @@ public class DataViewController implements AutoCloseable {
 			}
 			Platform.runLater(() -> {
 				refreshScheduled.set(false);
+				if (dataOperationInProgress.get()) {
+					return;
+				}
 				refreshGraphSnapshot();
 			});
 		});
