@@ -58,6 +58,7 @@ public final class SettingsView extends AbstractView {
 	@SuppressWarnings("java:S1075")
 	private static final String COMMON_STYLESHEET_PATH = "/css/common/common.css";
 	private static final double SECTION_RADIUS = 8.0;
+	private static final String SHORTCUT_KEY_TOKENS_SEPARATOR = "\u0001";
 
 	private record ShortcutDisplayEntry(String description, String availability,
 			List<KeyboardShortcutRegistry.Shortcut> variants) {
@@ -201,25 +202,11 @@ public final class SettingsView extends AbstractView {
 	}
 
 	public void setOnUiScaleDecrease(Runnable handler) {
-		if (uiScaleDecreaseButton == null) {
-			return;
-		}
-		uiScaleDecreaseButton.setOnAction(event -> {
-			if (handler != null) {
-				handler.run();
-			}
-		});
+		setButtonAction(uiScaleDecreaseButton, handler);
 	}
 
 	public void setOnUiScaleIncrease(Runnable handler) {
-		if (uiScaleIncreaseButton == null) {
-			return;
-		}
-		uiScaleIncreaseButton.setOnAction(event -> {
-			if (handler != null) {
-				handler.run();
-			}
-		});
+		setButtonAction(uiScaleIncreaseButton, handler);
 	}
 
 	public void updateUiScaleDisplay(double scale) {
@@ -256,22 +243,9 @@ public final class SettingsView extends AbstractView {
 		VBox groupsBox = new VBox(10);
 		groupsBox.getStyleClass().add("settings-shortcuts-groups");
 
-		Map<String, Map<String, List<KeyboardShortcutRegistry.Shortcut>>> groupedShortcuts = new LinkedHashMap<>();
-		for (KeyboardShortcutRegistry.Shortcut shortcut : KeyboardShortcutRegistry.shortcuts()) {
-			Map<String, List<KeyboardShortcutRegistry.Shortcut>> categoryGroup = groupedShortcuts
-					.computeIfAbsent(shortcut.category(), ignored -> new LinkedHashMap<>());
-			String actionKey = shortcut.scope() + "|" + shortcut.action() + "|" + shortcut.description() + "|"
-					+ shortcut.availability();
-			categoryGroup.computeIfAbsent(actionKey, ignored -> new ArrayList<>()).add(shortcut);
-		}
-
-		for (Map.Entry<String, Map<String, List<KeyboardShortcutRegistry.Shortcut>>> entry : groupedShortcuts
-				.entrySet()) {
-			List<ShortcutDisplayEntry> displayEntries = entry.getValue().values().stream().map(variants -> {
-				KeyboardShortcutRegistry.Shortcut first = variants.get(0);
-				return new ShortcutDisplayEntry(first.description(), first.availability(), List.copyOf(variants));
-			}).toList();
-			groupsBox.getChildren().add(createShortcutGroup(entry.getKey(), displayEntries));
+		Map<String, List<ShortcutDisplayEntry>> groupedDisplayEntries = buildShortcutDisplayEntriesByCategory();
+		for (Map.Entry<String, List<ShortcutDisplayEntry>> entry : groupedDisplayEntries.entrySet()) {
+			groupsBox.getChildren().add(createShortcutGroup(entry.getKey(), entry.getValue()));
 		}
 
 		section.getChildren().addAll(sectionTitle, sectionSubtitle, groupsBox);
@@ -302,35 +276,9 @@ public final class SettingsView extends AbstractView {
 		keysBox.getStyleClass().add("settings-shortcut-keys-box");
 		keysBox.setAlignment(Pos.CENTER_RIGHT);
 
-		List<KeyboardShortcutRegistry.Shortcut> safeShortcuts = shortcuts == null ? List.of() : shortcuts;
-		Map<String, List<String>> uniqueTokenGroups = new LinkedHashMap<>();
-		for (KeyboardShortcutRegistry.Shortcut shortcut : safeShortcuts) {
-			List<String> tokens = KeyboardShortcutRegistry.displayKeyTokens(shortcut);
-			if (tokens == null || tokens.isEmpty()) {
-				continue;
-			}
-			String key = String.join("\u0001", tokens);
-			uniqueTokenGroups.putIfAbsent(key, tokens);
-		}
-
-		List<List<String>> tokenGroups = List.copyOf(uniqueTokenGroups.values());
+		List<List<String>> tokenGroups = deduplicateShortcutTokenGroups(shortcuts);
 		for (int shortcutIndex = 0; shortcutIndex < tokenGroups.size(); shortcutIndex++) {
-			HBox comboBox = new HBox(4);
-			comboBox.getStyleClass().add("settings-shortcut-combo");
-			comboBox.setAlignment(Pos.CENTER_RIGHT);
-
-			List<String> tokens = tokenGroups.get(shortcutIndex);
-			for (int tokenIndex = 0; tokenIndex < tokens.size(); tokenIndex++) {
-				Label tokenLabel = new Label(tokens.get(tokenIndex));
-				tokenLabel.getStyleClass().add("settings-shortcut-key-chip");
-				comboBox.getChildren().add(tokenLabel);
-				if (tokenIndex < tokens.size() - 1) {
-					Label tokenSeparator = new Label("+");
-					tokenSeparator.getStyleClass().add("settings-shortcut-key-separator");
-					comboBox.getChildren().add(tokenSeparator);
-				}
-			}
-			keysBox.getChildren().add(comboBox);
+			keysBox.getChildren().add(createShortcutTokenGroupBox(tokenGroups.get(shortcutIndex)));
 			if (shortcutIndex < tokenGroups.size() - 1) {
 				Label optionSeparator = new Label("or");
 				optionSeparator.getStyleClass().add("settings-shortcut-option-separator");
@@ -338,6 +286,76 @@ public final class SettingsView extends AbstractView {
 			}
 		}
 		return keysBox;
+	}
+
+	private static void setButtonAction(Button button, Runnable handler) {
+		if (button == null) {
+			return;
+		}
+		button.setOnAction(event -> {
+			if (handler != null) {
+				handler.run();
+			}
+		});
+	}
+
+	private Map<String, List<ShortcutDisplayEntry>> buildShortcutDisplayEntriesByCategory() {
+		Map<String, Map<String, List<KeyboardShortcutRegistry.Shortcut>>> groupedShortcuts = new LinkedHashMap<>();
+		for (KeyboardShortcutRegistry.Shortcut shortcut : KeyboardShortcutRegistry.shortcuts()) {
+			Map<String, List<KeyboardShortcutRegistry.Shortcut>> categoryGroup = groupedShortcuts
+					.computeIfAbsent(shortcut.category(), unusedCategory -> new LinkedHashMap<>());
+			categoryGroup.computeIfAbsent(buildShortcutActionKey(shortcut), unusedAction -> new ArrayList<>())
+					.add(shortcut);
+		}
+
+		Map<String, List<ShortcutDisplayEntry>> displayEntriesByCategory = new LinkedHashMap<>();
+		for (Map.Entry<String, Map<String, List<KeyboardShortcutRegistry.Shortcut>>> entry : groupedShortcuts
+				.entrySet()) {
+			List<ShortcutDisplayEntry> displayEntries = entry.getValue().values().stream().map(variants -> {
+				KeyboardShortcutRegistry.Shortcut first = variants.get(0);
+				return new ShortcutDisplayEntry(first.description(), first.availability(), List.copyOf(variants));
+			}).toList();
+			displayEntriesByCategory.put(entry.getKey(), displayEntries);
+		}
+		return displayEntriesByCategory;
+	}
+
+	private static String buildShortcutActionKey(KeyboardShortcutRegistry.Shortcut shortcut) {
+		return shortcut.scope() + "|" + shortcut.action() + "|" + shortcut.description() + "|"
+				+ shortcut.availability();
+	}
+
+	private static List<List<String>> deduplicateShortcutTokenGroups(
+			List<KeyboardShortcutRegistry.Shortcut> shortcuts) {
+		List<KeyboardShortcutRegistry.Shortcut> safeShortcuts = shortcuts == null ? List.of() : shortcuts;
+		Map<String, List<String>> uniqueTokenGroups = new LinkedHashMap<>();
+		for (KeyboardShortcutRegistry.Shortcut shortcut : safeShortcuts) {
+			List<String> tokens = KeyboardShortcutRegistry.displayKeyTokens(shortcut);
+			if (tokens == null || tokens.isEmpty()) {
+				continue;
+			}
+			String key = String.join(SHORTCUT_KEY_TOKENS_SEPARATOR, tokens);
+			uniqueTokenGroups.putIfAbsent(key, tokens);
+		}
+		return List.copyOf(uniqueTokenGroups.values());
+	}
+
+	private static HBox createShortcutTokenGroupBox(List<String> tokens) {
+		HBox comboBox = new HBox(4);
+		comboBox.getStyleClass().add("settings-shortcut-combo");
+		comboBox.setAlignment(Pos.CENTER_RIGHT);
+
+		for (int tokenIndex = 0; tokenIndex < tokens.size(); tokenIndex++) {
+			Label tokenLabel = new Label(tokens.get(tokenIndex));
+			tokenLabel.getStyleClass().add("settings-shortcut-key-chip");
+			comboBox.getChildren().add(tokenLabel);
+			if (tokenIndex < tokens.size() - 1) {
+				Label tokenSeparator = new Label("+");
+				tokenSeparator.getStyleClass().add("settings-shortcut-key-separator");
+				comboBox.getChildren().add(tokenSeparator);
+			}
+		}
+		return comboBox;
 	}
 
 	// ===== About Section =====

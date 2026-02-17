@@ -32,6 +32,7 @@ This pass focused on release-readiness without behavior change:
   - `DataViewController`: consolidated RDF file selection flow, toolbar state toggles, export pre-checks,
     and async loading wrappers.
   - `GraphDisplayWidget`: centralized FX-thread deferral and worker-state guard helpers.
+  - `SettingsView`: extracted shortcut grouping/token-render helpers and unified UI-scale button handler wiring.
 
 ## Hotspots To Tackle In Phase 2
 
