@@ -251,9 +251,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		if (disposed) {
 			return;
 		}
-		Worker.State currentState = webEngine.getLoadWorker().getState();
-		if (newScene != null && !pageLoaded && blockedJsonLdData == null && currentState != Worker.State.RUNNING
-				&& currentState != Worker.State.SUCCEEDED) {
+		if (newScene != null && !pageLoaded && blockedJsonLdData == null && !isLoadWorkerRunningOrSucceeded()) {
 			Platform.runLater(this::loadGraphPage);
 		}
 	}
@@ -333,8 +331,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	}
 
 	public void setBorderVisible(boolean visible) {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> setBorderVisible(visible));
+		if (!runOnFxThreadOrDefer(() -> setBorderVisible(visible))) {
 			return;
 		}
 		if (visible) {
@@ -356,8 +353,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		if (disposed) {
 			return;
 		}
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> displayGraph(jsonLdData));
+		if (!runOnFxThreadOrDefer(() -> displayGraph(jsonLdData))) {
 			return;
 		}
 
@@ -395,8 +391,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			if (getScene() == null) {
 				return;
 			}
-			if (webEngine.getLoadWorker().getState() != Worker.State.RUNNING
-					&& webEngine.getLoadWorker().getState() != Worker.State.SCHEDULED) {
+			if (!isLoadWorkerRunningOrScheduled()) {
 				loadGraphPage();
 			}
 			return;
@@ -587,8 +582,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	}
 
 	public void clear() {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(this::clear);
+		if (!runOnFxThreadOrDefer(this::clear)) {
 			return;
 		}
 		if (disposed) {
@@ -620,8 +614,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	/** Releases WebView resources and detaches global listeners. */
 	@Override
 	public void close() {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(this::close);
+		if (!runOnFxThreadOrDefer(this::close)) {
 			return;
 		}
 		if (disposed) {
@@ -648,6 +641,24 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			LOGGER.debug("Unable to unload graph web view", e);
 		}
 		pageLoaded = false;
+	}
+
+	private boolean runOnFxThreadOrDefer(Runnable action) {
+		if (Platform.isFxApplicationThread()) {
+			return true;
+		}
+		Platform.runLater(action);
+		return false;
+	}
+
+	private boolean isLoadWorkerRunningOrScheduled() {
+		Worker.State state = webEngine.getLoadWorker().getState();
+		return state == Worker.State.RUNNING || state == Worker.State.SCHEDULED;
+	}
+
+	private boolean isLoadWorkerRunningOrSucceeded() {
+		Worker.State state = webEngine.getLoadWorker().getState();
+		return state == Worker.State.RUNNING || state == Worker.State.SUCCEEDED;
 	}
 
 	private void unregisterListeners() {

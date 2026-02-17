@@ -31,6 +31,7 @@ This pass focused on release-readiness without behavior change:
   - `DataView`: unified drag/drop handlers and overlay activation logic.
   - `DataViewController`: consolidated RDF file selection flow, toolbar state toggles, export pre-checks,
     and async loading wrappers.
+  - `GraphDisplayWidget`: centralized FX-thread deferral and worker-state guard helpers.
 
 ## Hotspots To Tackle In Phase 2
 
