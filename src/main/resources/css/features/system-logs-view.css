@@ -65,6 +65,20 @@
     -fx-background-color: transparent;
 }
 
+.system-logs-table .column-header {
+    -fx-border-color: transparent -color-border-muted transparent transparent;
+    -fx-border-width: 0 1px 0 0;
+}
+
+.system-logs-table .column-header:last-visible {
+    -fx-border-width: 0;
+}
+
+.system-logs-table .filler {
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+}
+
 .system-logs-table .column-header .label {
     -fx-font-size: 12px;
     -fx-text-fill: -color-fg-default;
