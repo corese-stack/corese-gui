@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -401,21 +402,14 @@ public class TabEditorController {
 	}
 
 	public boolean selectNextTab() {
-		List<Tab> tabs = view.getTabs();
-		if (tabs.size() < 2) {
-			return false;
-		}
-		Tab currentTab = view.getSelectedTab();
-		int currentIndex = tabs.indexOf(currentTab);
-		if (currentIndex < 0) {
-			return false;
-		}
-		Tab nextTab = tabs.get((currentIndex + 1) % tabs.size());
-		view.selectTab(nextTab);
-		return true;
+		return selectAdjacentTab(+1);
 	}
 
 	public boolean selectPreviousTab() {
+		return selectAdjacentTab(-1);
+	}
+
+	private boolean selectAdjacentTab(int delta) {
 		List<Tab> tabs = view.getTabs();
 		if (tabs.size() < 2) {
 			return false;
@@ -425,8 +419,8 @@ public class TabEditorController {
 		if (currentIndex < 0) {
 			return false;
 		}
-		Tab previousTab = tabs.get((currentIndex - 1 + tabs.size()) % tabs.size());
-		view.selectTab(previousTab);
+		Tab targetTab = tabs.get((currentIndex + delta + tabs.size()) % tabs.size());
+		view.selectTab(targetTab);
 		return true;
 	}
 
@@ -458,9 +452,7 @@ public class TabEditorController {
 	}
 
 	public boolean exportSelectedContextFromShortcut() {
-		ResultController resultController = getCurrentResultController();
-		if (view.isResultPaneVisibleForSelectedTab() && resultController != null
-				&& resultController.exportSelectedTabFromShortcut()) {
+		if (applyToVisibleResultController(ResultController::exportSelectedTabFromShortcut)) {
 			return true;
 		}
 		CodeEditorController editorController = getSelectedEditorController();
@@ -468,27 +460,23 @@ public class TabEditorController {
 	}
 
 	public boolean exportSelectedGraphFromShortcut() {
-		if (!view.isResultPaneVisibleForSelectedTab()) {
-			return false;
-		}
-		ResultController resultController = getCurrentResultController();
-		return resultController != null && resultController.exportGraphFromShortcut();
+		return applyToVisibleResultController(ResultController::exportGraphFromShortcut);
 	}
 
 	public boolean reenergizeSelectedGraphFromShortcut() {
-		if (!view.isResultPaneVisibleForSelectedTab()) {
-			return false;
-		}
-		ResultController resultController = getCurrentResultController();
-		return resultController != null && resultController.reenergizeGraphFromShortcut();
+		return applyToVisibleResultController(ResultController::reenergizeGraphFromShortcut);
 	}
 
 	public boolean centerSelectedGraphFromShortcut() {
+		return applyToVisibleResultController(ResultController::centerGraphFromShortcut);
+	}
+
+	private boolean applyToVisibleResultController(Function<ResultController, Boolean> action) {
 		if (!view.isResultPaneVisibleForSelectedTab()) {
 			return false;
 		}
 		ResultController resultController = getCurrentResultController();
-		return resultController != null && resultController.centerGraphFromShortcut();
+		return resultController != null && Boolean.TRUE.equals(action.apply(resultController));
 	}
 
 	// ===============================================================================
@@ -766,16 +754,17 @@ public class TabEditorController {
 	}
 
 	private void lockTabUI(Tab tab) {
-		TabContext context = getTabContext(tab);
-		if (context != null) {
-			context.getEditorController().setDisable(true);
-		}
+		setTabEditorDisabled(tab, true);
 	}
 
 	private void unlockTabUI(Tab tab) {
+		setTabEditorDisabled(tab, false);
+	}
+
+	private void setTabEditorDisabled(Tab tab, boolean disabled) {
 		TabContext context = getTabContext(tab);
 		if (context != null) {
-			context.getEditorController().setDisable(false);
+			context.getEditorController().setDisable(disabled);
 		}
 	}
 

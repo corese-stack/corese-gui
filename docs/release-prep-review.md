@@ -14,6 +14,14 @@ This pass focused on release-readiness without behavior change:
 - Reduced complexity in the graph rendering widget by extracting bridge parsing and JavaScript script building logic.
 - Added focused unit tests for extracted helpers to preserve deterministic behavior.
 - Hardened `GraphDisplayWidget#clear()` for non-FX-thread calls.
+- Reduced complexity in `ThemeManager` by extracting:
+  - `ThemeManagedStyleSupport` (managed CSS composition/merging)
+  - `ThemeVisualPalette` (theme-dependent visual tokens)
+- Added unit tests for theme helpers to lock formatting/token behavior.
+- Simplified `TabEditorController` shortcut flows:
+  - central adjacent-tab navigation helper
+  - unified visible-result-controller shortcut dispatch
+  - reduced duplicated tab lock/unlock logic
 
 ## Hotspots To Tackle In Phase 2
 

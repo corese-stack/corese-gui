@@ -50,25 +50,7 @@ public final class ThemeManager {
 	private static final double MIN_UI_SCALE = 0.5;
 	private static final double MAX_UI_SCALE = 2.0;
 	private static final double SCALE_EPSILON = 0.0001;
-	private static final String EDITOR_BG_LIGHT = "#FFFFFF";
-	private static final String EDITOR_BG_CUPERTINO_DARK = "#1E1E1E";
-	private static final String EDITOR_BG_PRIMER_DARK = "#010409";
-	private static final String EDITOR_BG_NORD_DARK = "#242933";
 	private static final String ROOT_MANAGED_STYLE_BLOCK_KEY = "corese.themeManager.managedStyle";
-	private static final Color LOGO_SHADOW_LIGHT = Color.rgb(0, 0, 0, 0.25);
-	private static final Color LOGO_SHADOW_DARK = Color.rgb(255, 255, 255, 0.25);
-	private static final Color TAB_OVERFLOW_SHADOW_LIGHT = Color.rgb(0, 0, 0, 0.16);
-	private static final Color TAB_OVERFLOW_SHADOW_DARK = Color.rgb(255, 255, 255, 0.12);
-	private static final Color SIDEBAR_SEPARATOR_LIGHT = Color.rgb(15, 23, 42, 0.14);
-	private static final Color SIDEBAR_SEPARATOR_DARK = Color.rgb(255, 255, 255, 0.1);
-	private static final Color SIDEBAR_SHADOW_LIGHT = Color.rgb(0, 0, 0, 0.1);
-	private static final Color SIDEBAR_SHADOW_DARK = Color.rgb(0, 0, 0, 0.32);
-	private static final Color SIDEBAR_HOVER_LIGHT = Color.rgb(0, 0, 0, 0.05);
-	private static final Color SIDEBAR_HOVER_DARK = Color.rgb(255, 255, 255, 0.06);
-	private static final Color SIDEBAR_PRESSED_LIGHT = Color.rgb(0, 0, 0, 0.1);
-	private static final Color SIDEBAR_PRESSED_DARK = Color.rgb(255, 255, 255, 0.11);
-	private static final Color NOTIFICATION_SHADOW_LIGHT = Color.rgb(0, 0, 0, 0.2);
-	private static final Color NOTIFICATION_SHADOW_DARK = Color.rgb(255, 255, 255, 0.12);
 
 	// ===== Properties =====
 
@@ -428,25 +410,13 @@ public final class ThemeManager {
 			return;
 
 		Node root = primaryStage.getScene().getRoot();
-		String cssColor = toCssColor(color);
-		Color tabOverflowShadow = getTabOverflowShadowColor();
-
-		String newAccentStyle = String.format(
-				"-color-accent-emphasis: %s; " + "-color-accent-fg: %s; " + "-color-accent-subtle: %s; "
-						+ "-color-accent-muted: %s; " + "-color-logo-shadow: %s; " + "-color-tab-overflow-shadow: %s; "
-						+ "-color-tab-overflow-shadow-transparent: %s; " + "-color-sidebar-separator: %s; "
-						+ "-color-sidebar-shadow: %s; " + "-color-sidebar-hover: %s; " + "-color-sidebar-pressed: %s; "
-						+ "-color-notification-shadow: %s;",
-				cssColor, cssColor, toCssColor(color.deriveColor(0, 0.3, 1.0, 0.3)),
-				toCssColor(color.deriveColor(0, 0.5, 1.0, 0.5)), toCssRgbaColor(getLogoShadowColor()),
-				toCssRgbaColor(tabOverflowShadow), toCssRgbaColor(withOpacity(tabOverflowShadow, 0.0)),
-				toCssRgbaColor(getSidebarSeparatorColor()), toCssRgbaColor(getSidebarShadowColor()),
-				toCssRgbaColor(getSidebarHoverColor()), toCssRgbaColor(getSidebarPressedColor()),
-				toCssRgbaColor(getNotificationShadowColor()));
+		ThemeVisualPalette.Palette palette = ThemeVisualPalette.forDarkMode(isCurrentThemeDark());
+		String newAccentStyle = ThemeManagedStyleSupport.buildManagedAccentStyle(color, DEFAULT_ACCENT_HEX,
+				getDefaultAccentColor(), palette);
 
 		String previousManagedStyle = (String) root.getProperties().get(ROOT_MANAGED_STYLE_BLOCK_KEY);
-		String baseStyle = stripManagedStyle(root.getStyle(), previousManagedStyle);
-		root.setStyle(mergeStyle(baseStyle, newAccentStyle));
+		String baseStyle = ThemeManagedStyleSupport.stripManagedStyle(root.getStyle(), previousManagedStyle);
+		root.setStyle(ThemeManagedStyleSupport.mergeStyle(baseStyle, newAccentStyle));
 		root.getProperties().put(ROOT_MANAGED_STYLE_BLOCK_KEY, newAccentStyle);
 	}
 
@@ -473,75 +443,6 @@ public final class ThemeManager {
 			return DEFAULT_UI_SCALE;
 		}
 		return Math.max(MIN_UI_SCALE, Math.min(MAX_UI_SCALE, scale));
-	}
-
-	/**
-	 * Converts a JavaFX Color to a CSS hex string.
-	 *
-	 * @param color
-	 *            The color to convert.
-	 * @return A string in the format "#RRGGBB".
-	 */
-	private String toCssColor(Color color) {
-		if (color == null) {
-			return DEFAULT_ACCENT_HEX;
-		}
-		return String.format("#%02X%02X%02X", (int) (color.getRed() * 255), (int) (color.getGreen() * 255),
-				(int) (color.getBlue() * 255));
-	}
-
-	/**
-	 * Converts a JavaFX Color to a CSS rgba() string preserving alpha.
-	 *
-	 * @param color
-	 *            The color to convert.
-	 * @return A string in the format "rgba(r, g, b, a)".
-	 */
-	private String toCssRgbaColor(Color color) {
-		if (color == null) {
-			color = getDefaultAccentColor();
-		}
-		int red = (int) Math.round(color.getRed() * 255);
-		int green = (int) Math.round(color.getGreen() * 255);
-		int blue = (int) Math.round(color.getBlue() * 255);
-		return String.format(Locale.ROOT, "rgba(%d, %d, %d, %.3f)", red, green, blue, color.getOpacity());
-	}
-
-	private static Color withOpacity(Color color, double opacity) {
-		if (color == null) {
-			return Color.TRANSPARENT;
-		}
-		double clampedOpacity = Math.max(0.0, Math.min(1.0, opacity));
-		return Color.color(color.getRed(), color.getGreen(), color.getBlue(), clampedOpacity);
-	}
-
-	private static String stripManagedStyle(String currentStyle, String managedStyle) {
-		String style = currentStyle == null ? "" : currentStyle.trim();
-		if (managedStyle == null || managedStyle.isBlank()) {
-			return style;
-		}
-		String cleaned = style.replace(managedStyle, "").trim();
-		while (cleaned.contains(";;")) {
-			cleaned = cleaned.replace(";;", ";");
-		}
-		if (cleaned.startsWith(";")) {
-			cleaned = cleaned.substring(1).trim();
-		}
-		if (cleaned.endsWith(";")) {
-			cleaned = cleaned.substring(0, cleaned.length() - 1).trim();
-		}
-		return cleaned;
-	}
-
-	private static String mergeStyle(String baseStyle, String managedStyle) {
-		if (baseStyle == null || baseStyle.isBlank()) {
-			return managedStyle;
-		}
-		String normalizedBase = baseStyle.trim();
-		if (!normalizedBase.endsWith(";")) {
-			normalizedBase += ";";
-		}
-		return normalizedBase + " " + managedStyle;
 	}
 
 	// ===== Theme Queries =====
@@ -577,7 +478,7 @@ public final class ThemeManager {
 
 	/** Returns the current accent color formatted as #RRGGBB. */
 	public String getCurrentAccentHex() {
-		return toCssColor(getAccentColor());
+		return ThemeManagedStyleSupport.toCssColor(getAccentColor(), DEFAULT_ACCENT_HEX);
 	}
 
 	/**
@@ -588,34 +489,21 @@ public final class ThemeManager {
 	 */
 	public String getEditorBackgroundHex() {
 		AppThemeRegistry appTheme = getCurrentAppTheme();
-		if (appTheme == null || !appTheme.isDark()) {
-			return EDITOR_BG_LIGHT;
-		}
-		return switch (appTheme.getBaseName()) {
-			case "Primer" -> EDITOR_BG_PRIMER_DARK;
-			case "Nord" -> EDITOR_BG_NORD_DARK;
-			default -> EDITOR_BG_CUPERTINO_DARK;
-		};
+		return ThemeVisualPalette.resolveEditorBackgroundHex(appTheme);
 	}
 
 	/**
 	 * Returns the logo drop-shadow color matching the current light/dark context.
 	 */
 	public Color getLogoShadowColor() {
-		if (isCurrentThemeDark()) {
-			return LOGO_SHADOW_DARK;
-		}
-		return LOGO_SHADOW_LIGHT;
+		return ThemeVisualPalette.forDarkMode(isCurrentThemeDark()).logoShadow();
 	}
 
 	/**
 	 * Returns the sidebar separator color matching the current light/dark context.
 	 */
 	public Color getSidebarSeparatorColor() {
-		if (isCurrentThemeDark()) {
-			return SIDEBAR_SEPARATOR_DARK;
-		}
-		return SIDEBAR_SEPARATOR_LIGHT;
+		return ThemeVisualPalette.forDarkMode(isCurrentThemeDark()).sidebarSeparator();
 	}
 
 	/**
@@ -623,10 +511,7 @@ public final class ThemeManager {
 	 * context.
 	 */
 	public Color getSidebarShadowColor() {
-		if (isCurrentThemeDark()) {
-			return SIDEBAR_SHADOW_DARK;
-		}
-		return SIDEBAR_SHADOW_LIGHT;
+		return ThemeVisualPalette.forDarkMode(isCurrentThemeDark()).sidebarShadow();
 	}
 
 	/**
@@ -634,10 +519,7 @@ public final class ThemeManager {
 	 * context.
 	 */
 	public Color getSidebarHoverColor() {
-		if (isCurrentThemeDark()) {
-			return SIDEBAR_HOVER_DARK;
-		}
-		return SIDEBAR_HOVER_LIGHT;
+		return ThemeVisualPalette.forDarkMode(isCurrentThemeDark()).sidebarHover();
 	}
 
 	/**
@@ -645,10 +527,7 @@ public final class ThemeManager {
 	 * context.
 	 */
 	public Color getSidebarPressedColor() {
-		if (isCurrentThemeDark()) {
-			return SIDEBAR_PRESSED_DARK;
-		}
-		return SIDEBAR_PRESSED_LIGHT;
+		return ThemeVisualPalette.forDarkMode(isCurrentThemeDark()).sidebarPressed();
 	}
 
 	/**
@@ -656,17 +535,7 @@ public final class ThemeManager {
 	 * light/dark context.
 	 */
 	public Color getNotificationShadowColor() {
-		if (isCurrentThemeDark()) {
-			return NOTIFICATION_SHADOW_DARK;
-		}
-		return NOTIFICATION_SHADOW_LIGHT;
-	}
-
-	private Color getTabOverflowShadowColor() {
-		if (isCurrentThemeDark()) {
-			return TAB_OVERFLOW_SHADOW_DARK;
-		}
-		return TAB_OVERFLOW_SHADOW_LIGHT;
+		return ThemeVisualPalette.forDarkMode(isCurrentThemeDark()).notificationShadow();
 	}
 
 	/** Returns normalized theme data for Java -> WebView bridge scripts. */
@@ -806,7 +675,8 @@ public final class ThemeManager {
 				}
 
 				if (getAccentColor() != null) {
-					preferences.put(PREF_ACCENT_COLOR, toCssColor(getAccentColor()));
+					preferences.put(PREF_ACCENT_COLOR,
+							ThemeManagedStyleSupport.toCssColor(getAccentColor(), DEFAULT_ACCENT_HEX));
 				}
 			}
 		} catch (Exception e) {
