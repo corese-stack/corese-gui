@@ -22,6 +22,7 @@ import fr.inria.corese.gui.feature.data.dialog.DataReloadSourcesDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataRulePreviewDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataUriLoadDialog;
 import fr.inria.corese.gui.feature.data.support.DataFileSelectionSupport;
+import fr.inria.corese.gui.feature.data.support.DataFileSelectionSupport.InputOrigin;
 import fr.inria.corese.gui.feature.data.support.DataLoadingSupport;
 import fr.inria.corese.gui.feature.data.support.DataLoadingSupport.OperationIssue;
 import fr.inria.corese.gui.feature.data.support.DataUiMessageUtils;
@@ -220,13 +221,14 @@ public class DataViewController implements AutoCloseable {
 		boolean hasTrackedSources = !workspaceService.getTrackedSources().isEmpty();
 
 		view.setToolbarButtonDisabled(ButtonIcon.RELOAD, !hasTrackedSources);
-		view.setToolbarButtonDisabled(ButtonIcon.EXPORT_DATA, !hasData);
-		view.setToolbarButtonDisabled(ButtonIcon.EXPORT, !hasData);
-		view.setToolbarButtonDisabled(ButtonIcon.CLEAR, !hasData);
-		view.setToolbarButtonDisabled(ButtonIcon.LAYOUT_FORCE, !hasData);
-		view.setToolbarButtonDisabled(ButtonIcon.CENTER_VIEW, !hasData);
-		view.setToolbarButtonDisabled(ButtonIcon.ZOOM_IN, !hasData);
-		view.setToolbarButtonDisabled(ButtonIcon.ZOOM_OUT, !hasData);
+		setToolbarButtonsDisabled(!hasData, ButtonIcon.EXPORT_DATA, ButtonIcon.EXPORT, ButtonIcon.CLEAR,
+				ButtonIcon.LAYOUT_FORCE, ButtonIcon.CENTER_VIEW, ButtonIcon.ZOOM_IN, ButtonIcon.ZOOM_OUT);
+	}
+
+	private void setToolbarButtonsDisabled(boolean disabled, ButtonIcon... buttonIcons) {
+		for (ButtonIcon buttonIcon : buttonIcons) {
+			view.setToolbarButtonDisabled(buttonIcon, disabled);
+		}
 	}
 
 	private void handleLoadFile() {
@@ -239,21 +241,17 @@ public class DataViewController implements AutoCloseable {
 		fileChooser.setSelectedExtensionFilter(rdfFilter);
 
 		List<File> files = fileChooser.showOpenMultipleDialog(view.getRoot().getScene().getWindow());
-		DataFileSelectionSupport.FileSelectionEvaluation selection = DataFileSelectionSupport.evaluateStrict(files,
-				RDF_FILE_EXTENSIONS);
-		DataFileSelectionSupport.notifyWarnings(selection, expectedRdfExtensionsHint(),
-				DataFileSelectionSupport.InputOrigin.SELECTED);
-		if (!selection.hasAcceptedFiles()) {
-			return;
-		}
-		executeLoadFiles(selection.acceptedFiles());
+		processRdfFileSelection(files, InputOrigin.SELECTED);
 	}
 
 	private void handleGraphFilesDropped(List<File> droppedFiles) {
-		DataFileSelectionSupport.FileSelectionEvaluation selection = DataFileSelectionSupport
-				.evaluateStrict(droppedFiles, RDF_FILE_EXTENSIONS);
-		DataFileSelectionSupport.notifyWarnings(selection, expectedRdfExtensionsHint(),
-				DataFileSelectionSupport.InputOrigin.DROPPED);
+		processRdfFileSelection(droppedFiles, InputOrigin.DROPPED);
+	}
+
+	private void processRdfFileSelection(List<File> files, InputOrigin inputOrigin) {
+		DataFileSelectionSupport.FileSelectionEvaluation selection = DataFileSelectionSupport.evaluateStrict(files,
+				RDF_FILE_EXTENSIONS);
+		DataFileSelectionSupport.notifyWarnings(selection, expectedRdfExtensionsHint(), inputOrigin);
 		if (!selection.hasAcceptedFiles()) {
 			return;
 		}
@@ -348,12 +346,10 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void handleExportData() {
-		if (!workspaceService.hasData()) {
-			NotificationWidget.getInstance().showWarning("No RDF data to export.");
+		if (!ensureDataAvailable("No RDF data to export.")) {
 			return;
 		}
-		if (view.getRoot().getScene() == null) {
-			NotificationWidget.getInstance().showError("RDF export unavailable: view is not attached to a scene.");
+		if (!ensureViewAttachedToScene("RDF export unavailable: view is not attached to a scene.")) {
 			return;
 		}
 
@@ -370,12 +366,10 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void handleExportVisualGraph() {
-		if (!workspaceService.hasData()) {
-			NotificationWidget.getInstance().showWarning("No graph to export.");
+		if (!ensureDataAvailable("No graph to export.")) {
 			return;
 		}
-		if (view.getRoot().getScene() == null) {
-			NotificationWidget.getInstance().showError("Graph export unavailable: view is not attached to a scene.");
+		if (!ensureViewAttachedToScene("Graph export unavailable: view is not attached to a scene.")) {
 			return;
 		}
 
@@ -386,6 +380,22 @@ public class DataViewController implements AutoCloseable {
 		}
 
 		ExportHelper.exportGraph(view.getRoot().getScene().getWindow(), svgContent);
+	}
+
+	private boolean ensureDataAvailable(String warningMessage) {
+		if (workspaceService.hasData()) {
+			return true;
+		}
+		NotificationWidget.getInstance().showWarning(warningMessage);
+		return false;
+	}
+
+	private boolean ensureViewAttachedToScene(String errorMessage) {
+		if (view.getRoot().getScene() != null) {
+			return true;
+		}
+		NotificationWidget.getInstance().showError(errorMessage);
+		return false;
 	}
 
 	private void handleClearGraph() {
@@ -512,10 +522,24 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void runAsyncDataOperation(String loadingTitle, String loadingMessage, Supplier<Runnable> operation) {
+		runAsyncOperationWithLoading(loadingTitle, loadingMessage, operation, this::finishDataOperation, true);
+	}
+
+	private void runAsyncUiRefreshOperation(String loadingTitle, String loadingMessage, Supplier<Runnable> operation) {
+		runAsyncOperationWithLoading(loadingTitle, loadingMessage, operation, () -> {
+			refreshReasoningUiState();
+			refreshGraphSnapshot();
+		}, false);
+	}
+
+	private void runAsyncOperationWithLoading(String loadingTitle, String loadingMessage, Supplier<Runnable> operation,
+			Runnable onFxCompleted, boolean trackDataOperationState) {
 		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading(loadingTitle,
 				loadingMessage);
 		AppExecutors.execute(() -> {
-			dataOperationInProgress.set(true);
+			if (trackDataOperationState) {
+				dataOperationInProgress.set(true);
+			}
 			Runnable uiFollowUp = null;
 			try {
 				if (operation != null) {
@@ -529,30 +553,9 @@ public class DataViewController implements AutoCloseable {
 					if (finalUiFollowUp != null) {
 						finalUiFollowUp.run();
 					}
-					finishDataOperation();
-				});
-			}
-		});
-	}
-
-	private void runAsyncUiRefreshOperation(String loadingTitle, String loadingMessage, Supplier<Runnable> operation) {
-		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading(loadingTitle,
-				loadingMessage);
-		AppExecutors.execute(() -> {
-			Runnable uiFollowUp = null;
-			try {
-				if (operation != null) {
-					uiFollowUp = operation.get();
-				}
-			} finally {
-				Runnable finalUiFollowUp = uiFollowUp;
-				// Keep loading -> outcome transitions visually stable.
-				loadingHandle.closeThen(() -> {
-					if (finalUiFollowUp != null) {
-						finalUiFollowUp.run();
+					if (onFxCompleted != null) {
+						onFxCompleted.run();
 					}
-					refreshReasoningUiState();
-					refreshGraphSnapshot();
 				});
 			}
 		});

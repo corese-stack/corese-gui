@@ -28,6 +28,9 @@ This pass focused on release-readiness without behavior change:
   - `QueryTemplateDialog`: centralized listener binding helper for preview refresh.
   - `NotificationWidget`: reduced duplicated tone wrappers and toast action/button creation.
   - `TabEditorView`: extracted divider animation helper and unified file-drop guards.
+  - `DataView`: unified drag/drop handlers and overlay activation logic.
+  - `DataViewController`: consolidated RDF file selection flow, toolbar state toggles, export pre-checks,
+    and async loading wrappers.
 
 ## Hotspots To Tackle In Phase 2
 

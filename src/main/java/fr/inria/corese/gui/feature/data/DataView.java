@@ -313,45 +313,19 @@ public class DataView extends AbstractView {
 	}
 
 	private void handleGraphDragOver(DragEvent event) {
-		if (onGraphFilesDropped == null) {
-			return;
-		}
-		if (hasFilesInDragboard(event)) {
-			event.acceptTransferModes(TransferMode.COPY);
-			event.consume();
-		}
+		handleDragOver(event, onGraphFilesDropped);
 	}
 
 	private void handleGraphDropped(DragEvent event) {
-		if (onGraphFilesDropped == null) {
-			return;
-		}
-		boolean completed = false;
-		if (hasFilesInDragboard(event)) {
-			Dragboard dragboard = event.getDragboard();
-			onGraphFilesDropped.accept(List.copyOf(dragboard.getFiles()));
-			completed = true;
-		}
-		setGraphDropActive(false);
-		event.setDropCompleted(completed);
-		event.consume();
+		handleDropped(event, onGraphFilesDropped, this::setGraphDropActive);
 	}
 
 	private void handleGraphDragEntered(DragEvent event) {
-		if (onGraphFilesDropped == null) {
-			return;
-		}
-		if (hasFilesInDragboard(event)) {
-			setGraphDropActive(true);
-			event.consume();
-		}
+		handleDragEntered(event, onGraphFilesDropped, this::setGraphDropActive);
 	}
 
 	private void handleGraphDragExited(DragEvent event) {
-		if (onGraphFilesDropped == null) {
-			return;
-		}
-		setGraphDropActive(false);
+		handleDragExited(onGraphFilesDropped, this::setGraphDropActive);
 	}
 
 	private void setupRuleFilesDropListeners() {
@@ -362,7 +336,28 @@ public class DataView extends AbstractView {
 	}
 
 	private void handleRuleFilesDragOver(DragEvent event) {
-		if (onRuleFilesDropped == null) {
+		handleDragOver(event, onRuleFilesDropped);
+	}
+
+	private void handleRuleFilesDropped(DragEvent event) {
+		handleDropped(event, onRuleFilesDropped, this::setRuleFilesDropActive);
+	}
+
+	private void handleRuleFilesDragEntered(DragEvent event) {
+		handleDragEntered(event, onRuleFilesDropped, this::setRuleFilesDropActive);
+	}
+
+	private void handleRuleFilesDragExited(DragEvent event) {
+		handleDragExited(onRuleFilesDropped, this::setRuleFilesDropActive);
+	}
+
+	private boolean hasFilesInDragboard(DragEvent event) {
+		Dragboard dragboard = event.getDragboard();
+		return dragboard != null && dragboard.hasFiles();
+	}
+
+	private void handleDragOver(DragEvent event, Consumer<List<File>> dropHandler) {
+		if (!isDropEnabled(dropHandler)) {
 			return;
 		}
 		if (hasFilesInDragboard(event)) {
@@ -371,71 +366,65 @@ public class DataView extends AbstractView {
 		}
 	}
 
-	private void handleRuleFilesDropped(DragEvent event) {
-		if (onRuleFilesDropped == null) {
+	private void handleDropped(DragEvent event, Consumer<List<File>> dropHandler,
+			Consumer<Boolean> overlayStateSetter) {
+		if (!isDropEnabled(dropHandler)) {
 			return;
 		}
 		boolean completed = false;
 		if (hasFilesInDragboard(event)) {
 			Dragboard dragboard = event.getDragboard();
-			onRuleFilesDropped.accept(List.copyOf(dragboard.getFiles()));
+			dropHandler.accept(List.copyOf(dragboard.getFiles()));
 			completed = true;
 		}
-		setRuleFilesDropActive(false);
+		overlayStateSetter.accept(false);
 		event.setDropCompleted(completed);
 		event.consume();
 	}
 
-	private void handleRuleFilesDragEntered(DragEvent event) {
-		if (onRuleFilesDropped == null) {
+	private void handleDragEntered(DragEvent event, Consumer<List<File>> dropHandler,
+			Consumer<Boolean> overlayStateSetter) {
+		if (!isDropEnabled(dropHandler)) {
 			return;
 		}
 		if (hasFilesInDragboard(event)) {
-			setRuleFilesDropActive(true);
+			overlayStateSetter.accept(true);
 			event.consume();
 		}
 	}
 
-	private void handleRuleFilesDragExited(DragEvent event) {
-		if (onRuleFilesDropped == null) {
+	private void handleDragExited(Consumer<List<File>> dropHandler, Consumer<Boolean> overlayStateSetter) {
+		if (!isDropEnabled(dropHandler)) {
 			return;
 		}
-		setRuleFilesDropActive(false);
+		overlayStateSetter.accept(false);
 	}
 
-	private boolean hasFilesInDragboard(DragEvent event) {
-		Dragboard dragboard = event.getDragboard();
-		return dragboard != null && dragboard.hasFiles();
+	private static boolean isDropEnabled(Consumer<List<File>> dropHandler) {
+		return dropHandler != null;
 	}
 
 	private void setGraphDropActive(boolean active) {
-		if (active) {
-			if (!graphDropOverlay.getStyleClass().contains(STYLE_CLASS_GRAPH_DROP_OVERLAY_ACTIVE)) {
-				graphDropOverlay.getStyleClass().add(STYLE_CLASS_GRAPH_DROP_OVERLAY_ACTIVE);
-			}
-			graphDropOverlay.setManaged(true);
-			graphDropOverlay.setVisible(true);
-			graphDropOverlay.toFront();
-			return;
-		}
-		graphDropOverlay.getStyleClass().remove(STYLE_CLASS_GRAPH_DROP_OVERLAY_ACTIVE);
-		graphDropOverlay.setManaged(false);
-		graphDropOverlay.setVisible(false);
+		setDropOverlayActive(graphDropOverlay, STYLE_CLASS_GRAPH_DROP_OVERLAY_ACTIVE, active);
 	}
 
 	private void setRuleFilesDropActive(boolean active) {
+		setDropOverlayActive(ruleFilesDropOverlay, STYLE_CLASS_CUSTOM_RULES_DROP_OVERLAY_ACTIVE, active);
+	}
+
+	private static void setDropOverlayActive(Region overlay, String activeStyleClass, boolean active) {
 		if (active) {
-			if (!ruleFilesDropOverlay.getStyleClass().contains(STYLE_CLASS_CUSTOM_RULES_DROP_OVERLAY_ACTIVE)) {
-				ruleFilesDropOverlay.getStyleClass().add(STYLE_CLASS_CUSTOM_RULES_DROP_OVERLAY_ACTIVE);
+			if (!overlay.getStyleClass().contains(activeStyleClass)) {
+				overlay.getStyleClass().add(activeStyleClass);
 			}
-			ruleFilesDropOverlay.setManaged(true);
-			ruleFilesDropOverlay.setVisible(true);
-			ruleFilesDropOverlay.toFront();
+			overlay.setManaged(true);
+			overlay.setVisible(true);
+			overlay.toFront();
 			return;
 		}
-		ruleFilesDropOverlay.getStyleClass().remove(STYLE_CLASS_CUSTOM_RULES_DROP_OVERLAY_ACTIVE);
-		ruleFilesDropOverlay.setManaged(false);
-		ruleFilesDropOverlay.setVisible(false);
+		overlay.getStyleClass().remove(activeStyleClass);
+		overlay.setManaged(false);
+		overlay.setVisible(false);
 	}
 
 	/**
