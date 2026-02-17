@@ -66,11 +66,7 @@
 }
 
 .system-logs-table .column-header {
-    -fx-border-color: transparent -color-border-muted transparent transparent;
-    -fx-border-width: 0 1px 0 0;
-}
-
-.system-logs-table .column-header:last-visible {
+    -fx-border-color: transparent;
     -fx-border-width: 0;
 }
 

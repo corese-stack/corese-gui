@@ -237,7 +237,7 @@ public class RdfDataService {
 		try {
 			Thread.sleep(delay);
 			return true;
-		} catch (InterruptedException interruptedException) {
+		} catch (InterruptedException _) {
 			Thread.currentThread().interrupt();
 			return false;
 		}
