@@ -55,6 +55,21 @@ public class GraphResultController implements AutoCloseable {
 		}
 	}
 
+	public boolean exportGraphFromShortcut() {
+		exportGraph();
+		return true;
+	}
+
+	public boolean reenergizeLayoutFromShortcut() {
+		view.getGraphWidget().resetLayout();
+		return true;
+	}
+
+	public boolean centerGraphFromShortcut() {
+		view.getGraphWidget().centerView();
+		return true;
+	}
+
 	/**
 	 * Displays an RDF graph using the provided JSON-LD data.
 	 *

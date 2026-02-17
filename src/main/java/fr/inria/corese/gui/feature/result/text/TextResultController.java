@@ -105,6 +105,11 @@ public class TextResultController implements AutoCloseable {
 		ExportHelper.exportText(view.getRoot().getScene().getWindow(), view.getContent(), view.getFormat());
 	}
 
+	public boolean exportFromShortcut() {
+		exportContent();
+		return true;
+	}
+
 	// ==============================================================================================
 	// Public API
 	// ==============================================================================================

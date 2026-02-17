@@ -2,6 +2,7 @@ package fr.inria.corese.gui.component.button.factory;
 
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
+import fr.inria.corese.gui.core.shortcut.KeyboardShortcutRegistry;
 
 /**
  * Factory for creating standardized button configurations.
@@ -75,9 +76,36 @@ public final class ButtonFactory {
 		return new ButtonConfig(icon, tooltip, action);
 	}
 
+	/**
+	 * Creates a custom button configuration with a tooltip enriched by a shortcut
+	 * label.
+	 *
+	 * @param icon
+	 *            The icon to display
+	 * @param tooltip
+	 *            The base tooltip text
+	 * @param action
+	 *            The action to execute when clicked, or null if wired later
+	 * @param shortcutAction
+	 *            The shortcut action whose first display label is appended
+	 * @return A configured ButtonConfig with shortcut-aware tooltip
+	 */
+	public static ButtonConfig custom(ButtonIcon icon, String tooltip, Runnable action,
+			KeyboardShortcutRegistry.Action shortcutAction) {
+		return new ButtonConfig(icon, appendShortcutLabel(tooltip, shortcutAction), action);
+	}
+
+	/**
+	 * Creates a custom shortcut-aware button configuration with no action bound
+	 * yet.
+	 */
+	public static ButtonConfig custom(ButtonIcon icon, String tooltip, KeyboardShortcutRegistry.Action shortcutAction) {
+		return custom(icon, tooltip, null, shortcutAction);
+	}
+
 	/** Creates a custom button configuration with no action bound yet. */
 	public static ButtonConfig custom(ButtonIcon icon, String tooltip) {
-		return custom(icon, tooltip, null);
+		return custom(icon, tooltip, (Runnable) null);
 	}
 
 	// ===============================================================================
@@ -92,7 +120,7 @@ public final class ButtonFactory {
 	 * @return A configured ButtonConfig with save icon and tooltip
 	 */
 	public static ButtonConfig save(Runnable action) {
-		return new ButtonConfig(ButtonIcon.SAVE, "Save", action);
+		return shortcutButton(ButtonIcon.SAVE, "Save", action, KeyboardShortcutRegistry.Action.SAVE_EDITOR);
 	}
 
 	/** Creates a Save button configuration with no action bound yet. */
@@ -108,7 +136,8 @@ public final class ButtonFactory {
 	 * @return A configured ButtonConfig with export icon and tooltip
 	 */
 	public static ButtonConfig export(Runnable action) {
-		return new ButtonConfig(ButtonIcon.EXPORT, "Export to File", action);
+		return shortcutButton(ButtonIcon.EXPORT, "Export to File", action,
+				KeyboardShortcutRegistry.Action.EXPORT_CONTEXT);
 	}
 
 	/** Creates an Export button configuration with no action bound yet. */
@@ -124,7 +153,8 @@ public final class ButtonFactory {
 	 * @return A configured ButtonConfig with data-export icon and tooltip
 	 */
 	public static ButtonConfig exportData(Runnable action) {
-		return new ButtonConfig(ButtonIcon.EXPORT_DATA, "Export RDF Data", action);
+		return shortcutButton(ButtonIcon.EXPORT_DATA, "Export RDF Data", action,
+				KeyboardShortcutRegistry.Action.EXPORT_CONTEXT);
 	}
 
 	/** Creates an RDF data export button configuration with no action bound yet. */
@@ -140,7 +170,8 @@ public final class ButtonFactory {
 	 * @return A configured ButtonConfig for visual graph exports
 	 */
 	public static ButtonConfig exportGraph(Runnable action) {
-		return new ButtonConfig(ButtonIcon.EXPORT, "Export Graph (SVG/PNG/PDF)", action);
+		return shortcutButton(ButtonIcon.EXPORT, "Export Graph (SVG/PNG/PDF)", action,
+				KeyboardShortcutRegistry.Action.EXPORT_GRAPH);
 	}
 
 	/**
@@ -172,7 +203,7 @@ public final class ButtonFactory {
 	 * @return A configured ButtonConfig with open file icon and tooltip
 	 */
 	public static ButtonConfig openFile(Runnable action) {
-		return new ButtonConfig(ButtonIcon.OPEN_FILE, "Open File", action);
+		return shortcutButton(ButtonIcon.OPEN_FILE, "Open File", action, KeyboardShortcutRegistry.Action.OPEN_FILE);
 	}
 
 	/** Creates an Open File button configuration with no action bound yet. */
@@ -188,7 +219,8 @@ public final class ButtonFactory {
 	 * @return A configured ButtonConfig with URI icon and tooltip
 	 */
 	public static ButtonConfig openUri(Runnable action) {
-		return new ButtonConfig(ButtonIcon.OPEN_URI, "Load from URI", action);
+		return shortcutButton(ButtonIcon.OPEN_URI, "Load from URI", action,
+				KeyboardShortcutRegistry.Action.DATA_LOAD_URI);
 	}
 
 	/** Creates a "Load from URI" button configuration with no action bound yet. */
@@ -204,7 +236,7 @@ public final class ButtonFactory {
 	 * @return A configured ButtonConfig with new tab icon and tooltip
 	 */
 	public static ButtonConfig newTab(Runnable action) {
-		return new ButtonConfig(ButtonIcon.NEW_TAB, "New Tab", action);
+		return shortcutButton(ButtonIcon.NEW_TAB, "New Tab", action, KeyboardShortcutRegistry.Action.CREATE_TAB);
 	}
 
 	/** Creates a New Tab button configuration with no action bound yet. */
@@ -220,7 +252,8 @@ public final class ButtonFactory {
 	 * @return A configured ButtonConfig with template icon and tooltip
 	 */
 	public static ButtonConfig template(Runnable action) {
-		return new ButtonConfig(ButtonIcon.TEMPLATE, "Query Templates", action);
+		return shortcutButton(ButtonIcon.TEMPLATE, "Query Templates", action,
+				KeyboardShortcutRegistry.Action.OPEN_TEMPLATE);
 	}
 
 	/** Creates a Query Template button configuration with no action bound yet. */
@@ -335,7 +368,8 @@ public final class ButtonFactory {
 	 * @return A configured ButtonConfig with fit-view icon and tooltip
 	 */
 	public static ButtonConfig centerView(Runnable action) {
-		return new ButtonConfig(ButtonIcon.CENTER_VIEW, "Recenter View", action);
+		return shortcutButton(ButtonIcon.CENTER_VIEW, "Recenter View", action,
+				KeyboardShortcutRegistry.Action.GRAPH_CENTER_VIEW);
 	}
 
 	/**
@@ -350,7 +384,8 @@ public final class ButtonFactory {
 	 *         tooltip
 	 */
 	public static ButtonConfig resetLayout(Runnable action) {
-		return new ButtonConfig(ButtonIcon.LAYOUT_FORCE, "Re-energize Layout", action);
+		return shortcutButton(ButtonIcon.LAYOUT_FORCE, "Re-energize Layout", action,
+				KeyboardShortcutRegistry.Action.GRAPH_REENERGIZE_LAYOUT);
 	}
 
 	/**
@@ -361,7 +396,8 @@ public final class ButtonFactory {
 	 * @return A configured ButtonConfig with reload icon and tooltip
 	 */
 	public static ButtonConfig reload(Runnable action) {
-		return new ButtonConfig(ButtonIcon.RELOAD, "Reload Sources", action);
+		return shortcutButton(ButtonIcon.RELOAD, "Reload Sources", action,
+				KeyboardShortcutRegistry.Action.DATA_RELOAD_SOURCES);
 	}
 
 	/** Creates a Reload button configuration with no action bound yet. */
@@ -377,7 +413,8 @@ public final class ButtonFactory {
 	 * @return A configured ButtonConfig with clear icon and tooltip
 	 */
 	public static ButtonConfig clearGraph(Runnable action) {
-		return new ButtonConfig(ButtonIcon.CLEAR, "Clear Graph", action);
+		return shortcutButton(ButtonIcon.CLEAR, "Clear Graph", action,
+				KeyboardShortcutRegistry.Action.DATA_CLEAR_GRAPH);
 	}
 
 	/** Creates a Clear Graph button configuration with no action bound yet. */
@@ -398,6 +435,22 @@ public final class ButtonFactory {
 	 */
 	public static ButtonConfig play(Runnable action) {
 		return new ButtonConfig(ButtonIcon.PLAY, "Run", action);
+	}
+
+	private static ButtonConfig shortcutButton(ButtonIcon icon, String tooltip, Runnable action,
+			KeyboardShortcutRegistry.Action shortcutAction) {
+		return new ButtonConfig(icon, appendShortcutLabel(tooltip, shortcutAction), action);
+	}
+
+	private static String appendShortcutLabel(String tooltip, KeyboardShortcutRegistry.Action shortcutAction) {
+		if (tooltip == null || tooltip.isBlank() || shortcutAction == null) {
+			return tooltip;
+		}
+		String shortcutLabel = KeyboardShortcutRegistry.primaryDisplayLabel(shortcutAction);
+		if (shortcutLabel == null || shortcutLabel.isBlank()) {
+			return tooltip;
+		}
+		return tooltip + " (" + shortcutLabel + ")";
 	}
 
 }

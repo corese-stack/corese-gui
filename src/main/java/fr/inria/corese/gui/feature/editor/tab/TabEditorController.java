@@ -400,6 +400,97 @@ public class TabEditorController {
 		view.selectTab(tab);
 	}
 
+	public boolean selectNextTab() {
+		List<Tab> tabs = view.getTabs();
+		if (tabs.size() < 2) {
+			return false;
+		}
+		Tab currentTab = view.getSelectedTab();
+		int currentIndex = tabs.indexOf(currentTab);
+		if (currentIndex < 0) {
+			return false;
+		}
+		Tab nextTab = tabs.get((currentIndex + 1) % tabs.size());
+		view.selectTab(nextTab);
+		return true;
+	}
+
+	public boolean selectPreviousTab() {
+		List<Tab> tabs = view.getTabs();
+		if (tabs.size() < 2) {
+			return false;
+		}
+		Tab currentTab = view.getSelectedTab();
+		int currentIndex = tabs.indexOf(currentTab);
+		if (currentIndex < 0) {
+			return false;
+		}
+		Tab previousTab = tabs.get((currentIndex - 1 + tabs.size()) % tabs.size());
+		view.selectTab(previousTab);
+		return true;
+	}
+
+	public boolean closeSelectedTab() {
+		Tab selectedTab = view.getSelectedTab();
+		if (selectedTab == null) {
+			return false;
+		}
+		requestCloseTab(selectedTab);
+		return true;
+	}
+
+	public boolean focusSelectedEditor() {
+		TabContext context = getTabContext(view.getSelectedTab());
+		if (context == null) {
+			return false;
+		}
+		context.getEditorController().requestEditorFocus();
+		return true;
+	}
+
+	public boolean saveSelectedEditorFromShortcut() {
+		CodeEditorController editorController = getSelectedEditorController();
+		if (editorController == null) {
+			return false;
+		}
+		editorController.saveFile();
+		return true;
+	}
+
+	public boolean exportSelectedContextFromShortcut() {
+		ResultController resultController = getCurrentResultController();
+		if (view.isResultPaneVisibleForSelectedTab() && resultController != null
+				&& resultController.exportSelectedTabFromShortcut()) {
+			return true;
+		}
+		CodeEditorController editorController = getSelectedEditorController();
+		return editorController != null && editorController.exportFromShortcut();
+	}
+
+	public boolean exportSelectedGraphFromShortcut() {
+		if (!view.isResultPaneVisibleForSelectedTab()) {
+			return false;
+		}
+		ResultController resultController = getCurrentResultController();
+		return resultController != null && resultController.exportGraphFromShortcut();
+	}
+
+	public boolean reenergizeSelectedGraphFromShortcut() {
+		if (!view.isResultPaneVisibleForSelectedTab()) {
+			return false;
+		}
+		ResultController resultController = getCurrentResultController();
+		return resultController != null && resultController.reenergizeGraphFromShortcut();
+	}
+
+	public boolean centerSelectedGraphFromShortcut() {
+		if (!view.isResultPaneVisibleForSelectedTab()) {
+			return false;
+		}
+		ResultController resultController = getCurrentResultController();
+		return resultController != null && resultController.centerGraphFromShortcut();
+	}
+
 	// ===============================================================================
 	// Public API - Controller Access
 	// ===============================================================================
@@ -748,6 +839,12 @@ public class TabEditorController {
 
 	private static TabContext getTabContext(Tab tab) {
 		return tab == null ? null : TabContext.get(tab);
+	}
+
+	private CodeEditorController getSelectedEditorController() {
+		Tab selectedTab = view.getSelectedTab();
+		TabContext context = getTabContext(selectedTab);
+		return context == null ? null : context.getEditorController();
 	}
 
 	// ===============================================================================

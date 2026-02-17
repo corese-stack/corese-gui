@@ -267,6 +267,11 @@ public class TableResultController {
 				formatProvider);
 	}
 
+	public boolean exportFromShortcut() {
+		exportContent();
+		return true;
+	}
+
 	private String buildTsvFromSelection() {
 		TableView<String[]> tableView = view.getTableView();
 		List<TablePosition<String[], ?>> positions = getSelectedCells(tableView);

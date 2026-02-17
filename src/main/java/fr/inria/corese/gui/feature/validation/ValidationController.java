@@ -15,7 +15,9 @@ import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.model.ValidationResult;
+import fr.inria.corese.gui.core.shortcut.KeyboardShortcutRegistry;
 import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
@@ -49,6 +51,20 @@ import javafx.stage.FileChooser;
 public class ValidationController {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ValidationController.class);
+	private static final String DEFAULT_SHACL_TEMPLATE = """
+			@prefix sh: <http://www.w3.org/ns/shacl#> .
+			@prefix ex: <http://example.com/ns#> .
+			@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+			ex:ExampleShape
+			    a sh:NodeShape ;
+			    sh:targetClass ex:Person ;
+			    sh:property [
+			        sh:path ex:name ;
+			        sh:datatype xsd:string ;
+			        sh:minCount 1 ;
+			    ] .
+			""";
 
 	// ==============================================================================================
 	// Fields
@@ -64,6 +80,7 @@ public class ValidationController {
 
 	public ValidationController(ValidationView view) {
 		this.view = view;
+		this.view.setController(this);
 		initialize();
 	}
 
@@ -78,17 +95,19 @@ public class ValidationController {
 
 	private void configureEditor() {
 		// Configure empty state
-		Node emptyState = view.createEmptyState(this::onNewTabButtonClick, this::onOpenFileButtonClick);
+		Node emptyState = view.createEmptyState(this::onNewTabButtonClick, this::onOpenFileButtonClick,
+				this::onTemplateButtonClick);
 
 		// Build configuration
 		TabEditorConfig config = TabEditorConfig.builder()
 				.withEditorButtons(List.of(ButtonFactory.save(), ButtonFactory.export(), ButtonFactory.undo(),
 						ButtonFactory.redo()))
-				.withExecution(ButtonFactory.custom(ButtonIcon.PLAY, view.getRunValidationLabel()),
-						this::executeValidation)
+				.withExecution(ButtonFactory.custom(ButtonIcon.PLAY, view.getRunValidationLabel(),
+						KeyboardShortcutRegistry.Action.EXECUTE_PRIMARY_ACTION), this::executeValidation)
 				.withResultView(view.getResultToolbarButtons(), ResultViewConfig.builder().withTextTab().build())
 				.withEmptyState(emptyState).withAllowedExtensions(FileTypeSupport.rdfExtensions())
-				.withOpenFileAction(this::onOpenFileButtonClick).build();
+				.withOpenFileAction(this::onOpenFileButtonClick).withTemplateAction(this::onTemplateButtonClick)
+				.build();
 
 		// Create controller
 		tabEditorController = new TabEditorController(config);
@@ -303,5 +322,81 @@ public class ValidationController {
 			LOGGER.info("Loading SHACL file: {}", file.getAbsolutePath());
 			tabEditorController.openFile(file);
 		}
+	}
+
+	private void onTemplateButtonClick() {
+		insertTemplateInNewTab(DEFAULT_SHACL_TEMPLATE);
+	}
+
+	public TabEditorController getTabEditorController() {
+		return tabEditorController;
+	}
+
+	public boolean createTabFromShortcut() {
+		tabEditorController.createNewTab();
+		return true;
+	}
+
+	public boolean closeTabFromShortcut() {
+		return tabEditorController.closeSelectedTab();
+	}
+
+	public boolean selectNextTabFromShortcut() {
+		return tabEditorController.selectNextTab();
+	}
+
+	public boolean selectPreviousTabFromShortcut() {
+		return tabEditorController.selectPreviousTab();
+	}
+
+	public boolean executeFromShortcut() {
+		executeValidation();
+		return true;
+	}
+
+	public boolean focusEditorFromShortcut() {
+		return tabEditorController.focusSelectedEditor();
+	}
+
+	public boolean openFileFromShortcut() {
+		onOpenFileButtonClick();
+		return true;
+	}
+
+	public boolean openTemplateFromShortcut() {
+		insertTemplateInNewTab(DEFAULT_SHACL_TEMPLATE);
+		return true;
+	}
+
+	public boolean saveFromShortcut() {
+		return tabEditorController.saveSelectedEditorFromShortcut();
+	}
+
+	public boolean exportFromShortcut() {
+		return tabEditorController.exportSelectedContextFromShortcut();
+	}
+
+	public boolean exportGraphFromShortcut() {
+		return tabEditorController.exportSelectedGraphFromShortcut();
+	}
+
+	public boolean reenergizeGraphFromShortcut() {
+		return tabEditorController.reenergizeSelectedGraphFromShortcut();
+	}
+
+	public boolean centerGraphFromShortcut() {
+		return tabEditorController.centerSelectedGraphFromShortcut();
+	}
+
+	private void insertTemplateInNewTab(String content) {
+		if (content == null || content.isBlank()) {
+			return;
+		}
+		Tab tab = tabEditorController.createNewTab();
+		CodeEditorController editorController = tabEditorController.getEditorControllerForTab(tab);
+		if (editorController == null) {
+			return;
+		}
+		editorController.setContent(content);
 	}
 }

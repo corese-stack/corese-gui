@@ -283,6 +283,42 @@ public class ResultController implements AutoCloseable {
 		}
 	}
 
+	public boolean exportSelectedTabFromShortcut() {
+		ResultViewConfig.TabType selectedTabType = getSelectedTabType();
+		if (selectedTabType == null || !isTabEnabled(selectedTabType)) {
+			return false;
+		}
+		return switch (selectedTabType) {
+			case TEXT -> textController != null && textController.exportFromShortcut();
+			case TABLE -> tableController != null && tableController.exportFromShortcut();
+			case GRAPH -> graphController != null && graphController.exportGraphFromShortcut();
+		};
+	}
+
+	public boolean exportGraphFromShortcut() {
+		if (graphController == null || getSelectedTabType() != ResultViewConfig.TabType.GRAPH
+				|| !isTabEnabled(ResultViewConfig.TabType.GRAPH)) {
+			return false;
+		}
+		return graphController.exportGraphFromShortcut();
+	}
+
+	public boolean reenergizeGraphFromShortcut() {
+		if (graphController == null || getSelectedTabType() != ResultViewConfig.TabType.GRAPH
+				|| !isTabEnabled(ResultViewConfig.TabType.GRAPH)) {
+			return false;
+		}
+		return graphController.reenergizeLayoutFromShortcut();
+	}
+
+	public boolean centerGraphFromShortcut() {
+		if (graphController == null || getSelectedTabType() != ResultViewConfig.TabType.GRAPH
+				|| !isTabEnabled(ResultViewConfig.TabType.GRAPH)) {
+			return false;
+		}
+		return graphController.centerGraphFromShortcut();
+	}
+
 	// ==============================================================================================
 	// Facade API - Table Controller Delegation
 	// ==============================================================================================

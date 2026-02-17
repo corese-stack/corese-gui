@@ -12,6 +12,7 @@ import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.QueryType;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.core.shortcut.KeyboardShortcutRegistry;
 import fr.inria.corese.gui.core.model.QueryResultRef;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.service.ModalService;
@@ -55,6 +56,7 @@ public class QueryViewController {
 
 	public QueryViewController(QueryView view) {
 		this.view = view;
+		this.view.setController(this);
 		initialize();
 	}
 
@@ -66,7 +68,8 @@ public class QueryViewController {
 		// 2. Configure Editor
 		TabEditorConfig config = TabEditorConfig.builder()
 				.withEditorButtons(List.of(ButtonFactory.save(), ButtonFactory.undo(), ButtonFactory.redo()))
-				.withExecution(ButtonFactory.custom(ButtonIcon.PLAY, "Run Query"), this::executeQuery)
+				.withExecution(ButtonFactory.custom(ButtonIcon.PLAY, "Run Query",
+						KeyboardShortcutRegistry.Action.EXECUTE_PRIMARY_ACTION), this::executeQuery)
 				.withResultView(List.of(ButtonFactory.copy(), ButtonFactory.export()),
 						ResultViewConfig.builder().withTextTab().withTableTab().withGraphTab().build())
 				.withEmptyState(emptyState).withAllowedExtensions(FileTypeSupport.queryExtensions())
@@ -343,5 +346,61 @@ public class QueryViewController {
 
 	public TabEditorController getTabEditorController() {
 		return tabEditorController;
+	}
+
+	public boolean createTabFromShortcut() {
+		tabEditorController.createNewTab();
+		return true;
+	}
+
+	public boolean closeTabFromShortcut() {
+		return tabEditorController.closeSelectedTab();
+	}
+
+	public boolean selectNextTabFromShortcut() {
+		return tabEditorController.selectNextTab();
+	}
+
+	public boolean selectPreviousTabFromShortcut() {
+		return tabEditorController.selectPreviousTab();
+	}
+
+	public boolean executeFromShortcut() {
+		executeQuery();
+		return true;
+	}
+
+	public boolean focusEditorFromShortcut() {
+		return tabEditorController.focusSelectedEditor();
+	}
+
+	public boolean openFileFromShortcut() {
+		onOpenFileButtonClick();
+		return true;
+	}
+
+	public boolean openTemplateFromShortcut() {
+		onTemplateButtonClick();
+		return true;
+	}
+
+	public boolean saveFromShortcut() {
+		return tabEditorController.saveSelectedEditorFromShortcut();
+	}
+
+	public boolean exportFromShortcut() {
+		return tabEditorController.exportSelectedContextFromShortcut();
+	}
+
+	public boolean exportGraphFromShortcut() {
+		return tabEditorController.exportSelectedGraphFromShortcut();
+	}
+
+	public boolean reenergizeGraphFromShortcut() {
+		return tabEditorController.reenergizeSelectedGraphFromShortcut();
+	}
+
+	public boolean centerGraphFromShortcut() {
+		return tabEditorController.centerSelectedGraphFromShortcut();
 	}
 }

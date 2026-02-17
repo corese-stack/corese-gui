@@ -578,6 +578,18 @@ public class TabEditorView extends AbstractView {
 		timeline.play();
 	}
 
+	public boolean isResultPaneVisibleForSelectedTab() {
+		Tab selectedTab = getSelectedTab();
+		if (selectedTab == null) {
+			return false;
+		}
+		Node content = getTabContent(selectedTab);
+		if (!(content instanceof SplitPane splitPane)) {
+			return false;
+		}
+		return splitPane.getItems().size() > 1;
+	}
+
 	private void stopResultPaneAnimation(SplitPane splitPane) {
 		Timeline activeAnimation = resultPaneAnimations.remove(splitPane);
 		if (activeAnimation != null) {

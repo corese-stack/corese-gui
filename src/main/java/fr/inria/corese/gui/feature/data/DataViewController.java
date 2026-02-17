@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 public class DataViewController implements AutoCloseable {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DataViewController.class);
+	private static final String MSG_NO_DATA_TO_CLEAR = "No RDF data to clear.";
 
 	private final DataView view;
 	private final DataWorkspaceService workspaceService;
@@ -68,6 +69,7 @@ public class DataViewController implements AutoCloseable {
 
 	public DataViewController(DataView view) {
 		this.view = view;
+		this.view.setController(this);
 		this.workspaceService = DefaultDataWorkspaceService.getInstance();
 		this.reasoningService = DefaultReasoningService.getInstance();
 		this.mutationBus = GraphMutationBus.getInstance();
@@ -387,6 +389,9 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void handleClearGraph() {
+		if (warnIfNoDataToClear()) {
+			return;
+		}
 		DataClearGraphDialog.show(() -> runAsyncDataOperation("Data Clear", "Clearing graph...", () -> {
 			try {
 				int removedTriples = workspaceService.getTripleCount();
@@ -402,6 +407,54 @@ public class DataViewController implements AutoCloseable {
 						"Clear failed: " + e.getMessage(), e);
 			}
 		}));
+	}
+
+	private boolean warnIfNoDataToClear() {
+		if (workspaceService.hasData()) {
+			return false;
+		}
+		NotificationWidget.getInstance().showWarning(MSG_NO_DATA_TO_CLEAR);
+		return true;
+	}
+
+	public boolean loadFilesFromShortcut() {
+		handleLoadFile();
+		return true;
+	}
+
+	public boolean loadUriFromShortcut() {
+		handleLoadUri();
+		return true;
+	}
+
+	public boolean reloadSourcesFromShortcut() {
+		handleReloadSources();
+		return true;
+	}
+
+	public boolean clearGraphFromShortcut() {
+		handleClearGraph();
+		return true;
+	}
+
+	public boolean exportDataFromShortcut() {
+		handleExportData();
+		return true;
+	}
+
+	public boolean exportGraphFromShortcut() {
+		handleExportVisualGraph();
+		return true;
+	}
+
+	public boolean reenergizeGraphFromShortcut() {
+		view.getGraphWidget().resetLayout();
+		return true;
+	}
+
+	public boolean centerGraphFromShortcut() {
+		view.getGraphWidget().centerView();
+		return true;
 	}
 
 	private void finishDataOperation() {

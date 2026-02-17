@@ -1,7 +1,6 @@
 package fr.inria.corese.gui.feature.result.graph;
 
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
-import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphStats;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
@@ -49,7 +48,6 @@ public class GraphResultView extends AbstractView {
 		this.graphWidget = new GraphDisplayWidget();
 		graphWidget.setBorderVisible(false);
 		this.toolbarWidget = new ToolbarWidget();
-		setupToolbar();
 		toolbarWidget.getStyleClass().add("graph-result-toolbar");
 
 		initializeStatusLabels();
@@ -66,13 +64,6 @@ public class GraphResultView extends AbstractView {
 		root.setCenter(graphCard);
 
 		updateGraphStatus(new GraphStats(0, 0, List.of()));
-	}
-
-	private void setupToolbar() {
-		List<ButtonConfig> buttons = List.of(ButtonFactory.resetLayout(graphWidget::resetLayout),
-				ButtonFactory.centerView(graphWidget::centerView), ButtonFactory.zoomIn(graphWidget::zoomIn),
-				ButtonFactory.zoomOut(graphWidget::zoomOut));
-		toolbarWidget.setButtons(buttons);
 	}
 
 	private void initializeStatusLabels() {

@@ -513,6 +513,11 @@ public class CodeEditorController {
 		view.requestEditorFocus();
 	}
 
+	public boolean exportFromShortcut() {
+		exportContent();
+		return true;
+	}
+
 	/** Cleans up resources. */
 	public void dispose() {
 		view.getCodeMirrorView().contentProperty().unbindBidirectional(model.contentProperty());
