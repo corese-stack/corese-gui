@@ -257,17 +257,13 @@ public final class QueryTemplateDialog {
 			row.setManaged(true);
 			row.setVisible(true);
 			row.setOpacity(1);
-			row.setMinHeight(Region.USE_COMPUTED_SIZE);
-			row.setPrefHeight(Region.USE_COMPUTED_SIZE);
-			row.setMaxHeight(Region.USE_COMPUTED_SIZE);
+			setComputedHeightConstraints(row);
 			return;
 		}
 		row.setOpacity(0);
 		row.setManaged(false);
 		row.setVisible(false);
-		row.setMinHeight(0);
-		row.setPrefHeight(0);
-		row.setMaxHeight(0);
+		setCollapsedHeightConstraints(row);
 	}
 
 	private static void animateRowExpand(Region row, String animationKey) {
@@ -277,9 +273,7 @@ public final class QueryTemplateDialog {
 			row.setManaged(true);
 			row.setVisible(true);
 			row.setOpacity(0);
-			row.setMinHeight(0);
-			row.setPrefHeight(0);
-			row.setMaxHeight(0);
+			setCollapsedHeightConstraints(row);
 
 			Timeline timeline = new Timeline(
 					new KeyFrame(Duration.ZERO, new KeyValue(row.opacityProperty(), 0, Interpolator.EASE_BOTH),
@@ -292,9 +286,7 @@ public final class QueryTemplateDialog {
 							new KeyValue(row.maxHeightProperty(), targetHeight, Interpolator.EASE_OUT)));
 			timeline.setOnFinished(event -> {
 				row.setOpacity(1);
-				row.setMinHeight(Region.USE_COMPUTED_SIZE);
-				row.setPrefHeight(Region.USE_COMPUTED_SIZE);
-				row.setMaxHeight(Region.USE_COMPUTED_SIZE);
+				setComputedHeightConstraints(row);
 				row.getProperties().remove(animationKey);
 			});
 			row.getProperties().put(animationKey, timeline);
@@ -306,9 +298,7 @@ public final class QueryTemplateDialog {
 		Platform.runLater(() -> {
 			double startHeight = resolveRowHeight(row);
 			double startOpacity = row.getOpacity() > 0 ? row.getOpacity() : 1;
-			row.setMinHeight(startHeight);
-			row.setPrefHeight(startHeight);
-			row.setMaxHeight(startHeight);
+			setFixedHeightConstraints(row, startHeight);
 
 			Timeline timeline = new Timeline(
 					new KeyFrame(Duration.ZERO,
@@ -387,7 +377,7 @@ public final class QueryTemplateDialog {
 		long parsedValue;
 		try {
 			parsedValue = Long.parseLong(text);
-		} catch (NumberFormatException ignored) {
+		} catch (NumberFormatException _) {
 			return new NumericFieldValidation(readSpinnerValue(spinner, fallback, minValue), true,
 					fieldName + " must be an integer.");
 		}
@@ -428,9 +418,7 @@ public final class QueryTemplateDialog {
 		form.validationLabel.setText(safeMessage);
 		if (form.validationLabel.isManaged() && form.validationLabel.isVisible()) {
 			form.validationLabel.setOpacity(1);
-			form.validationLabel.setMinHeight(Region.USE_COMPUTED_SIZE);
-			form.validationLabel.setPrefHeight(Region.USE_COMPUTED_SIZE);
-			form.validationLabel.setMaxHeight(Region.USE_COMPUTED_SIZE);
+			setComputedHeightConstraints(form.validationLabel);
 			return;
 		}
 		animateValidationMessageExpand(form.validationLabel);
@@ -453,9 +441,7 @@ public final class QueryTemplateDialog {
 		validationLabel.setOpacity(0);
 		validationLabel.setManaged(false);
 		validationLabel.setVisible(false);
-		validationLabel.setMinHeight(0);
-		validationLabel.setPrefHeight(0);
-		validationLabel.setMaxHeight(0);
+		setCollapsedHeightConstraints(validationLabel);
 	}
 
 	private static void animateValidationMessageExpand(Label validationLabel) {
@@ -466,9 +452,7 @@ public final class QueryTemplateDialog {
 			validationLabel.setManaged(true);
 			validationLabel.setVisible(true);
 			validationLabel.setOpacity(0);
-			validationLabel.setMinHeight(0);
-			validationLabel.setPrefHeight(0);
-			validationLabel.setMaxHeight(0);
+			setCollapsedHeightConstraints(validationLabel);
 
 			Timeline timeline = new Timeline(
 					new KeyFrame(Duration.ZERO,
@@ -483,9 +467,7 @@ public final class QueryTemplateDialog {
 							new KeyValue(validationLabel.maxHeightProperty(), targetHeight, Interpolator.EASE_OUT)));
 			timeline.setOnFinished(event -> {
 				validationLabel.setOpacity(1);
-				validationLabel.setMinHeight(Region.USE_COMPUTED_SIZE);
-				validationLabel.setPrefHeight(Region.USE_COMPUTED_SIZE);
-				validationLabel.setMaxHeight(Region.USE_COMPUTED_SIZE);
+				setComputedHeightConstraints(validationLabel);
 				validationLabel.getProperties().remove(VALIDATION_ANIMATION_KEY);
 			});
 			validationLabel.getProperties().put(VALIDATION_ANIMATION_KEY, timeline);
@@ -498,9 +480,7 @@ public final class QueryTemplateDialog {
 		Platform.runLater(() -> {
 			double startHeight = resolveValidationLabelHeight(validationLabel);
 			double startOpacity = validationLabel.getOpacity() > 0 ? validationLabel.getOpacity() : 1;
-			validationLabel.setMinHeight(startHeight);
-			validationLabel.setPrefHeight(startHeight);
-			validationLabel.setMaxHeight(startHeight);
+			setFixedHeightConstraints(validationLabel, startHeight);
 
 			Timeline timeline = new Timeline(
 					new KeyFrame(Duration.ZERO,
@@ -551,6 +531,20 @@ public final class QueryTemplateDialog {
 		return label;
 	}
 
+	private static void setComputedHeightConstraints(Region region) {
+		setFixedHeightConstraints(region, Region.USE_COMPUTED_SIZE);
+	}
+
+	private static void setCollapsedHeightConstraints(Region region) {
+		setFixedHeightConstraints(region, 0);
+	}
+
+	private static void setFixedHeightConstraints(Region region, double value) {
+		region.setMinHeight(value);
+		region.setPrefHeight(value);
+		region.setMaxHeight(value);
+	}
+
 	private static String normalize(String value) {
 		return value == null ? "" : value.trim();
 	}
@@ -560,7 +554,7 @@ public final class QueryTemplateDialog {
 		if (text != null && !text.isBlank()) {
 			try {
 				return clampNumericValue(Integer.parseInt(text.trim()), minValue);
-			} catch (NumberFormatException ignored) {
+			} catch (NumberFormatException _) {
 				// Fallback to spinner value.
 			}
 		}
@@ -602,7 +596,7 @@ public final class QueryTemplateDialog {
 		}
 		try {
 			return parser.apply(stored);
-		} catch (IllegalArgumentException ignored) {
+		} catch (IllegalArgumentException _) {
 			return defaultValue;
 		}
 	}
