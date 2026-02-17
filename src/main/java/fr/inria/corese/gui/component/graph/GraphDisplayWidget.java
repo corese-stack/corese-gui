@@ -5,7 +5,6 @@ import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.theme.ThemeManager;
 import fr.inria.corese.gui.utils.AppExecutors;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -510,45 +509,11 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		}
 
 		String renderRequestId = String.valueOf(requestId);
-		String script = buildGraphInjectionScript(base64Json, renderRequestId);
+		String script = GraphDisplayScripts.buildGraphInjectionScript(base64Json, renderRequestId, GRAPH_ELEMENT_ID);
 
 		if (!executeScriptSafe(script)) {
 			hideLoadingOverlay();
 		}
-	}
-
-	private static String buildGraphInjectionScript(String base64Json, String requestId) {
-		String safeBase64Json = escapeForJsSingleQuoted(base64Json);
-		String safeRequestId = escapeForJsSingleQuoted(requestId);
-		return """
-				(function() {
-				  if (window.renderGraphFromBase64) {
-				    window.renderGraphFromBase64('%s', '%s');
-				    return;
-				  }
-				  try {
-				    var el = document.getElementById('%s');
-				    if (!el) throw new Error('Graph component not found');
-				    var decoded = decodeURIComponent(escape(window.atob('%s')));
-				    el.jsonld = decoded;
-				    if (window.bridge && typeof window.bridge.onGraphRenderComplete === 'function') {
-				      window.bridge.onGraphRenderComplete('%s');
-				    }
-				  } catch (e) {
-				    if (window.bridge && typeof window.bridge.onGraphRenderFailed === 'function') {
-				      window.bridge.onGraphRenderFailed('%s', String(e && e.message ? e.message : e));
-				    }
-				  }
-				})();
-				""".formatted(safeBase64Json, safeRequestId, GRAPH_ELEMENT_ID, safeBase64Json, safeRequestId,
-				safeRequestId);
-	}
-
-	private static String escapeForJsSingleQuoted(String value) {
-		if (value == null || value.isEmpty()) {
-			return "";
-		}
-		return value.replace("\\", "\\\\").replace("'", "\\'");
 	}
 
 	/** Resets the graph layout to its initial state. */
@@ -575,8 +540,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		if (commandScript == null || commandScript.isBlank()) {
 			return;
 		}
-		String script = String.format("var el=document.getElementById('%s'); if(el){ %s }", GRAPH_ELEMENT_ID,
-				commandScript);
+		String script = GraphDisplayScripts.buildGraphCommandScript(GRAPH_ELEMENT_ID, commandScript);
 		executeScriptSafe(script);
 	}
 
@@ -590,8 +554,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		}
 
 		ThemeManager.WebThemeInfo webTheme = themeManager.getWebThemeInfo();
-		String script = String.format("if(window.setTheme) window.setTheme(%b, '%s', '%s');", webTheme.dark(),
-				webTheme.accentHex(), webTheme.themeName());
+		String script = GraphDisplayScripts.buildThemeScript(webTheme);
 
 		executeScriptSafe(script);
 	}
@@ -624,6 +587,13 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	}
 
 	public void clear() {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(this::clear);
+			return;
+		}
+		if (disposed) {
+			return;
+		}
 		renderRequestCounter.incrementAndGet();
 		hideSafetyOverlay();
 		blockedJsonLdData = null;
@@ -701,39 +671,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		}
 		String background = getBackgroundHex();
 		try {
-			String script = """
-					(function() {
-					  var el = document.getElementById('%s');
-					  if (!el) return null;
-					  if (typeof el.exportSvg === 'function') { return el.exportSvg(); }
-					  if (!el.shadowRoot) return null;
-					  var svg = el.shadowRoot.querySelector('svg');
-					  if (!svg) return null;
-					  var clone = svg.cloneNode(true);
-					  try {
-					    var bbox = svg.getBBox();
-					    var padding = 40;
-					    var x = bbox.x - padding;
-					    var y = bbox.y - padding;
-					    var width = bbox.width + 2 * padding;
-					    var height = bbox.height + 2 * padding;
-					    clone.setAttribute('viewBox', x + ' ' + y + ' ' + width + ' ' + height);
-					    clone.setAttribute('width', width);
-					    clone.setAttribute('height', height);
-					    var bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-					    bg.setAttribute('x', x);
-					    bg.setAttribute('y', y);
-					    bg.setAttribute('width', width);
-					    bg.setAttribute('height', height);
-					    bg.setAttribute('fill', '%s');
-					    clone.insertBefore(bg, clone.firstChild);
-					  } catch (e) {
-					    console.warn('Could not adjust SVG bounds:', e);
-					  }
-					  var serializer = new XMLSerializer();
-					  return serializer.serializeToString(clone);
-					})();
-					""".formatted(escapeForJsSingleQuoted(GRAPH_ELEMENT_ID), escapeForJsSingleQuoted(background));
+			String script = GraphDisplayScripts.buildSvgExportScript(GRAPH_ELEMENT_ID, background);
 			Object result = webEngine.executeScript(script);
 			return result != null ? result.toString() : null;
 		} catch (Exception e) {
@@ -795,8 +733,10 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			if (!isCurrentRenderRequest(requestId)) {
 				return;
 			}
-			hasRenderedGraph = true;
-			Platform.runLater(GraphDisplayWidget.this::hideLoadingOverlay);
+			Platform.runLater(() -> {
+				hasRenderedGraph = true;
+				hideLoadingOverlay();
+			});
 		}
 
 		public void onGraphRenderFailed(String requestId, String message) {
@@ -807,27 +747,22 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 				return;
 			}
 			LOGGER.warn("Graph rendering failed: {}", message);
-			hasRenderedGraph = false;
-			Platform.runLater(GraphDisplayWidget.this::hideLoadingOverlay);
+			Platform.runLater(() -> {
+				hasRenderedGraph = false;
+				hideLoadingOverlay();
+			});
 		}
 
 		private boolean isCurrentRenderRequest(String requestId) {
-			if (requestId == null || requestId.isBlank()) {
-				return false;
-			}
-			try {
-				return Long.parseLong(requestId) == renderRequestCounter.get();
-			} catch (NumberFormatException _) {
-				return false;
-			}
+			return GraphBridgeParsing.isCurrentRenderRequest(requestId, renderRequestCounter.get());
 		}
 
 		public void onGraphStatsUpdated(String tripleCountValue, String namedGraphCountValue) {
 			if (disposed) {
 				return;
 			}
-			int tripleCount = parseNonNegativeInt(tripleCountValue);
-			int namedGraphCount = parseNonNegativeInt(namedGraphCountValue);
+			int tripleCount = GraphBridgeParsing.parseNonNegativeInt(tripleCountValue);
+			int namedGraphCount = GraphBridgeParsing.parseNonNegativeInt(namedGraphCountValue);
 			notifyGraphStatsChanged(tripleCount, namedGraphCount);
 		}
 
@@ -836,92 +771,11 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			if (disposed) {
 				return;
 			}
-			int tripleCount = parseNonNegativeInt(tripleCountValue);
-			int namedGraphCount = parseNonNegativeInt(namedGraphCountValue);
-			List<GraphStats.NamedGraphStat> namedGraphStats = parseNamedGraphStats(namedGraphStatsValue);
+			int tripleCount = GraphBridgeParsing.parseNonNegativeInt(tripleCountValue);
+			int namedGraphCount = GraphBridgeParsing.parseNonNegativeInt(namedGraphCountValue);
+			List<GraphStats.NamedGraphStat> namedGraphStats = GraphBridgeParsing
+					.parseNamedGraphStats(namedGraphStatsValue);
 			notifyGraphStatsChanged(tripleCount, namedGraphCount, namedGraphStats);
-		}
-
-		private List<GraphStats.NamedGraphStat> parseNamedGraphStats(Object value) {
-			if (!(value instanceof JSObject statsArray)) {
-				return List.of();
-			}
-			int size = parseArrayLength(statsArray);
-			if (size <= 0) {
-				return List.of();
-			}
-
-			List<GraphStats.NamedGraphStat> stats = new ArrayList<>(size);
-			for (int index = 0; index < size; index++) {
-				try {
-					GraphStats.NamedGraphStat stat = parseNamedGraphStat(statsArray.getSlot(index));
-					if (stat != null && !stat.graphId().isBlank()) {
-						stats.add(stat);
-					}
-				} catch (Exception _) {
-					// Ignore malformed entry and keep the remaining stats.
-				}
-			}
-			return stats;
-		}
-
-		private int parseArrayLength(JSObject arrayObject) {
-			try {
-				return parseNonNegativeInt(arrayObject.getMember("length"));
-			} catch (Exception _) {
-				return 0;
-			}
-		}
-
-		private GraphStats.NamedGraphStat parseNamedGraphStat(Object value) {
-			if (!(value instanceof JSObject statObject)) {
-				return null;
-			}
-			String graphId = parseStringMember(statObject, "id");
-			if (graphId.isBlank()) {
-				return null;
-			}
-			int tripleCount = parseNonNegativeInt(readMember(statObject, "linkCount"));
-			return new GraphStats.NamedGraphStat(graphId, tripleCount);
-		}
-
-		private String parseStringMember(JSObject object, String memberName) {
-			Object value = readMember(object, memberName);
-			return value == null ? "" : String.valueOf(value).trim();
-		}
-
-		private Object readMember(JSObject object, String memberName) {
-			try {
-				return object.getMember(memberName);
-			} catch (Exception _) {
-				return null;
-			}
-		}
-
-		private int parseNonNegativeInt(Object value) {
-			if (value == null) {
-				return 0;
-			}
-			if (value instanceof Number number) {
-				return Math.max(0, number.intValue());
-			}
-			return parseNonNegativeInt(String.valueOf(value));
-		}
-
-		private int parseNonNegativeInt(String value) {
-			if (value == null || value.isBlank()) {
-				return 0;
-			}
-			String normalized = value.trim();
-			try {
-				return Math.max(0, Integer.parseInt(normalized));
-			} catch (NumberFormatException _) {
-				try {
-					return Math.max(0, (int) Math.floor(Double.parseDouble(normalized)));
-				} catch (NumberFormatException _) {
-					return 0;
-				}
-			}
 		}
 	}
 }
