@@ -12,8 +12,10 @@ final class DemoHttpFallbackSupport {
 
 	private static final String HTTPS_SCHEME = "https";
 	private static final String HTTP_SCHEME = "http";
-	private static final String DEMO_HTTP_FALLBACK_HOST = "ns.inria.fr";
-	private static final String DEMO_HTTP_FALLBACK_PATH_PREFIX = "/humans/";
+	private static final String DEMO_HTTP_FALLBACK_HOST = normalizeNonBlank(
+			System.getProperty("corese.demo.httpFallback.host"), "ns.inria.fr");
+	private static final String DEMO_HTTP_FALLBACK_PATH_PREFIX = normalizePathPrefix(
+			System.getProperty("corese.demo.httpFallback.pathPrefix"), "/humans/");
 	private static final Pattern LOAD_URI_PATTERN = Pattern.compile("(?i)(\\bload\\s+(?:silent\\s+)?<)([^>]+)(>)");
 
 	private DemoHttpFallbackSupport() {
@@ -75,7 +77,7 @@ final class DemoHttpFallbackSupport {
 		}
 		try {
 			return URI.create(uriString.trim());
-		} catch (IllegalArgumentException e) {
+		} catch (IllegalArgumentException _) {
 			return null;
 		}
 	}
@@ -87,7 +89,7 @@ final class DemoHttpFallbackSupport {
 		try {
 			return new URI(HTTP_SCHEME, uri.getUserInfo(), uri.getHost(), uri.getPort(), uri.getPath(), uri.getQuery(),
 					uri.getFragment());
-		} catch (Exception e) {
+		} catch (Exception _) {
 			return null;
 		}
 	}
@@ -102,5 +104,20 @@ final class DemoHttpFallbackSupport {
 			return false;
 		}
 		return DEMO_HTTP_FALLBACK_HOST.equalsIgnoreCase(host) && path.startsWith(DEMO_HTTP_FALLBACK_PATH_PREFIX);
+	}
+
+	private static String normalizeNonBlank(String value, String fallback) {
+		if (value == null || value.isBlank()) {
+			return fallback;
+		}
+		return value.trim();
+	}
+
+	private static String normalizePathPrefix(String value, String fallback) {
+		String normalized = normalizeNonBlank(value, fallback);
+		if (!normalized.startsWith("/")) {
+			normalized = "/" + normalized;
+		}
+		return normalized.endsWith("/") ? normalized : normalized + "/";
 	}
 }

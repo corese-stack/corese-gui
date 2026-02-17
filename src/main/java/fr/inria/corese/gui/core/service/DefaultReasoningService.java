@@ -4,11 +4,14 @@ import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.api.Loader;
 import fr.inria.corese.core.kgram.api.core.Edge;
 import fr.inria.corese.core.load.Load;
+import fr.inria.corese.core.load.LoadException;
 import fr.inria.corese.core.logic.Entailment;
 import fr.inria.corese.core.rule.RuleEngine;
 import fr.inria.corese.core.sparql.api.IDatatype;
 import fr.inria.corese.core.sparql.datatype.DatatypeMap;
+import fr.inria.corese.core.sparql.exceptions.EngineException;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
@@ -257,7 +260,7 @@ public final class DefaultReasoningService implements ReasoningService {
 	private void recomputeEnabledProfilesInternal(boolean logActivity) {
 		Graph mainGraph = GraphStoreService.getInstance().getGraph();
 		int tripleCountBefore = Math.max(0, mainGraph.size());
-		try (AutoCloseable _ = GraphMutationCollectorService.getInstance().suspendPublishing()) {
+		try (var _ = GraphMutationCollectorService.getInstance().suspendPublishing()) {
 			Graph assertedSnapshot = createAssertedSnapshot(mainGraph);
 			replaceGraphContent(mainGraph, assertedSnapshot);
 
@@ -284,7 +287,7 @@ public final class DefaultReasoningService implements ReasoningService {
 			}
 
 			mainGraph.clean();
-		} catch (Exception e) {
+		} catch (RuntimeException e) {
 			throw new ReasoningException("Failed to recompute reasoning profiles.", e);
 		}
 		mutationBus.publish(GraphMutationEvent.bulkRefreshRequired(GraphMutationEvent.Source.REASONING));
@@ -311,11 +314,11 @@ public final class DefaultReasoningService implements ReasoningService {
 		}
 
 		Graph mainGraph = GraphStoreService.getInstance().getGraph();
-		try (AutoCloseable _ = GraphMutationCollectorService.getInstance().suspendPublishing()) {
+		try (var _ = GraphMutationCollectorService.getInstance().suspendPublishing()) {
 			Graph assertedSnapshot = createAssertedSnapshot(mainGraph);
 			replaceGraphContent(mainGraph, assertedSnapshot);
 			mainGraph.clean();
-		} catch (Exception e) {
+		} catch (RuntimeException e) {
 			throw new ReasoningException("Failed to reset reasoning profiles.", e);
 		}
 		mutationBus.publish(GraphMutationEvent.bulkRefreshRequired(GraphMutationEvent.Source.REASONING));
@@ -324,33 +327,39 @@ public final class DefaultReasoningService implements ReasoningService {
 				"All built-in profiles and rule files were disabled.", tripleCountBefore, tripleCountAfter);
 	}
 
-	private void applyProfileInference(Graph assertedSnapshot, Graph targetGraph, ReasoningProfile profile)
-			throws Exception {
-		Graph workingGraph = assertedSnapshot.copy();
-		RuleEngine engine = RuleEngine.create(workingGraph);
-		engine.setSpeedUp(true);
-		engine.setProfile(toCoreseProfile(profile));
-		engine.processWithoutWorkflow();
+	private void applyProfileInference(Graph assertedSnapshot, Graph targetGraph, ReasoningProfile profile) {
+		try {
+			Graph workingGraph = assertedSnapshot.copy();
+			RuleEngine engine = RuleEngine.create(workingGraph);
+			engine.setSpeedUp(true);
+			engine.setProfile(toCoreseProfile(profile));
+			engine.processWithoutWorkflow();
 
-		int insertedCount = insertInferredEdges(workingGraph, targetGraph, profile.namedGraphUri());
+			int insertedCount = insertInferredEdges(workingGraph, targetGraph, profile.namedGraphUri());
 
-		LOGGER.debug("Applied reasoning profile {} with {} inferred triple(s).", profile, insertedCount);
+			LOGGER.debug("Applied reasoning profile {} with {} inferred triple(s).", profile, insertedCount);
+		} catch (LoadException | EngineException e) {
+			throw new ReasoningException("Failed to apply reasoning profile " + profile + ".", e);
+		}
 	}
 
-	private void applyRuleFileInference(Graph assertedSnapshot, Graph targetGraph, RuleFileDefinition ruleFile)
-			throws Exception {
-		Graph workingGraph = assertedSnapshot.copy();
-		RuleEngine engine = RuleEngine.create(workingGraph);
-		engine.setSpeedUp(true);
+	private void applyRuleFileInference(Graph assertedSnapshot, Graph targetGraph, RuleFileDefinition ruleFile) {
+		try {
+			Graph workingGraph = assertedSnapshot.copy();
+			RuleEngine engine = RuleEngine.create(workingGraph);
+			engine.setSpeedUp(true);
 
-		Load ruleLoad = Load.create(workingGraph);
-		ruleLoad.setEngine(engine);
-		ruleLoad.setQueryProcess(engine.getQueryProcess());
-		ruleLoad.parse(ruleFile.sourcePath(), Loader.format.RULE_FORMAT);
-		engine.processWithoutWorkflow();
+			Load ruleLoad = Load.create(workingGraph);
+			ruleLoad.setEngine(engine);
+			ruleLoad.setQueryProcess(engine.getQueryProcess());
+			ruleLoad.parse(ruleFile.sourcePath(), Loader.format.RULE_FORMAT);
+			engine.processWithoutWorkflow();
 
-		int insertedCount = insertInferredEdges(workingGraph, targetGraph, ruleFile.namedGraphUri());
-		LOGGER.debug("Applied rule file {} with {} inferred triple(s).", ruleFile.sourcePath(), insertedCount);
+			int insertedCount = insertInferredEdges(workingGraph, targetGraph, ruleFile.namedGraphUri());
+			LOGGER.debug("Applied rule file {} with {} inferred triple(s).", ruleFile.sourcePath(), insertedCount);
+		} catch (LoadException | EngineException e) {
+			throw new ReasoningException("Failed to apply rule file " + ruleFile.label() + ".", e);
+		}
 	}
 
 	private int insertInferredEdges(Graph sourceGraph, Graph targetGraph, String namedGraphUri) {
@@ -478,7 +487,7 @@ public final class DefaultReasoningService implements ReasoningService {
 				throw new IllegalStateException("Built-in rule resource not found: " + sourcePath);
 			}
 			return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-		} catch (Exception e) {
+		} catch (IOException e) {
 			throw new ReasoningException("Failed to read built-in rule resource: " + sourcePath, e);
 		}
 	}
@@ -505,7 +514,7 @@ public final class DefaultReasoningService implements ReasoningService {
 			normalized = normalized.substring(0, normalized.length() - 4);
 		}
 		normalized = normalized.replaceAll("[^a-z0-9]+", "-");
-		normalized = normalized.replaceAll("^-+|-+$", "");
+		normalized = normalized.replaceAll("(^-+)|(-+$)", "");
 		return normalized.isBlank() ? "rule-file" : normalized;
 	}
 

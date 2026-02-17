@@ -2,11 +2,13 @@ package fr.inria.corese.gui.core.service;
 
 import fr.inria.corese.core.load.Load;
 import fr.inria.corese.core.load.LoadFormat;
+import fr.inria.corese.core.load.LoadException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URLConnection;
@@ -110,8 +112,7 @@ public class RdfDataService {
 			Load loader = Load.create(GraphStoreService.getInstance().getGraph());
 			loader.parse(stream, format);
 			LOGGER.info("Successfully loaded {} triples from file.", GraphStoreService.getInstance().size());
-		} catch (Throwable e) { // Corese parser may throw Error for malformed TTL
-			rethrowIfFatal(e);
+		} catch (IOException | LoadException e) {
 			String errorMsg = String.format("Failed to load RDF file '%s': %s", file.getName(), e.getMessage());
 			LOGGER.error(errorMsg, e);
 			throw new RdfLoadException(errorMsg, e);
@@ -160,8 +161,7 @@ public class RdfDataService {
 				loader.parse(stream, format);
 			}
 			LOGGER.info("Successfully loaded {} triples after URI load.", GraphStoreService.getInstance().size());
-		} catch (Throwable e) { // Corese parser may throw Error for malformed payloads
-			rethrowIfFatal(e);
+		} catch (IOException | LoadException e) {
 			String details = DemoHttpFallbackSupport.isSslHandshakeFailure(e)
 					? "TLS certificate validation failed. The app retries HTTP only for known demo links under "
 							+ DemoHttpFallbackSupport.demoHost() + DemoHttpFallbackSupport.demoPathPrefix()
@@ -173,22 +173,10 @@ public class RdfDataService {
 		}
 	}
 
-	private static void rethrowIfFatal(Throwable throwable) {
-		if (throwable instanceof VirtualMachineError error) {
-			throw error;
-		}
-		if (throwable instanceof Error error && "java.lang.ThreadDeath".equals(error.getClass().getName())) {
-			throw error;
-		}
-		if (throwable instanceof LinkageError error) {
-			throw error;
-		}
-	}
-
-	private InputStream openUriStream(URI uri) throws Exception {
+	private InputStream openUriStream(URI uri) throws IOException {
 		try {
 			return openUriStreamInternal(uri);
-		} catch (Exception primaryFailure) {
+		} catch (IOException primaryFailure) {
 			URI fallbackUri = DemoHttpFallbackSupport.resolveUriAfterSslFailure(uri, primaryFailure);
 			if (fallbackUri == null) {
 				throw primaryFailure;
@@ -199,7 +187,7 @@ public class RdfDataService {
 		}
 	}
 
-	private InputStream openUriStreamInternal(URI uri) throws Exception {
+	private InputStream openUriStreamInternal(URI uri) throws IOException {
 		URLConnection connection = uri.toURL().openConnection();
 		connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
 		connection.setReadTimeout(READ_TIMEOUT_MS);

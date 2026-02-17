@@ -23,6 +23,7 @@ import javafx.scene.Node;
  * <li>Providing a clear API via a fluent builder
  * </ul>
  */
+@SuppressWarnings({"java:S1133", "java:S1874"}) // Legacy menu compatibility remains for older config callers.
 public class TabEditorConfig {
 
 	// ===============================================================================
@@ -113,7 +114,7 @@ public class TabEditorConfig {
 	 * @deprecated Prefer {@link #getOpenFileAction()} for the tab-header open
 	 *             action.
 	 */
-	@Deprecated
+	@Deprecated(since = "5.0", forRemoval = false)
 	public List<MenuItem> getMenuItems() {
 		return menuItems;
 	}
@@ -214,7 +215,7 @@ public class TabEditorConfig {
 		 * @deprecated Prefer {@link #withOpenFileAction(Runnable)} for the tab-header
 		 *             open action.
 		 */
-		@Deprecated
+		@Deprecated(since = "5.0", forRemoval = false)
 		public Builder withMenuItems(List<MenuItem> items) {
 			this.menuItems = items;
 			return this;
@@ -235,7 +236,7 @@ public class TabEditorConfig {
 	// ===============================================================================
 
 	/** @deprecated Legacy menu item mapping kept for backward compatibility. */
-	@Deprecated
+	@Deprecated(since = "5.0", forRemoval = false)
 	public record MenuItem(String text, Runnable action) {
 	}
 }

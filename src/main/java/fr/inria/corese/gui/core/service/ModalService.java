@@ -159,9 +159,7 @@ public class ModalService {
 	 *            Additional error details (e.g., stack trace).
 	 */
 	public void showError(String title, String message, String details) {
-		Platform.runLater(() -> {
-			show(DialogLayout.createError(title, message, details));
-		});
+		Platform.runLater(() -> show(DialogLayout.createError(title, message, details)));
 	}
 
 	/**
@@ -286,41 +284,44 @@ public class ModalService {
 			content.removeEventFilter(KeyEvent.KEY_PRESSED, (EventHandler<KeyEvent>) handler);
 		}
 
-		EventHandler<KeyEvent> handler = event -> {
-			if (event == null || event.isConsumed()) {
-				return;
-			}
-
-			KeyCode code = event.getCode();
-			if (code == null) {
-				return;
-			}
-
-			if (code == KeyCode.LEFT || code == KeyCode.UP || code == KeyCode.RIGHT || code == KeyCode.DOWN) {
-				if (isArrowNavigationHandledByControl(event.getTarget())) {
-					return;
-				}
-				int direction = (code == KeyCode.RIGHT || code == KeyCode.DOWN) ? 1 : -1;
-				if (moveFocus(content, direction)) {
-					event.consume();
-				}
-				return;
-			}
-
-			if (code != KeyCode.ENTER || event.isShortcutDown()) {
-				return;
-			}
-			if (isInsideTextArea(event.getTarget())) {
-				return;
-			}
-			Node focusOwner = resolveFocusOwner(content);
-			if (fireFocusableAction(focusOwner) || fireSubmitButton(content)) {
-				event.consume();
-			}
-		};
+		EventHandler<KeyEvent> handler = event -> handleKeyboardNavigationEvent(content, event);
 
 		content.addEventFilter(KeyEvent.KEY_PRESSED, handler);
 		content.getProperties().put(MODAL_KEYBOARD_NAV_FILTER_KEY, handler);
+	}
+
+	private void handleKeyboardNavigationEvent(Node content, KeyEvent event) {
+		if (event == null || event.isConsumed()) {
+			return;
+		}
+		KeyCode code = event.getCode();
+		if (code == null) {
+			return;
+		}
+		if (handleArrowNavigation(content, event, code)) {
+			return;
+		}
+		if (code != KeyCode.ENTER || event.isShortcutDown() || isInsideTextArea(event.getTarget())) {
+			return;
+		}
+		Node focusOwner = resolveFocusOwner(content);
+		if (fireFocusableAction(focusOwner) || fireSubmitButton(content)) {
+			event.consume();
+		}
+	}
+
+	private boolean handleArrowNavigation(Node root, KeyEvent event, KeyCode code) {
+		if (code != KeyCode.LEFT && code != KeyCode.UP && code != KeyCode.RIGHT && code != KeyCode.DOWN) {
+			return false;
+		}
+		if (isArrowNavigationHandledByControl(event.getTarget())) {
+			return true;
+		}
+		int direction = (code == KeyCode.RIGHT || code == KeyCode.DOWN) ? 1 : -1;
+		if (moveFocus(root, direction)) {
+			event.consume();
+		}
+		return true;
 	}
 
 	private boolean fireSubmitButton(Node root) {

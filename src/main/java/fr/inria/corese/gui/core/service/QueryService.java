@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.kgram.core.Mappings;
 import fr.inria.corese.core.query.QueryProcess;
+import fr.inria.corese.core.sparql.exceptions.EngineException;
 import fr.inria.corese.core.sparql.triple.parser.ASTQuery;
 import fr.inria.corese.gui.core.enums.QueryType;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
@@ -102,67 +103,49 @@ public class QueryService {
 	 */
 	@SuppressWarnings("java:S2139")
 	public QueryResultRef executeQuery(String queryString) {
-		if (queryString == null || queryString.isBlank()) {
-			throw new IllegalArgumentException("Query string cannot be empty.");
-		}
-
+		validateQueryString(queryString);
 		LOGGER.debug("Executing SPARQL query...");
 
 		try {
-			Graph graph = GraphStoreService.getInstance().getGraph();
-			int graphSizeBefore = graph.size();
-			QueryProcess exec = QueryProcess.create(graph);
-
-			Mappings mappings = executeWithLoadFallback(exec, queryString);
-			ASTQuery ast = mappings.getAST();
-
-			QueryType type = detectType(ast);
-			String id = UUID.randomUUID().toString();
-			Boolean askResult = null;
-			int insertedTriples = 0;
-			int deletedTriples = 0;
-
-			if (type == QueryType.ASK) {
-				// In Corese ASK is represented as non-empty mappings=true, empty=false.
-				askResult = mappings.size() > 0;
-			} else if (type == QueryType.UPDATE) {
-				// Corese tracks update impact directly on Mappings when available.
-				insertedTriples = Math.max(0, mappings.nbInsert());
-				deletedTriples = Math.max(0, mappings.nbDelete());
-
-				// Fallback for update operations that do not expose fine-grained counters.
-				if (insertedTriples == 0 && deletedTriples == 0) {
-					int delta = graph.size() - graphSizeBefore;
-					if (delta > 0) {
-						insertedTriples = delta;
-					} else if (delta < 0) {
-						deletedTriples = -delta;
-					}
-				}
-
-				logUpdateActivity(queryString, insertedTriples, deletedTriples);
-			}
-
-			Graph resultGraph = null;
-			if (type == QueryType.CONSTRUCT || type == QueryType.DESCRIBE) {
-				Object g = mappings.getGraph();
-				if (g instanceof Graph constructedGraph) {
-					resultGraph = constructedGraph;
-				}
-			}
-			int resultCount = computeResultCount(type, mappings, resultGraph);
-
-			CacheEntry entry = new CacheEntry(type, mappings, resultGraph);
-			resultCache.put(id, entry);
-
-			LOGGER.info("Query executed successfully. Type: {}, ID: {}, Results: {}", type, id, mappings.size());
-			return new QueryResultRef(id, type, askResult, insertedTriples, deletedTriples, resultCount);
-
-		} catch (Exception e) { // Generic catch is justified: Corese can throw various exception types
+			QueryExecutionSnapshot snapshot = executeAndBuildSnapshot(queryString);
+			cacheQueryResult(snapshot);
+			logQueryExecutionSuccess(snapshot);
+			return snapshot.toResultRef();
+		} catch (EngineException | RuntimeException e) {
 			String errorMsg = String.format("Query execution failed: %s", e.getMessage());
 			LOGGER.error(errorMsg, e);
 			throw new QueryExecutionException(errorMsg, e);
 		}
+	}
+
+	private static void validateQueryString(String queryString) {
+		if (queryString == null || queryString.isBlank()) {
+			throw new IllegalArgumentException("Query string cannot be empty.");
+		}
+	}
+
+	private QueryExecutionSnapshot executeAndBuildSnapshot(String queryString) throws EngineException {
+		Graph graph = GraphStoreService.getInstance().getGraph();
+		int graphSizeBefore = graph.size();
+		QueryProcess exec = QueryProcess.create(graph);
+		Mappings mappings = executeWithLoadFallback(exec, queryString);
+		QueryType type = detectType(mappings.getAST());
+		Graph resultGraph = resolveResultGraph(type, mappings);
+		Boolean askResult = type == QueryType.ASK ? resolveAskResult(mappings) : null;
+		int[] updateDelta = resolveUpdateDelta(type, mappings, graph, graphSizeBefore, queryString);
+		int resultCount = computeResultCount(type, mappings, resultGraph);
+		return new QueryExecutionSnapshot(UUID.randomUUID().toString(), type, mappings, resultGraph, askResult,
+				updateDelta[0], updateDelta[1], resultCount);
+	}
+
+	private void cacheQueryResult(QueryExecutionSnapshot snapshot) {
+		CacheEntry entry = new CacheEntry(snapshot.type(), snapshot.mappings(), snapshot.resultGraph());
+		resultCache.put(snapshot.id(), entry);
+	}
+
+	private void logQueryExecutionSuccess(QueryExecutionSnapshot snapshot) {
+		LOGGER.info("Query executed successfully. Type: {}, ID: {}, Results: {}", snapshot.type(), snapshot.id(),
+				snapshot.mappings().size());
 	}
 
 	/**
@@ -242,7 +225,42 @@ public class QueryService {
 		return 0;
 	}
 
-	private Mappings executeWithLoadFallback(QueryProcess exec, String queryString) throws Exception {
+	private static boolean resolveAskResult(Mappings mappings) {
+		// In Corese ASK is represented as non-empty mappings=true, empty=false.
+		return mappings != null && mappings.size() > 0;
+	}
+
+	private int[] resolveUpdateDelta(QueryType type, Mappings mappings, Graph graph, int graphSizeBefore,
+			String query) {
+		if (type != QueryType.UPDATE || mappings == null || graph == null) {
+			return new int[]{0, 0};
+		}
+		int insertedTriples = Math.max(0, mappings.nbInsert());
+		int deletedTriples = Math.max(0, mappings.nbDelete());
+		if (insertedTriples == 0 && deletedTriples == 0) {
+			int delta = graph.size() - graphSizeBefore;
+			if (delta > 0) {
+				insertedTriples = delta;
+			} else if (delta < 0) {
+				deletedTriples = -delta;
+			}
+		}
+		logUpdateActivity(query, insertedTriples, deletedTriples);
+		return new int[]{insertedTriples, deletedTriples};
+	}
+
+	private static Graph resolveResultGraph(QueryType type, Mappings mappings) {
+		if (type != QueryType.CONSTRUCT && type != QueryType.DESCRIBE) {
+			return null;
+		}
+		if (mappings == null) {
+			return null;
+		}
+		Object graphValue = mappings.getGraph();
+		return graphValue instanceof Graph constructedGraph ? constructedGraph : null;
+	}
+
+	private Mappings executeWithLoadFallback(QueryProcess exec, String queryString) throws EngineException {
 		String preprocessedQuery = DemoHttpFallbackSupport.rewriteLoadUrisToHttp(queryString);
 		boolean usingPreprocessedLoadUris = preprocessedQuery != null && !preprocessedQuery.equals(queryString);
 		if (usingPreprocessedLoadUris) {
@@ -251,7 +269,7 @@ public class QueryService {
 
 		try {
 			return exec.query(preprocessedQuery);
-		} catch (Exception primaryFailure) {
+		} catch (EngineException primaryFailure) {
 			if (usingPreprocessedLoadUris) {
 				throw primaryFailure;
 			}
@@ -265,7 +283,7 @@ public class QueryService {
 			LOGGER.warn("TLS validation failed during query LOAD. Retrying known demo URIs with HTTP fallback.");
 			try {
 				return exec.query(fallbackQuery);
-			} catch (Exception fallbackFailure) {
+			} catch (EngineException fallbackFailure) {
 				fallbackFailure.addSuppressed(primaryFailure);
 				throw fallbackFailure;
 			}
@@ -312,5 +330,12 @@ public class QueryService {
 	 * Internal cache entry holder.
 	 */
 	private record CacheEntry(QueryType type, Mappings mappings, Graph graph) {
+	}
+
+	private record QueryExecutionSnapshot(String id, QueryType type, Mappings mappings, Graph resultGraph,
+			Boolean askResult, int insertedTriples, int deletedTriples, int resultCount) {
+		private QueryResultRef toResultRef() {
+			return new QueryResultRef(id, type, askResult, insertedTriples, deletedTriples, resultCount);
+		}
 	}
 }

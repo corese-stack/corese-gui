@@ -35,7 +35,7 @@ public final class TabEditorFileMatcher {
 	private static Path normalizePathSafely(File file) {
 		try {
 			return file.toPath().toRealPath();
-		} catch (IOException ignored) {
+		} catch (IOException _) {
 			return null;
 		}
 	}
@@ -51,7 +51,7 @@ public final class TabEditorFileMatcher {
 		try {
 			Path tabPath = Path.of(tabFilePath).toRealPath();
 			return normalizedPath.equals(tabPath);
-		} catch (IOException ignored) {
+		} catch (IOException _) {
 			return false;
 		}
 	}

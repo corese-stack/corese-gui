@@ -112,42 +112,10 @@ public class CodeMirrorWidget extends VBox implements AutoCloseable {
 		this.themeManager = ThemeManager.getInstance();
 		this.webView = new WebView();
 		this.webEngine = webView.getEngine();
-		this.loadStateListener = (obs, oldState, newState) -> {
-			if (disposed) {
-				return;
-			}
-			if (newState == Worker.State.SUCCEEDED) {
-				onPageLoaded();
-			} else if (newState == Worker.State.FAILED) {
-				LOGGER.error("Failed to load editor from: {}", this.editorHtmlPath);
-			}
-		};
-		this.themeChangeListener = (obs, oldTheme, newTheme) -> {
-			if (!disposed) {
-				Platform.runLater(this::updateTheme);
-			}
-		};
-		this.accentColorChangeListener = (obs, oldColor, newColor) -> {
-			if (!disposed) {
-				Platform.runLater(this::updateTheme);
-			}
-		};
-		this.zoomScrollFilter = event -> {
-			if (disposed) {
-				return;
-			}
-			if (event.isControlDown()) {
-				// Adjust zoom based on scroll direction.
-				double delta = event.getDeltaY();
-				if (delta > 0) {
-					zoomIn();
-				} else if (delta < 0) {
-					zoomOut();
-				}
-				// Always consume the event to prevent actual scrolling of the page content.
-				event.consume();
-			}
-		};
+		this.loadStateListener = createLoadStateListener();
+		this.themeChangeListener = createThemeChangeListener();
+		this.accentColorChangeListener = createAccentColorChangeListener();
+		this.zoomScrollFilter = createZoomScrollFilter();
 
 		initializeLayout();
 		initializeListeners();
@@ -200,6 +168,51 @@ public class CodeMirrorWidget extends VBox implements AutoCloseable {
 		// We attach the filter to 'this' (VBox) to intercept events before they reach
 		// the WebView
 		this.addEventFilter(ScrollEvent.SCROLL, zoomScrollFilter);
+	}
+
+	private ChangeListener<Worker.State> createLoadStateListener() {
+		return (obs, oldState, newState) -> {
+			if (disposed) {
+				return;
+			}
+			if (newState == Worker.State.SUCCEEDED) {
+				onPageLoaded();
+				return;
+			}
+			if (newState == Worker.State.FAILED) {
+				LOGGER.error("Failed to load editor from: {}", this.editorHtmlPath);
+			}
+		};
+	}
+
+	private ChangeListener<Theme> createThemeChangeListener() {
+		return (obs, oldTheme, newTheme) -> scheduleThemeUpdateIfActive();
+	}
+
+	private ChangeListener<Color> createAccentColorChangeListener() {
+		return (obs, oldColor, newColor) -> scheduleThemeUpdateIfActive();
+	}
+
+	private EventHandler<ScrollEvent> createZoomScrollFilter() {
+		return event -> {
+			if (disposed || event == null || !event.isControlDown()) {
+				return;
+			}
+			double delta = event.getDeltaY();
+			if (delta > 0) {
+				zoomIn();
+			} else if (delta < 0) {
+				zoomOut();
+			}
+			// Always consume the event to prevent actual scrolling of the page content.
+			event.consume();
+		};
+	}
+
+	private void scheduleThemeUpdateIfActive() {
+		if (!disposed) {
+			Platform.runLater(this::updateTheme);
+		}
 	}
 
 	private void loadEditorUrl() {

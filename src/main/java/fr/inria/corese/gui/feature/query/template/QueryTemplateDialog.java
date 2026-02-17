@@ -36,6 +36,7 @@ import javafx.util.Duration;
 /**
  * Query template modal with a simple and contextualized form.
  */
+@SuppressWarnings("java:S3398") // Helpers stay static to keep Form immutable and avoid capturing UI state.
 public final class QueryTemplateDialog {
 
 	private static final String STYLESHEET = "/css/features/query-template-dialog.css";
@@ -566,7 +567,7 @@ public final class QueryTemplateDialog {
 	}
 
 	private static int clampNumericValue(int value, int minValue) {
-		return Math.min(MAX_LIMIT_OFFSET, Math.max(minValue, value));
+		return Math.clamp(value, minValue, MAX_LIMIT_OFFSET);
 	}
 
 	private static void restorePreferences(Form form) {

@@ -9,7 +9,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.regex.Pattern;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -29,12 +28,6 @@ class ReasoningBeatlesSnapshotStabilityTest {
 
 	@BeforeEach
 	void setUp() {
-		reasoningService.resetAllProfiles();
-		rdfDataService.clearData();
-	}
-
-	@AfterEach
-	void tearDown() {
 		reasoningService.resetAllProfiles();
 		rdfDataService.clearData();
 	}

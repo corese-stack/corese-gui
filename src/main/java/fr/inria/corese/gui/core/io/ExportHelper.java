@@ -159,8 +159,7 @@ public final class ExportHelper {
 		}
 
 		// Fallback: check extension
-		SerializationFormat formatFromExtension = findFormatByExtension(file.getName(), formats);
-		return formatFromExtension;
+		return findFormatByExtension(file.getName(), formats);
 	}
 
 	private static SerializationFormat findFormatByFilter(FileChooser.ExtensionFilter filter,
@@ -286,15 +285,32 @@ public final class ExportHelper {
 			return;
 		}
 
+		DataGraphFileChooser chooser = createDataGraphFileChooser(safeRdfFormats);
+		File file = chooser.fileChooser().showSaveDialog(window);
+		if (file == null) {
+			return;
+		}
+
+		FileDialogState.updateLastDirectory(file);
+		SerializationFormat rdfFormat = determineFormatOrNull(file, chooser.fileChooser(), safeRdfFormats);
+		if (rdfFormat != null) {
+			exportRdfDataGraph(file, rdfFormat, rdfContentProvider);
+			return;
+		}
+
+		exportVisualDataGraph(file, chooser, svgContentProvider);
+	}
+
+	private static DataGraphFileChooser createDataGraphFileChooser(List<SerializationFormat> rdfFormats) {
 		FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle("Export Graph");
 		fileChooser.setInitialFileName(DefaultFileNameResolver.graphBaseName());
 		FileDialogState.applyInitialDirectory(fileChooser);
 
-		for (SerializationFormat format : safeRdfFormats) {
-			String ext = format.getExtension();
+		for (SerializationFormat format : rdfFormats) {
+			String extension = format.getExtension();
 			fileChooser.getExtensionFilters()
-					.add(new FileChooser.ExtensionFilter(format.getLabel() + " (*" + ext + ")", "*" + ext));
+					.add(new FileChooser.ExtensionFilter(format.getLabel() + " (*" + extension + ")", "*" + extension));
 		}
 
 		FileChooser.ExtensionFilter svgFilter = new FileChooser.ExtensionFilter("SVG file (*.svg)", "*.svg");
@@ -302,33 +318,30 @@ public final class ExportHelper {
 		FileChooser.ExtensionFilter pdfFilter = new FileChooser.ExtensionFilter("PDF document (*.pdf)", "*.pdf");
 		fileChooser.getExtensionFilters().addAll(svgFilter, pngFilter, pdfFilter,
 				new FileChooser.ExtensionFilter("All Files", "*.*"));
+		return new DataGraphFileChooser(fileChooser, svgFilter, pngFilter, pdfFilter);
+	}
 
-		File file = fileChooser.showSaveDialog(window);
-		if (file == null) {
-			return;
-		}
-
-		FileDialogState.updateLastDirectory(file);
-		SerializationFormat rdfFormat = determineFormatOrNull(file, fileChooser, safeRdfFormats);
-		if (rdfFormat != null) {
-			File finalFile = enforceExtension(file, rdfFormat);
-			AppExecutors.execute(() -> {
-				try {
-					String content = rdfContentProvider != null ? rdfContentProvider.apply(rdfFormat) : null;
-					if (content == null) {
-						Platform.runLater(() -> NotificationWidget.getInstance()
-								.showError("Export failed: no content available."));
-						return;
-					}
-					writeFileAsync(finalFile, content);
-				} catch (Exception e) {
-					Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Export Error",
-							"Export failed: " + e.getMessage(), e));
+	private static void exportRdfDataGraph(File file, SerializationFormat rdfFormat,
+			Function<SerializationFormat, String> rdfContentProvider) {
+		File finalFile = enforceExtension(file, rdfFormat);
+		AppExecutors.execute(() -> {
+			try {
+				String content = rdfContentProvider != null ? rdfContentProvider.apply(rdfFormat) : null;
+				if (content == null) {
+					Platform.runLater(
+							() -> NotificationWidget.getInstance().showError("Export failed: no content available."));
+					return;
 				}
-			});
-			return;
-		}
+				writeFileAsync(finalFile, content);
+			} catch (Exception e) {
+				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Export Error",
+						"Export failed: " + e.getMessage(), e));
+			}
+		});
+	}
 
+	private static void exportVisualDataGraph(File file, DataGraphFileChooser chooser,
+			Supplier<String> svgContentProvider) {
 		if (svgContentProvider == null) {
 			NotificationWidget.getInstance().showError("Export failed: visual export is unavailable.");
 			return;
@@ -340,10 +353,9 @@ public final class ExportHelper {
 			return;
 		}
 
-		GraphExportFormat visualFormat = determineGraphFormat(file, fileChooser.getSelectedExtensionFilter(), svgFilter,
-				pngFilter, pdfFilter);
+		GraphExportFormat visualFormat = determineGraphFormat(file, chooser.fileChooser().getSelectedExtensionFilter(),
+				chooser.svgFilter(), chooser.pngFilter(), chooser.pdfFilter());
 		File finalFile = enforceExtension(file, visualFormat.extension);
-
 		switch (visualFormat) {
 			case SVG -> writeFileAsync(finalFile, svgContent);
 			case PNG -> transcodeSvgToPng(finalFile, svgContent);
@@ -524,6 +536,10 @@ public final class ExportHelper {
 	}
 
 	private record SvgDimensions(float width, float height) {
+	}
+
+	private record DataGraphFileChooser(FileChooser fileChooser, FileChooser.ExtensionFilter svgFilter,
+			FileChooser.ExtensionFilter pngFilter, FileChooser.ExtensionFilter pdfFilter) {
 	}
 
 	private enum GraphExportFormat {

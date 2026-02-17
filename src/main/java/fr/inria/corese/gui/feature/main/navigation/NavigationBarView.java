@@ -49,7 +49,8 @@ import org.slf4j.LoggerFactory;
 public final class NavigationBarView extends AbstractView {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(NavigationBarView.class);
-	private static final String STYLESHEET_PATH = "/css/features/navigation-bar.css";
+	private static final String STYLESHEET_PATH = System.getProperty("corese.styles.navigationBar",
+			"/css/features/navigation-bar.css");
 
 	// ==== State ====
 	private boolean collapsed = false;

@@ -6,6 +6,7 @@ import fr.inria.corese.gui.utils.AppExecutors;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,18 +27,36 @@ final class GraphMutationCollectorService {
 	private final AtomicBoolean flushScheduled = new AtomicBoolean(false);
 	private final AtomicInteger suppressionDepth = new AtomicInteger(0);
 
-	private volatile GraphMutationBus mutationBus;
+	private final AtomicReference<GraphMutationBus> mutationBus = new AtomicReference<>();
 
 	private final EdgeChangeListener edgeChangeListener = new EdgeChangeListener() {
 		@Override
 		public void onBulkEdgeChange(List<Edge> delete, List<Edge> insert) {
 			int deleteCount = delete != null ? delete.size() : 0;
 			int insertCount = insert != null ? insert.size() : 0;
-			onEdgeDelta(deleteCount, insertCount);
+			if (suppressionDepth.get() > 0) {
+				return;
+			}
+			if (deleteCount <= 0 && insertCount <= 0) {
+				return;
+			}
+			if (deleteCount > 0) {
+				pendingDeleted.addAndGet(deleteCount);
+			}
+			if (insertCount > 0) {
+				pendingInserted.addAndGet(insertCount);
+			}
+			scheduleFlush();
 		}
 	};
 
 	private GraphMutationCollectorService() {
+	}
+
+	@FunctionalInterface
+	interface PublishingSuspension extends AutoCloseable {
+		@Override
+		void close();
 	}
 
 	static GraphMutationCollectorService getInstance() {
@@ -48,7 +67,7 @@ final class GraphMutationCollectorService {
 		if (!initialized.compareAndSet(false, true)) {
 			return;
 		}
-		this.mutationBus = bus;
+		mutationBus.set(bus);
 		GraphStoreService.getInstance().getGraph().addEdgeChangeListener(edgeChangeListener);
 		LOGGER.debug("Graph mutation collector initialized.");
 	}
@@ -61,7 +80,7 @@ final class GraphMutationCollectorService {
 	 *
 	 * @return scope handle
 	 */
-	AutoCloseable suspendPublishing() {
+	PublishingSuspension suspendPublishing() {
 		suppressionDepth.incrementAndGet();
 		return () -> {
 			int updated = suppressionDepth.decrementAndGet();
@@ -71,22 +90,6 @@ final class GraphMutationCollectorService {
 		};
 	}
 
-	private void onEdgeDelta(int deletedCount, int insertedCount) {
-		if (suppressionDepth.get() > 0) {
-			return;
-		}
-		if (deletedCount <= 0 && insertedCount <= 0) {
-			return;
-		}
-		if (deletedCount > 0) {
-			pendingDeleted.addAndGet(deletedCount);
-		}
-		if (insertedCount > 0) {
-			pendingInserted.addAndGet(insertedCount);
-		}
-		scheduleFlush();
-	}
-
 	private void scheduleFlush() {
 		if (!flushScheduled.compareAndSet(false, true)) {
 			return;
@@ -94,7 +97,7 @@ final class GraphMutationCollectorService {
 		AppExecutors.execute(() -> {
 			try {
 				Thread.sleep(COALESCE_DELAY_MS);
-			} catch (InterruptedException e) {
+			} catch (InterruptedException _) {
 				Thread.currentThread().interrupt();
 				LOGGER.debug("Graph mutation coalescing interrupted");
 			}
@@ -108,7 +111,7 @@ final class GraphMutationCollectorService {
 		flushScheduled.set(false);
 
 		if (inserted > 0 || deleted > 0) {
-			GraphMutationBus bus = mutationBus;
+			GraphMutationBus bus = mutationBus.get();
 			if (bus != null) {
 				bus.publish(GraphMutationEvent.delta(GraphMutationEvent.Source.GRAPH_LISTENER, inserted, deleted));
 			}

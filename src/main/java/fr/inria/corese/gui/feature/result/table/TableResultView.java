@@ -39,9 +39,6 @@ public class TableResultView extends AbstractView {
 	private final TablePaginationWidget paginationBar;
 	private final ToolbarWidget toolbarWidget;
 
-	private int currentPageIndex = 0;
-	private int rowsPerPage = 50;
-
 	/**
 	 * Constructs a new TableResultView.
 	 *
@@ -56,7 +53,6 @@ public class TableResultView extends AbstractView {
 		this.toolbarWidget = new ToolbarWidget();
 
 		setupLayout();
-		setupListeners();
 	}
 
 	private void setupLayout() {
@@ -71,17 +67,6 @@ public class TableResultView extends AbstractView {
 		// Ensure pagination is visible
 		paginationBar.setVisible(true);
 		paginationBar.setManaged(true);
-	}
-
-	private void setupListeners() {
-		// Sync local rowsPerPage with pagination bar input
-		paginationBar.rowsPerPageTextProperty().addListener((obs, oldVal, newVal) -> {
-			try {
-				this.rowsPerPage = Integer.parseInt(newVal);
-			} catch (NumberFormatException _) {
-				// Ignore invalid format, keep existing value
-			}
-		});
 	}
 
 	// ==============================================================================================
@@ -137,7 +122,8 @@ public class TableResultView extends AbstractView {
 				if (empty || getTableRow() == null) {
 					setText(null);
 				} else {
-					int absoluteIndex = (currentPageIndex * rowsPerPage) + getTableRow().getIndex() + 1;
+					int absoluteIndex = (paginationBar.getCurrentPageIndex() * paginationBar.getRowsPerPage())
+							+ getTableRow().getIndex() + 1;
 					setText(String.valueOf(absoluteIndex));
 				}
 			}
@@ -182,12 +168,8 @@ public class TableResultView extends AbstractView {
 	}
 
 	public void setRowsPerPageText(String text) {
-		try {
-			this.rowsPerPage = Integer.parseInt(text);
-		} catch (NumberFormatException _) {
-			// Keep existing value
-		}
 		paginationBar.setRowsPerPage(text);
+		tableView.refresh();
 	}
 
 	public StringProperty getRowsPerPageProperty() {
@@ -199,8 +181,8 @@ public class TableResultView extends AbstractView {
 	}
 
 	public void setCurrentPageIndex(int index) {
-		this.currentPageIndex = index;
 		paginationBar.setCurrentPageIndex(index);
+		tableView.refresh();
 	}
 
 	public void setToolbarActions(List<ButtonConfig> buttons) {

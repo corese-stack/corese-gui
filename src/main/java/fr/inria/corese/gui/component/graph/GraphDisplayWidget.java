@@ -715,7 +715,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	 * Bridge class for communication from JavaScript to Java. Exposed as
 	 * 'window.bridge' in the WebView environment.
 	 */
-	@SuppressWarnings({"java:S5738", "removal"})
+	@SuppressWarnings("java:S5738")
 	public class JavaBridge {
 		/**
 		 * Logs an information message from JavaScript.

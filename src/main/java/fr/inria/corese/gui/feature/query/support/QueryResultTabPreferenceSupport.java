@@ -17,9 +17,6 @@ public final class QueryResultTabPreferenceSupport {
 	private ResultViewConfig.TabType lastTableTab = loadTabPreference(PREF_LAST_TABLE_TAB);
 	private ResultViewConfig.TabType lastGraphTab = loadTabPreference(PREF_LAST_GRAPH_TAB);
 
-	public QueryResultTabPreferenceSupport() {
-	}
-
 	public ResultViewConfig.TabType preferredTab(QueryType queryType) {
 		if (queryType == QueryType.SELECT || queryType == QueryType.ASK) {
 			return isTableTab(lastTableTab) ? lastTableTab : null;
@@ -66,7 +63,7 @@ public final class QueryResultTabPreferenceSupport {
 		}
 		try {
 			return ResultViewConfig.TabType.valueOf(value);
-		} catch (IllegalArgumentException ignored) {
+		} catch (IllegalArgumentException _) {
 			return null;
 		}
 	}

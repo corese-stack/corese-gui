@@ -76,6 +76,6 @@ public final class GlobalZoomPane extends Pane {
 		if (Double.isNaN(value) || Double.isInfinite(value)) {
 			return DEFAULT_ZOOM;
 		}
-		return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
+		return Math.clamp(value, MIN_ZOOM, MAX_ZOOM);
 	}
 }

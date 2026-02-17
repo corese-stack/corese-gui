@@ -378,7 +378,9 @@ public final class SystemThemeDetector {
 			boolean finished = process.waitFor(COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 			if (!finished) {
 				process.destroyForcibly();
-				LOGGER.debug("Command timed out: {}", String.join(" ", command));
+				if (LOGGER.isDebugEnabled()) {
+					LOGGER.debug("Command timed out: {}", String.join(" ", command));
+				}
 				return null;
 			}
 			String result = output.toString().trim();
@@ -387,7 +389,9 @@ public final class SystemThemeDetector {
 			Thread.currentThread().interrupt();
 			return null;
 		} catch (Exception e) {
-			LOGGER.debug("Command execution failed: {}", String.join(" ", command));
+			if (LOGGER.isDebugEnabled()) {
+				LOGGER.debug("Command execution failed: {}", String.join(" ", command));
+			}
 			return null;
 		}
 	}

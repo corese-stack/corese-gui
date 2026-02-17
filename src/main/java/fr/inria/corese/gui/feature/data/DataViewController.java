@@ -163,6 +163,8 @@ public class DataViewController implements AutoCloseable {
 			try {
 				Thread.sleep(REASONING_REFRESH_DEBOUNCE_MS);
 				reasoningService.recomputeEnabledProfiles();
+			} catch (InterruptedException _) {
+				Thread.currentThread().interrupt();
 			} catch (Exception e) {
 				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Reasoning Error",
 						"Reasoning recompute failed: " + e.getMessage(), e));
@@ -183,7 +185,7 @@ public class DataViewController implements AutoCloseable {
 		AppExecutors.execute(() -> {
 			try {
 				Thread.sleep(GRAPH_REFRESH_DEBOUNCE_MS);
-			} catch (InterruptedException e) {
+			} catch (InterruptedException _) {
 				Thread.currentThread().interrupt();
 			}
 			Platform.runLater(() -> {

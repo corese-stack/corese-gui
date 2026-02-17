@@ -227,30 +227,37 @@ public final class ThemeManager {
 		}
 		this.primaryStage = stage;
 
-		// Listen for scene changes to re-apply accent color
-		stage.sceneProperty().addListener((obs, oldScene, newScene) -> {
-			if (newScene != null) {
-				if (accentColor.get() != null) {
-					applyAccentColorInternal(accentColor.get());
-				}
-				applyUiScaleInternal();
-				// Also listen for root changes within the scene
-				newScene.rootProperty().addListener((o, oldRoot, newRoot) -> {
-					if (newRoot != null) {
-						if (accentColor.get() != null) {
-							applyAccentColorInternal(accentColor.get());
-						}
-						applyUiScaleInternal();
-					}
-				});
-			}
-		});
+		installPrimaryStageListeners(stage);
+		reapplyStageThemeState();
+	}
 
-		// Re-apply current settings to the new stage
-		if (theme.get() != null)
-			applyThemeInternal(theme.get());
-		if (accentColor.get() != null)
-			applyAccentColorInternal(accentColor.get());
+	private void installPrimaryStageListeners(Stage stage) {
+		stage.sceneProperty().addListener((obs, oldScene, newScene) -> {
+			if (newScene == null) {
+				return;
+			}
+			applyAccentAndScale();
+			newScene.rootProperty().addListener((o, oldRoot, newRoot) -> {
+				if (newRoot != null) {
+					applyAccentAndScale();
+				}
+			});
+		});
+	}
+
+	private void reapplyStageThemeState() {
+		Theme currentTheme = theme.get();
+		if (currentTheme != null) {
+			applyThemeInternal(currentTheme);
+		}
+		applyAccentAndScale();
+	}
+
+	private void applyAccentAndScale() {
+		Color currentAccent = accentColor.get();
+		if (currentAccent != null) {
+			applyAccentColorInternal(currentAccent);
+		}
 		applyUiScaleInternal();
 	}
 
@@ -442,7 +449,7 @@ public final class ThemeManager {
 		if (Double.isNaN(scale) || Double.isInfinite(scale)) {
 			return DEFAULT_UI_SCALE;
 		}
-		return Math.max(MIN_UI_SCALE, Math.min(MAX_UI_SCALE, scale));
+		return Math.clamp(scale, MIN_UI_SCALE, MAX_UI_SCALE);
 	}
 
 	// ===== Theme Queries =====

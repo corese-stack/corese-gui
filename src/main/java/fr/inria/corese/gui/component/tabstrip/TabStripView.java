@@ -228,23 +228,7 @@ public class TabStripView extends HBox {
 		double tabWidth = computeTabWidth(currentTabs.size());
 		boolean fullWild = !Double.isNaN(tabWidth);
 		noOverflowExpected = fullWild;
-
-		if (!fullWild && !deferredRenderScheduled && !currentTabs.isEmpty()) {
-			double viewportWidth = resolveViewportWidth();
-			boolean firstTabShouldBeFullWild = currentTabs.size() == 1
-					&& viewportWidth > (MIN_TAB_WIDTH + WIDTH_EPSILON);
-			if (viewportWidth <= 0 || firstTabShouldBeFullWild) {
-				// At startup, viewport metrics can arrive late. Keep retrying until the first
-				// tab can
-				// expand to full width, without relying on a fixed retry budget.
-				scheduleDeferredRender();
-			}
-		}
-
-		if (!fullWild && currentTabs.size() == 1 && resolveViewportWidth() > (MIN_TAB_WIDTH + WIDTH_EPSILON)
-				&& !deferredRenderScheduled) {
-			scheduleDeferredRender();
-		}
+		maybeScheduleDeferredRenderForStartup(fullWild);
 
 		List<Tab> staleTabs = collectStaleTabs();
 		if (!staleTabs.isEmpty()) {
@@ -253,42 +237,70 @@ public class TabStripView extends HBox {
 		}
 
 		double previousHValue = scrollPane.getHvalue();
+		List<javafx.scene.Node> orderedChildren = buildOrderedTabChildren(fullWild);
+		boolean trackChildrenReplaced = replaceTrackChildrenIfNeeded(orderedChildren);
+		updateScrollAfterRender(fullWild, trackChildrenReplaced, previousHValue);
+		updateOverflowState();
+		lastRenderedTabCount = currentTabs.size();
+		firstRenderDone = true;
+	}
+
+	private void maybeScheduleDeferredRenderForStartup(boolean fullWild) {
+		if (fullWild || deferredRenderScheduled || currentTabs.isEmpty()) {
+			return;
+		}
+		double viewportWidth = resolveViewportWidth();
+		boolean hasSingleTab = currentTabs.size() == 1;
+		boolean firstTabShouldBeFullWild = hasSingleTab && viewportWidth > (MIN_TAB_WIDTH + WIDTH_EPSILON);
+		if (viewportWidth <= 0 || firstTabShouldBeFullWild) {
+			// At startup, viewport metrics can arrive late. Keep retrying until the first
+			// tab can expand to full width, without relying on a fixed retry budget.
+			scheduleDeferredRender();
+		}
+	}
+
+	private List<javafx.scene.Node> buildOrderedTabChildren(boolean fullWild) {
 		List<javafx.scene.Node> orderedChildren = new ArrayList<>();
 		for (int i = 0; i < currentTabs.size(); i++) {
 			Tab tab = currentTabs.get(i);
 			TabNode tabNode = tabNodes.computeIfAbsent(tab, this::createTabNode);
 			boolean isNew = tabNode.item.getParent() == null;
 			updateTabNode(tabNode, tab, tab == currentSelectedTab, currentAccentColor, currentShowCloseButton);
-
-			double targetWidth = fullWild ? fullWildBaseWidth + (i < fullWildRemainder ? 1.0 : 0.0) : MIN_TAB_WIDTH;
+			double targetWidth = computeTargetTabWidth(fullWild, i);
 			animateTabWidth(tabNode.item, targetWidth, isNew, currentAnimateWidthChanges);
 			orderedChildren.add(tabNode.item);
 		}
+		return orderedChildren;
+	}
 
-		boolean trackChildrenReplaced = replaceTrackChildrenIfNeeded(orderedChildren);
+	private double computeTargetTabWidth(boolean fullWild, int tabIndex) {
+		if (!fullWild) {
+			return MIN_TAB_WIDTH;
+		}
+		return tabIndex < fullWildRemainder ? fullWildBaseWidth + 1.0 : fullWildBaseWidth;
+	}
+
+	private void updateScrollAfterRender(boolean fullWild, boolean trackChildrenReplaced, double previousHValue) {
 		if (fullWild) {
 			selectedTabEnsureScheduled = false;
 			forceRightRevealPending = false;
 			setScrollHValue(0.0, false);
-		} else {
-			if (trackChildrenReplaced) {
-				maybeRestoreScrollFromHValue(previousHValue);
-				Platform.runLater(() -> maybeRestoreScrollFromHValue(previousHValue));
-			}
-			if (forceRightRevealPending) {
-				if (widthAnimations.isEmpty()) {
-					scheduleForceRightReveal();
-				}
-			} else {
-				scheduleEnsureSelectedTabVisible();
-				if (!widthAnimations.isEmpty()) {
-					Platform.runLater(this::scheduleEnsureSelectedTabVisible);
-				}
-			}
+			return;
 		}
-		updateOverflowState();
-		lastRenderedTabCount = currentTabs.size();
-		firstRenderDone = true;
+		if (trackChildrenReplaced) {
+			maybeRestoreScrollFromHValue(previousHValue);
+			Platform.runLater(() -> maybeRestoreScrollFromHValue(previousHValue));
+		}
+		if (forceRightRevealPending) {
+			if (widthAnimations.isEmpty()) {
+				scheduleForceRightReveal();
+			}
+			return;
+		}
+		scheduleEnsureSelectedTabVisible();
+		if (!widthAnimations.isEmpty()) {
+			Platform.runLater(this::scheduleEnsureSelectedTabVisible);
+		}
 	}
 
 	private void ensureSelectedTabVisible() {
@@ -323,7 +335,7 @@ public class TabStripView extends HBox {
 		double selectedLeft = selectedNode.item.getBoundsInParent().getMinX();
 		double selectedRight = selectedNode.item.getBoundsInParent().getMaxX();
 
-		double targetLeft = currentLeft;
+		double targetLeft;
 		if (selectedLeft < effectiveLeft) {
 			targetLeft = selectedLeft;
 		} else if (selectedRight > effectiveRight) {
@@ -618,40 +630,23 @@ public class TabStripView extends HBox {
 		}
 
 		if (!firstRenderDone) {
-			setTabWidth(tabNode, targetWidth);
+			applyStaticTabWidth(tabNode, targetWidth);
 			return;
 		}
 		if (!animationsEnabled) {
-			setTabWidth(tabNode, targetWidth);
-			tabNode.setOpacity(1.0);
-			tabNode.setScaleX(1.0);
-			tabNode.setScaleY(1.0);
-			Timeline existing = widthAnimations.remove(tabNode);
-			if (existing != null) {
-				existing.stop();
-			}
+			applyStaticTabWidth(tabNode, targetWidth);
 			return;
 		}
 		if (!animateWidthChanges && !isNew) {
 			setTabWidth(tabNode, targetWidth);
-			Timeline existing = widthAnimations.remove(tabNode);
-			if (existing != null) {
-				existing.stop();
-			}
+			stopWidthAnimation(tabNode);
 			return;
 		}
 
 		if (isNew) {
-			Timeline existing = widthAnimations.remove(tabNode);
-			if (existing != null) {
-				existing.stop();
-			}
 			// Keep new-tab layout deterministic: no opening animation.
 			// This avoids intermediate widths that can produce mid-strip reveal.
-			setTabWidth(tabNode, targetWidth);
-			tabNode.setOpacity(1.0);
-			tabNode.setScaleX(1.0);
-			tabNode.setScaleY(1.0);
+			applyStaticTabWidth(tabNode, targetWidth);
 			return;
 		}
 
@@ -660,10 +655,7 @@ public class TabStripView extends HBox {
 			return;
 		}
 
-		Timeline existing = widthAnimations.remove(tabNode);
-		if (existing != null) {
-			existing.stop();
-		}
+		stopWidthAnimation(tabNode);
 
 		Timeline timeline = new Timeline(new KeyFrame(WIDTH_ANIMATION_DURATION,
 				new KeyValue(tabNode.minWidthProperty(), targetWidth, Interpolator.EASE_BOTH),
@@ -677,6 +669,21 @@ public class TabStripView extends HBox {
 			}
 		});
 		timeline.play();
+	}
+
+	private void applyStaticTabWidth(HBox tabNode, double targetWidth) {
+		setTabWidth(tabNode, targetWidth);
+		tabNode.setOpacity(1.0);
+		tabNode.setScaleX(1.0);
+		tabNode.setScaleY(1.0);
+		stopWidthAnimation(tabNode);
+	}
+
+	private void stopWidthAnimation(HBox tabNode) {
+		Timeline existing = widthAnimations.remove(tabNode);
+		if (existing != null) {
+			existing.stop();
+		}
 	}
 
 	private void setTabWidth(HBox tabNode, double width) {
@@ -733,9 +740,7 @@ public class TabStripView extends HBox {
 			return;
 		}
 
-		double delta = Math.abs(event.getDeltaX()) > Math.abs(event.getDeltaY())
-				? -event.getDeltaX()
-				: -event.getDeltaY();
+		double delta = dominantScrollDelta(event);
 		if (delta == 0) {
 			return;
 		}
@@ -748,7 +753,16 @@ public class TabStripView extends HBox {
 	}
 
 	private double clamp(double value, double min, double max) {
-		return Math.max(min, Math.min(max, value));
+		return Math.clamp(value, min, max);
+	}
+
+	private static double dominantScrollDelta(ScrollEvent event) {
+		if (event == null) {
+			return 0;
+		}
+		double horizontal = event.getDeltaX();
+		double vertical = event.getDeltaY();
+		return Math.abs(horizontal) > Math.abs(vertical) ? -horizontal : -vertical;
 	}
 
 	private boolean isSelectedTabLast() {

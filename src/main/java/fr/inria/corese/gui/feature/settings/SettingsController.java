@@ -41,50 +41,53 @@ public final class SettingsController {
 	}
 
 	private void setupBindings() {
-		// 1. Initial Sync: Manager -> Model
-		if (themeManager.getTheme() != null)
+		syncThemeManagerIntoModel();
+		updateControlsDisabledState();
+		bindModelToThemeManager();
+		bindThemeManagerToModel();
+	}
+
+	private void syncThemeManagerIntoModel() {
+		if (themeManager.getTheme() != null) {
 			model.setTheme(themeManager.getTheme());
-		if (themeManager.getAccentColor() != null)
+		}
+		if (themeManager.getAccentColor() != null) {
 			model.setAccentColor(themeManager.getAccentColor());
+		}
 		model.setUseSystemTheme(themeManager.isSystemThemeEnabled());
 		model.setUiScale(themeManager.getUiScale());
+	}
 
-		// Update controls state after initial sync
-		updateControlsDisabledState();
-
-		// 2. Model -> Manager (User inputs)
+	private void bindModelToThemeManager() {
 		model.themeProperty().addListener((obs, oldVal, newVal) -> {
 			if (newVal != null && !model.isUseSystemTheme()) {
 				themeManager.setTheme(newVal);
 			}
 		});
-
 		model.accentColorProperty().addListener((obs, oldVal, newVal) -> {
 			if (newVal != null) {
 				themeManager.setAccentColor(newVal);
 			}
 		});
-
 		model.useSystemThemeProperty().addListener((obs, oldVal, newVal) -> themeManager.setSystemThemeEnabled(newVal));
 		model.uiScaleProperty().addListener((obs, oldVal, newVal) -> {
 			if (newVal != null) {
 				themeManager.setUiScale(newVal.doubleValue());
 			}
 		});
+	}
 
-		// 3. Manager -> Model (System changes or external updates)
+	private void bindThemeManagerToModel() {
 		themeManager.themeProperty().addListener((obs, oldVal, newVal) -> {
 			if (newVal != null && !newVal.equals(model.getTheme())) {
 				model.setTheme(newVal);
 			}
 		});
-
 		themeManager.accentColorProperty().addListener((obs, oldVal, newVal) -> {
 			if (newVal != null && !newVal.equals(model.getAccentColor())) {
 				model.setAccentColor(newVal);
 			}
 		});
-
 		themeManager.systemThemeEnabledProperty().addListener((obs, oldVal, newVal) -> {
 			if (!Boolean.valueOf(model.isUseSystemTheme()).equals(newVal)) {
 				model.setUseSystemTheme(Boolean.TRUE.equals(newVal));

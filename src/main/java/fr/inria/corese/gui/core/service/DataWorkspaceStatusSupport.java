@@ -100,7 +100,7 @@ final class DataWorkspaceStatusSupport {
 				return 0;
 			}
 			return parsed > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) parsed;
-		} catch (NumberFormatException e) {
+		} catch (NumberFormatException _) {
 			return 0;
 		}
 	}

@@ -5,7 +5,6 @@ import fr.inria.corese.gui.component.emptystate.EmptyStateWidget;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
-import java.util.ArrayList;
 import java.util.List;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
@@ -80,7 +79,13 @@ public final class SystemLogsView extends AbstractView {
 		logTableView.setFocusTraversable(false);
 		logTableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
 		logTableView.setPlaceholder(new Label(""));
+		List<TableColumn<SystemLogTableRow, ?>> columns = List.of(createTimeColumn(), createTypeColumn(),
+				createActionColumn(), createDetailsColumn(), createDiffColumn(), createStateColumn());
+		logTableView.getColumns().setAll(columns);
+		logTableView.getSortOrder().setAll(java.util.Collections.singletonList(columns.get(0)));
+	}
 
+	private TableColumn<SystemLogTableRow, Number> createTimeColumn() {
 		TableColumn<SystemLogTableRow, Number> timeColumn = new TableColumn<>("Time");
 		timeColumn.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().timestampMillis()));
 		timeColumn.setCellFactory(ignored -> new TableCell<>() {
@@ -97,15 +102,24 @@ public final class SystemLogsView extends AbstractView {
 		timeColumn.setComparator((left, right) -> Long.compare(left.longValue(), right.longValue()));
 		timeColumn.setSortType(TableColumn.SortType.DESCENDING);
 		timeColumn.setPrefWidth(170);
+		return timeColumn;
+	}
 
+	private static TableColumn<SystemLogTableRow, String> createTypeColumn() {
 		TableColumn<SystemLogTableRow, String> typeColumn = new TableColumn<>("Type");
 		typeColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().type()));
 		typeColumn.setPrefWidth(120);
+		return typeColumn;
+	}
 
+	private static TableColumn<SystemLogTableRow, String> createActionColumn() {
 		TableColumn<SystemLogTableRow, String> actionColumn = new TableColumn<>("Action");
 		actionColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().action()));
 		actionColumn.setPrefWidth(210);
+		return actionColumn;
+	}
 
+	private static TableColumn<SystemLogTableRow, String> createDetailsColumn() {
 		TableColumn<SystemLogTableRow, String> detailsColumn = new TableColumn<>("Details");
 		detailsColumn.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().details()));
 		detailsColumn.setCellFactory(ignored -> new TableCell<>() {
@@ -125,7 +139,10 @@ public final class SystemLogsView extends AbstractView {
 			}
 		});
 		detailsColumn.setPrefWidth(430);
+		return detailsColumn;
+	}
 
+	private static TableColumn<SystemLogTableRow, Number> createDiffColumn() {
 		TableColumn<SystemLogTableRow, Number> diffColumn = new TableColumn<>("Diff");
 		diffColumn.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().netDelta()));
 		diffColumn.setCellFactory(ignored -> new TableCell<>() {
@@ -154,7 +171,10 @@ public final class SystemLogsView extends AbstractView {
 			}
 		});
 		diffColumn.setPrefWidth(110);
+		return diffColumn;
+	}
 
+	private static TableColumn<SystemLogTableRow, Number> createStateColumn() {
 		TableColumn<SystemLogTableRow, Number> stateColumn = new TableColumn<>("Graph State");
 		stateColumn.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().totalTripleCount()));
 		stateColumn.setCellFactory(ignored -> new TableCell<>() {
@@ -170,16 +190,7 @@ public final class SystemLogsView extends AbstractView {
 		});
 		stateColumn.setComparator((left, right) -> Long.compare(left.longValue(), right.longValue()));
 		stateColumn.setPrefWidth(260);
-
-		List<TableColumn<SystemLogTableRow, ?>> columns = new ArrayList<>(6);
-		columns.add(timeColumn);
-		columns.add(typeColumn);
-		columns.add(actionColumn);
-		columns.add(detailsColumn);
-		columns.add(diffColumn);
-		columns.add(stateColumn);
-		logTableView.getColumns().setAll(columns);
-		logTableView.getSortOrder().setAll(java.util.Collections.singletonList(timeColumn));
+		return stateColumn;
 	}
 
 	public TableView<SystemLogTableRow> getLogTableView() {

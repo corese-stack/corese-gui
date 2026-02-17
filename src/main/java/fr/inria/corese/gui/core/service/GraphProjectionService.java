@@ -5,8 +5,6 @@ import fr.inria.corese.gui.core.enums.SerializationFormat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,19 +18,6 @@ public final class GraphProjectionService {
 	private static final GraphProjectionService INSTANCE = new GraphProjectionService();
 	private static final List<SerializationFormat> RDF_EXPORT_FORMATS = List
 			.copyOf(Arrays.asList(SerializationFormat.rdfFormats()));
-	/**
-	 * Corese JSON-LD can occasionally emit malformed string values such as
-	 * {@code ""@type""} (double-quoted twice). This pattern sanitizes those values
-	 * into valid JSON strings ({@code "\"@type\""}).
-	 */
-	private static final Pattern MALFORMED_DOUBLE_QUOTED_VALUE_PATTERN = Pattern
-			.compile("(^|[:\\[,\\s])\"\"([^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"\"(?=\\s*[,}\\]])", Pattern.MULTILINE);
-	/**
-	 * Matches the typical top-level JSON-LD shape produced by Corese:
-	 * {"@context": {...}, "@graph": [...]}
-	 */
-	private static final Pattern TOP_LEVEL_CONTEXT_GRAPH_PATTERN = Pattern
-			.compile("(?s)^\\s*\\{\\s*\"@context\"\\s*:\\s*(\\{.*?\\})\\s*,\\s*\"@graph\"\\s*:\\s*(\\[.*\\])\\s*}\\s*$");
 
 	private GraphProjectionService() {
 	}
@@ -98,23 +83,43 @@ public final class GraphProjectionService {
 			return jsonLd;
 		}
 
-		Matcher matcher = MALFORMED_DOUBLE_QUOTED_VALUE_PATTERN.matcher(jsonLd);
-		StringBuffer sanitized = new StringBuffer(jsonLd.length());
+		StringBuilder sanitized = new StringBuilder(jsonLd.length());
+		int cursor = 0;
 		int replacementCount = 0;
-		while (matcher.find()) {
-			String prefix = matcher.group(1);
-			String content = matcher.group(2);
-			String escapedContent = content.replace("\\", "\\\\").replace("\"", "\\\"");
-			String replacement = prefix + "\"\\\"" + escapedContent + "\\\"\"";
-			matcher.appendReplacement(sanitized, Matcher.quoteReplacement(replacement));
-			replacementCount++;
+		while (cursor < jsonLd.length()) {
+			int start = findMalformedQuotedValueStart(jsonLd, cursor);
+			if (start < 0) {
+				sanitized.append(jsonLd, cursor, jsonLd.length());
+				cursor = jsonLd.length();
+			} else {
+				ReplacementAttempt attempt = tryReplaceMalformedQuotedValue(jsonLd, cursor, start, sanitized);
+				cursor = attempt.nextCursor();
+				if (attempt.replaced()) {
+					replacementCount++;
+				}
+			}
 		}
-		if (replacementCount == 0) {
-			return jsonLd;
+
+		if (replacementCount > 0) {
+			LOGGER.warn("Sanitized {} malformed JSON-LD quoted value(s) in graph snapshot.", replacementCount);
 		}
-		matcher.appendTail(sanitized);
-		LOGGER.warn("Sanitized {} malformed JSON-LD quoted value(s) in graph snapshot.", replacementCount);
-		return sanitized.toString();
+		return replacementCount == 0 ? jsonLd : sanitized.toString();
+	}
+
+	private static ReplacementAttempt tryReplaceMalformedQuotedValue(String jsonLd, int cursor, int start,
+			StringBuilder output) {
+		int end = findMalformedQuotedValueEnd(jsonLd, start + 2);
+		if (end < 0 || !hasMalformedValueSuffix(jsonLd, end + 2)) {
+			// No safe replacement from this position, keep scanning.
+			output.append(jsonLd, cursor, start + 1);
+			return new ReplacementAttempt(start + 1, false);
+		}
+
+		String content = jsonLd.substring(start + 2, end);
+		String escapedContent = content.replace("\\", "\\\\").replace("\"", "\\\"");
+		output.append(jsonLd, cursor, start);
+		output.append("\"\\\"").append(escapedContent).append("\\\"\"");
+		return new ReplacementAttempt(end + 2, true);
 	}
 
 	private String ensureSingleNamedGraphContainer(String jsonLd, Graph graph) {
@@ -122,8 +127,8 @@ public final class GraphProjectionService {
 			return jsonLd;
 		}
 
-		DataWorkspaceStatusSupport.GraphCountSnapshot snapshot = DataWorkspaceStatusSupport.computeGraphCountSnapshot(
-				graph, Math.max(0, graph.size()), LOGGER);
+		DataWorkspaceStatusSupport.GraphCountSnapshot snapshot = DataWorkspaceStatusSupport
+				.computeGraphCountSnapshot(graph, Math.max(0, graph.size()), LOGGER);
 		Map<String, Integer> namedGraphCounts = snapshot.namedGraphCounts();
 		if (snapshot.defaultGraphTripleCount() > 0 || namedGraphCounts.size() != 1) {
 			return jsonLd;
@@ -137,27 +142,255 @@ public final class GraphProjectionService {
 			return jsonLd;
 		}
 
-		Matcher matcher = TOP_LEVEL_CONTEXT_GRAPH_PATTERN.matcher(jsonLd);
-		if (!matcher.matches()) {
+		TopLevelJsonLdParts parts = extractTopLevelContextAndGraph(jsonLd);
+		if (parts == null) {
 			return jsonLd;
 		}
 
-		String contextJson = matcher.group(1);
-		String graphArrayJson = matcher.group(2);
 		String escapedGraphId = escapeJsonString(namedGraphId);
 
 		LOGGER.info("Wrapped flattened JSON-LD @graph payload into named graph container: {}", namedGraphId);
-		return "{\n\t\"@context\": " + contextJson + ",\n\t\"@graph\": [\n\t\t{\n\t\t\t\"@id\": \"" + escapedGraphId
-				+ "\",\n\t\t\t\"@graph\": " + graphArrayJson + "\n\t\t}\n\t]\n}";
+		return "{\n\t\"@context\": " + parts.contextJson() + ",\n\t\"@graph\": [\n\t\t{\n\t\t\t\"@id\": \""
+				+ escapedGraphId + "\",\n\t\t\t\"@graph\": " + parts.graphArrayJson() + "\n\t\t}\n\t]\n}";
 	}
 
 	private boolean hasNamedGraphContainer(String jsonLd, String namedGraphId) {
 		if (jsonLd == null || jsonLd.isBlank() || namedGraphId == null || namedGraphId.isBlank()) {
 			return false;
 		}
-		Pattern containerPattern = Pattern
-				.compile("\"@id\"\\s*:\\s*\"" + Pattern.quote(namedGraphId) + "\"\\s*,\\s*\"@graph\"");
-		return containerPattern.matcher(jsonLd).find();
+		String expectedId = "\"" + escapeJsonString(namedGraphId) + "\"";
+		int idKeyIndex = jsonLd.indexOf("\"@id\"");
+		while (idKeyIndex >= 0) {
+			if (matchesNamedGraphContainerAt(jsonLd, idKeyIndex, expectedId)) {
+				return true;
+			}
+			idKeyIndex = jsonLd.indexOf("\"@id\"", idKeyIndex + "\"@id\"".length());
+		}
+		return false;
+	}
+
+	private static boolean matchesNamedGraphContainerAt(String jsonLd, int idKeyIndex, String expectedId) {
+		int colonIndex = jsonLd.indexOf(':', idKeyIndex);
+		if (colonIndex < 0) {
+			return false;
+		}
+		int valueStart = skipWhitespace(jsonLd, colonIndex + 1);
+		if (valueStart >= jsonLd.length() || jsonLd.charAt(valueStart) != '"') {
+			return false;
+		}
+		int valueEnd = findJsonValueEnd(jsonLd, valueStart);
+		if (valueEnd <= valueStart) {
+			return false;
+		}
+		String actualId = jsonLd.substring(valueStart, valueEnd + 1);
+		return expectedId.equals(actualId) && jsonLd.indexOf("\"@graph\"", valueEnd) >= 0;
+	}
+
+	private static int findMalformedQuotedValueStart(String jsonLd, int fromIndex) {
+		for (int i = Math.max(0, fromIndex); i < jsonLd.length() - 1; i++) {
+			if (jsonLd.charAt(i) == '"' && jsonLd.charAt(i + 1) == '"' && hasMalformedValuePrefix(jsonLd, i - 1)) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	private static int findMalformedQuotedValueEnd(String jsonLd, int contentStart) {
+		boolean escaping = false;
+		for (int i = Math.max(0, contentStart); i < jsonLd.length() - 1; i++) {
+			char current = jsonLd.charAt(i);
+			if (escaping) {
+				escaping = false;
+			} else if (current == '\\') {
+				escaping = true;
+			} else if (current == '"' && jsonLd.charAt(i + 1) == '"') {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	private static boolean hasMalformedValuePrefix(String jsonLd, int index) {
+		if (index < 0) {
+			return true;
+		}
+		char prefix = jsonLd.charAt(index);
+		return prefix == ':' || prefix == '[' || prefix == ',' || Character.isWhitespace(prefix);
+	}
+
+	private static boolean hasMalformedValueSuffix(String jsonLd, int index) {
+		int cursor = skipWhitespace(jsonLd, index);
+		if (cursor >= jsonLd.length()) {
+			return false;
+		}
+		char suffix = jsonLd.charAt(cursor);
+		return suffix == ',' || suffix == '}' || suffix == ']';
+	}
+
+	private TopLevelJsonLdParts extractTopLevelContextAndGraph(String jsonLd) {
+		String trimmed = jsonLd == null ? "" : jsonLd.trim();
+		if (trimmed.isEmpty() || trimmed.charAt(0) != '{') {
+			return null;
+		}
+
+		int contextValueStart = findTopLevelValueStart(trimmed, "@context", 0);
+		if (contextValueStart < 0) {
+			return null;
+		}
+		int contextValueEnd = findJsonValueEnd(trimmed, contextValueStart);
+		if (contextValueEnd < 0) {
+			return null;
+		}
+
+		int graphValueStart = findTopLevelValueStart(trimmed, "@graph", contextValueEnd + 1);
+		if (graphValueStart < 0 || trimmed.charAt(graphValueStart) != '[') {
+			return null;
+		}
+		int graphValueEnd = findJsonValueEnd(trimmed, graphValueStart);
+		if (graphValueEnd < 0) {
+			return null;
+		}
+
+		String contextJson = trimmed.substring(contextValueStart, contextValueEnd + 1);
+		String graphArrayJson = trimmed.substring(graphValueStart, graphValueEnd + 1);
+		return new TopLevelJsonLdParts(contextJson, graphArrayJson);
+	}
+
+	private static int findTopLevelValueStart(String json, String key, int fromIndex) {
+		String keyToken = "\"" + key + "\"";
+		boolean inString = false;
+		boolean escaping = false;
+		int depth = 0;
+		for (int i = 0; i < json.length(); i++) {
+			char current = json.charAt(i);
+			if (inString) {
+				QuotedStringState state = consumeQuotedStringChar(current, escaping);
+				escaping = state.escaping();
+				inString = state.inString();
+			} else if (current == '"') {
+				int valueStart = resolveTopLevelKeyValueStart(json, keyToken, fromIndex, depth, i);
+				if (valueStart >= 0) {
+					return valueStart;
+				}
+				inString = true;
+			} else {
+				depth = updateNestingDepth(depth, current);
+			}
+		}
+		return -1;
+	}
+
+	private static int resolveTopLevelKeyValueStart(String json, String keyToken, int fromIndex, int depth, int index) {
+		if (index < fromIndex || depth != 1 || !json.startsWith(keyToken, index)) {
+			return -1;
+		}
+		int colonIndex = skipWhitespace(json, index + keyToken.length());
+		if (colonIndex >= json.length() || json.charAt(colonIndex) != ':') {
+			return -1;
+		}
+		return skipWhitespace(json, colonIndex + 1);
+	}
+
+	private static int updateNestingDepth(int depth, char current) {
+		if (current == '{' || current == '[') {
+			return depth + 1;
+		}
+		if (current == '}' || current == ']') {
+			return Math.max(0, depth - 1);
+		}
+		return depth;
+	}
+
+	private static int findJsonValueEnd(String json, int valueStart) {
+		if (valueStart < 0 || valueStart >= json.length()) {
+			return -1;
+		}
+		char startChar = json.charAt(valueStart);
+		if (startChar == '{' || startChar == '[') {
+			return findMatchingBracket(json, valueStart, startChar, startChar == '{' ? '}' : ']');
+		}
+		if (startChar == '"') {
+			return findStringEnd(json, valueStart + 1);
+		}
+		return findPrimitiveValueEnd(json, valueStart);
+	}
+
+	private static int findStringEnd(String json, int fromIndex) {
+		boolean escaping = false;
+		for (int i = fromIndex; i < json.length(); i++) {
+			char current = json.charAt(i);
+			if (escaping) {
+				escaping = false;
+			} else if (current == '\\') {
+				escaping = true;
+			} else if (current == '"') {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	private static int findPrimitiveValueEnd(String json, int valueStart) {
+		for (int i = valueStart; i < json.length(); i++) {
+			char current = json.charAt(i);
+			if (current == ',' || current == '}') {
+				return i - 1;
+			}
+		}
+		return json.length() - 1;
+	}
+
+	private static int findMatchingBracket(String json, int start, char open, char close) {
+		int depth = 0;
+		boolean inString = false;
+		boolean escaping = false;
+		for (int i = start; i < json.length(); i++) {
+			char current = json.charAt(i);
+			if (inString) {
+				QuotedStringState state = consumeQuotedStringChar(current, escaping);
+				escaping = state.escaping();
+				inString = state.inString();
+			} else if (current == '"') {
+				inString = true;
+			} else {
+				depth = updateBracketDepth(depth, current, open, close);
+				if (depth == 0) {
+					return i;
+				}
+			}
+		}
+		return -1;
+	}
+
+	private static int updateBracketDepth(int depth, char current, char open, char close) {
+		if (current == open) {
+			return depth + 1;
+		}
+		if (current == close) {
+			return depth - 1;
+		}
+		return depth;
+	}
+
+	private static QuotedStringState consumeQuotedStringChar(char current, boolean escaping) {
+		if (escaping) {
+			return new QuotedStringState(true, false);
+		}
+		if (current == '\\') {
+			return new QuotedStringState(true, true);
+		}
+		if (current == '"') {
+			return new QuotedStringState(false, false);
+		}
+		return new QuotedStringState(true, false);
+	}
+
+	private static int skipWhitespace(String value, int index) {
+		int cursor = Math.max(0, index);
+		while (cursor < value.length() && Character.isWhitespace(value.charAt(cursor))) {
+			cursor++;
+		}
+		return cursor;
 	}
 
 	private String escapeJsonString(String value) {
@@ -174,5 +407,14 @@ public final class GraphProjectionService {
 	 */
 	public List<SerializationFormat> supportedRdfExportFormats() {
 		return RDF_EXPORT_FORMATS;
+	}
+
+	private record TopLevelJsonLdParts(String contextJson, String graphArrayJson) {
+	}
+
+	private record ReplacementAttempt(int nextCursor, boolean replaced) {
+	}
+
+	private record QuotedStringState(boolean inString, boolean escaping) {
 	}
 }

@@ -206,6 +206,13 @@ public final class NotificationWidget {
 			return closeRequested.get();
 		}
 
+		private void dismissToastAsync(HBox toast, boolean fast) {
+			if (toast == null) {
+				return;
+			}
+			runOnFxThread(() -> NotificationWidget.this.dismissToast(toast, fast));
+		}
+
 		@Override
 		public void close() {
 			closeRequested.set(true);
@@ -525,6 +532,9 @@ public final class NotificationWidget {
 	}
 
 	private void playToastLifecycle(HBox toast, ToastRequest request, ToastState state) {
+		if (toast == null || request == null || state == null) {
+			return;
+		}
 		double targetHeight = computeToastHeight(toast);
 		Animation expand = createHeightAnimation(state.wrapper, 0, targetHeight, ENTER_DURATION, Interpolator.EASE_OUT);
 
@@ -583,23 +593,17 @@ public final class NotificationWidget {
 			return null;
 		}
 		for (Node child : container.getChildren()) {
-			if (!(child instanceof StackPane wrapper)) {
-				continue;
-			}
-			Object userData = wrapper.getUserData();
-			if (!(userData instanceof HBox toast) || toast == insertedToast) {
-				continue;
-			}
-			ToastState state = activeToasts.get(toast);
-			if (state != null && state.dismissible && !state.dismissing.get()) {
-				return toast;
+			if (child instanceof StackPane wrapper) {
+				Object userData = wrapper.getUserData();
+				if (userData instanceof HBox toast && toast != insertedToast) {
+					ToastState state = activeToasts.get(toast);
+					if (state != null && state.dismissible && !state.dismissing.get()) {
+						return toast;
+					}
+				}
 			}
 		}
 		return null;
-	}
-
-	private void dismissToastAsync(HBox toast, boolean fast) {
-		runOnFxThread(() -> dismissToast(toast, fast));
 	}
 
 	private void dismissToast(HBox toast, boolean fast) {

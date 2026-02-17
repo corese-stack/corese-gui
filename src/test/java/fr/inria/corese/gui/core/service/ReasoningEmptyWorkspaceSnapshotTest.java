@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.regex.Pattern;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -24,14 +23,8 @@ class ReasoningEmptyWorkspaceSnapshotTest {
 		rdfDataService.clearData();
 	}
 
-	@AfterEach
-	void tearDown() {
-		reasoningService.resetAllProfiles();
-		rdfDataService.clearData();
-	}
-
 	@Test
-	void owlRlOnEmptyWorkspace_serializesInferenceNamedGraphContainer() throws Exception {
+	void owlRlOnEmptyWorkspace_serializesInferenceNamedGraphContainer() {
 		reasoningService.setEnabled(ReasoningProfile.OWL_RL, true);
 
 		String snapshot = projectionService.snapshotJsonLd();
@@ -44,7 +37,7 @@ class ReasoningEmptyWorkspaceSnapshotTest {
 	}
 
 	@Test
-	void owlRlLiteOnEmptyWorkspace_serializesInferenceNamedGraphContainer() throws Exception {
+	void owlRlLiteOnEmptyWorkspace_serializesInferenceNamedGraphContainer() {
 		reasoningService.setEnabled(ReasoningProfile.OWL_RL_LITE, true);
 
 		String snapshot = projectionService.snapshotJsonLd();

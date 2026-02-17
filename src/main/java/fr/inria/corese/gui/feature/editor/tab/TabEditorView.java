@@ -231,24 +231,33 @@ public class TabEditorView extends AbstractView {
 	private void setupTabListChangeListener() {
 		tabPane.getTabs().addListener((ListChangeListener<Tab>) change -> {
 			while (change.next()) {
-				if (change.wasRemoved()) {
-					for (Tab tab : change.getRemoved()) {
-						tabContentMap.remove(tab);
-					}
-				}
-
-				if (change.wasAdded()) {
-					Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
-					if (selectedTab != null && change.getAddedSubList().contains(selectedTab)) {
-						Platform.runLater(() -> showContentForTab(selectedTab, false));
-					}
-				}
+				handleRemovedTabs(change);
+				handleAddedTabs(change);
 			}
 
 			if (tabPane.getTabs().isEmpty()) {
 				showContentForTab(null, false);
 			}
 		});
+	}
+
+	private void handleRemovedTabs(ListChangeListener.Change<? extends Tab> change) {
+		if (!change.wasRemoved()) {
+			return;
+		}
+		for (Tab tab : change.getRemoved()) {
+			tabContentMap.remove(tab);
+		}
+	}
+
+	private void handleAddedTabs(ListChangeListener.Change<? extends Tab> change) {
+		if (!change.wasAdded()) {
+			return;
+		}
+		Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+		if (selectedTab != null && change.getAddedSubList().contains(selectedTab)) {
+			Platform.runLater(() -> showContentForTab(selectedTab, false));
+		}
 	}
 
 	private void setupThemeListener() {

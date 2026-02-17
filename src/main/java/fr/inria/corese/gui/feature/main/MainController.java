@@ -10,7 +10,7 @@ import fr.inria.corese.gui.feature.query.QueryView;
 import fr.inria.corese.gui.feature.query.QueryViewController;
 import fr.inria.corese.gui.feature.validation.ValidationController;
 import fr.inria.corese.gui.feature.validation.ValidationView;
-import java.util.function.Function;
+import java.util.function.Predicate;
 import javafx.application.Platform;
 import javafx.event.EventHandler;
 import javafx.scene.Scene;
@@ -260,22 +260,22 @@ public final class MainController {
 		return true;
 	}
 
-	private boolean handleQueryValidationShortcut(Function<QueryViewController, Boolean> queryAction,
-			Function<ValidationController, Boolean> validationAction) {
+	private boolean handleQueryValidationShortcut(Predicate<QueryViewController> queryAction,
+			Predicate<ValidationController> validationAction) {
 		return switch (currentViewId) {
 			case QUERY -> {
 				QueryViewController controller = resolveQueryController();
-				yield controller != null && Boolean.TRUE.equals(queryAction.apply(controller));
+				yield controller != null && queryAction.test(controller);
 			}
 			case VALIDATION -> {
 				ValidationController controller = resolveValidationController();
-				yield controller != null && Boolean.TRUE.equals(validationAction.apply(controller));
+				yield controller != null && validationAction.test(controller);
 			}
 			default -> false;
 		};
 	}
 
-	private boolean handleDataShortcut(Function<DataViewController, Boolean> action) {
+	private boolean handleDataShortcut(Predicate<DataViewController> action) {
 		if (currentViewId != ViewId.DATA || action == null) {
 			return false;
 		}
@@ -283,21 +283,20 @@ public final class MainController {
 			return false;
 		}
 		DataViewController controller = dataView.getController();
-		return controller != null && Boolean.TRUE.equals(action.apply(controller));
+		return controller != null && action.test(controller);
 	}
 
-	private boolean handleGraphShortcut(Function<DataViewController, Boolean> dataAction,
-			Function<QueryViewController, Boolean> queryAction,
-			Function<ValidationController, Boolean> validationAction) {
+	private boolean handleGraphShortcut(Predicate<DataViewController> dataAction,
+			Predicate<QueryViewController> queryAction, Predicate<ValidationController> validationAction) {
 		return switch (currentViewId) {
 			case DATA -> handleDataShortcut(dataAction);
 			case QUERY -> {
 				QueryViewController controller = resolveQueryController();
-				yield controller != null && Boolean.TRUE.equals(queryAction.apply(controller));
+				yield controller != null && queryAction.test(controller);
 			}
 			case VALIDATION -> {
 				ValidationController controller = resolveValidationController();
-				yield controller != null && Boolean.TRUE.equals(validationAction.apply(controller));
+				yield controller != null && validationAction.test(controller);
 			}
 			default -> false;
 		};

@@ -254,7 +254,7 @@ public final class UriInputListWidget extends VBox {
 				return uri.getPath() != null && !uri.getPath().isBlank();
 			}
 			return true;
-		} catch (IllegalArgumentException e) {
+		} catch (IllegalArgumentException _) {
 			return false;
 		}
 	}

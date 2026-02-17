@@ -178,7 +178,7 @@ public class ValidationController {
 
 			// Update UI on JavaFX Application Thread
 			Platform.runLater(() -> handleValidationResult(result, resultController));
-		} catch (Throwable e) { // Broad catch prevents background-thread crashes on malformed shapes
+		} catch (Exception e) {
 			LOGGER.error("Error during validation", e);
 			Platform.runLater(() -> {
 				tabEditorController.setExecutionState(false);

@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.core.theme;
 
 import java.util.Locale;
+import java.util.Objects;
 import javafx.scene.paint.Color;
 
 /**
@@ -14,7 +15,8 @@ final class ThemeManagedStyleSupport {
 
 	static String buildManagedAccentStyle(Color accentColor, String defaultAccentHex, Color defaultAccentColor,
 			ThemeVisualPalette.Palette palette) {
-		Color safeAccent = accentColor == null ? defaultAccentColor : accentColor;
+		Color safeAccent = Objects
+				.requireNonNull(resolveAccentColor(accentColor, defaultAccentColor, defaultAccentHex));
 		String cssColor = toCssColor(safeAccent, defaultAccentHex);
 
 		return String.format(
@@ -58,8 +60,25 @@ final class ThemeManagedStyleSupport {
 		if (color == null) {
 			return Color.TRANSPARENT;
 		}
-		double clampedOpacity = Math.max(0.0, Math.min(1.0, opacity));
+		double clampedOpacity = Math.clamp(opacity, 0.0, 1.0);
 		return Color.color(color.getRed(), color.getGreen(), color.getBlue(), clampedOpacity);
+	}
+
+	private static Color resolveAccentColor(Color accentColor, Color defaultAccentColor, String defaultAccentHex) {
+		if (accentColor != null) {
+			return accentColor;
+		}
+		if (defaultAccentColor != null) {
+			return defaultAccentColor;
+		}
+		if (defaultAccentHex != null && !defaultAccentHex.isBlank()) {
+			try {
+				return Color.web(defaultAccentHex);
+			} catch (IllegalArgumentException _) {
+				// Fallback below.
+			}
+		}
+		return Color.TRANSPARENT;
 	}
 
 	static String stripManagedStyle(String currentStyle, String managedStyle) {

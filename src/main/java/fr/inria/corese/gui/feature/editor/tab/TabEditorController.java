@@ -14,7 +14,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -471,12 +471,12 @@ public class TabEditorController {
 		return applyToVisibleResultController(ResultController::centerGraphFromShortcut);
 	}
 
-	private boolean applyToVisibleResultController(Function<ResultController, Boolean> action) {
+	private boolean applyToVisibleResultController(Predicate<ResultController> action) {
 		if (!view.isResultPaneVisibleForSelectedTab()) {
 			return false;
 		}
 		ResultController resultController = getCurrentResultController();
-		return resultController != null && Boolean.TRUE.equals(action.apply(resultController));
+		return resultController != null && action.test(resultController);
 	}
 
 	// ===============================================================================

@@ -23,16 +23,12 @@ public final class QueryExecutionSupport {
 	}
 
 	public static void showAskOutcomeNotification(QueryResultRef resultRef) {
-		Boolean askResult = resultRef == null ? null : resultRef.getAskResult();
-		if (Boolean.TRUE.equals(askResult)) {
+		boolean askIsTrue = resultRef != null && Boolean.TRUE.equals(resultRef.getAskResult());
+		if (askIsTrue) {
 			NotificationWidget.getInstance().showSuccess("ASK", "True");
 			return;
 		}
-		if (Boolean.FALSE.equals(askResult)) {
-			NotificationWidget.getInstance().showError("ASK", "False");
-			return;
-		}
-		NotificationWidget.getInstance().showWarning("ASK", "Result unavailable.");
+		NotificationWidget.getInstance().showError("ASK", "False");
 	}
 
 	public static void showUpdateSummaryNotification(QueryResultRef resultRef) {

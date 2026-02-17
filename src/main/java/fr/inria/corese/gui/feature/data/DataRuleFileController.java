@@ -391,7 +391,7 @@ final class DataRuleFileController {
 		}
 		try {
 			return Files.isRegularFile(Path.of(filePath));
-		} catch (Exception e) {
+		} catch (RuntimeException _) {
 			return false;
 		}
 	}

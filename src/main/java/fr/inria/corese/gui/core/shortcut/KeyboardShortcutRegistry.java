@@ -66,15 +66,15 @@ public final class KeyboardShortcutRegistry {
 			KeyCombination combination, Scope scope, Action action) {
 
 		public Shortcut {
-			category = requireNonBlank(category, "category");
+			category = normalizeNonBlank(category, "category");
 			keyTokens = keyTokens == null
 					? List.of()
 					: keyTokens.stream().filter(token -> token != null && !token.isBlank()).map(String::trim).toList();
 			if (keyTokens.isEmpty()) {
 				throw new IllegalArgumentException("keyTokens must not be empty");
 			}
-			description = requireNonBlank(description, "description");
-			availability = requireNonBlank(availability, "availability");
+			description = normalizeNonBlank(description, "description");
+			availability = normalizeNonBlank(availability, "availability");
 			Objects.requireNonNull(combination, "combination");
 			Objects.requireNonNull(scope, "scope");
 			Objects.requireNonNull(action, "action");
@@ -245,11 +245,11 @@ public final class KeyboardShortcutRegistry {
 		return new Shortcut(category, keyTokens, description, availability, combination, Scope.CONTEXTUAL, action);
 	}
 
-	private static String requireNonBlank(String value, String fieldName) {
+	private static String normalizeNonBlank(String value, String fieldName) {
 		if (value == null || value.isBlank()) {
 			throw new IllegalArgumentException(fieldName + " must not be blank");
 		}
-		return value;
+		return value.trim();
 	}
 
 	private static List<String> keys(String... tokens) {

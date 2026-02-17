@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -16,12 +15,6 @@ class GraphActivityLogServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		logService.clear();
-		logService.setMaxEntriesForTesting(GraphActivityLogService.DEFAULT_MAX_ENTRIES);
-	}
-
-	@AfterEach
-	void tearDown() {
 		logService.clear();
 		logService.setMaxEntriesForTesting(GraphActivityLogService.DEFAULT_MAX_ENTRIES);
 	}
@@ -54,14 +47,18 @@ class GraphActivityLogServiceTest {
 	}
 
 	@Test
-	void subscribe_receivesInitialAndSubsequentSnapshots() throws Exception {
+	void subscribe_receivesInitialAndSubsequentSnapshots() {
 		List<List<GraphActivityLogEntry>> receivedSnapshots = new ArrayList<>();
 		AutoCloseable subscription = logService.subscribe(receivedSnapshots::add);
 		try {
 			logService.log(GraphActivityLogEntry.Source.REASONING_SERVICE, "Reasoning recompute", "RDFS", 4, 0);
 			logService.clear();
 		} finally {
-			subscription.close();
+			try {
+				subscription.close();
+			} catch (Exception closeError) {
+				throw new RuntimeException(closeError);
+			}
 		}
 
 		assertTrue(receivedSnapshots.size() >= 3,

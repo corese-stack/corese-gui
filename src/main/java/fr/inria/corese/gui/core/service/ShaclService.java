@@ -12,7 +12,9 @@ import org.slf4j.LoggerFactory;
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.api.Loader;
 import fr.inria.corese.core.load.Load;
+import fr.inria.corese.core.load.LoadException;
 import fr.inria.corese.core.shacl.Shacl;
+import fr.inria.corese.core.sparql.exceptions.EngineException;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.model.ValidationResult;
 
@@ -111,7 +113,7 @@ public class ShaclService {
 			LOGGER.info("SHACL validation done. Conforms: {}, ReportID: {}", conforms, reportId);
 			return new ValidationResult(conforms, reportId, null);
 
-		} catch (Throwable e) { // Broad catch keeps validation failures recoverable in the UI
+		} catch (LoadException | EngineException | RuntimeException e) {
 			LOGGER.error("SHACL validation exception", e);
 			return new ValidationResult(false, null, buildValidationErrorMessage(e));
 		}

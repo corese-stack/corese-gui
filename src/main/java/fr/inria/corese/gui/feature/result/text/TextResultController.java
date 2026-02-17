@@ -241,7 +241,7 @@ public class TextResultController implements AutoCloseable {
 		}
 		try {
 			return SerializationFormat.valueOf(value);
-		} catch (IllegalArgumentException ex) {
+		} catch (IllegalArgumentException _) {
 			return null;
 		}
 	}
