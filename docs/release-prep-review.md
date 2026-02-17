@@ -22,6 +22,8 @@ This pass focused on release-readiness without behavior change:
   - central adjacent-tab navigation helper
   - unified visible-result-controller shortcut dispatch
   - reduced duplicated tab lock/unlock logic
+- Simplified `TabStripView` constructor by extracting shared overflow-shadow setup
+  (same behavior, less duplication for left/right branches).
 
 ## Hotspots To Tackle In Phase 2
 
