@@ -133,7 +133,6 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	private boolean hasRenderedGraph = false;
 	private Consumer<GraphStats> onGraphStatsChanged = stats -> {
 	};
-	private boolean borderVisible = true;
 
 	// ==============================================================================================
 	// Constructor
@@ -339,7 +338,6 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			Platform.runLater(() -> setBorderVisible(visible));
 			return;
 		}
-		borderVisible = visible;
 		if (visible) {
 			getStyleClass().remove(STYLE_CLASS_BORDERLESS);
 			return;
@@ -543,7 +541,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 				  }
 				})();
 				""".formatted(safeBase64Json, safeRequestId, GRAPH_ELEMENT_ID, safeBase64Json, safeRequestId,
-						safeRequestId);
+				safeRequestId);
 	}
 
 	private static String escapeForJsSingleQuoted(String value) {
@@ -635,17 +633,6 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		hideLoadingOverlay();
 		clearRenderedGraph();
 		notifyGraphStatsChanged(0, 0);
-	}
-
-	private boolean isCurrentRenderRequest(String requestId) {
-		if (requestId == null || requestId.isBlank()) {
-			return false;
-		}
-		try {
-			return Long.parseLong(requestId) == renderRequestCounter.get();
-		} catch (NumberFormatException ignored) {
-			return false;
-		}
 	}
 
 	private void clearRenderedGraph() {
@@ -779,6 +766,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	 * Bridge class for communication from JavaScript to Java. Exposed as
 	 * 'window.bridge' in the WebView environment.
 	 */
+	@SuppressWarnings({"java:S5738", "removal"})
 	public class JavaBridge {
 		/**
 		 * Logs an information message from JavaScript.
@@ -823,6 +811,17 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			Platform.runLater(GraphDisplayWidget.this::hideLoadingOverlay);
 		}
 
+		private boolean isCurrentRenderRequest(String requestId) {
+			if (requestId == null || requestId.isBlank()) {
+				return false;
+			}
+			try {
+				return Long.parseLong(requestId) == renderRequestCounter.get();
+			} catch (NumberFormatException _) {
+				return false;
+			}
+		}
+
 		public void onGraphStatsUpdated(String tripleCountValue, String namedGraphCountValue) {
 			if (disposed) {
 				return;
@@ -859,7 +858,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 					if (stat != null && !stat.graphId().isBlank()) {
 						stats.add(stat);
 					}
-				} catch (Exception ignored) {
+				} catch (Exception _) {
 					// Ignore malformed entry and keep the remaining stats.
 				}
 			}
@@ -869,7 +868,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		private int parseArrayLength(JSObject arrayObject) {
 			try {
 				return parseNonNegativeInt(arrayObject.getMember("length"));
-			} catch (Exception ignored) {
+			} catch (Exception _) {
 				return 0;
 			}
 		}
@@ -894,7 +893,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		private Object readMember(JSObject object, String memberName) {
 			try {
 				return object.getMember(memberName);
-			} catch (Exception ignored) {
+			} catch (Exception _) {
 				return null;
 			}
 		}
@@ -916,10 +915,10 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			String normalized = value.trim();
 			try {
 				return Math.max(0, Integer.parseInt(normalized));
-			} catch (NumberFormatException ignored) {
+			} catch (NumberFormatException _) {
 				try {
 					return Math.max(0, (int) Math.floor(Double.parseDouble(normalized)));
-				} catch (NumberFormatException ignoredAgain) {
+				} catch (NumberFormatException _) {
 					return 0;
 				}
 			}

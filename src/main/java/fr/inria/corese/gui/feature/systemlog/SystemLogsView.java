@@ -170,8 +170,9 @@ public final class SystemLogsView extends AbstractView {
 		stateColumn.setComparator((left, right) -> Long.compare(left.longValue(), right.longValue()));
 		stateColumn.setPrefWidth(260);
 
-		logTableView.getColumns().setAll(timeColumn, typeColumn, actionColumn, detailsColumn, diffColumn, stateColumn);
-		logTableView.getSortOrder().setAll(timeColumn);
+		logTableView.getColumns()
+				.setAll(List.of(timeColumn, typeColumn, actionColumn, detailsColumn, diffColumn, stateColumn));
+		logTableView.getSortOrder().setAll(List.of(timeColumn));
 	}
 
 	public TableView<SystemLogTableRow> getLogTableView() {

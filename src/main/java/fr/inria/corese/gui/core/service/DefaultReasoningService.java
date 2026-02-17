@@ -257,7 +257,7 @@ public final class DefaultReasoningService implements ReasoningService {
 	private void recomputeEnabledProfilesInternal(boolean logActivity) {
 		Graph mainGraph = GraphStoreService.getInstance().getGraph();
 		int tripleCountBefore = Math.max(0, mainGraph.size());
-		try (AutoCloseable ignored = GraphMutationCollectorService.getInstance().suspendPublishing()) {
+		try (AutoCloseable _ = GraphMutationCollectorService.getInstance().suspendPublishing()) {
 			Graph assertedSnapshot = createAssertedSnapshot(mainGraph);
 			replaceGraphContent(mainGraph, assertedSnapshot);
 
@@ -311,7 +311,7 @@ public final class DefaultReasoningService implements ReasoningService {
 		}
 
 		Graph mainGraph = GraphStoreService.getInstance().getGraph();
-		try (AutoCloseable ignored = GraphMutationCollectorService.getInstance().suspendPublishing()) {
+		try (AutoCloseable _ = GraphMutationCollectorService.getInstance().suspendPublishing()) {
 			Graph assertedSnapshot = createAssertedSnapshot(mainGraph);
 			replaceGraphContent(mainGraph, assertedSnapshot);
 			mainGraph.clean();
