@@ -439,11 +439,15 @@ public class TabEditorView extends AbstractView {
 		headerBar.setVisible(visible);
 		headerBar.setManaged(visible);
 		if (visible) {
-			// First display can occur before layout metrics are stable.
-			// Refresh again on next pulses to get correct full-width tab sizing.
-			Platform.runLater(tabStripController::refresh);
-			Platform.runLater(() -> Platform.runLater(tabStripController::refresh));
+			refreshTabStripAfterVisibilityRestore();
 		}
+	}
+
+	private void refreshTabStripAfterVisibilityRestore() {
+		// First display can occur before layout metrics are stable.
+		// Refresh again on next pulses to get correct full-width tab sizing.
+		Platform.runLater(tabStripController::refresh);
+		Platform.runLater(() -> Platform.runLater(tabStripController::refresh));
 	}
 
 	public void setEmptyStateWidget(Node emptyStateWidget) {
@@ -521,13 +525,7 @@ public class TabEditorView extends AbstractView {
 			resultNode.setVisible(true);
 			splitPane.setDividerPositions(RESULT_PANE_HIDDEN_POSITION);
 
-			Timeline timeline = new Timeline(
-					new KeyFrame(Duration.ZERO,
-							new KeyValue(splitPane.getDividers().get(0).positionProperty(),
-									splitPane.getDividers().get(0).getPosition(), Interpolator.EASE_BOTH)),
-					new KeyFrame(SPLIT_ANIMATION_DURATION,
-							new KeyValue(splitPane.getDividers().get(0).positionProperty(),
-									RESULT_PANE_VISIBLE_POSITION, Interpolator.EASE_BOTH)));
+			Timeline timeline = createDividerAnimation(splitPane, RESULT_PANE_VISIBLE_POSITION);
 			timeline.setOnFinished(e -> resultPaneAnimations.remove(splitPane));
 			resultPaneAnimations.put(splitPane, timeline);
 			timeline.play();
@@ -561,12 +559,7 @@ public class TabEditorView extends AbstractView {
 			splitPane.getItems().remove(1);
 			return;
 		}
-		Timeline timeline = new Timeline(
-				new KeyFrame(Duration.ZERO,
-						new KeyValue(splitPane.getDividers().get(0).positionProperty(),
-								splitPane.getDividers().get(0).getPosition(), Interpolator.EASE_BOTH)),
-				new KeyFrame(SPLIT_ANIMATION_DURATION, new KeyValue(splitPane.getDividers().get(0).positionProperty(),
-						RESULT_PANE_HIDDEN_POSITION, Interpolator.EASE_BOTH)));
+		Timeline timeline = createDividerAnimation(splitPane, RESULT_PANE_HIDDEN_POSITION);
 		timeline.setOnFinished(e -> {
 			if (splitPane.getItems().size() > 1) {
 				splitPane.getItems().remove(1);
@@ -602,6 +595,15 @@ public class TabEditorView extends AbstractView {
 			region.setMinHeight(0);
 		}
 		SplitPane.setResizableWithParent(resultNode, Boolean.TRUE);
+	}
+
+	private Timeline createDividerAnimation(SplitPane splitPane, double targetPosition) {
+		return new Timeline(
+				new KeyFrame(Duration.ZERO,
+						new KeyValue(splitPane.getDividers().get(0).positionProperty(),
+								splitPane.getDividers().get(0).getPosition(), Interpolator.EASE_BOTH)),
+				new KeyFrame(SPLIT_ANIMATION_DURATION, new KeyValue(splitPane.getDividers().get(0).positionProperty(),
+						targetPosition, Interpolator.EASE_BOTH)));
 	}
 
 	// ==============================================================================================
@@ -653,7 +655,7 @@ public class TabEditorView extends AbstractView {
 	}
 
 	private void handleFileDragOver(DragEvent event) {
-		if (onFilesDropped == null) {
+		if (!isFileDropEnabled()) {
 			return;
 		}
 		if (hasFilesInDragboard(event)) {
@@ -663,7 +665,7 @@ public class TabEditorView extends AbstractView {
 	}
 
 	private void handleFileDropped(DragEvent event) {
-		if (onFilesDropped == null) {
+		if (!isFileDropEnabled()) {
 			return;
 		}
 		boolean completed = false;
@@ -678,7 +680,7 @@ public class TabEditorView extends AbstractView {
 	}
 
 	private void handleFileDragEntered(DragEvent event) {
-		if (onFilesDropped == null) {
+		if (!isFileDropEnabled()) {
 			return;
 		}
 		if (hasFilesInDragboard(event)) {
@@ -688,10 +690,14 @@ public class TabEditorView extends AbstractView {
 	}
 
 	private void handleFileDragExited(DragEvent event) {
-		if (onFilesDropped == null) {
+		if (!isFileDropEnabled()) {
 			return;
 		}
 		setFileDropActive(false);
+	}
+
+	private boolean isFileDropEnabled() {
+		return onFilesDropped != null;
 	}
 
 	private boolean hasFilesInDragboard(DragEvent event) {

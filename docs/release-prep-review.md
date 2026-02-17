@@ -27,6 +27,7 @@ This pass focused on release-readiness without behavior change:
 - Small pragmatic cleanups (no architecture changes):
   - `QueryTemplateDialog`: centralized listener binding helper for preview refresh.
   - `NotificationWidget`: reduced duplicated tone wrappers and toast action/button creation.
+  - `TabEditorView`: extracted divider animation helper and unified file-drop guards.
 
 ## Hotspots To Tackle In Phase 2
 
