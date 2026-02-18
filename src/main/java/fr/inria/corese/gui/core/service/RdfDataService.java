@@ -120,6 +120,12 @@ public class RdfDataService {
 			String errorMsg = String.format("Failed to load RDF file '%s': %s", file.getName(), e.getMessage());
 			LOGGER.error(errorMsg, e);
 			throw new RdfLoadException(errorMsg, e);
+		} catch (Throwable throwable) {
+			rethrowIfFatal(throwable);
+			String details = errorDetails(throwable);
+			String errorMsg = String.format("Failed to load RDF file '%s': %s", file.getName(), details);
+			LOGGER.error(errorMsg, throwable);
+			throw new RdfLoadException(errorMsg, throwable);
 		}
 	}
 
@@ -169,6 +175,16 @@ public class RdfDataService {
 			String errorMsg = String.format("Failed to load RDF URI '%s': %s", normalizedUri, details);
 			LOGGER.error(errorMsg, e);
 			throw new RdfLoadException(errorMsg, e);
+		} catch (Throwable throwable) {
+			rethrowIfFatal(throwable);
+			String details = DemoHttpFallbackSupport.isSslHandshakeFailure(throwable)
+					? "TLS certificate validation failed. The app retries HTTP only for known demo links under "
+							+ DemoHttpFallbackSupport.demoHost() + DemoHttpFallbackSupport.demoPathPrefix()
+							+ ". Otherwise, fix the JVM truststore or use http:// when available."
+					: errorDetails(throwable);
+			String errorMsg = String.format("Failed to load RDF URI '%s': %s", normalizedUri, details);
+			LOGGER.error(errorMsg, throwable);
+			throw new RdfLoadException(errorMsg, throwable);
 		}
 	}
 
@@ -273,6 +289,26 @@ public class RdfDataService {
 			return "";
 		}
 		return sourceNameOrPath.substring(dotIndex).toLowerCase(Locale.ROOT);
+	}
+
+	private String errorDetails(Throwable throwable) {
+		if (throwable == null) {
+			return "Unknown error.";
+		}
+		String message = throwable.getMessage();
+		if (message != null && !message.isBlank()) {
+			return message;
+		}
+		return throwable.getClass().getSimpleName();
+	}
+
+	private void rethrowIfFatal(Throwable throwable) {
+		if (throwable instanceof VirtualMachineError error) {
+			throw error;
+		}
+		if (throwable instanceof LinkageError linkageError) {
+			throw linkageError;
+		}
 	}
 
 	@FunctionalInterface

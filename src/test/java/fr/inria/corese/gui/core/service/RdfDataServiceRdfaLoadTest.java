@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.core.service;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.File;
 import java.io.IOException;
@@ -50,6 +51,20 @@ class RdfDataServiceRdfaLoadTest {
 		assertTrue(rdfDataService.getTripleCount() > 0, "RDFa HTM input should insert triples into the graph.");
 		assertTrue(projectionService.snapshotJsonLd().contains("Alice"),
 				"JSON-LD snapshot should expose RDFa literal content loaded from .htm.");
+	}
+
+	@Test
+	void loadFile_invalidTurtle_wrapsParserErrorAsRdfLoadException() throws IOException {
+		Path filePath = tempDir.resolve("invalid.ttl");
+		Files.writeString(filePath, """
+				@prefix ex: <http://example.org/ns#> .
+				ex:Alice ex:friend ? .
+				""", StandardCharsets.UTF_8);
+
+		RdfDataService.RdfLoadException exception = assertThrows(RdfDataService.RdfLoadException.class,
+				() -> rdfDataService.loadFile(filePath.toFile()));
+		assertTrue(exception.getMessage().contains("Failed to load RDF file"),
+				"Invalid Turtle should surface as a user-facing RDF load error.");
 	}
 
 	private File writeTempHtml(String fileName) throws IOException {
