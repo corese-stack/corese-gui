@@ -730,7 +730,7 @@ public class TabEditorController {
 
 	private void bindFileToEditor(CodeEditorController editorController, String filePath) {
 		editorController.getModel().setFilePath(filePath);
-		editorController.getModel().markAsSaved();
+		editorController.getModel().markAsSavedAndResetHistory();
 	}
 
 	// ===============================================================================

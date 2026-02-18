@@ -200,11 +200,11 @@ public class CodeEditorController {
 			AppExecutors.execute(() -> {
 				try {
 					String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
-					Platform.runLater(() -> loadingHandle.closeThen(() -> {
-						model.setContent(content);
-						model.setFilePath(file.getAbsolutePath());
-						model.markAsSaved();
-					}));
+						Platform.runLater(() -> loadingHandle.closeThen(() -> {
+							model.setContent(content);
+							model.setFilePath(file.getAbsolutePath());
+							model.markAsSavedAndResetHistory();
+						}));
 				} catch (IOException e) {
 					LOGGER.error("Failed to open file", e);
 					Platform.runLater(() -> loadingHandle.closeThen(() -> ModalService.getInstance()

@@ -120,13 +120,20 @@ public class CodeEditorModel {
   }
 
   public void markAsSaved() {
+    markAsSaved(false);
+  }
+
+  public void markAsSavedAndResetHistory() {
+    markAsSaved(true);
+  }
+
+  private void markAsSaved(boolean clearHistory) {
     this.currentSavedContent = getContent();
     setModified(false);
-    // Note: We clear history on save to avoid complexity with "dirty" state tracking relative to
-    // history.
-    // A more advanced implementation would track the "saved" index in the stack.
-    undoStack.clear();
-    redoStack.clear();
+    if (clearHistory) {
+      undoStack.clear();
+      redoStack.clear();
+    }
   }
 
   // ==============================================================================================
