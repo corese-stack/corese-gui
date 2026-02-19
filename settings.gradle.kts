@@ -1,1 +1,1 @@
-rootProject.name = "rdf-editor"
+rootProject.name = "corese-gui"

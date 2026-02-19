@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.bundling.Zip
+
 plugins {
     application
     id("org.openjfx.javafxplugin") version "0.1.0"
@@ -71,6 +73,33 @@ tasks.withType<JavaCompile> {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+val osClassifier = when {
+    System.getProperty("os.name").lowercase().contains("win") -> "windows"
+    System.getProperty("os.name").lowercase().contains("mac") -> "macos"
+    else -> "linux"
+}
+
+tasks.jar {
+    archiveBaseName.set("corese-gui")
+    manifest {
+        attributes["Main-Class"] = application.mainClass.get()
+    }
+}
+
+tasks.register<Zip>("releasePackage") {
+    group = "distribution"
+    description = "Creates an OS-specific distributable zip with launcher and runtime dependencies."
+    dependsOn(tasks.installDist)
+
+    val installDir = layout.buildDirectory.dir("install/${project.name}")
+    from(installDir)
+
+    archiveBaseName.set("corese-gui")
+    archiveVersion.set(project.version.toString())
+    archiveClassifier.set(osClassifier)
+    destinationDirectory.set(layout.buildDirectory.dir("release"))
 }
 
 spotless {
