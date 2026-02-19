@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javafx.scene.Cursor;
 import javafx.geometry.Pos;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.control.Button;
@@ -389,7 +390,13 @@ public final class SettingsView extends AbstractView {
 		version.getStyleClass().add("settings-about-version");
 		version.setWrapText(false);
 
-		identity.getChildren().addAll(appName, version);
+		Label license = new Label("License CeCILL-C");
+		license.getStyleClass().add("settings-about-version");
+		license.setWrapText(false);
+		license.setCursor(Cursor.HAND);
+		license.setOnMouseClicked(e -> openURL(AppConstants.LICENSE_URL));
+
+		identity.getChildren().addAll(appName, version, license);
 		header.getChildren().addAll(logo, identity);
 
 		HBox links = new HBox(10);

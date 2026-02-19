@@ -30,5 +30,6 @@ public final class AppConstants {
   public static final String PROJECT_URL = "https://project.inria.fr/corese/";
   public static final String ISSUES_URL = "https://github.com/corese-stack/corese-gui/issues";
   public static final String FORUM_URL = "https://github.com/orgs/corese-stack/discussions";
+  public static final String LICENSE_URL = REPOSITORY_URL + "/blob/main/LICENSE";
 
 }
