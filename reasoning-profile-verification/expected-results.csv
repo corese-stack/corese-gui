@@ -1,5 +1,0 @@
-profile,file,asserted_triples,inferred_triples,total_triples,key_behavior
-RDFS,rdfs-basic.ttl,4,2,6,"Infer ex:alice rdf:type ex:Person and ex:alice ex:relatedTo ex:bob."
-OWL_RL,owlrl-symmetric.ttl,2,11,13,"Infer the symmetric edge ex:bob ex:knows ex:alice."
-OWL_RL_LITE,owlrl-lite-transitive.ttl,3,8,11,"Infer the transitive edge ex:alice ex:ancestorOf ex:carol."
-OWL_RL_EXT,owlrl-ext-disjoint-union.ttl,5,10,15,"Infer disjointUnionOf completion (equivalentClass + disjointWith support triples)."
