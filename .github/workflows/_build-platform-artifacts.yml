@@ -27,8 +27,16 @@ jobs:
                       target: linux-x64
                       gradle_cmd: ./gradlew
                       jpackage_type: app-image
+                    - os: ubuntu-24.04-arm
+                      target: linux-arm64
+                      gradle_cmd: ./gradlew
+                      jpackage_type: app-image
                     - os: windows-2025
                       target: windows-x64
+                      gradle_cmd: ./gradlew.bat
+                      jpackage_type: exe
+                    - os: windows-11-arm
+                      target: windows-arm64
                       gradle_cmd: ./gradlew.bat
                       jpackage_type: exe
                     - os: macos-15-intel
