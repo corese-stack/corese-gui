@@ -191,6 +191,7 @@ public class TabEditorView extends AbstractView {
 		overlay.setMouseTransparent(true);
 		overlay.setVisible(false);
 		overlay.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		overlay.setViewOrder(-1);
 		return overlay;
 	}
 
@@ -477,7 +478,6 @@ public class TabEditorView extends AbstractView {
 		StackPane.setAlignment(node, position);
 		StackPane.setMargin(node, margin);
 		contentContainer.getChildren().add(node);
-		fileDropOverlay.toFront();
 	}
 
 	// ==============================================================================================
@@ -720,7 +720,6 @@ public class TabEditorView extends AbstractView {
 				fileDropOverlay.getStyleClass().add(STYLE_CLASS_FILE_DROP_OVERLAY_ACTIVE);
 			}
 			fileDropOverlay.setVisible(true);
-			fileDropOverlay.toFront();
 			return;
 		}
 		fileDropOverlay.getStyleClass().remove(STYLE_CLASS_FILE_DROP_OVERLAY_ACTIVE);

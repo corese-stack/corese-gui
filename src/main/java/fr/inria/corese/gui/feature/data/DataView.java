@@ -240,6 +240,7 @@ public class DataView extends AbstractView {
 		ruleFilesDropOverlay.setVisible(false);
 		ruleFilesDropOverlay.setMouseTransparent(true);
 		ruleFilesDropOverlay.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		ruleFilesDropOverlay.setViewOrder(-1);
 
 		ruleFilesEmptyStateWidget = new EmptyStateWidget(ButtonIcon.TEMPLATE, "No rule files", FileTypeSupport
 				.withAcceptedExtensions("Load a rule file or drop one here.", FileTypeSupport.ruleExtensions()));
@@ -312,6 +313,7 @@ public class DataView extends AbstractView {
 		graphDropOverlay.setVisible(false);
 		graphDropOverlay.setMouseTransparent(true);
 		graphDropOverlay.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		graphDropOverlay.setViewOrder(-1);
 
 		setupGraphDropListeners();
 	}
@@ -430,7 +432,6 @@ public class DataView extends AbstractView {
 			}
 			overlay.setManaged(true);
 			overlay.setVisible(true);
-			overlay.toFront();
 			return;
 		}
 		overlay.getStyleClass().remove(activeStyleClass);
