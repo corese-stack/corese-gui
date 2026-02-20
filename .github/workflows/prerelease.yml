@@ -57,10 +57,44 @@ jobs:
                   cd build/prerelease-assets
                   find . -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
 
+            - name: Remove existing dev-prerelease assets
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const owner = context.repo.owner;
+                      const repo = context.repo.repo;
+                      const tag = "dev-prerelease";
+
+                      try {
+                        const release = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+                        const assets = release.data.assets ?? [];
+
+                        if (assets.length === 0) {
+                          core.info("No existing assets to remove.");
+                          return;
+                        }
+
+                        core.info(`Removing ${assets.length} existing asset(s) from ${tag}.`);
+                        for (const asset of assets) {
+                          await github.rest.repos.deleteReleaseAsset({
+                            owner,
+                            repo,
+                            asset_id: asset.id
+                          });
+                          core.info(`Deleted asset: ${asset.name}`);
+                        }
+                      } catch (error) {
+                        if (error.status === 404) {
+                          core.info("Release does not exist yet; nothing to clean.");
+                          return;
+                        }
+                        throw error;
+                      }
+
             - name: Publish single rolling pre-release
               uses: ncipollo/release-action@v1
               with:
-                  artifacts: "build/prerelease-assets/**/*"
+                  artifacts: "build/prerelease-assets/*"
                   tag: dev-prerelease
                   name: Development Pre-release
                   body: |
@@ -70,6 +104,8 @@ jobs:
                       Last updated: ${{ steps.timestamp.outputs.timestamp }}
                       Source ref: `${{ github.event.inputs.ref }}`
                       Commit: `${{ steps.source-sha.outputs.sha }}`
+                  commit: ${{ steps.source-sha.outputs.sha }}
                   prerelease: true
                   allowUpdates: true
+                  removeArtifacts: true
                   replacesArtifacts: true
