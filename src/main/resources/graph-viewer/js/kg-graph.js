@@ -122,6 +122,8 @@ class KGGraphVis extends HTMLElement {
         this.performanceAdaptiveThresholdScale = 1.12;
         this.performanceLastAdaptiveUpdateAt = 0;
         this.performanceLastMeasuredFps = 0;
+        this.layoutTaskToken = 0;
+        this.lastDrawPromise = Promise.resolve();
 
         // Graph coloring
         this.graphColorMap = new Map();
@@ -190,6 +192,9 @@ class KGGraphVis extends HTMLElement {
         this.ADAPTIVE_FPS_STRONG_HEADROOM = 10;
         this.ADAPTIVE_FPS_MILD_HEADROOM = 4;
         this.ADAPTIVE_FPS_ALLOWED_DEFICIT = 4;
+        this.OFFLINE_LAYOUT_FRAME_BUDGET_MS = 7;
+        this.OFFLINE_LAYOUT_MIN_BATCH_TICKS = 8;
+        this.OFFLINE_LAYOUT_MAX_BATCH_TICKS = 180;
         this.AUTO_OVERVIEW_PADDING = 760;
         this.AUTO_OVERVIEW_MAX_SCALE = 0.09;
         this.AUTO_RECENTER_DELAY_MS = 560;
@@ -233,8 +238,16 @@ class KGGraphVis extends HTMLElement {
             maxDurationMs: Math.max(260, Math.floor(profile.maxDurationMs * 0.6)),
             targetAlpha: Math.max(0.16, profile.targetAlpha)
         };
-        this.runOfflineLayout(this.simulation, assistedProfile);
-        this.simulation.alpha(Math.max(0.2, assistedProfile.targetAlpha + 0.05)).alphaTarget(0).restart();
+        const simulationRef = this.simulation;
+        const layoutToken = ++this.layoutTaskToken;
+        this.runOfflineLayout(simulationRef, assistedProfile, {
+            shouldAbort: () => layoutToken !== this.layoutTaskToken || this.simulation !== simulationRef
+        }).then(() => {
+            if (layoutToken !== this.layoutTaskToken || this.simulation !== simulationRef || !this.simulation) {
+                return;
+            }
+            this.simulation.alpha(Math.max(0.2, assistedProfile.targetAlpha + 0.05)).alphaTarget(0).restart();
+        });
     }
 
     recenter() {
@@ -516,7 +529,15 @@ class KGGraphVis extends HTMLElement {
         }
         data.jsonld = jsonld;
         this.internalData.set(this, data);
-        this.drawChart();
+        const drawPromise = this.drawChart();
+        if (drawPromise && typeof drawPromise.catch === "function") {
+            this.lastDrawPromise = drawPromise;
+            drawPromise.catch(error => {
+                console.error("Graph drawing error:", error);
+            });
+            return;
+        }
+        this.lastDrawPromise = Promise.resolve();
     }
 
     /**
@@ -538,6 +559,8 @@ class KGGraphVis extends HTMLElement {
     }
 
     disconnectedCallback() {
+        this.layoutTaskToken += 1;
+        this.lastDrawPromise = Promise.resolve();
         if (this.resizeObserver) this.resizeObserver.disconnect();
         if (this.simulation) this.simulation.stop();
         this.stopPerformanceMonitoring();
@@ -1933,6 +1956,19 @@ class KGGraphVis extends HTMLElement {
         const y1 = (this.height - t.y) / t.k + pad;
 
         const inView = (x, y) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
+        const resolveGeometry = link => {
+            if (!link) {
+                return null;
+            }
+            if (link.geometry) {
+                return link.geometry;
+            }
+            const geometry = this.buildLinkGeometry(link);
+            if (geometry) {
+                link.geometry = geometry;
+            }
+            return geometry;
+        };
 
         if (showNodeLabels) {
             this.nodeLabelSelection
@@ -1953,14 +1989,14 @@ class KGGraphVis extends HTMLElement {
         if (showEdgeLabels) {
             this.linkLabelSelection
                 .style('visibility', d => {
-                    const geometry = d?.geometry ?? this.buildLinkGeometry(d);
+                    const geometry = resolveGeometry(d);
                     if (!geometry) {
                         return 'hidden';
                     }
                     return inView(geometry.labelX, geometry.labelY) ? 'visible' : 'hidden';
                 })
                 .style('opacity', d => {
-                    const geometry = d?.geometry ?? this.buildLinkGeometry(d);
+                    const geometry = resolveGeometry(d);
                     if (!geometry) {
                         return 0;
                     }
@@ -1976,20 +2012,33 @@ class KGGraphVis extends HTMLElement {
         if (!force && (!this.edgeLabelsVisible || this.labelsHiddenForInteraction)) {
             return;
         }
+        const resolveGeometry = link => {
+            if (!link) {
+                return null;
+            }
+            if (link.geometry) {
+                return link.geometry;
+            }
+            const geometry = this.buildLinkGeometry(link);
+            if (geometry) {
+                link.geometry = geometry;
+            }
+            return geometry;
+        };
 
         this.linkLabelSelection
             .attr("x", d => {
                 if (!d?.source || !d?.target) return null;
-                const geometry = d.geometry ?? this.buildLinkGeometry(d);
+                const geometry = resolveGeometry(d);
                 return geometry ? geometry.labelX : null;
             })
             .attr("y", d => {
                 if (!d?.source || !d?.target) return null;
-                const geometry = d.geometry ?? this.buildLinkGeometry(d);
+                const geometry = resolveGeometry(d);
                 return geometry ? geometry.labelY : null;
             })
             .attr("text-anchor", d => {
-                const geometry = d?.geometry ?? this.buildLinkGeometry(d);
+                const geometry = resolveGeometry(d);
                 return geometry?.labelAnchor ?? "middle";
             });
     }
@@ -2837,31 +2886,78 @@ class KGGraphVis extends HTMLElement {
         return { enabled: false, maxTicks: 0, maxDurationMs: 0, targetAlpha: 1 };
     }
 
-    runOfflineLayout(simulation, profile) {
+    async runOfflineLayout(simulation, profile, options = {}) {
         if (!simulation || !profile?.enabled) {
             return 0;
         }
-        simulation.stop();
+
         const maxTicks = Math.max(0, Math.floor(profile.maxTicks ?? 0));
         const maxDurationMs = Math.max(0, Number(profile.maxDurationMs ?? 0));
         const targetAlpha = Number.isFinite(profile.targetAlpha) ? profile.targetAlpha : 0.1;
+        const frameBudgetMs = Number.isFinite(options.frameBudgetMs)
+            ? Math.max(1, Math.floor(options.frameBudgetMs))
+            : this.OFFLINE_LAYOUT_FRAME_BUDGET_MS;
+        const minBatchTicks = Number.isFinite(options.minBatchTicks)
+            ? Math.max(1, Math.floor(options.minBatchTicks))
+            : this.OFFLINE_LAYOUT_MIN_BATCH_TICKS;
+        const maxBatchTicks = Number.isFinite(options.maxBatchTicks)
+            ? Math.max(minBatchTicks, Math.floor(options.maxBatchTicks))
+            : this.OFFLINE_LAYOUT_MAX_BATCH_TICKS;
+        const shouldAbort = typeof options.shouldAbort === "function" ? options.shouldAbort : () => false;
+
+        if (maxTicks <= 0 || maxDurationMs <= 0) {
+            return 0;
+        }
+
+        simulation.stop();
         const startedAt = performance.now();
         let ticks = 0;
-        while (ticks < maxTicks) {
-            simulation.tick();
-            ticks += 1;
-            if (simulation.alpha() <= targetAlpha) {
-                break;
-            }
-            if ((performance.now() - startedAt) >= maxDurationMs) {
-                break;
-            }
-        }
-        simulation.stop();
-        return ticks;
+
+        return await new Promise(resolve => {
+            const finish = () => {
+                simulation.stop();
+                resolve(ticks);
+            };
+            const shouldFinish = () => ticks >= maxTicks
+                || simulation.alpha() <= targetAlpha
+                || (performance.now() - startedAt) >= maxDurationMs
+                || shouldAbort();
+
+            const runBatch = () => {
+                if (shouldFinish()) {
+                    finish();
+                    return;
+                }
+                const batchStart = performance.now();
+                let batchTicks = 0;
+                while (ticks < maxTicks) {
+                    simulation.tick();
+                    ticks += 1;
+                    batchTicks += 1;
+                    if (simulation.alpha() <= targetAlpha) {
+                        break;
+                    }
+                    if ((performance.now() - startedAt) >= maxDurationMs) {
+                        break;
+                    }
+                    if (batchTicks >= maxBatchTicks) {
+                        break;
+                    }
+                    if (batchTicks >= minBatchTicks && (performance.now() - batchStart) >= frameBudgetMs) {
+                        break;
+                    }
+                }
+                if (shouldFinish()) {
+                    finish();
+                    return;
+                }
+                requestAnimationFrame(runBatch);
+            };
+            requestAnimationFrame(runBatch);
+        });
     }
 
-    precomputeDynamicLayout(nodeCount = 0, linkCount = 0) {
+    async precomputeDynamicLayout(nodeCount = 0, linkCount = 0, options = {}) {
         if (!this.graph || !Array.isArray(this.graph.nodes) || this.graph.nodes.length === 0) {
             return 0;
         }
@@ -2869,12 +2965,16 @@ class KGGraphVis extends HTMLElement {
         if (!profile.enabled) {
             return 0;
         }
+        const nodeList = this.graph.nodes;
+        const linkList = Array.isArray(this.graph.links) ? this.graph.links : [];
+        const componentByNodeId = this.componentByNodeId;
+        const componentTargets = this.componentTargets;
         const largeNodeThreshold = this.scaleThreshold(this.LARGE_GRAPH_NODE_THRESHOLD, 100);
         const largeLinkThreshold = this.scaleThreshold(this.LARGE_GRAPH_LINK_THRESHOLD, 180);
         const isLargeGraph = nodeCount >= largeNodeThreshold || linkCount >= largeLinkThreshold;
         const isVeryLargeGraph = nodeCount >= this.PRE_LAYOUT_VERY_LARGE_NODE_THRESHOLD
             || linkCount >= this.PRE_LAYOUT_VERY_LARGE_LINK_THRESHOLD;
-        const componentCount = Math.max(1, this.componentTargets?.size || 0);
+        const componentCount = Math.max(1, componentTargets?.size || 0);
         const linkDistance = isVeryLargeGraph ? 92 : (isLargeGraph ? 110 : 126);
         const chargeStrength = isVeryLargeGraph ? -420 : (isLargeGraph ? -760 : -980);
         const collisionRadius = isVeryLargeGraph ? 18 : (isLargeGraph ? 24 : 30);
@@ -2882,20 +2982,20 @@ class KGGraphVis extends HTMLElement {
             ? (isVeryLargeGraph ? 0.2 : (isLargeGraph ? 0.16 : 0.12))
             : 0;
 
-        const simulation = d3.forceSimulation(this.graph.nodes)
-            .force("link", d3.forceLink(this.graph.links || [])
+        const simulation = d3.forceSimulation(nodeList)
+            .force("link", d3.forceLink(linkList)
                 .id(node => node.id)
                 .distance(linkDistance)
                 .strength(0.45))
             .force("charge", d3.forceManyBody().strength(chargeStrength))
             .force("collision", d3.forceCollide().radius(collisionRadius).strength(0.62))
             .force("componentX", d3.forceX(node => {
-                const componentIndex = this.componentByNodeId.get(node?.id) ?? 0;
-                return (this.componentTargets.get(componentIndex) || { x: this.width / 2 }).x;
+                const componentIndex = componentByNodeId.get(node?.id) ?? 0;
+                return (componentTargets.get(componentIndex) || { x: this.width / 2 }).x;
             }).strength(componentStrength))
             .force("componentY", d3.forceY(node => {
-                const componentIndex = this.componentByNodeId.get(node?.id) ?? 0;
-                return (this.componentTargets.get(componentIndex) || { y: this.height / 2 }).y;
+                const componentIndex = componentByNodeId.get(node?.id) ?? 0;
+                return (componentTargets.get(componentIndex) || { y: this.height / 2 }).y;
             }).strength(componentStrength))
             .force("center", d3.forceCenter(this.width / 2, this.height / 2))
             .alpha(1)
@@ -2903,8 +3003,8 @@ class KGGraphVis extends HTMLElement {
             .velocityDecay(isVeryLargeGraph ? 0.56 : 0.5)
             .stop();
 
-        const ticked = this.runOfflineLayout(simulation, profile);
-        this.graph.nodes.forEach(node => {
+        const ticked = await this.runOfflineLayout(simulation, profile, options);
+        nodeList.forEach(node => {
             node.vx = 0;
             node.vy = 0;
             node.fx = null;
@@ -2963,31 +3063,35 @@ class KGGraphVis extends HTMLElement {
         return 0;
     }
 
-    applyStaticComponentLayout() {
+    async applyStaticComponentLayout(options = {}) {
         if (!this.graph || !Array.isArray(this.graph.nodes) || this.graph.nodes.length === 0) {
-            return;
+            return 0;
         }
-        const nodeCount = this.graph.nodes.length;
-        const linkCount = Array.isArray(this.graph.links) ? this.graph.links.length : 0;
+        const nodeList = this.graph.nodes;
+        const linkList = Array.isArray(this.graph.links) ? this.graph.links : [];
+        const componentByNodeId = this.componentByNodeId;
+        const componentTargets = this.componentTargets;
+        const nodeCount = nodeList.length;
+        const linkCount = linkList.length;
         const profile = this.resolvePreLayoutProfile(nodeCount, linkCount, true);
         const chargeStrength = nodeCount >= 4200 || linkCount >= 8400 ? -58 : -74;
         const linkDistance = nodeCount >= 4200 || linkCount >= 8400 ? 30 : 38;
         const componentStrength = nodeCount >= 4200 || linkCount >= 8400 ? 0.2 : 0.16;
 
-        const simulation = d3.forceSimulation(this.graph.nodes)
-            .force("link", d3.forceLink(this.graph.links || [])
+        const simulation = d3.forceSimulation(nodeList)
+            .force("link", d3.forceLink(linkList)
                 .id(node => node.id)
                 .distance(linkDistance)
                 .strength(0.48))
             .force("charge", d3.forceManyBody().strength(chargeStrength))
             .force("collision", d3.forceCollide().radius(14).strength(0.7))
             .force("componentX", d3.forceX(node => {
-                const componentIndex = this.componentByNodeId.get(node?.id) ?? 0;
-                return (this.componentTargets.get(componentIndex) || { x: this.width / 2 }).x;
+                const componentIndex = componentByNodeId.get(node?.id) ?? 0;
+                return (componentTargets.get(componentIndex) || { x: this.width / 2 }).x;
             }).strength(componentStrength))
             .force("componentY", d3.forceY(node => {
-                const componentIndex = this.componentByNodeId.get(node?.id) ?? 0;
-                return (this.componentTargets.get(componentIndex) || { y: this.height / 2 }).y;
+                const componentIndex = componentByNodeId.get(node?.id) ?? 0;
+                return (componentTargets.get(componentIndex) || { y: this.height / 2 }).y;
             }).strength(componentStrength))
             .force("center", d3.forceCenter(this.width / 2, this.height / 2))
             .alpha(1)
@@ -2995,13 +3099,14 @@ class KGGraphVis extends HTMLElement {
             .velocityDecay(0.58)
             .stop();
 
-        this.runOfflineLayout(simulation, profile);
-        this.graph.nodes.forEach(node => {
+        const ticked = await this.runOfflineLayout(simulation, profile, options);
+        nodeList.forEach(node => {
             node.vx = 0;
             node.vy = 0;
             node.fx = null;
             node.fy = null;
         });
+        return ticked;
     }
 
     clearAutoFitTimers() {
@@ -3119,7 +3224,9 @@ class KGGraphVis extends HTMLElement {
      * Main drawing entry point.
      * Parses JSON-LD, initializes simulation, and renders SVG elements.
      */
-    drawChart() {
+    async drawChart() {
+        const layoutToken = ++this.layoutTaskToken;
+        const isStaleDraw = () => layoutToken !== this.layoutTaskToken;
         if (!this.width || !this.height) this.updateSize();
         const previousNodeStateById = this.captureNodeStateById();
         let hadExistingLayout = previousNodeStateById.size > 0;
@@ -3139,7 +3246,7 @@ class KGGraphVis extends HTMLElement {
         this.stopPerformanceMonitoring();
 
         const chartSvg = this.shadowRoot.querySelector("#chart-container");
-        if (!chartSvg) return;
+        if (!chartSvg || isStaleDraw()) return;
 
         this.svg = d3.select(chartSvg);
 
@@ -3178,6 +3285,9 @@ class KGGraphVis extends HTMLElement {
             parsedGraph = this.createGraph();
         } catch (e) {
             console.error("Graph drawing error:", e);
+            return;
+        }
+        if (isStaleDraw()) {
             return;
         }
 
@@ -3232,13 +3342,23 @@ class KGGraphVis extends HTMLElement {
                 || this.graph.links.length >= this.PRE_LAYOUT_MEDIUM_LINK_THRESHOLD;
             let precomputedTicks = 0;
             if (useStaticLayout && (!hadExistingLayout || addedRatio > 0.28)) {
-                this.applyStaticComponentLayout();
+                precomputedTicks = await this.applyStaticComponentLayout({
+                    shouldAbort: isStaleDraw
+                });
+                if (isStaleDraw()) {
+                    return;
+                }
                 hadExistingLayout = true;
             } else {
                 const shouldPrecomputeDynamic = isMediumOrLargerGraph
                     && (!hadExistingLayout || addedRatio > 0.06);
                 if (shouldPrecomputeDynamic) {
-                    precomputedTicks = this.precomputeDynamicLayout(this.graph.nodes.length, this.graph.links.length);
+                    precomputedTicks = await this.precomputeDynamicLayout(this.graph.nodes.length, this.graph.links.length, {
+                        shouldAbort: isStaleDraw
+                    });
+                    if (isStaleDraw()) {
+                        return;
+                    }
                     if (precomputedTicks > 0) {
                         hadExistingLayout = true;
                     }
@@ -3261,7 +3381,13 @@ class KGGraphVis extends HTMLElement {
                 }
             }
 
-            this.renderGraph(initialTransform, initialAlpha, useStaticLayout);
+            const rendered = await this.renderGraph(initialTransform, initialAlpha, useStaticLayout, {
+                layoutToken,
+                shouldAbort: isStaleDraw
+            });
+            if (!rendered || isStaleDraw()) {
+                return;
+            }
             if (shouldAutoFit) {
                 this.scheduleAutoFit(this.AUTO_RECENTER_DELAY_MS, true);
             }
@@ -3273,7 +3399,11 @@ class KGGraphVis extends HTMLElement {
     /**
      * Configures D3 forces, zoom, and appends visual elements.
      */
-    renderGraph(initialTransform = d3.zoomIdentity, initialAlpha = 1, useStaticLayout = false) {
+    async renderGraph(initialTransform = d3.zoomIdentity, initialAlpha = 1, useStaticLayout = false, options = {}) {
+        const shouldAbort = typeof options.shouldAbort === "function" ? options.shouldAbort : () => false;
+        if (shouldAbort()) {
+            return false;
+        }
         const nodeCount = this.graph.nodes.length;
         const linkCount = this.graph.links.length;
         this.staticLayoutMode = Boolean(useStaticLayout);
@@ -3408,7 +3538,13 @@ class KGGraphVis extends HTMLElement {
                         Math.floor(runtimePreLayoutProfile.maxDurationMs * runtimeDurationFactor)),
                     targetAlpha: Math.max(0.06, runtimePreLayoutProfile.targetAlpha * 0.9)
                 };
-                this.runOfflineLayout(this.simulation, runtimeProfile);
+                const simulationRef = this.simulation;
+                await this.runOfflineLayout(simulationRef, runtimeProfile, {
+                    shouldAbort: () => shouldAbort() || this.simulation !== simulationRef
+                });
+                if (shouldAbort() || this.simulation !== simulationRef) {
+                    return false;
+                }
             }
             this.simulation
                 .on("tick", () => this.tickedThrottled())
@@ -3829,6 +3965,7 @@ class KGGraphVis extends HTMLElement {
             this.refreshEdgeLabelPositions(true);
             this.scheduleLabelVisibilityUpdate();
         }
+        return true;
     }
 
     /**

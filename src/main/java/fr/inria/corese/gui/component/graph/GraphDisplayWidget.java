@@ -151,6 +151,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	private int maxAutoRenderChars = DEFAULT_MAX_AUTO_RENDER_CHARS;
 	private int maxAutoRenderTriples = ThemeManager.getDefaultGraphAutoRenderTriplesLimit();
 	private boolean hasRenderedGraph = false;
+	private boolean manualRenderRequested = false;
+	private boolean manualRenderOverrideActive = false;
 	private int lastKnownTripleCount = 0;
 	private int lastKnownNamedGraphCount = 0;
 	private GraphRenderStatus currentRenderStatus = GraphRenderStatus.normal();
@@ -324,6 +326,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		} else if (newState == Worker.State.FAILED) {
 			LOGGER.error("Failed to load graph visualization");
 			pageLoaded = false;
+			manualRenderRequested = false;
+			manualRenderOverrideActive = false;
 			showLoadingOverlay();
 		}
 	}
@@ -505,7 +509,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		boolean sameAsLoadedRequest = pageLoaded && pendingJsonLdData == null && blockedJsonLdData == null
 				&& jsonLdData.equals(lastRequestedJsonLdData)
 				&& normalizedTripleCountHint == lastRequestedTripleCountHint;
-		if (sameAsLoadedRequest || jsonLdData.equals(pendingJsonLdData) || jsonLdData.equals(blockedJsonLdData)) {
+		if (!bypassAutoPreviewGuardrails
+				&& (sameAsLoadedRequest || jsonLdData.equals(pendingJsonLdData) || jsonLdData.equals(blockedJsonLdData))) {
 			return;
 		}
 
@@ -513,7 +518,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			deferGraphRendering(jsonLdData, normalizedTripleCountHint);
 			return;
 		}
-
+		manualRenderOverrideActive = bypassAutoPreviewGuardrails;
 		renderGraph(jsonLdData, normalizedTripleCountHint, forceLoadingOverlay || bypassAutoPreviewGuardrails);
 	}
 
@@ -538,8 +543,13 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 				() -> pausePreviewForLargeGraph(normalizedTripleCountHint, normalizedNamedGraphCountHint))) {
 			return;
 		}
+		if (isRenderRequestInFlight()) {
+			return;
+		}
 		renderRequestCounter.incrementAndGet();
 		hideLagSuggestion();
+		manualRenderRequested = false;
+		manualRenderOverrideActive = false;
 		blockedJsonLdData = null;
 		blockedTripleCountHint = normalizedTripleCountHint;
 		pendingJsonLdData = null;
@@ -553,10 +563,15 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		showSafetyOverlay(-1, normalizedTripleCountHint, manualRenderAvailable);
 	}
 
+	private boolean isRenderRequestInFlight() {
+		return manualRenderRequested || manualRenderOverrideActive;
+	}
+
 	private void renderGraph(String jsonLdData, int tripleCountHint, boolean forceLoadingOverlay) {
 		if (disposed) {
 			return;
 		}
+		manualRenderRequested = false;
 		hideSafetyOverlay();
 		hideLagSuggestion();
 		blockedJsonLdData = null;
@@ -596,6 +611,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		}
 		renderRequestCounter.incrementAndGet();
 		hideLagSuggestion();
+		manualRenderRequested = false;
+		manualRenderOverrideActive = false;
 		blockedJsonLdData = jsonLdData;
 		blockedTripleCountHint = tripleCountHint;
 		pendingJsonLdData = null;
@@ -615,18 +632,23 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		if (blockedJsonLdData != null && !blockedJsonLdData.isBlank()) {
 			String jsonLdData = blockedJsonLdData;
 			int tripleCountHint = blockedTripleCountHint;
+			manualRenderRequested = false;
+			manualRenderOverrideActive = true;
 			renderGraph(jsonLdData, tripleCountHint, true);
 			return;
 		}
 		if (onManualRenderRequested == null) {
 			return;
 		}
+		manualRenderRequested = true;
 		safetyActionButton.setDisable(true);
 		showLoadingOverlay();
 		loadingOverlay.toFront();
 		try {
 			onManualRenderRequested.run();
 		} catch (Exception e) {
+			manualRenderRequested = false;
+			manualRenderOverrideActive = false;
 			hideLoadingOverlay();
 			safetyActionButton.setDisable(false);
 			LOGGER.warn("Manual graph render callback failed", e);
@@ -640,6 +662,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		if (!runOnFxThreadOrDefer(this::notifyManualRenderFailed)) {
 			return;
 		}
+		manualRenderRequested = false;
+		manualRenderOverrideActive = false;
 		hideLoadingOverlay();
 		if (safetyOverlay.isVisible()) {
 			safetyActionButton.setDisable(!hasManualRenderAction());
@@ -814,6 +838,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		String script = GraphDisplayScripts.buildGraphInjectionScript(base64Json, renderRequestId, GRAPH_ELEMENT_ID);
 
 		if (!executeScriptSafe(script)) {
+			manualRenderRequested = false;
+			manualRenderOverrideActive = false;
 			hideLoadingOverlay();
 		}
 	}
@@ -932,6 +958,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		lastRequestedJsonLdData = null;
 		lastRequestedTripleCountHint = -1;
 		hasRenderedGraph = false;
+		manualRenderRequested = false;
+		manualRenderOverrideActive = false;
 		lastKnownTripleCount = 0;
 		lastKnownNamedGraphCount = 0;
 		hideLoadingOverlay();
@@ -979,6 +1007,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		lastRequestedJsonLdData = null;
 		lastRequestedTripleCountHint = -1;
 		hasRenderedGraph = false;
+		manualRenderRequested = false;
+		manualRenderOverrideActive = false;
 		lastKnownTripleCount = 0;
 		lastKnownNamedGraphCount = 0;
 		hideSafetyOverlay();
@@ -1101,6 +1131,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 				return;
 			}
 			Platform.runLater(() -> {
+				manualRenderRequested = false;
+				manualRenderOverrideActive = false;
 				hasRenderedGraph = true;
 				hideLoadingOverlay();
 			});
@@ -1115,6 +1147,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			}
 			LOGGER.warn("Graph rendering failed: {}", message);
 			Platform.runLater(() -> {
+				manualRenderRequested = false;
+				manualRenderOverrideActive = false;
 				hasRenderedGraph = false;
 				hideLoadingOverlay();
 				notifyRenderStatusChanged(GraphRenderStatus.paused("Rendering failed",

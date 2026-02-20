@@ -103,6 +103,16 @@ window.renderGraphFromBase64 = function (base64Json, requestId) {
     setTimeout(() => {
         try {
             graphElement.jsonld = decoded;
+            const drawPromise = graphElement.lastDrawPromise;
+            if (drawPromise && typeof drawPromise.then === "function") {
+                Promise.resolve(drawPromise)
+                    .then(() => notifyBridge('onGraphRenderComplete', renderId))
+                    .catch(error => {
+                        console.error("Graph rendering failed:", error);
+                        notifyBridge('onGraphRenderFailed', renderId, asErrorMessage(error));
+                    });
+                return;
+            }
             const warmupStart = performance.now();
             const FALLBACK_WARMUP_TIMEOUT_MS = 1100;
 
