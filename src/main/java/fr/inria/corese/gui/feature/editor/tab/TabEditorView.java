@@ -678,9 +678,9 @@ public class TabEditorView extends AbstractView {
 			return;
 		}
 		boolean completed = false;
-		if (hasFilesInDragboard(event)) {
-			Dragboard dragboard = event.getDragboard();
-			onFilesDropped.accept(List.copyOf(dragboard.getFiles()));
+		List<File> draggedFiles = extractDraggedFiles(event);
+		if (!draggedFiles.isEmpty()) {
+			onFilesDropped.accept(draggedFiles);
 			completed = true;
 		}
 		setFileDropActive(false);
@@ -710,8 +710,28 @@ public class TabEditorView extends AbstractView {
 	}
 
 	private boolean hasFilesInDragboard(DragEvent event) {
-		Dragboard dragboard = event.getDragboard();
-		return dragboard != null && dragboard.hasFiles();
+		return !extractDraggedFiles(event).isEmpty();
+	}
+
+	private static List<File> extractDraggedFiles(DragEvent event) {
+		if (event == null) {
+			return List.of();
+		}
+		try {
+			Dragboard dragboard = event.getDragboard();
+			if (dragboard == null) {
+				return List.of();
+			}
+			List<File> files = dragboard.getFiles();
+			if (files == null || files.isEmpty()) {
+				return List.of();
+			}
+			return List.copyOf(files);
+		} catch (RuntimeException ignored) {
+			// JavaFX/GTK can throw runtime exceptions while probing clipboard mime types
+			// during DnD.
+			return List.of();
+		}
 	}
 
 	private void setFileDropActive(boolean active) {
