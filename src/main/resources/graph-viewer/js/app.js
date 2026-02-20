@@ -103,7 +103,39 @@ window.renderGraphFromBase64 = function (base64Json, requestId) {
     setTimeout(() => {
         try {
             graphElement.jsonld = decoded;
-            notifyBridge('onGraphRenderComplete', renderId);
+            const warmupStart = performance.now();
+            const FALLBACK_WARMUP_TIMEOUT_MS = 1100;
+
+            const waitForWarmup = () => {
+                const elapsed = performance.now() - warmupStart;
+                const graph = graphElement.graph;
+                const nodeCount = Array.isArray(graph?.nodes) ? graph.nodes.length : 0;
+                const linkCount = Array.isArray(graph?.links) ? graph.links.length : 0;
+                const simulation = graphElement.simulation;
+                const staticLayout = !simulation || Boolean(graphElement.simulationStopped);
+                const dynamicWarmupTimeout = Math.min(14000, Math.max(FALLBACK_WARMUP_TIMEOUT_MS,
+                    Math.round(1200 + nodeCount * 3.1 + linkCount * 0.95)));
+                const dynamicMinWait = Math.min(5200, Math.max(260,
+                    Math.round(260 + nodeCount * 0.9 + linkCount * 0.28)));
+                const dynamicAlphaThreshold = nodeCount >= 2200 || linkCount >= 4200
+                    ? 0.10
+                    : nodeCount >= 900 || linkCount >= 1800
+                        ? 0.12
+                        : nodeCount >= 300 || linkCount >= 800
+                            ? 0.16
+                            : 0.28;
+                const settled = !simulation || typeof simulation.alpha !== "function"
+                    || simulation.alpha() <= dynamicAlphaThreshold
+                    || Boolean(graphElement.simulationStopped);
+                if ((elapsed >= dynamicMinWait && settled)
+                    || (staticLayout && elapsed >= 180)
+                    || elapsed >= dynamicWarmupTimeout) {
+                    notifyBridge('onGraphRenderComplete', renderId);
+                    return;
+                }
+                requestAnimationFrame(waitForWarmup);
+            };
+            requestAnimationFrame(waitForWarmup);
         } catch (error) {
             console.error("Graph rendering failed:", error);
             notifyBridge('onGraphRenderFailed', renderId, asErrorMessage(error));

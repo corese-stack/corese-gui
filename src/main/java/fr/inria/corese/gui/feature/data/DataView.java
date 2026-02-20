@@ -19,6 +19,7 @@ import fr.inria.corese.gui.feature.data.support.DataRuleFileRowFactory;
 import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport;
 import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -700,15 +701,24 @@ public class DataView extends AbstractView {
 
 	public void updateGraphRenderStatus(GraphRenderStatus status) {
 		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
-		String summary = switch (safeStatus.mode()) {
+		String summaryLabel = switch (safeStatus.mode()) {
 			case NORMAL -> "Standard";
-			case DEGRADED -> "Degraded";
+			case DEGRADED -> "Adaptive";
 			case PAUSED -> "Paused";
 		};
-		List<String> tooltipLines = safeStatus.details().isEmpty()
-				? List.of("Rendering uses the standard profile.")
-				: safeStatus.details();
-		DataStatusTooltipSupport.updateStatusTextMetric(renderModeLabel, TOOLTIP_TITLE_RENDER, summary, tooltipLines);
+		List<String> tooltipLines = new ArrayList<>();
+		tooltipLines.add(safeStatus.summary());
+		if (safeStatus.details().isEmpty()) {
+			switch (safeStatus.mode()) {
+				case NORMAL -> tooltipLines.add("Full detail rendering is active.");
+				case DEGRADED -> tooltipLines.add("Rendering detail is adapted to keep the graph responsive.");
+				case PAUSED -> tooltipLines.add("Preview is paused. Use \"Display anyway\" to render on demand.");
+			}
+		} else {
+			tooltipLines.addAll(safeStatus.details());
+		}
+		DataStatusTooltipSupport.updateStatusTextMetric(renderModeLabel, TOOLTIP_TITLE_RENDER, summaryLabel,
+				tooltipLines);
 		applyRenderStatusStyle(safeStatus.mode());
 	}
 

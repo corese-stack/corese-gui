@@ -55,7 +55,7 @@ final class GraphDisplayScripts {
 				(function() {
 				  var el = document.getElementById('%s');
 				  if (!el) return null;
-				  if (typeof el.exportSvg === 'function') { return el.exportSvg(); }
+				  if (typeof el.exportSvg === 'function') { return el.exportSvg('%s'); }
 				  if (!el.shadowRoot) return null;
 				  var svg = el.shadowRoot.querySelector('svg');
 				  if (!svg) return null;
@@ -83,7 +83,8 @@ final class GraphDisplayScripts {
 				  var serializer = new XMLSerializer();
 				  return serializer.serializeToString(clone);
 				})();
-				""".formatted(escapeForJsSingleQuoted(graphElementId), escapeForJsSingleQuoted(backgroundHex));
+				""".formatted(escapeForJsSingleQuoted(graphElementId), escapeForJsSingleQuoted(backgroundHex),
+				escapeForJsSingleQuoted(backgroundHex));
 	}
 
 	static String escapeForJsSingleQuoted(String value) {

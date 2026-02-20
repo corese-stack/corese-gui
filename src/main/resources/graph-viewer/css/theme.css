@@ -20,6 +20,7 @@
     --status-bar-text: #586069;
     --selection-bg: #b3d7ff;
     --accent-color: #0078D4;
+    --tooltip-bg: rgba(255, 255, 255, 0.9);
 }
 
 /* Primer Light Theme */
@@ -32,6 +33,7 @@ body.theme-primer {
     --status-bar-border: #d0d7de;
     --status-bar-text: #57606a;
     --selection-bg: #b3d7ff;
+    --tooltip-bg: rgba(255, 255, 255, 0.9);
 }
 
 /* Nord Light Theme */
@@ -44,6 +46,7 @@ body.theme-nord {
     --status-bar-border: #d8dee9;
     --status-bar-text: #4c566a;
     --selection-bg: #88c0d040;
+    --tooltip-bg: rgba(255, 255, 255, 0.9);
 }
 
 /* =================================================================
@@ -60,6 +63,7 @@ body.dark-theme {
     --status-bar-border: #3e3e42;
     --status-bar-text: #cccccc;
     --selection-bg: #264f78;
+    --tooltip-bg: rgba(24, 28, 33, 0.86);
 }
 
 /* Primer Dark Theme */
@@ -72,6 +76,7 @@ body.theme-primer.dark-theme {
     --status-bar-border: #30363d;
     --status-bar-text: #8b949e;
     --selection-bg: #1f6feb40;
+    --tooltip-bg: rgba(13, 17, 23, 0.86);
 }
 
 /* Nord Dark Theme */
@@ -84,6 +89,7 @@ body.theme-nord.dark-theme {
     --status-bar-border: #434c5e;
     --status-bar-text: #d8dee9;
     --selection-bg: #434c5e;
+    --tooltip-bg: rgba(46, 52, 64, 0.86);
 }
 
 /* =================================================================
@@ -123,7 +129,7 @@ kg-graph {
 .kg-tooltip {
     position: absolute;
     padding: 10px 12px;
-    background: var(--bg-color, #ffffff);
+    background: var(--tooltip-bg, rgba(255, 255, 255, 0.9));
     color: var(--text-color, #333);
     border-radius: 8px;
     font-size: 12px;
@@ -138,6 +144,7 @@ kg-graph {
     overflow: auto;
     line-height: 1.4;
     border: 1px solid var(--status-bar-border, #e1e4e8);
+    backdrop-filter: blur(4px);
 }
 
 .tooltip-title {

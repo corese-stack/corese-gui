@@ -75,6 +75,28 @@ final class GraphBridgeParsing {
 		}
 	}
 
+	static double parseNonNegativeDouble(Object value) {
+		if (value == null) {
+			return 0;
+		}
+		if (value instanceof Number number) {
+			return Math.max(0, number.doubleValue());
+		}
+		return parseNonNegativeDouble(String.valueOf(value));
+	}
+
+	static double parseNonNegativeDouble(String value) {
+		if (value == null || value.isBlank()) {
+			return 0;
+		}
+		String normalized = value.trim();
+		try {
+			return Math.max(0, Double.parseDouble(normalized));
+		} catch (NumberFormatException _) {
+			return 0;
+		}
+	}
+
 	static String parseTrimmedString(Object value) {
 		if (value == null) {
 			return "";

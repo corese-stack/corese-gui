@@ -111,3 +111,25 @@
 .graph-safety-actions {
     -fx-alignment: center-right;
 }
+
+.graph-lag-suggestion {
+    -fx-padding: 8px 10px;
+    -fx-spacing: 8px;
+    -fx-background-color: rgba(19, 27, 40, 0.86);
+    -fx-background-radius: 10px;
+    -fx-border-color: rgba(255, 255, 255, 0.22);
+    -fx-border-radius: 10px;
+    -fx-max-width: 760px;
+    -fx-pref-width: 520px;
+}
+
+.graph-lag-suggestion-message {
+    -fx-text-fill: #f0f6fc;
+    -fx-font-size: 12px;
+    -fx-wrap-text: false;
+}
+
+.graph-lag-suggestion-action {
+    -fx-min-width: 140px;
+    -fx-padding: 6px 10px;
+}

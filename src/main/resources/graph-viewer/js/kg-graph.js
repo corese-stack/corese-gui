@@ -97,12 +97,27 @@ class KGGraphVis extends HTMLElement {
             summary: "Standard rendering",
             details: []
         };
+        this.staticLayoutMode = false;
         this.lastEffectiveRenderProfileKey = "";
         this.hoveredNodeId = null;
         this.linkIndexesByNodeId = new Map();
-        this.HOVER_FOCUS_MAX_LINK_LABELS = 140;
+        this.HOVER_FOCUS_MIN_LINK_LABELS = 220;
+        this.HOVER_FOCUS_MAX_LINK_LABELS = 1600;
         this.tooltipShowTimerHandle = null;
         this.tooltipMoveTimerHandle = null;
+        this.arrowheadsVisible = true;
+        this.arrowheadZoomThreshold = 0.08;
+        this.arrowheadHideNodeThreshold = 1200;
+        this.arrowheadHideLinkThreshold = 2600;
+        this.performanceMonitorRaf = null;
+        this.performanceMonitorActive = false;
+        this.performanceLagActive = false;
+        this.performanceLastLagNotifyAt = 0;
+        this.performanceSampleWindow = [];
+        this.performanceLastTimestamp = 0;
+        this.performanceLowFpsSince = 0;
+        this.performanceWarmupUntil = 0;
+        this.performanceContext = { nodeCount: 0, linkCount: 0 };
 
         // Graph coloring
         this.graphColorMap = new Map();
@@ -146,6 +161,23 @@ class KGGraphVis extends HTMLElement {
         this.DISABLE_TOOLTIP_LINK_THRESHOLD = 3600;
         this.SIMPLIFY_LINK_GEOMETRY_LINK_THRESHOLD = 500;
         this.PARALLEL_LAYOUT_MAX_LINK_THRESHOLD = 600;
+        this.PRE_LAYOUT_MEDIUM_NODE_THRESHOLD = 220;
+        this.PRE_LAYOUT_MEDIUM_LINK_THRESHOLD = 600;
+        this.PRE_LAYOUT_LARGE_NODE_THRESHOLD = 520;
+        this.PRE_LAYOUT_LARGE_LINK_THRESHOLD = 1400;
+        this.PRE_LAYOUT_VERY_LARGE_NODE_THRESHOLD = 900;
+        this.PRE_LAYOUT_VERY_LARGE_LINK_THRESHOLD = 2400;
+        this.STATIC_LAYOUT_NODE_THRESHOLD = 2200;
+        this.STATIC_LAYOUT_LINK_THRESHOLD = 4200;
+        this.LAG_MONITOR_MIN_NODE_THRESHOLD = 180;
+        this.LAG_MONITOR_MIN_LINK_THRESHOLD = 320;
+        this.LAG_MONITOR_WARMUP_MS = 2400;
+        this.LAG_MONITOR_MIN_DURATION_MS = 1500;
+        this.LAG_MONITOR_FPS_THRESHOLD = 24;
+        this.LAG_MONITOR_MIN_SAMPLES = 28;
+        this.LAG_MONITOR_MAX_SAMPLES = 90;
+        this.LAG_MONITOR_NOTIFY_INTERVAL_MS = 480;
+        this.LAG_MONITOR_CLEAR_HYSTERESIS_FPS = 2;
         this.AUTO_OVERVIEW_PADDING = 760;
         this.AUTO_OVERVIEW_MAX_SCALE = 0.09;
         this.AUTO_RECENTER_DELAY_MS = 560;
@@ -168,10 +200,29 @@ class KGGraphVis extends HTMLElement {
      * Reset simulation with new alpha (re-heats the simulation).
      */
     reset() {
-        if (this.simulation) {
-            this.simulationStopped = false;
-            this.simulation.alphaTarget(0).alpha(1).restart();
+        if (!this.simulation) {
+            return;
         }
+        this.simulationStopped = false;
+        this.simulation.alphaTarget(0).alpha(1).restart();
+
+        const nodeCount = Array.isArray(this.graph?.nodes) ? this.graph.nodes.length : 0;
+        const linkCount = Array.isArray(this.graph?.links) ? this.graph.links.length : 0;
+        const profile = this.resolvePreLayoutProfile(nodeCount, linkCount, false);
+        if (!profile.enabled) {
+            return;
+        }
+
+        // One reset click should provide a meaningful re-layout for medium/large
+        // graphs instead of requiring repeated reheats.
+        const assistedProfile = {
+            enabled: true,
+            maxTicks: Math.max(120, Math.floor(profile.maxTicks * 0.52)),
+            maxDurationMs: Math.max(260, Math.floor(profile.maxDurationMs * 0.6)),
+            targetAlpha: Math.max(0.16, profile.targetAlpha)
+        };
+        this.runOfflineLayout(this.simulation, assistedProfile);
+        this.simulation.alpha(Math.max(0.2, assistedProfile.targetAlpha + 0.05)).alphaTarget(0).restart();
     }
 
     recenter() {
@@ -202,26 +253,162 @@ class KGGraphVis extends HTMLElement {
      * Export SVG with full label detail (independent of current zoom).
      * @returns {string|null} SVG string or null.
      */
-    exportSvg() {
+    exportSvg(backgroundColor = "white") {
         if (!this.shadowRoot) return null;
         const svg = this.shadowRoot.querySelector('svg');
         if (!svg) return null;
+        const safeBackgroundColor = typeof backgroundColor === "string" && backgroundColor.trim().length > 0
+            ? backgroundColor.trim()
+            : "white";
+        const parseCssColorToRgb = colorValue => {
+            if (typeof colorValue !== "string") return null;
+            const value = colorValue.trim();
+            const hexMatch = /^#([0-9a-fA-F]{6})$/.exec(value);
+            if (hexMatch) {
+                const hex = hexMatch[1];
+                return {
+                    r: parseInt(hex.substring(0, 2), 16),
+                    g: parseInt(hex.substring(2, 4), 16),
+                    b: parseInt(hex.substring(4, 6), 16)
+                };
+            }
+            const shortHexMatch = /^#([0-9a-fA-F]{3})$/.exec(value);
+            if (shortHexMatch) {
+                const hex = shortHexMatch[1];
+                return {
+                    r: parseInt(hex[0] + hex[0], 16),
+                    g: parseInt(hex[1] + hex[1], 16),
+                    b: parseInt(hex[2] + hex[2], 16)
+                };
+            }
+            const rgbMatch = /^rgba?\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)/i.exec(value);
+            if (rgbMatch) {
+                return {
+                    r: Math.max(0, Math.min(255, Math.round(Number(rgbMatch[1])))),
+                    g: Math.max(0, Math.min(255, Math.round(Number(rgbMatch[2])))),
+                    b: Math.max(0, Math.min(255, Math.round(Number(rgbMatch[3]))))
+                };
+            }
+            return null;
+        };
+        const isDarkColor = rgb => {
+            if (!rgb) return false;
+            const luminance = 0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b;
+            return luminance < 128;
+        };
 
         const prevNodeVisible = this.nodeLabelsVisible;
         const prevEdgeVisible = this.edgeLabelsVisible;
+        const prevLabelsHiddenForInteraction = this.labelsHiddenForInteraction;
+        const prevHoveredNodeId = this.hoveredNodeId;
+
+        if (prevHoveredNodeId) {
+            this.clearHoverFocus(true);
+        }
+        this.labelsHiddenForInteraction = false;
+        if (this.svg) {
+            this.svg.classed("labels-hidden", false);
+            this.svg.classed("interaction-active", false);
+        }
+
+        let temporaryNodeLabels = null;
+        let temporaryEdgeLabels = null;
+        const labelsLayer = this.zoomLayer ? this.zoomLayer.select(".labels-layer") : null;
+        const hasGraphData = this.graph && Array.isArray(this.graph.nodes) && Array.isArray(this.graph.links);
+        const shouldCreateExportNodeLabels = hasGraphData && !this.nodeLabelSelection && labelsLayer && !labelsLayer.empty();
+        const shouldCreateExportEdgeLabels = hasGraphData && !this.linkLabelSelection && labelsLayer && !labelsLayer.empty();
+
+        if (shouldCreateExportNodeLabels) {
+            const nodeLabelOffset = this.graph.nodes.length >= this.AUTO_HIDE_NODE_LABEL_THRESHOLD ? 24 : 35;
+            temporaryNodeLabels = labelsLayer
+                .selectAll("text.node-label-export-temp")
+                .data(this.graph.nodes.filter(node =>
+                    Number.isFinite(node?.x) && Number.isFinite(node?.y)));
+            temporaryNodeLabels
+                .enter()
+                .append("text")
+                .attr("class", "node-label node-label-export-temp")
+                .attr("text-anchor", "middle")
+                .merge(temporaryNodeLabels)
+                .attr("x", node => node.x)
+                .attr("y", node => node.y + nodeLabelOffset)
+                .text(node => {
+                    const displayValue = this.resolveNodeDisplayValue(node);
+                    return node?.type === "Literal"
+                        ? String(displayValue)
+                        : String(this.formatLabel(displayValue));
+                })
+                .style("visibility", "visible")
+                .style("opacity", 1);
+            temporaryNodeLabels = labelsLayer.selectAll("text.node-label-export-temp");
+        }
+
+        if (shouldCreateExportEdgeLabels) {
+            temporaryEdgeLabels = labelsLayer
+                .selectAll("text.edge-label-export-temp")
+                .data(this.graph.links.filter(link => {
+                    const geometry = link?.geometry ?? this.buildLinkGeometry(link);
+                    return Boolean(geometry);
+                }));
+            temporaryEdgeLabels
+                .enter()
+                .append("text")
+                .attr("class", "edge-label edge-label-export-temp")
+                .attr("text-anchor", "middle")
+                .merge(temporaryEdgeLabels)
+                .text(link => this.formatLabel(link?.name ?? ""))
+                .attr("x", link => {
+                    const geometry = link?.geometry ?? this.buildLinkGeometry(link);
+                    return geometry ? geometry.labelX : null;
+                })
+                .attr("y", link => {
+                    const geometry = link?.geometry ?? this.buildLinkGeometry(link);
+                    return geometry ? geometry.labelY : null;
+                })
+                .attr("text-anchor", link => {
+                    const geometry = link?.geometry ?? this.buildLinkGeometry(link);
+                    return geometry?.labelAnchor ?? "middle";
+                })
+                .style("visibility", "visible")
+                .style("opacity", 1);
+            temporaryEdgeLabels = labelsLayer.selectAll("text.edge-label-export-temp");
+        }
+
         if (this.nodeLabelSelection) {
             this.nodeLabelSelection.style('visibility', 'visible').style('opacity', 1);
         }
         if (this.linkLabelSelection) {
             this.linkLabelSelection
-                .style('visibility', this.showEdgeLabels ? 'visible' : 'hidden')
-                .style('opacity', this.showEdgeLabels ? 1 : 0);
+                .style('visibility', 'visible')
+                .style('opacity', 1);
         }
         if (this.nodeSelection) {
-            this.nodeSelection.style('display', null);
+            this.nodeSelection
+                .style('display', null)
+                .classed("node-focused", false)
+                .classed("node-neighbor", false)
+                .classed("node-dimmed", false);
         }
         if (this.linkSelection) {
-            this.linkSelection.style('display', null);
+            this.linkSelection
+                .style('display', null)
+                .classed("edge-focused", false)
+                .classed("edge-dimmed", false)
+                .attr("marker-end", link => link?.markerUrl ?? null);
+        }
+
+        const bodyStyles = getComputedStyle(document.body);
+        const svgStyles = getComputedStyle(svg);
+        const preferredLabelColor = bodyStyles.getPropertyValue("--text-color").trim()
+            || svgStyles.getPropertyValue("--text-color").trim()
+            || "#24292e";
+        const backgroundRgb = parseCssColorToRgb(safeBackgroundColor);
+        const labelRgb = parseCssColorToRgb(preferredLabelColor);
+        let resolvedLabelColor = preferredLabelColor;
+        if (isDarkColor(backgroundRgb) && isDarkColor(labelRgb)) {
+            resolvedLabelColor = "#E6EDF3";
+        } else if (!isDarkColor(backgroundRgb) && !isDarkColor(labelRgb)) {
+            resolvedLabelColor = "#1F2328";
         }
 
         const clone = svg.cloneNode(true);
@@ -240,15 +427,29 @@ class KGGraphVis extends HTMLElement {
             bg.setAttribute('y', y);
             bg.setAttribute('width', width);
             bg.setAttribute('height', height);
-            bg.setAttribute('fill', 'white');
+            bg.setAttribute('fill', safeBackgroundColor);
             clone.insertBefore(bg, clone.firstChild);
         } catch (e) {
             console.warn('Could not adjust SVG bounds:', e);
         }
+        clone.querySelectorAll(".node-label, .edge-label, .edge-label-hover").forEach(label => {
+            label.setAttribute("fill", resolvedLabelColor);
+            label.style.fill = resolvedLabelColor;
+        });
+        clone.querySelectorAll(".edge-label-hover").forEach(label => {
+            label.setAttribute("stroke", safeBackgroundColor);
+            label.style.stroke = safeBackgroundColor;
+        });
 
         const serializer = new XMLSerializer();
         const result = serializer.serializeToString(clone);
 
+        if (temporaryNodeLabels) {
+            temporaryNodeLabels.remove();
+        }
+        if (temporaryEdgeLabels) {
+            temporaryEdgeLabels.remove();
+        }
         if (this.nodeLabelSelection) {
             this.nodeLabelSelection
                 .style('visibility', prevNodeVisible ? 'visible' : 'hidden')
@@ -259,8 +460,21 @@ class KGGraphVis extends HTMLElement {
                 .style('visibility', prevEdgeVisible ? 'visible' : 'hidden')
                 .style('opacity', prevEdgeVisible ? 1 : 0);
         }
+        this.labelsHiddenForInteraction = prevLabelsHiddenForInteraction;
+        if (this.svg) {
+            this.svg.classed("labels-hidden", prevLabelsHiddenForInteraction);
+            this.svg.classed("interaction-active", prevLabelsHiddenForInteraction);
+        }
         this.updateLevelOfDetail(this.currentZoom);
+        this.updateArrowheadVisibility(true);
         this.scheduleLabelVisibilityUpdate();
+        if (!this.labelsHiddenForInteraction && prevHoveredNodeId && this.graph && Array.isArray(this.graph.nodes)) {
+            const hoveredNode = this.graph.nodes.find(node =>
+                this.getLinkEndpointId(node?.id ?? node) === prevHoveredNodeId);
+            if (hoveredNode) {
+                this.applyHoverFocus(hoveredNode);
+            }
+        }
         return result;
     }
 
@@ -313,6 +527,7 @@ class KGGraphVis extends HTMLElement {
     disconnectedCallback() {
         if (this.resizeObserver) this.resizeObserver.disconnect();
         if (this.simulation) this.simulation.stop();
+        this.stopPerformanceMonitoring();
         this.clearAutoFitTimers();
         if (this.interactionTimer) {
             clearTimeout(this.interactionTimer);
@@ -741,12 +956,28 @@ class KGGraphVis extends HTMLElement {
         return index;
     }
 
+    resolveHoverFocusLabelBudget(connectedCount) {
+        const safeConnectedCount = Number.isFinite(connectedCount) ? Math.max(0, Math.floor(connectedCount)) : 0;
+        if (safeConnectedCount <= 0) {
+            return 0;
+        }
+        if (safeConnectedCount <= this.HOVER_FOCUS_MIN_LINK_LABELS) {
+            return safeConnectedCount;
+        }
+        const zoomBoost = Math.max(1, Math.min(6, this.currentZoom * 2.2));
+        const budget = Math.floor(this.HOVER_FOCUS_MIN_LINK_LABELS * zoomBoost);
+        const clampedBudget = Math.max(this.HOVER_FOCUS_MIN_LINK_LABELS,
+            Math.min(this.HOVER_FOCUS_MAX_LINK_LABELS, budget));
+        return Math.min(safeConnectedCount, clampedBudget);
+    }
+
     clearHoverFocus(restoreLabels = true) {
         this.hoveredNodeId = null;
         if (this.linkSelection) {
             this.linkSelection
                 .classed("edge-focused", false)
                 .classed("edge-dimmed", false);
+            this.linkSelection.attr("marker-end", link => this.arrowheadsVisible ? (link?.markerUrl ?? null) : null);
         }
         if (this.nodeSelection) {
             this.nodeSelection
@@ -821,7 +1052,11 @@ class KGGraphVis extends HTMLElement {
                 return !graphNodeId || !neighborIds.has(graphNodeId);
             });
 
-        const maxLabels = Math.max(0, Math.floor(this.HOVER_FOCUS_MAX_LINK_LABELS));
+        if (!this.arrowheadsVisible) {
+            this.linkSelection.attr("marker-end", link => connectedLinkSet.has(link) ? (link?.markerUrl ?? null) : null);
+        }
+
+        const maxLabels = this.resolveHoverFocusLabelBudget(connectedLinks.length);
         const focusedLinksForLabels = maxLabels > 0 ? connectedLinks.slice(0, maxLabels) : [];
         const focusedLabelSet = new Set(focusedLinksForLabels);
 
@@ -864,6 +1099,153 @@ class KGGraphVis extends HTMLElement {
             })
             .style("visibility", "visible")
             .style("opacity", 1);
+    }
+
+    updateArrowheadVisibility(force = false) {
+        const nodeCount = Array.isArray(this.graph?.nodes) ? this.graph.nodes.length : 0;
+        const edgeCount = Array.isArray(this.graph?.links) ? this.graph.links.length : 0;
+        const isVeryDenseGraph = nodeCount >= this.arrowheadHideNodeThreshold
+            || edgeCount >= this.arrowheadHideLinkThreshold;
+        const shouldShowArrowheads = !isVeryDenseGraph || this.currentZoom >= this.arrowheadZoomThreshold;
+        if (!force && shouldShowArrowheads === this.arrowheadsVisible) {
+            return;
+        }
+        this.arrowheadsVisible = shouldShowArrowheads;
+        if (!this.linkSelection) {
+            return;
+        }
+        this.linkSelection.attr("marker-end", link => {
+            if (!shouldShowArrowheads) {
+                return null;
+            }
+            return link?.markerUrl ?? null;
+        });
+    }
+
+    notifyLagDetected(avgFps, nodeCount, linkCount) {
+        if (!window.bridge || typeof window.bridge.onGraphLagDetected !== "function") {
+            return;
+        }
+        const safeFps = Number.isFinite(avgFps) ? Math.max(0, avgFps) : 0;
+        const safeNodeCount = Number.isFinite(nodeCount) ? Math.max(0, Math.floor(nodeCount)) : 0;
+        const safeLinkCount = Number.isFinite(linkCount) ? Math.max(0, Math.floor(linkCount)) : 0;
+        try {
+            window.bridge.onGraphLagDetected(String(Math.round(safeFps * 10) / 10), String(safeNodeCount),
+                String(safeLinkCount));
+        } catch (error) {
+            // Ignore bridge callback failures to keep rendering resilient.
+        }
+    }
+
+    notifyLagCleared() {
+        if (!window.bridge || typeof window.bridge.onGraphLagCleared !== "function") {
+            return;
+        }
+        try {
+            window.bridge.onGraphLagCleared();
+        } catch (error) {
+            // Ignore bridge callback failures to keep rendering resilient.
+        }
+    }
+
+    stopPerformanceMonitoring() {
+        if (this.performanceLagActive) {
+            this.notifyLagCleared();
+        }
+        this.performanceMonitorActive = false;
+        if (this.performanceMonitorRaf) {
+            cancelAnimationFrame(this.performanceMonitorRaf);
+            this.performanceMonitorRaf = null;
+        }
+        this.performanceSampleWindow = [];
+        this.performanceLastTimestamp = 0;
+        this.performanceLowFpsSince = 0;
+        this.performanceWarmupUntil = 0;
+        this.performanceLagActive = false;
+        this.performanceLastLagNotifyAt = 0;
+        this.performanceContext = { nodeCount: 0, linkCount: 0 };
+    }
+
+    startPerformanceMonitoring(nodeCount = 0, linkCount = 0) {
+        this.stopPerformanceMonitoring();
+
+        const safeNodeCount = Number.isFinite(nodeCount) ? Math.max(0, Math.floor(nodeCount)) : 0;
+        const safeLinkCount = Number.isFinite(linkCount) ? Math.max(0, Math.floor(linkCount)) : 0;
+        if (safeNodeCount < this.LAG_MONITOR_MIN_NODE_THRESHOLD && safeLinkCount < this.LAG_MONITOR_MIN_LINK_THRESHOLD) {
+            return;
+        }
+
+        this.performanceMonitorActive = true;
+        this.performanceContext = { nodeCount: safeNodeCount, linkCount: safeLinkCount };
+        this.performanceWarmupUntil = performance.now() + this.LAG_MONITOR_WARMUP_MS;
+
+        const step = timestamp => {
+            if (!this.performanceMonitorActive) {
+                return;
+            }
+            const now = performance.now();
+            if (this.performanceLastTimestamp > 0) {
+                const deltaMs = timestamp - this.performanceLastTimestamp;
+                if (deltaMs >= 4 && deltaMs <= 500) {
+                    const fps = 1000 / deltaMs;
+                    this.performanceSampleWindow.push(fps);
+                    if (this.performanceSampleWindow.length > this.LAG_MONITOR_MAX_SAMPLES) {
+                        this.performanceSampleWindow.shift();
+                    }
+                }
+            }
+            this.performanceLastTimestamp = timestamp;
+
+            const simulationSettled = !this.simulation || this.simulation.alpha() <= 0.12 || this.simulationStopped;
+            const settleTimeoutReached = now >= this.performanceWarmupUntil + 1500;
+            const monitorWindowOpen = now >= this.performanceWarmupUntil
+                && !this.isInteracting
+                && (simulationSettled || settleTimeoutReached);
+            if (monitorWindowOpen
+                && this.performanceSampleWindow.length >= this.LAG_MONITOR_MIN_SAMPLES) {
+                const totalFps = this.performanceSampleWindow.reduce((acc, value) => acc + value, 0);
+                const averageFps = totalFps / this.performanceSampleWindow.length;
+                if (averageFps < this.LAG_MONITOR_FPS_THRESHOLD) {
+                    if (this.performanceLowFpsSince <= 0) {
+                        this.performanceLowFpsSince = now;
+                    } else if (now - this.performanceLowFpsSince >= this.LAG_MONITOR_MIN_DURATION_MS) {
+                        const shouldSendUpdate = !this.performanceLagActive
+                            || (now - this.performanceLastLagNotifyAt) >= this.LAG_MONITOR_NOTIFY_INTERVAL_MS;
+                        this.performanceLagActive = true;
+                        if (shouldSendUpdate) {
+                            this.performanceLastLagNotifyAt = now;
+                            this.notifyLagDetected(averageFps, this.performanceContext.nodeCount,
+                                this.performanceContext.linkCount);
+                        }
+                    }
+                } else if (averageFps >= (this.LAG_MONITOR_FPS_THRESHOLD + this.LAG_MONITOR_CLEAR_HYSTERESIS_FPS)) {
+                    this.performanceLowFpsSince = 0;
+                    if (this.performanceLagActive) {
+                        this.performanceLagActive = false;
+                        this.performanceLastLagNotifyAt = 0;
+                        this.notifyLagCleared();
+                    }
+                } else {
+                    this.performanceLowFpsSince = 0;
+                    if (this.performanceLagActive
+                        && (now - this.performanceLastLagNotifyAt) >= this.LAG_MONITOR_NOTIFY_INTERVAL_MS) {
+                        this.performanceLastLagNotifyAt = now;
+                        this.notifyLagDetected(averageFps, this.performanceContext.nodeCount, this.performanceContext.linkCount);
+                    }
+                }
+            } else {
+                this.performanceLowFpsSince = 0;
+                if (this.performanceLagActive) {
+                    this.performanceLagActive = false;
+                    this.performanceLastLagNotifyAt = 0;
+                    this.notifyLagCleared();
+                }
+            }
+
+            this.performanceMonitorRaf = requestAnimationFrame(step);
+        };
+
+        this.performanceMonitorRaf = requestAnimationFrame(step);
     }
 
     buildLinkGeometry(link) {
@@ -1277,6 +1659,7 @@ class KGGraphVis extends HTMLElement {
         const showEdgeLabels = zoom >= this.edgeLabelZoomThreshold && this.showEdgeLabels && !this.edgeLabelsAutoHidden;
         this.nodeLabelsVisible = showNodeLabels;
         this.edgeLabelsVisible = showEdgeLabels;
+        this.updateArrowheadVisibility();
 
         if (this.svg) {
             this.svg.classed('node-labels-off', !showNodeLabels);
@@ -1673,17 +2056,28 @@ class KGGraphVis extends HTMLElement {
                 effectiveDetails.push("Edge labels hidden at current zoom level.");
             }
         }
+        if (hasEdges && !this.arrowheadsVisible) {
+            effectiveDetails.push("Arrow heads hidden at low zoom for readability.");
+        }
 
         const uniqueDetails = [...new Set(effectiveDetails)];
         const isDegraded = String(base.mode || "normal").toLowerCase() === "degraded"
             || !effectiveNodeLabelsVisible
-            || !effectiveEdgeLabelsVisible;
+            || !effectiveEdgeLabelsVisible
+            || (hasEdges && !this.arrowheadsVisible);
+
+        const baseMode = String(base.mode || "normal").toLowerCase();
+        const effectiveSummary = !isDegraded
+            ? "Standard rendering"
+            : interactionHidden
+                ? "Interaction optimization active"
+                : baseMode === "degraded"
+                    ? (String(base.summary || "").trim() || "Performance mode enabled")
+                    : "Adaptive detail mode";
 
         const effectiveProfile = {
             mode: isDegraded ? "degraded" : "normal",
-            summary: isDegraded
-                ? (String(base.summary || "").trim() || "Adaptive rendering enabled")
-                : "Standard rendering",
+            summary: effectiveSummary,
             details: uniqueDetails
         };
 
@@ -2243,6 +2637,204 @@ class KGGraphVis extends HTMLElement {
         return addedRatio > 0.82;
     }
 
+    shouldUseStaticLayout(nodeCount = 0, linkCount = 0) {
+        const safeNodeCount = Number.isFinite(nodeCount) ? Math.max(0, Math.floor(nodeCount)) : 0;
+        const safeLinkCount = Number.isFinite(linkCount) ? Math.max(0, Math.floor(linkCount)) : 0;
+        return safeNodeCount >= this.STATIC_LAYOUT_NODE_THRESHOLD
+            || safeLinkCount >= this.STATIC_LAYOUT_LINK_THRESHOLD;
+    }
+
+    resolvePreLayoutProfile(nodeCount = 0, linkCount = 0, staticMode = false) {
+        const safeNodeCount = Number.isFinite(nodeCount) ? Math.max(0, Math.floor(nodeCount)) : 0;
+        const safeLinkCount = Number.isFinite(linkCount) ? Math.max(0, Math.floor(linkCount)) : 0;
+
+        if (staticMode) {
+            if (safeNodeCount >= 4200 || safeLinkCount >= 8400) {
+                return { enabled: true, maxTicks: 2200, maxDurationMs: 5200, targetAlpha: 0.035 };
+            }
+            return { enabled: true, maxTicks: 1500, maxDurationMs: 3800, targetAlpha: 0.05 };
+        }
+
+        if (safeNodeCount >= this.PRE_LAYOUT_VERY_LARGE_NODE_THRESHOLD
+            || safeLinkCount >= this.PRE_LAYOUT_VERY_LARGE_LINK_THRESHOLD) {
+            return { enabled: true, maxTicks: 1200, maxDurationMs: 3200, targetAlpha: 0.075 };
+        }
+        if (safeNodeCount >= this.PRE_LAYOUT_LARGE_NODE_THRESHOLD
+            || safeLinkCount >= this.PRE_LAYOUT_LARGE_LINK_THRESHOLD) {
+            return { enabled: true, maxTicks: 820, maxDurationMs: 2300, targetAlpha: 0.10 };
+        }
+        if (safeNodeCount >= this.PRE_LAYOUT_MEDIUM_NODE_THRESHOLD
+            || safeLinkCount >= this.PRE_LAYOUT_MEDIUM_LINK_THRESHOLD) {
+            return { enabled: true, maxTicks: 460, maxDurationMs: 1350, targetAlpha: 0.14 };
+        }
+        return { enabled: false, maxTicks: 0, maxDurationMs: 0, targetAlpha: 1 };
+    }
+
+    runOfflineLayout(simulation, profile) {
+        if (!simulation || !profile?.enabled) {
+            return 0;
+        }
+        simulation.stop();
+        const maxTicks = Math.max(0, Math.floor(profile.maxTicks ?? 0));
+        const maxDurationMs = Math.max(0, Number(profile.maxDurationMs ?? 0));
+        const targetAlpha = Number.isFinite(profile.targetAlpha) ? profile.targetAlpha : 0.1;
+        const startedAt = performance.now();
+        let ticks = 0;
+        while (ticks < maxTicks) {
+            simulation.tick();
+            ticks += 1;
+            if (simulation.alpha() <= targetAlpha) {
+                break;
+            }
+            if ((performance.now() - startedAt) >= maxDurationMs) {
+                break;
+            }
+        }
+        simulation.stop();
+        return ticks;
+    }
+
+    precomputeDynamicLayout(nodeCount = 0, linkCount = 0) {
+        if (!this.graph || !Array.isArray(this.graph.nodes) || this.graph.nodes.length === 0) {
+            return 0;
+        }
+        const profile = this.resolvePreLayoutProfile(nodeCount, linkCount, false);
+        if (!profile.enabled) {
+            return 0;
+        }
+        const isLargeGraph = nodeCount >= this.LARGE_GRAPH_NODE_THRESHOLD || linkCount >= this.LARGE_GRAPH_LINK_THRESHOLD;
+        const isVeryLargeGraph = nodeCount >= this.PRE_LAYOUT_VERY_LARGE_NODE_THRESHOLD
+            || linkCount >= this.PRE_LAYOUT_VERY_LARGE_LINK_THRESHOLD;
+        const componentCount = Math.max(1, this.componentTargets?.size || 0);
+        const linkDistance = isVeryLargeGraph ? 92 : (isLargeGraph ? 110 : 126);
+        const chargeStrength = isVeryLargeGraph ? -420 : (isLargeGraph ? -760 : -980);
+        const collisionRadius = isVeryLargeGraph ? 18 : (isLargeGraph ? 24 : 30);
+        const componentStrength = componentCount > 1
+            ? (isVeryLargeGraph ? 0.2 : (isLargeGraph ? 0.16 : 0.12))
+            : 0;
+
+        const simulation = d3.forceSimulation(this.graph.nodes)
+            .force("link", d3.forceLink(this.graph.links || [])
+                .id(node => node.id)
+                .distance(linkDistance)
+                .strength(0.45))
+            .force("charge", d3.forceManyBody().strength(chargeStrength))
+            .force("collision", d3.forceCollide().radius(collisionRadius).strength(0.62))
+            .force("componentX", d3.forceX(node => {
+                const componentIndex = this.componentByNodeId.get(node?.id) ?? 0;
+                return (this.componentTargets.get(componentIndex) || { x: this.width / 2 }).x;
+            }).strength(componentStrength))
+            .force("componentY", d3.forceY(node => {
+                const componentIndex = this.componentByNodeId.get(node?.id) ?? 0;
+                return (this.componentTargets.get(componentIndex) || { y: this.height / 2 }).y;
+            }).strength(componentStrength))
+            .force("center", d3.forceCenter(this.width / 2, this.height / 2))
+            .alpha(1)
+            .alphaDecay(isVeryLargeGraph ? 0.03 : 0.04)
+            .velocityDecay(isVeryLargeGraph ? 0.56 : 0.5)
+            .stop();
+
+        const ticked = this.runOfflineLayout(simulation, profile);
+        this.graph.nodes.forEach(node => {
+            node.vx = 0;
+            node.vy = 0;
+            node.fx = null;
+            node.fy = null;
+        });
+        return ticked;
+    }
+
+    resolveAutoFitRecenterPasses() {
+        const nodeCount = Array.isArray(this.graph?.nodes) ? this.graph.nodes.length : 0;
+        const linkCount = Array.isArray(this.graph?.links) ? this.graph.links.length : 0;
+        if (nodeCount >= this.PRE_LAYOUT_VERY_LARGE_NODE_THRESHOLD
+            || linkCount >= this.PRE_LAYOUT_VERY_LARGE_LINK_THRESHOLD) {
+            return 3;
+        }
+        if (nodeCount >= this.PRE_LAYOUT_LARGE_NODE_THRESHOLD
+            || linkCount >= this.PRE_LAYOUT_LARGE_LINK_THRESHOLD) {
+            return 2;
+        }
+        return 1;
+    }
+
+    resolveAutoFitRecenterDelay() {
+        const nodeCount = Array.isArray(this.graph?.nodes) ? this.graph.nodes.length : 0;
+        const linkCount = Array.isArray(this.graph?.links) ? this.graph.links.length : 0;
+        if (nodeCount >= this.PRE_LAYOUT_VERY_LARGE_NODE_THRESHOLD
+            || linkCount >= this.PRE_LAYOUT_VERY_LARGE_LINK_THRESHOLD) {
+            return 1850;
+        }
+        if (nodeCount >= this.PRE_LAYOUT_LARGE_NODE_THRESHOLD
+            || linkCount >= this.PRE_LAYOUT_LARGE_LINK_THRESHOLD) {
+            return 1280;
+        }
+        if (nodeCount >= this.PRE_LAYOUT_MEDIUM_NODE_THRESHOLD
+            || linkCount >= this.PRE_LAYOUT_MEDIUM_LINK_THRESHOLD) {
+            return 880;
+        }
+        return this.AUTO_RECENTER_DELAY_MS;
+    }
+
+    resolveAutoFitRecenterInterval() {
+        const nodeCount = Array.isArray(this.graph?.nodes) ? this.graph.nodes.length : 0;
+        const linkCount = Array.isArray(this.graph?.links) ? this.graph.links.length : 0;
+        if (nodeCount >= this.PRE_LAYOUT_VERY_LARGE_NODE_THRESHOLD
+            || linkCount >= this.PRE_LAYOUT_VERY_LARGE_LINK_THRESHOLD) {
+            return 1100;
+        }
+        if (nodeCount >= this.PRE_LAYOUT_LARGE_NODE_THRESHOLD
+            || linkCount >= this.PRE_LAYOUT_LARGE_LINK_THRESHOLD) {
+            return 860;
+        }
+        if (nodeCount >= this.PRE_LAYOUT_MEDIUM_NODE_THRESHOLD
+            || linkCount >= this.PRE_LAYOUT_MEDIUM_LINK_THRESHOLD) {
+            return 520;
+        }
+        return 0;
+    }
+
+    applyStaticComponentLayout() {
+        if (!this.graph || !Array.isArray(this.graph.nodes) || this.graph.nodes.length === 0) {
+            return;
+        }
+        const nodeCount = this.graph.nodes.length;
+        const linkCount = Array.isArray(this.graph.links) ? this.graph.links.length : 0;
+        const profile = this.resolvePreLayoutProfile(nodeCount, linkCount, true);
+        const chargeStrength = nodeCount >= 4200 || linkCount >= 8400 ? -58 : -74;
+        const linkDistance = nodeCount >= 4200 || linkCount >= 8400 ? 30 : 38;
+        const componentStrength = nodeCount >= 4200 || linkCount >= 8400 ? 0.2 : 0.16;
+
+        const simulation = d3.forceSimulation(this.graph.nodes)
+            .force("link", d3.forceLink(this.graph.links || [])
+                .id(node => node.id)
+                .distance(linkDistance)
+                .strength(0.48))
+            .force("charge", d3.forceManyBody().strength(chargeStrength))
+            .force("collision", d3.forceCollide().radius(14).strength(0.7))
+            .force("componentX", d3.forceX(node => {
+                const componentIndex = this.componentByNodeId.get(node?.id) ?? 0;
+                return (this.componentTargets.get(componentIndex) || { x: this.width / 2 }).x;
+            }).strength(componentStrength))
+            .force("componentY", d3.forceY(node => {
+                const componentIndex = this.componentByNodeId.get(node?.id) ?? 0;
+                return (this.componentTargets.get(componentIndex) || { y: this.height / 2 }).y;
+            }).strength(componentStrength))
+            .force("center", d3.forceCenter(this.width / 2, this.height / 2))
+            .alpha(1)
+            .alphaDecay(0.04)
+            .velocityDecay(0.58)
+            .stop();
+
+        this.runOfflineLayout(simulation, profile);
+        this.graph.nodes.forEach(node => {
+            node.vx = 0;
+            node.vy = 0;
+            node.fx = null;
+            node.fy = null;
+        });
+    }
+
     clearAutoFitTimers() {
         this.pendingAutoFit = false;
         if (this.pendingAutoFitTimer) {
@@ -2275,13 +2867,23 @@ class KGGraphVis extends HTMLElement {
             // the simulation stabilizes.
             this.fitToGraph(this.AUTO_OVERVIEW_PADDING, false, this.AUTO_OVERVIEW_MAX_SCALE);
 
-            // Phase 2: delayed center action, same visual effect as pressing
-            // the center button once the layout is more stable.
-            this.pendingRecenterTimer = setTimeout(() => {
-                this.pendingRecenterTimer = null;
-                this.pendingAutoFit = false;
+            // Phase 2: delayed center action(s), with extra passes on medium/large
+            // graphs so the first visible frame is already close to stable.
+            const recenterPasses = this.resolveAutoFitRecenterPasses();
+            const recenterInterval = this.resolveAutoFitRecenterInterval();
+            const runRecenterPass = remainingPasses => {
                 this.fitToGraph(120, true);
-            }, this.AUTO_RECENTER_DELAY_MS);
+                if (remainingPasses <= 1 || recenterInterval <= 0) {
+                    this.pendingRecenterTimer = null;
+                    this.pendingAutoFit = false;
+                    return;
+                }
+                this.pendingRecenterTimer = setTimeout(() => runRecenterPass(remainingPasses - 1), recenterInterval);
+            };
+            this.pendingRecenterTimer = setTimeout(
+                () => runRecenterPass(recenterPasses),
+                this.resolveAutoFitRecenterDelay()
+            );
         }, startupDelay);
     }
 
@@ -2351,7 +2953,7 @@ class KGGraphVis extends HTMLElement {
     drawChart() {
         if (!this.width || !this.height) this.updateSize();
         const previousNodeStateById = this.captureNodeStateById();
-        const hadExistingLayout = previousNodeStateById.size > 0;
+        let hadExistingLayout = previousNodeStateById.size > 0;
         const hadPendingAutoFit = this.pendingAutoFit || Boolean(this.pendingAutoFitTimer)
             || Boolean(this.pendingRecenterTimer);
         let initialTransform = this.resolvePreservedTransform();
@@ -2365,6 +2967,7 @@ class KGGraphVis extends HTMLElement {
             this.labelVisibilityRaf = null;
         }
         this.clearAutoFitTimers();
+        this.stopPerformanceMonitoring();
 
         const chartSvg = this.shadowRoot.querySelector("#chart-container");
         if (!chartSvg) return;
@@ -2373,11 +2976,13 @@ class KGGraphVis extends HTMLElement {
 
         if (!this.jsonld) {
             this.svg.selectAll("*").remove();
+            this.stopPerformanceMonitoring();
             this.isInteracting = false;
             this.labelsHiddenForInteraction = false;
             this.lastLabelVisibilityUpdate = 0;
             this.lastLabelUpdate = 0;
             this.graph = { nodes: [], links: [] };
+            this.staticLayoutMode = false;
             this.simulation = null;
             this.linkSelection = null;
             this.nodeSelection = null;
@@ -2406,6 +3011,7 @@ class KGGraphVis extends HTMLElement {
         }
 
         this.svg.selectAll("*").remove();
+        this.stopPerformanceMonitoring();
         this.isInteracting = false;
         this.labelsHiddenForInteraction = false;
         this.lastLabelVisibilityUpdate = 0;
@@ -2447,11 +3053,32 @@ class KGGraphVis extends HTMLElement {
             const addedRatio = this.graph.nodes.length === 0
                 ? 0
                 : addedNodeCount / this.graph.nodes.length;
+            const useStaticLayout = this.shouldUseStaticLayout(this.graph.nodes.length, this.graph.links.length);
+            const isMediumOrLargerGraph = this.graph.nodes.length >= this.PRE_LAYOUT_MEDIUM_NODE_THRESHOLD
+                || this.graph.links.length >= this.PRE_LAYOUT_MEDIUM_LINK_THRESHOLD;
+            let precomputedTicks = 0;
+            if (useStaticLayout && (!hadExistingLayout || addedRatio > 0.28)) {
+                this.applyStaticComponentLayout();
+                hadExistingLayout = true;
+            } else {
+                const shouldPrecomputeDynamic = isMediumOrLargerGraph
+                    && (!hadExistingLayout || addedRatio > 0.06);
+                if (shouldPrecomputeDynamic) {
+                    precomputedTicks = this.precomputeDynamicLayout(this.graph.nodes.length, this.graph.links.length);
+                    if (precomputedTicks > 0) {
+                        hadExistingLayout = true;
+                    }
+                }
+            }
             const initialAlpha = !hadExistingLayout
                 ? 1
-                : (addedRatio <= 0.12 ? 0.18 : (addedRatio <= 0.35 ? 0.30 : 0.55));
+                : precomputedTicks > 0
+                    ? (addedRatio <= 0.2 ? 0.1 : 0.18)
+                    : (addedRatio <= 0.12 ? 0.18 : (addedRatio <= 0.35 ? 0.30 : 0.55));
 
-            const shouldAutoFit = hadPendingAutoFit || this.shouldApplyAutoFit(hadExistingLayout, addedRatio);
+            const shouldAutoFit = hadPendingAutoFit
+                || isMediumOrLargerGraph
+                || this.shouldApplyAutoFit(hadExistingLayout, addedRatio);
             if (shouldAutoFit) {
                 const overviewTransform = this.resolveFitTransform(this.AUTO_OVERVIEW_PADDING,
                     this.AUTO_OVERVIEW_MAX_SCALE);
@@ -2460,7 +3087,7 @@ class KGGraphVis extends HTMLElement {
                 }
             }
 
-            this.renderGraph(initialTransform, initialAlpha);
+            this.renderGraph(initialTransform, initialAlpha, useStaticLayout);
             if (shouldAutoFit) {
                 this.scheduleAutoFit(this.AUTO_RECENTER_DELAY_MS, true);
             }
@@ -2472,9 +3099,10 @@ class KGGraphVis extends HTMLElement {
     /**
      * Configures D3 forces, zoom, and appends visual elements.
      */
-    renderGraph(initialTransform = d3.zoomIdentity, initialAlpha = 1) {
+    renderGraph(initialTransform = d3.zoomIdentity, initialAlpha = 1, useStaticLayout = false) {
         const nodeCount = this.graph.nodes.length;
         const linkCount = this.graph.links.length;
+        this.staticLayoutMode = Boolean(useStaticLayout);
         const isLargeGraph = nodeCount >= this.LARGE_GRAPH_NODE_THRESHOLD || linkCount >= this.LARGE_GRAPH_LINK_THRESHOLD;
         const isVeryLargeGraph = nodeCount >= this.AUTO_HIDE_NODE_LABEL_THRESHOLD;
         const isHugeGraph = nodeCount >= this.HUGE_GRAPH_NODE_THRESHOLD || linkCount >= this.HUGE_GRAPH_LINK_THRESHOLD;
@@ -2518,6 +3146,9 @@ class KGGraphVis extends HTMLElement {
         if (!shouldEnableTooltips) {
             renderProfileDetails.push("Node tooltips disabled for very large graph.");
         }
+        if (this.staticLayoutMode) {
+            renderProfileDetails.push("Force simulation paused for very dense graph.");
+        }
         this.baseRenderProfile = {
             mode: renderProfileDetails.length > 0 ? "degraded" : "normal",
             summary: renderProfileDetails.length > 0
@@ -2533,58 +3164,72 @@ class KGGraphVis extends HTMLElement {
 
         const componentCount = Math.max(1, this.componentTargets?.size || 0);
         const chargeStrength = isHugeGraph ? -180 : (isVeryLargeGraph ? -360 : (isLargeGraph ? -680 : -1400));
-        const linkDistance = isHugeGraph ? 56 : (isVeryLargeGraph ? 70 : (isLargeGraph ? 92 : 158));
-        const collisionRadius = isHugeGraph ? 0 : (isVeryLargeGraph ? 18 : (isLargeGraph ? 30 : 44));
-        const componentForceStrength = componentCount > 1 ? (isHugeGraph ? 0.03 : (isLargeGraph ? 0.09 : 0.06)) : 0;
-
-        this.simulation = d3.forceSimulation(this.graph.nodes)
-            .force("link", d3.forceLink(this.graph.links)
-                .id(d => d.id)
-                .distance(link => {
-                    const sourceId = getSourceId(link);
-                    const targetId = getTargetId(link);
-                    if (sourceId && targetId) {
-                        const sourceComponent = this.componentByNodeId.get(sourceId);
-                        const targetComponent = this.componentByNodeId.get(targetId);
-                        if (sourceComponent !== undefined && targetComponent !== undefined
-                            && sourceComponent !== targetComponent) {
-                            return linkDistance * 1.18;
+        const linkDistance = isHugeGraph ? 76 : (isVeryLargeGraph ? 98 : (isLargeGraph ? 118 : 158));
+        const collisionRadius = isHugeGraph ? 14 : (isVeryLargeGraph ? 20 : (isLargeGraph ? 30 : 44));
+        const componentForceStrength = componentCount > 1 ? (isHugeGraph ? 0.22 : (isLargeGraph ? 0.16 : 0.08)) : 0;
+        if (!this.staticLayoutMode) {
+            this.simulation = d3.forceSimulation(this.graph.nodes)
+                .force("link", d3.forceLink(this.graph.links)
+                    .id(d => d.id)
+                    .distance(link => {
+                        const sourceId = getSourceId(link);
+                        const targetId = getTargetId(link);
+                        if (sourceId && targetId) {
+                            const sourceComponent = this.componentByNodeId.get(sourceId);
+                            const targetComponent = this.componentByNodeId.get(targetId);
+                            if (sourceComponent !== undefined && targetComponent !== undefined
+                                && sourceComponent !== targetComponent) {
+                                return linkDistance * 1.18;
+                            }
                         }
-                    }
-                    return linkDistance;
-                }))
-            .force("charge", d3.forceManyBody().strength(chargeStrength))
-            .force("center", d3.forceCenter(this.width / 2, this.height / 2))
-            .alphaDecay(isHugeGraph ? 0.11 : (isVeryLargeGraph ? 0.07 : (isLargeGraph ? 0.05 : 0.024)))
-            .velocityDecay(isHugeGraph ? 0.72 : (isVeryLargeGraph ? 0.62 : (isLargeGraph ? 0.54 : 0.4)))
-            .on("tick", () => this.tickedThrottled())
-            .on("end", () => {
-                this.simulationStopped = true;
-                this.refreshEdgeLabelPositions(true);
-                this.scheduleLabelVisibilityUpdate();
-            });
-        if (collisionRadius > 0) {
-            this.simulation.force("collision", d3.forceCollide().radius(collisionRadius));
-        } else {
-            this.simulation.force("collision", null);
-        }
+                        return linkDistance;
+                    }))
+                .force("charge", d3.forceManyBody().strength(chargeStrength))
+                .force("center", d3.forceCenter(this.width / 2, this.height / 2))
+                .alphaDecay(isHugeGraph ? 0.11 : (isVeryLargeGraph ? 0.07 : (isLargeGraph ? 0.05 : 0.024)))
+                .velocityDecay(isHugeGraph ? 0.72 : (isVeryLargeGraph ? 0.62 : (isLargeGraph ? 0.54 : 0.4)));
+            if (collisionRadius > 0) {
+                this.simulation.force("collision", d3.forceCollide().radius(collisionRadius));
+            } else {
+                this.simulation.force("collision", null);
+            }
 
-        if (componentForceStrength > 0) {
+            if (componentForceStrength > 0) {
+                this.simulation
+                    .force("componentX", d3.forceX(node => {
+                        const componentIndex = this.componentByNodeId.get(node?.id) ?? 0;
+                        return (this.componentTargets.get(componentIndex) || { x: this.width / 2 }).x;
+                    }).strength(componentForceStrength))
+                    .force("componentY", d3.forceY(node => {
+                        const componentIndex = this.componentByNodeId.get(node?.id) ?? 0;
+                        return (this.componentTargets.get(componentIndex) || { y: this.height / 2 }).y;
+                    }).strength(componentForceStrength));
+            } else {
+                this.simulation.force("componentX", null);
+                this.simulation.force("componentY", null);
+            }
+            const runtimePreLayoutProfile = this.resolvePreLayoutProfile(nodeCount, linkCount, false);
+            if (runtimePreLayoutProfile.enabled) {
+                const runtimeProfile = {
+                    enabled: true,
+                    maxTicks: Math.max(80, Math.floor(runtimePreLayoutProfile.maxTicks * 0.35)),
+                    maxDurationMs: Math.max(180, Math.floor(runtimePreLayoutProfile.maxDurationMs * 0.35)),
+                    targetAlpha: Math.max(0.16, runtimePreLayoutProfile.targetAlpha)
+                };
+                this.runOfflineLayout(this.simulation, runtimeProfile);
+            }
             this.simulation
-                .force("componentX", d3.forceX(node => {
-                    const componentIndex = this.componentByNodeId.get(node?.id) ?? 0;
-                    return (this.componentTargets.get(componentIndex) || { x: this.width / 2 }).x;
-                }).strength(componentForceStrength))
-                .force("componentY", d3.forceY(node => {
-                    const componentIndex = this.componentByNodeId.get(node?.id) ?? 0;
-                    return (this.componentTargets.get(componentIndex) || { y: this.height / 2 }).y;
-                }).strength(componentForceStrength));
+                .on("tick", () => this.tickedThrottled())
+                .on("end", () => {
+                    this.simulationStopped = true;
+                    this.refreshEdgeLabelPositions(true);
+                    this.scheduleLabelVisibilityUpdate();
+                });
+            this.simulationStopped = false;
         } else {
-            this.simulation.force("componentX", null);
-            this.simulation.force("componentY", null);
+            this.simulation = null;
+            this.simulationStopped = true;
         }
-
-        this.simulationStopped = false;
 
         this.zoomLayer = this.svg.append("g").attr("class", "zoom-layer");
         const gZoom = this.zoomLayer;
@@ -2628,7 +3273,6 @@ class KGGraphVis extends HTMLElement {
                 .attr("refX", 9)
                 .attr("markerWidth", 10)
                 .attr("markerHeight", 10)
-                .attr("markerUnits", "userSpaceOnUse")
                 .attr("orient", "auto")
                 .append("path")
                 .attr("d", "M0,-4L10,0L0,4")
@@ -2640,7 +3284,6 @@ class KGGraphVis extends HTMLElement {
                 .attr("refX", 8)
                 .attr("markerWidth", 9)
                 .attr("markerHeight", 9)
-                .attr("markerUnits", "userSpaceOnUse")
                 .attr("orient", "auto")
                 .append("path")
                 .attr("d", "M0,-4L10,0L0,4")
@@ -2664,7 +3307,9 @@ class KGGraphVis extends HTMLElement {
                 const sourceId = this.getLinkEndpointId(link?.source);
                 const targetId = this.getLinkEndpointId(link?.target);
                 const markerPrefix = sourceId && targetId && sourceId === targetId ? "arrow-loop" : "arrow";
-                return `url(#${markerPrefix}-${this.sanitizeId(resolveLinkGraphId(link))})`;
+                const markerUrl = `url(#${markerPrefix}-${this.sanitizeId(resolveLinkGraphId(link))})`;
+                link.markerUrl = markerUrl;
+                return this.arrowheadsVisible ? markerUrl : null;
             });
 
         if (shouldCreateEdgeLabels) {
@@ -2686,7 +3331,7 @@ class KGGraphVis extends HTMLElement {
             .call(d3.drag()
                 .on("start", node => {
                     this.onInteraction(true);
-                    if (!d3.event.active) {
+                    if (this.simulation && !d3.event.active) {
                         this.simulationStopped = false;
                         this.simulation.alphaTarget(0.28).restart();
                     }
@@ -2697,16 +3342,22 @@ class KGGraphVis extends HTMLElement {
                     this.onInteraction(true);
                     node.fx = d3.event.x;
                     node.fy = d3.event.y;
+                    node.x = d3.event.x;
+                    node.y = d3.event.y;
                     // Keep links responsive while dragging, independent of tick throttle.
                     this.ticked();
                 })
                 .on("end", node => {
                     this.onInteraction(false);
-                    if (!d3.event.active) {
+                    if (this.simulation && !d3.event.active) {
                         this.simulation.alphaTarget(0);
                     }
                     node.fx = null;
                     node.fy = null;
+                    if (!this.simulation) {
+                        node.vx = 0;
+                        node.vy = 0;
+                    }
                 }));
 
         // Apply initial coordinates immediately to avoid a one-frame flash at
@@ -2763,6 +3414,7 @@ class KGGraphVis extends HTMLElement {
         // the first animated tick.
         this.ticked();
         this.updateLevelOfDetail(this.currentZoom);
+        this.updateArrowheadVisibility(true);
 
         const tooltip = d3.select("#global-tooltip");
         if (shouldEnableTooltips) {
@@ -2891,6 +3543,16 @@ class KGGraphVis extends HTMLElement {
                     } else {
                         content += `<div class="tooltip-row"><strong>Graph</strong> <span>${node.graph || GRAPH_DEFAULTS.defaultGraphId}</span></div>`;
                     }
+                    const nodeId = this.getLinkEndpointId(node?.id ?? node);
+                    const connectedIndexes = nodeId ? (this.linkIndexesByNodeId.get(nodeId) ?? []) : [];
+                    const connectedCount = connectedIndexes.length;
+                    if (connectedCount > 0) {
+                        const displayedLabelCount = this.resolveHoverFocusLabelBudget(connectedCount);
+                        content += `<div class="tooltip-row"><strong>Links</strong> <span>${connectedCount}</span></div>`;
+                        if (displayedLabelCount < connectedCount) {
+                            content += `<div class="tooltip-row"><strong>Detail</strong> <span>${displayedLabelCount}/${connectedCount} labels shown. Zoom in for full local labels.</span></div>`;
+                        }
+                    }
 
                     hideTooltip();
                     tooltip.html(content);
@@ -2951,7 +3613,30 @@ class KGGraphVis extends HTMLElement {
         const clampedAlpha = Number.isFinite(initialAlpha)
             ? Math.max(0.05, Math.min(1, initialAlpha))
             : 1;
-        this.simulation.alpha(clampedAlpha).restart();
+        if (this.simulation) {
+            const settleStartAlpha = linkCount >= 1800 || nodeCount >= 900
+                ? Math.min(clampedAlpha, 0.13)
+                : linkCount >= 900 || nodeCount >= 350
+                    ? Math.min(clampedAlpha, 0.18)
+                    : clampedAlpha;
+            this.simulation.alpha(settleStartAlpha);
+            this.simulation.alphaTarget(0.03).restart();
+            const settleHoldMs = linkCount >= 1800 || nodeCount >= 900
+                ? 4200
+                : linkCount >= 900 || nodeCount >= 350
+                    ? 2800
+                    : 1200;
+            setTimeout(() => {
+                if (this.simulation) {
+                    this.simulation.alphaTarget(0);
+                }
+            }, settleHoldMs);
+            this.startPerformanceMonitoring(nodeCount, linkCount);
+        } else {
+            this.stopPerformanceMonitoring();
+            this.refreshEdgeLabelPositions(true);
+            this.scheduleLabelVisibilityUpdate();
+        }
     }
 
     /**

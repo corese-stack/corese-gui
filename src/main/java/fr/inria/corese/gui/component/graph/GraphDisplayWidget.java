@@ -15,10 +15,12 @@ import javafx.beans.value.ChangeListener;
 import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.concurrent.Worker;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -82,12 +84,16 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	private static final String STYLE_CLASS_SAFETY_MESSAGE = "graph-safety-message";
 	private static final String STYLE_CLASS_SAFETY_ACTION = "graph-safety-action";
 	private static final String STYLE_CLASS_SAFETY_ACTIONS = "graph-safety-actions";
+	private static final String STYLE_CLASS_LAG_SUGGESTION = "graph-lag-suggestion";
+	private static final String STYLE_CLASS_LAG_SUGGESTION_MESSAGE = "graph-lag-suggestion-message";
+	private static final String STYLE_CLASS_LAG_SUGGESTION_ACTION = "graph-lag-suggestion-action";
 	private static final int MASK_FADE_MS = 140;
 	private static final int DEFAULT_MAX_AUTO_RENDER_CHARS = 0;
 	private static final String SAFETY_TITLE = "Graph preview paused";
 	private static final String SAFETY_ACTION = "Display anyway";
 	private static final String SAFETY_HINT = "Automatic preview is paused to keep the application responsive.";
 	private static final String SAFETY_RISK_HINT = "Manual rendering can freeze the interface on large graphs.";
+	private static final String LAG_ACTION = "Pause preview";
 	private static final String LOADING_HINT = "Rendering graph preview...";
 	private static final double LOADING_INDICATOR_SIZE = 36;
 
@@ -100,6 +106,9 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	private final StackPane container;
 	private final StackPane loadingOverlay;
 	private final StackPane safetyOverlay;
+	private final HBox lagSuggestionBar;
+	private final Label lagSuggestionLabel;
+	private final Button lagSuggestionPauseButton;
 	private final Label safetyMessageLabel;
 	private final Button safetyActionButton;
 	private final HBox safetyActionsBox;
@@ -142,6 +151,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	private int maxAutoRenderChars = DEFAULT_MAX_AUTO_RENDER_CHARS;
 	private int maxAutoRenderTriples = ThemeManager.getDefaultGraphAutoRenderTriplesLimit();
 	private boolean hasRenderedGraph = false;
+	private int lastKnownTripleCount = 0;
+	private int lastKnownNamedGraphCount = 0;
 	private GraphRenderStatus currentRenderStatus = GraphRenderStatus.normal();
 	private Consumer<GraphStats> onGraphStatsChanged = stats -> {
 	};
@@ -163,6 +174,9 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		this.webEngine = webView.getEngine();
 		this.container = new StackPane();
 		this.loadingOverlay = createLoadingOverlay();
+		this.lagSuggestionLabel = new Label();
+		this.lagSuggestionPauseButton = new Button(LAG_ACTION);
+		this.lagSuggestionBar = createLagSuggestionBar();
 		this.safetyMessageLabel = new Label();
 		this.safetyActionButton = new Button(SAFETY_ACTION);
 		this.safetyActionsBox = new HBox(safetyActionButton);
@@ -193,7 +207,9 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 
 		container.getStyleClass().add(STYLE_CLASS_CONTAINER);
 		webView.getStyleClass().add(STYLE_CLASS_WEBVIEW);
-		container.getChildren().addAll(webView, loadingOverlay, safetyOverlay);
+		StackPane.setAlignment(lagSuggestionBar, Pos.BOTTOM_RIGHT);
+		StackPane.setMargin(lagSuggestionBar, new Insets(12));
+		container.getChildren().addAll(webView, loadingOverlay, lagSuggestionBar, safetyOverlay);
 
 		setVgrow(container, Priority.ALWAYS);
 		getChildren().add(container);
@@ -251,6 +267,27 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		overlay.setVisible(false);
 		overlay.setManaged(false);
 		return overlay;
+	}
+
+	private HBox createLagSuggestionBar() {
+		lagSuggestionLabel.getStyleClass().add(STYLE_CLASS_LAG_SUGGESTION_MESSAGE);
+		lagSuggestionLabel.setWrapText(false);
+		lagSuggestionLabel.setMaxWidth(Double.MAX_VALUE);
+		lagSuggestionLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
+		HBox.setHgrow(lagSuggestionLabel, Priority.ALWAYS);
+
+		lagSuggestionPauseButton.getStyleClass().addAll(STYLE_CLASS_LAG_SUGGESTION_ACTION, Styles.DANGER);
+		lagSuggestionPauseButton.setOnAction(event -> handlePauseSuggestedByLag());
+
+		HBox bar = new HBox(10, lagSuggestionLabel, lagSuggestionPauseButton);
+		bar.getStyleClass().addAll(STYLE_CLASS_LAG_SUGGESTION, "floating-panel");
+		bar.setAlignment(Pos.CENTER_LEFT);
+		bar.setFillHeight(false);
+		bar.setMaxHeight(Region.USE_PREF_SIZE);
+		bar.setMaxWidth(Double.MAX_VALUE);
+		bar.setManaged(false);
+		bar.setVisible(false);
+		return bar;
 	}
 
 	private void initializeListeners() {
@@ -485,6 +522,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			return;
 		}
 		renderRequestCounter.incrementAndGet();
+		hideLagSuggestion();
 		blockedJsonLdData = null;
 		blockedTripleCountHint = normalizedTripleCountHint;
 		pendingJsonLdData = null;
@@ -503,6 +541,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			return;
 		}
 		hideSafetyOverlay();
+		hideLagSuggestion();
 		blockedJsonLdData = null;
 		blockedTripleCountHint = -1;
 		long requestId = renderRequestCounter.incrementAndGet();
@@ -539,6 +578,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			return;
 		}
 		renderRequestCounter.incrementAndGet();
+		hideLagSuggestion();
 		blockedJsonLdData = jsonLdData;
 		blockedTripleCountHint = tripleCountHint;
 		pendingJsonLdData = null;
@@ -627,11 +667,47 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		safetyOverlay.setVisible(false);
 		safetyOverlay.setManaged(false);
 		setGraphCanvasVisible(true);
+		hideLagSuggestion();
 	}
 
 	private void setGraphCanvasVisible(boolean visible) {
 		webView.setVisible(visible);
 		webView.setManaged(visible);
+	}
+
+	private void showLagSuggestion(double avgFps) {
+		double safeFps = Math.max(0.0, avgFps);
+		if (disposed || safeFps <= 0) {
+			return;
+		}
+		if (!hasRenderedGraph || safetyOverlay.isVisible() || loadingOverlay.isVisible()) {
+			return;
+		}
+		if (currentRenderStatus.mode() == GraphRenderMode.PAUSED) {
+			return;
+		}
+		String text = String.format(Locale.ROOT, "Rendering is slow (~%.1f FPS).", safeFps);
+		lagSuggestionLabel.setText(text);
+		lagSuggestionBar.setManaged(true);
+		lagSuggestionBar.setVisible(true);
+	}
+
+	private void hideLagSuggestion() {
+		lagSuggestionBar.setVisible(false);
+		lagSuggestionBar.setManaged(false);
+	}
+
+	private void handlePauseSuggestedByLag() {
+		hideLagSuggestion();
+		int tripleCountHint = Math.max(0, lastKnownTripleCount);
+		int namedGraphCountHint = Math.max(0, lastKnownNamedGraphCount);
+		if (tripleCountHint <= 0) {
+			tripleCountHint = Math.max(0, lastRequestedTripleCountHint);
+		}
+		if (tripleCountHint <= 0) {
+			tripleCountHint = Math.max(0, blockedTripleCountHint);
+		}
+		pausePreviewForLargeGraph(tripleCountHint, namedGraphCountHint);
 	}
 
 	private void loadGraphPage() {
@@ -648,6 +724,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	}
 
 	private void showLoadingOverlay() {
+		hideLagSuggestion();
 		loadingOverlay.setOpacity(1);
 		loadingOverlay.setVisible(true);
 		loadingOverlay.setManaged(true);
@@ -769,6 +846,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	private void notifyGraphStatsChanged(int tripleCount, int namedGraphCount,
 			List<GraphStats.NamedGraphStat> namedGraphStats) {
 		GraphStats stats = new GraphStats(tripleCount, namedGraphCount, namedGraphStats);
+		lastKnownTripleCount = Math.max(0, stats.tripleCount());
+		lastKnownNamedGraphCount = Math.max(0, stats.namedGraphCount());
 		if (Platform.isFxApplicationThread()) {
 			onGraphStatsChanged.accept(stats);
 			return;
@@ -810,6 +889,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		}
 		renderRequestCounter.incrementAndGet();
 		hideSafetyOverlay();
+		hideLagSuggestion();
 		blockedJsonLdData = null;
 		blockedTripleCountHint = -1;
 		pendingJsonLdData = null;
@@ -817,6 +897,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		lastRequestedJsonLdData = null;
 		lastRequestedTripleCountHint = -1;
 		hasRenderedGraph = false;
+		lastKnownTripleCount = 0;
+		lastKnownNamedGraphCount = 0;
 		hideLoadingOverlay();
 		clearRenderedGraph();
 		notifyRenderStatusChanged(GraphRenderStatus.normal());
@@ -862,7 +944,10 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		lastRequestedJsonLdData = null;
 		lastRequestedTripleCountHint = -1;
 		hasRenderedGraph = false;
+		lastKnownTripleCount = 0;
+		lastKnownNamedGraphCount = 0;
 		hideSafetyOverlay();
+		hideLagSuggestion();
 		loadingOverlay.setVisible(false);
 		loadingOverlay.setManaged(false);
 		loadingOverlay.setOpacity(0);
@@ -1039,6 +1124,21 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			String summary = GraphBridgeParsing.parseTrimmedString(summaryValue);
 			List<String> details = GraphBridgeParsing.parseStringList(detailsValue);
 			notifyRenderStatusChanged(new GraphRenderStatus(mode, summary, details));
+		}
+
+		public void onGraphLagDetected(String averageFpsValue, String nodeCountValue, String tripleCountValue) {
+			if (disposed) {
+				return;
+			}
+			double avgFps = GraphBridgeParsing.parseNonNegativeDouble(averageFpsValue);
+			Platform.runLater(() -> showLagSuggestion(avgFps));
+		}
+
+		public void onGraphLagCleared() {
+			if (disposed) {
+				return;
+			}
+			Platform.runLater(GraphDisplayWidget.this::hideLagSuggestion);
 		}
 	}
 }
