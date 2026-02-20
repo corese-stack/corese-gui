@@ -1,15 +1,15 @@
-name: Publish GitHub Release
+name: Publish Development Pre-release
 
 on:
+    push:
+        branches:
+            - develop
     workflow_dispatch:
         inputs:
             ref:
-                description: "Tag to release (example: v5.0.0)"
-                required: true
+                description: "Branch, tag, or commit to pre-release (default: develop HEAD)"
+                required: false
                 type: string
-    push:
-        tags:
-            - "v*.*.*"
 
 permissions:
     contents: write
@@ -55,39 +55,52 @@ jobs:
                   java-version: "25"
                   cache: gradle
 
-            - name: Build release artifacts for current platform
+            - name: Build pre-release artifacts for current platform
               run: ${{ matrix.gradle_cmd }} --no-daemon clean shadowJar jpackageCurrentPlatform -PjpackageType=${{ matrix.jpackage_type }}
 
-            - name: Upload release artifacts
+            - name: Upload pre-release artifacts
               uses: actions/upload-artifact@v4
               with:
-                  name: corese-gui-${{ matrix.target }}
+                  name: corese-gui-prerelease-${{ matrix.target }}
                   path: |
                       build/libs/*-standalone-${{ matrix.target }}.jar
                       build/jpackage/output/${{ matrix.target }}/**
 
-    release:
+    publish-prerelease:
+        name: Publish or update dev-prerelease
         needs: build-artifacts
         runs-on: ubuntu-latest
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
 
         steps:
-            - name: Download all build artifacts
+            - name: Download all pre-release artifacts
               uses: actions/download-artifact@v4
               with:
-                  pattern: corese-gui-*
+                  pattern: corese-gui-prerelease-*
                   merge-multiple: true
-                  path: build/release-assets
+                  path: build/prerelease-assets
+
+            - name: Generate build timestamp
+              id: timestamp
+              run: |
+                  echo "timestamp=$(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> "$GITHUB_OUTPUT"
 
             - name: Generate checksums
               run: |
-                  cd build/release-assets
+                  cd build/prerelease-assets
                   find . -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
 
-            - name: Create GitHub release
-              uses: softprops/action-gh-release@v2
+            - name: Publish single rolling pre-release
+              uses: ncipollo/release-action@v1
               with:
-                  tag_name: ${{ github.event.inputs.ref || github.ref_name }}
-                  generate_release_notes: true
-                  files: |
-                      build/release-assets/**/*
+                  artifacts: "build/prerelease-assets/**/*"
+                  tag: dev-prerelease
+                  name: Development Pre-release
+                  body: |
+                      Latest unsigned multi-platform build from `develop`.
+
+                      Last updated: ${{ steps.timestamp.outputs.timestamp }}
+                      Source ref: `${{ github.event.inputs.ref || github.ref_name }}`
+                      Commit: `${{ github.sha }}`
+                  prerelease: true
+                  allowUpdates: true
+                  replacesArtifacts: true

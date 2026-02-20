@@ -9,10 +9,29 @@ on:
 
 permissions:
     contents: read
+    checks: write
+    pull-requests: write
 
 jobs:
     build-test:
-        runs-on: ubuntu-latest
+        name: CI (${{ matrix.target }})
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - os: ubuntu-latest
+                      target: linux-x64
+                      gradle_cmd: ./gradlew
+                    - os: windows-latest
+                      target: windows-x64
+                      gradle_cmd: ./gradlew.bat
+                    - os: macos-13
+                      target: macos-x64
+                      gradle_cmd: ./gradlew
+                    - os: macos-14
+                      target: macos-arm64
+                      gradle_cmd: ./gradlew
 
         steps:
             - name: Checkout sources
@@ -28,16 +47,22 @@ jobs:
                   java-version: "25"
                   cache: gradle
 
-            - name: Build and test
-              run: ./gradlew --no-daemon clean build installDist releasePackage
+            - name: Build, test, and package standalone JAR
+              run: ${{ matrix.gradle_cmd }} --no-daemon clean check shadowJar
 
             - name: Upload CI artifacts
               if: always()
               uses: actions/upload-artifact@v4
               with:
-                  name: corese-gui-ci-artifacts
+                  name: corese-gui-ci-${{ matrix.target }}
                   path: |
-                      build/libs/*.jar
-                      build/release/*.zip
+                      build/libs/*-standalone-${{ matrix.target }}.jar
                       build/reports/**
                       build/test-results/**
+
+            - name: Publish test results in PR checks
+              if: always() && matrix.os == 'ubuntu-latest'
+              uses: EnricoMi/publish-unit-test-result-action@v2
+              with:
+                  files: |
+                      build/test-results/**/*.xml
