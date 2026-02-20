@@ -104,7 +104,9 @@ public final class LinuxInputMethodBootstrap {
 		} else {
 			command.add("-cp");
 			command.add(System.getProperty("java.class.path"));
-			command.add("fr.inria.corese.gui.App");
+			// Keep the plain launcher entrypoint to avoid JDK JavaFX launcher checks
+			// in classpath-based packaged runtimes (jpackage app-image).
+			command.add("fr.inria.corese.gui.Launcher");
 		}
 
 		if (args != null) {

@@ -72,6 +72,7 @@ object Meta {
 
     // Plain Java launcher for classpath-friendly startup (fat JAR + jpackage).
     const val mainClass = "fr.inria.corese.gui.Launcher"
+    const val nativeAccessOption = "--enable-native-access=ALL-UNNAMED"
 }
 
 /*
@@ -234,7 +235,7 @@ javafx {
 
 application {
     mainClass.set(Meta.mainClass)
-    applicationDefaultJvmArgs = listOf("--enable-native-access=javafx.graphics,javafx.web")
+    applicationDefaultJvmArgs = listOf(Meta.nativeAccessOption)
 }
 
 /*
@@ -387,7 +388,7 @@ tasks.register<Exec>("jpackageCurrentPlatform") {
             "--app-version", jpackageAppVersion,
             "--vendor", Meta.appVendor,
             "--runtime-image", packagingJavaHome.get(),
-            "--java-options", "--enable-native-access=javafx.graphics,javafx.web"
+            "--java-options", Meta.nativeAccessOption
         )
 
         if (jpackageIcon.exists()) {
