@@ -256,19 +256,21 @@ public class DataViewController implements AutoCloseable {
 
 	private GraphRenderStatus enrichRenderStatusWithAdaptiveAutoPreviewInfo(GraphRenderStatus status) {
 		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
+		if (safeStatus.mode() != GraphRenderMode.PAUSED) {
+			return safeStatus;
+		}
 		int baseLimit = Math.max(ThemeManager.getMinGraphAutoRenderTriplesLimit(),
 				themeManager.getGraphAutoRenderTriplesLimit());
 		int effectiveLimit = resolveAdaptiveAutoPreviewLimit();
-		double effectiveScale = Math.max(AUTO_PREVIEW_SCALE_MIN,
-				Math.min(AUTO_PREVIEW_SCALE_MAX, adaptiveAutoPreviewScale));
-		String autoLimitLine = String.format(Locale.getDefault(), "Auto limit: %,d triples (base %,d, x%.2f).",
-				effectiveLimit, baseLimit, effectiveScale);
 		List<String> enrichedDetails = new ArrayList<>();
-		enrichedDetails.add(autoLimitLine);
-		enrichedDetails.addAll(safeStatus.details());
+		enrichedDetails.add(String.format(Locale.getDefault(), "Auto limit: %,d triples.", effectiveLimit));
 		if (effectiveLimit != baseLimit) {
-			enrichedDetails.add("Adjust base limit in Settings > Appearance > Graph Preview.");
+			enrichedDetails.add(String.format(Locale.getDefault(), "Base setting: %,d triples.", baseLimit));
+			enrichedDetails.add("Auto-adjusted from runtime performance.");
+		} else {
+			enrichedDetails.add("Based on your Graph Preview setting.");
 		}
+		enrichedDetails.addAll(safeStatus.details());
 		return new GraphRenderStatus(safeStatus.mode(), safeStatus.summary(), enrichedDetails);
 	}
 

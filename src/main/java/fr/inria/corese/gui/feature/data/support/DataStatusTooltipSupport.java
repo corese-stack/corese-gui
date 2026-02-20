@@ -138,7 +138,8 @@ public final class DataStatusTooltipSupport {
 		if (line == null || line.isBlank()) {
 			return false;
 		}
-		return line.toLowerCase(Locale.ROOT).startsWith("auto limit:");
+		String normalized = line.toLowerCase(Locale.ROOT);
+		return normalized.startsWith("auto limit:") || normalized.startsWith("current auto-preview limit:");
 	}
 
 	public static List<String> compactTooltipLines(List<String> lines, int maxLines) {
@@ -211,9 +212,12 @@ public final class DataStatusTooltipSupport {
 			case "Threshold can be changed in Settings > Appearance > Graph Preview." -> "Adjust limit in Settings.";
 			case "Base limit can be changed in Settings > Appearance > Graph Preview." ->
 				"Adjust base limit in Settings.";
+			case "This limit is auto-adjusted for performance." -> "Auto-adjusted for performance.";
 			case "Use \"Display anyway\" to force rendering on demand." -> "Use \"Display anyway\" to render now.";
 			case "Use \"Display anyway\" to force rendering." -> "Use \"Display anyway\" to render now.";
 			case "Adjust base limit in Settings > Appearance > Graph Preview." -> "Adjust base limit in Settings.";
+			case "Auto-adjusted from runtime performance." -> "Auto-adjusted for performance.";
+			case "Based on your Graph Preview setting." -> "Based on your setting.";
 			case "Runtime adapts this limit from current performance." -> "Runtime auto-adjusts this limit.";
 			case "Preview payload is skipped at this size to keep the UI responsive." ->
 				"Preview payload skipped at this size.";

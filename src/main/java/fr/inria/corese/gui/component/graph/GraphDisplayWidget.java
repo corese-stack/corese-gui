@@ -703,11 +703,11 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 				message.append(
 						String.format(Locale.ROOT, "%nCurrent auto-preview limit: %,d triples (base setting: %,d).",
 								maxAutoRenderTriples, baseAutoRenderTriplesLimit));
-				message.append('\n').append("Runtime adapts this limit from current performance.");
 			} else {
 				message.append(
-						String.format(Locale.ROOT, "%nCurrent auto-preview limit: %,d triples.", maxAutoRenderTriples));
+						String.format(Locale.ROOT, "%nCurrent preview limit: %,d triples.", maxAutoRenderTriples));
 			}
+			message.append('\n').append("This limit is auto-adjusted for performance.");
 		}
 		if (maxAutoRenderChars > 0 && jsonChars > maxAutoRenderChars) {
 			message.append(String.format(Locale.ROOT, "%nSerialized graph size: %,d chars (limit: %,d).", jsonChars,
@@ -730,11 +730,11 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			if (baseAutoRenderTriplesLimit != maxAutoRenderTriples) {
 				details.add(String.format(Locale.ROOT, "Current auto-preview limit: %,d triples (base setting: %,d).",
 						maxAutoRenderTriples, baseAutoRenderTriplesLimit));
-				details.add("Runtime adapts this limit from current performance.");
 			} else {
 				details.add(
 						String.format(Locale.ROOT, "Current auto-preview limit: %,d triples.", maxAutoRenderTriples));
 			}
+			details.add("This limit is auto-adjusted for performance.");
 		}
 		if (jsonChars >= 0 && maxAutoRenderChars > 0 && jsonChars > maxAutoRenderChars) {
 			details.add(String.format(Locale.ROOT, "Serialized graph size: %,d chars (limit: %,d).", jsonChars,
