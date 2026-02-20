@@ -22,19 +22,19 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - os: ubuntu-latest
+                    - os: ubuntu-24.04
                       target: linux-x64
                       gradle_cmd: ./gradlew
                       jpackage_type: app-image
-                    - os: windows-latest
+                    - os: windows-2025
                       target: windows-x64
                       gradle_cmd: ./gradlew.bat
                       jpackage_type: exe
-                    - os: macos-13
+                    - os: macos-15-intel
                       target: macos-x64
                       gradle_cmd: ./gradlew
                       jpackage_type: dmg
-                    - os: macos-14
+                    - os: macos-15
                       target: macos-arm64
                       gradle_cmd: ./gradlew
                       jpackage_type: dmg
@@ -68,7 +68,7 @@ jobs:
 
     release:
         needs: build-artifacts
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-24.04
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
 
         steps:
