@@ -110,8 +110,16 @@ public final class DataStatusTooltipSupport {
 	private static List<String> buildPausedDetailPreview(List<String> normalizedDetails) {
 		String actionLine = normalizedDetails.stream().filter(DataStatusTooltipSupport::isDisplayAnywayDetail)
 				.findFirst().orElse("");
+		String autoLimitLine = normalizedDetails.stream().filter(DataStatusTooltipSupport::isAutoLimitDetail)
+				.findFirst().orElse("");
 		if (actionLine.isBlank()) {
+			if (!autoLimitLine.isBlank()) {
+				return List.of(autoLimitLine, "More optimizations active.");
+			}
 			return List.of(normalizedDetails.getFirst(), "More optimizations active.");
+		}
+		if (!autoLimitLine.isBlank()) {
+			return List.of(actionLine, autoLimitLine);
 		}
 		String secondaryLine = normalizedDetails.stream().filter(line -> !line.equals(actionLine))
 				.filter(line -> line.startsWith("Detected ")).findFirst().orElseGet(() -> normalizedDetails.stream()
@@ -124,6 +132,13 @@ public final class DataStatusTooltipSupport {
 			return false;
 		}
 		return line.toLowerCase(Locale.ROOT).contains("display anyway");
+	}
+
+	private static boolean isAutoLimitDetail(String line) {
+		if (line == null || line.isBlank()) {
+			return false;
+		}
+		return line.toLowerCase(Locale.ROOT).startsWith("auto limit:");
 	}
 
 	public static List<String> compactTooltipLines(List<String> lines, int maxLines) {
@@ -196,6 +211,7 @@ public final class DataStatusTooltipSupport {
 			case "Threshold can be changed in Settings > Appearance > Graph Preview." -> "Adjust limit in Settings.";
 			case "Use \"Display anyway\" to force rendering on demand." -> "Use \"Display anyway\" to render now.";
 			case "Use \"Display anyway\" to force rendering." -> "Use \"Display anyway\" to render now.";
+			case "Adjust base limit in Settings > Appearance > Graph Preview." -> "Adjust base limit in Settings.";
 			case "Preview payload is skipped at this size to keep the UI responsive." ->
 				"Preview payload skipped at this size.";
 			case "Manual rendering can freeze the interface on very large graphs." ->

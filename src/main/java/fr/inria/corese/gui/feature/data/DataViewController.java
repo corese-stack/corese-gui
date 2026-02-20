@@ -34,6 +34,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
@@ -248,9 +249,27 @@ public class DataViewController implements AutoCloseable {
 
 	private void handleGraphRenderStatusChanged(GraphRenderStatus status) {
 		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
-		view.updateGraphRenderStatus(safeStatus);
 		updateAdaptiveAutoPreviewScale(safeStatus.mode());
 		applyAdaptiveAutoPreviewLimitToGraphWidget();
+		view.updateGraphRenderStatus(enrichRenderStatusWithAdaptiveAutoPreviewInfo(safeStatus));
+	}
+
+	private GraphRenderStatus enrichRenderStatusWithAdaptiveAutoPreviewInfo(GraphRenderStatus status) {
+		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
+		int baseLimit = Math.max(ThemeManager.getMinGraphAutoRenderTriplesLimit(),
+				themeManager.getGraphAutoRenderTriplesLimit());
+		int effectiveLimit = resolveAdaptiveAutoPreviewLimit();
+		double effectiveScale = Math.max(AUTO_PREVIEW_SCALE_MIN,
+				Math.min(AUTO_PREVIEW_SCALE_MAX, adaptiveAutoPreviewScale));
+		String autoLimitLine = String.format(Locale.getDefault(), "Auto limit: %,d triples (base %,d, x%.2f).",
+				effectiveLimit, baseLimit, effectiveScale);
+		List<String> enrichedDetails = new ArrayList<>();
+		enrichedDetails.add(autoLimitLine);
+		enrichedDetails.addAll(safeStatus.details());
+		if (effectiveLimit != baseLimit) {
+			enrichedDetails.add("Adjust base limit in Settings > Appearance > Graph Preview.");
+		}
+		return new GraphRenderStatus(safeStatus.mode(), safeStatus.summary(), enrichedDetails);
 	}
 
 	private void updateAdaptiveAutoPreviewScale(GraphRenderMode mode) {
