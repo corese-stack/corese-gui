@@ -102,6 +102,9 @@ class KGGraphVis extends HTMLElement {
         this.lastEffectiveRenderProfileKey = "";
         this.hoveredNodeId = null;
         this.linkIndexesByNodeId = new Map();
+        this.nodeLabelCreationEnabled = true;
+        this.edgeLabelCreationEnabled = true;
+        this.tooltipsEnabled = true;
         this.HOVER_FOCUS_MIN_LINK_LABELS = 220;
         this.HOVER_FOCUS_MAX_LINK_LABELS = 1600;
         this.tooltipShowTimerHandle = null;
@@ -129,6 +132,7 @@ class KGGraphVis extends HTMLElement {
         this.lastRenderTiming = null;
         this.renderTimingHistory = [];
         this.renderTimingPressureActive = false;
+        this.backgroundRefineToken = 0;
 
         // Graph coloring
         this.graphColorMap = new Map();
@@ -217,6 +221,10 @@ class KGGraphVis extends HTMLElement {
         this.RENDER_TIMING_HISTORY_SIZE = 24;
         this.RENDER_TIMING_PRESSURE_MULTIPLIER = 1.28;
         this.RENDER_TIMING_MIN_TOTAL_MS = 320;
+        this.BACKGROUND_LAYOUT_REFINE_NODE_THRESHOLD = 260;
+        this.BACKGROUND_LAYOUT_REFINE_LINK_THRESHOLD = 720;
+        this.BACKGROUND_LAYOUT_REFINE_MAX_TICKS = 900;
+        this.BACKGROUND_LAYOUT_REFINE_MAX_DURATION_MS = 2600;
         this.AUTO_OVERVIEW_PADDING = 760;
         this.AUTO_OVERVIEW_MAX_SCALE = 0.09;
         this.AUTO_RECENTER_DELAY_MS = 560;
@@ -1159,6 +1167,287 @@ class KGGraphVis extends HTMLElement {
             .style("opacity", 1);
     }
 
+    resolveNodeLabelOffset() {
+        const nodeCount = Array.isArray(this.graph?.nodes) ? this.graph.nodes.length : 0;
+        const denseNodeLabelThreshold = this.scaleThreshold(this.AUTO_HIDE_NODE_LABEL_THRESHOLD, 200);
+        return nodeCount >= denseNodeLabelThreshold ? 24 : 35;
+    }
+
+    buildNodeLabelText(node) {
+        const displayValue = this.resolveNodeDisplayValue(node);
+        if (node?.type === "Literal") {
+            return this.truncateLabel(displayValue);
+        }
+        return this.truncateLabel(this.formatLabel(displayValue));
+    }
+
+    ensureNodeLabelsCreated() {
+        if (!this.nodeSelection || this.nodeLabelSelection) {
+            return false;
+        }
+        this.nodeLabelSelection = this.nodeSelection.append("text")
+            .attr("class", "node-label")
+            .attr("dy", this.resolveNodeLabelOffset())
+            .attr("text-anchor", "middle")
+            .text(node => this.buildNodeLabelText(node));
+        return true;
+    }
+
+    removeNodeLabels() {
+        if (!this.nodeLabelSelection) {
+            return false;
+        }
+        this.nodeLabelSelection.remove();
+        this.nodeLabelSelection = null;
+        return true;
+    }
+
+    ensureEdgeLabelsCreated() {
+        if (this.linkLabelSelection || !Array.isArray(this.graph?.links)) {
+            return false;
+        }
+        const labelLayer = this.zoomLayer ? this.zoomLayer.select(".labels-layer") : null;
+        if (!labelLayer || labelLayer.empty()) {
+            return false;
+        }
+        this.linkLabelSelection = labelLayer.selectAll("text.edge-label")
+            .data(this.graph.links)
+            .enter()
+            .append("text")
+            .attr("class", "edge-label")
+            .attr("text-anchor", "middle")
+            .text(link => this.formatLabel(link.name));
+        return true;
+    }
+
+    removeEdgeLabels() {
+        if (!this.linkLabelSelection) {
+            return false;
+        }
+        this.linkLabelSelection.remove();
+        this.linkLabelSelection = null;
+        if (this.focusLabelLayer) {
+            this.focusLabelLayer.selectAll("*").remove();
+        }
+        return true;
+    }
+
+    hideGlobalTooltip() {
+        if (this.tooltipShowTimerHandle) {
+            clearTimeout(this.tooltipShowTimerHandle);
+            this.tooltipShowTimerHandle = null;
+        }
+        if (this.tooltipMoveTimerHandle) {
+            clearTimeout(this.tooltipMoveTimerHandle);
+            this.tooltipMoveTimerHandle = null;
+        }
+        d3.select("#global-tooltip").style("opacity", 0);
+    }
+
+    buildNodeTooltipContent(node) {
+        if (!node) {
+            return "";
+        }
+        const isLiteral = node.type === "Literal";
+        const displayValue = this.resolveNodeDisplayValue(node);
+        const title = isLiteral
+            ? `"${this.formatLabel(displayValue)}"`
+            : this.formatLabel(displayValue);
+        let content = `<div class="tooltip-title">${title}</div>`;
+
+        if (isLiteral) {
+            content += `<div class="tooltip-row"><strong>Value</strong> <span>"${displayValue}"</span></div>`;
+            let typeValue = "xsd:string";
+            if (node.datatype) {
+                typeValue = this.formatLabel(node.datatype);
+            } else if (!Number.isNaN(Number(displayValue))) {
+                typeValue = "xsd:decimal";
+            }
+            content += `<div class="tooltip-row"><strong>Type</strong> <span>${typeValue}</span></div>`;
+            if (node.language) {
+                content += `<div class="tooltip-row"><strong>Lang</strong> <span>${node.language}</span></div>`;
+            }
+        } else if (node.type === "Blank") {
+            content += `<div class="tooltip-row"><strong>ID</strong> <span>${node.id}</span></div>`;
+            content += `<div class="tooltip-row"><strong>Type</strong> <span>Blank Node</span></div>`;
+        } else {
+            content += `<div class="tooltip-row"><strong>URI</strong> <span>${node.id}</span></div>`;
+            content += `<div class="tooltip-row"><strong>Type</strong> <span>${node.type}</span></div>`;
+        }
+
+        if (node.graphs?.size > 1) {
+            const graphList = Array.from(node.graphs).join(", ");
+            content += `<div class="tooltip-row"><strong>Graphs</strong> <span>${graphList}</span></div>`;
+            content += `<div class="tooltip-row"><strong>Primary</strong> <span>${node.graph || GRAPH_DEFAULTS.defaultGraphId}</span></div>`;
+        } else {
+            content += `<div class="tooltip-row"><strong>Graph</strong> <span>${node.graph || GRAPH_DEFAULTS.defaultGraphId}</span></div>`;
+        }
+        const nodeId = this.getLinkEndpointId(node?.id ?? node);
+        const connectedIndexes = nodeId ? (this.linkIndexesByNodeId.get(nodeId) ?? []) : [];
+        const connectedCount = connectedIndexes.length;
+        if (connectedCount > 0) {
+            const displayedLabelCount = this.resolveHoverFocusLabelBudget(connectedCount);
+            content += `<div class="tooltip-row"><strong>Links</strong> <span>${connectedCount}</span></div>`;
+            if (displayedLabelCount < connectedCount) {
+                content += `<div class="tooltip-row"><strong>Detail</strong> <span>${displayedLabelCount}/${connectedCount} labels shown. Zoom in for full local labels.</span></div>`;
+            }
+        }
+        return content;
+    }
+
+    bindNodeInteractions() {
+        if (!this.nodeSelection) {
+            return;
+        }
+        this.hideGlobalTooltip();
+        const tooltip = d3.select("#global-tooltip");
+        const TOOLTIP_SHOW_DELAY_MS = 180;
+        const TOOLTIP_MOVE_THROTTLE_MS = 16;
+        const TOOLTIP_OFFSET = 24;
+        const TOOLTIP_MARGIN = 12;
+        let tooltipMoveTimer = null;
+        let tooltipShowTimer = null;
+        let tooltipVisible = false;
+        let lastMouseEvent = null;
+
+        const clearTooltipTimers = () => {
+            if (tooltipShowTimer) {
+                clearTimeout(tooltipShowTimer);
+                tooltipShowTimer = null;
+            }
+            if (this.tooltipShowTimerHandle) {
+                clearTimeout(this.tooltipShowTimerHandle);
+                this.tooltipShowTimerHandle = null;
+            }
+            if (tooltipMoveTimer) {
+                clearTimeout(tooltipMoveTimer);
+                tooltipMoveTimer = null;
+            }
+            if (this.tooltipMoveTimerHandle) {
+                clearTimeout(this.tooltipMoveTimerHandle);
+                this.tooltipMoveTimerHandle = null;
+            }
+        };
+
+        const positionTooltip = event => {
+            if (!event?.pageX && !event?.pageY) {
+                return;
+            }
+            const tooltipNode = tooltip.node();
+            if (!tooltipNode) {
+                return;
+            }
+
+            const tooltipWidth = Math.max(220, tooltipNode.offsetWidth || 0);
+            const tooltipHeight = Math.max(90, tooltipNode.offsetHeight || 0);
+            const viewportLeft = window.scrollX;
+            const viewportTop = window.scrollY;
+            const viewportRight = viewportLeft + window.innerWidth;
+            const viewportBottom = viewportTop + window.innerHeight;
+            const clientX = Number.isFinite(event.clientX) ? event.clientX : (event.pageX - viewportLeft);
+            const clientY = Number.isFinite(event.clientY) ? event.clientY : (event.pageY - viewportTop);
+
+            let left = event.pageX + TOOLTIP_OFFSET;
+            let top = event.pageY + TOOLTIP_OFFSET;
+
+            if (clientX > window.innerWidth * 0.56) {
+                left = event.pageX - tooltipWidth - TOOLTIP_OFFSET;
+            }
+            if (clientY > window.innerHeight * 0.56) {
+                top = event.pageY - tooltipHeight - TOOLTIP_OFFSET;
+            }
+
+            const minLeft = viewportLeft + TOOLTIP_MARGIN;
+            const maxLeft = viewportRight - tooltipWidth - TOOLTIP_MARGIN;
+            const minTop = viewportTop + TOOLTIP_MARGIN;
+            const maxTop = viewportBottom - tooltipHeight - TOOLTIP_MARGIN;
+            const clampedLeft = Math.max(minLeft, Math.min(maxLeft, left));
+            const clampedTop = Math.max(minTop, Math.min(maxTop, top));
+
+            tooltip
+                .style("left", `${clampedLeft}px`)
+                .style("top", `${clampedTop}px`);
+        };
+
+        const hideTooltip = () => {
+            clearTooltipTimers();
+            tooltipVisible = false;
+            tooltip.style("opacity", 0);
+        };
+
+        const throttleTooltip = (callback, delay = TOOLTIP_MOVE_THROTTLE_MS) => {
+            return (...args) => {
+                const event = d3.event;
+                if (!tooltipMoveTimer) {
+                    tooltipMoveTimer = setTimeout(() => {
+                        callback(event, ...args);
+                        tooltipMoveTimer = null;
+                        this.tooltipMoveTimerHandle = null;
+                    }, delay);
+                    this.tooltipMoveTimerHandle = tooltipMoveTimer;
+                }
+            };
+        };
+
+        this.nodeSelection
+            .on("mouseover", node => {
+                this.applyHoverFocus(node);
+                if (!this.tooltipsEnabled) {
+                    hideTooltip();
+                    return;
+                }
+                const content = this.buildNodeTooltipContent(node);
+                if (!content) {
+                    hideTooltip();
+                    return;
+                }
+
+                hideTooltip();
+                tooltip.html(content);
+                lastMouseEvent = d3.event;
+                positionTooltip(lastMouseEvent);
+                tooltipShowTimer = setTimeout(() => {
+                    tooltipShowTimer = null;
+                    this.tooltipShowTimerHandle = null;
+                    if (!lastMouseEvent || !this.tooltipsEnabled) {
+                        return;
+                    }
+                    positionTooltip(lastMouseEvent);
+                    tooltipVisible = true;
+                    tooltip.style("opacity", 1);
+                }, TOOLTIP_SHOW_DELAY_MS);
+                this.tooltipShowTimerHandle = tooltipShowTimer;
+
+                const target = d3.event?.currentTarget;
+                if (target) {
+                    d3.select(target).on("mousemove", throttleTooltip(event => {
+                        if (!this.tooltipsEnabled) {
+                            hideTooltip();
+                            return;
+                        }
+                        if (event?.pageX != null && event?.pageY != null) {
+                            lastMouseEvent = event;
+                            if (tooltipVisible) {
+                                positionTooltip(event);
+                            }
+                        }
+                    }));
+                }
+            })
+            .on("mouseout", () => {
+                this.clearHoverFocus(true);
+                hideTooltip();
+                const target = d3.event?.currentTarget;
+                if (target) {
+                    d3.select(target).on("mousemove", null);
+                }
+            });
+
+        if (!this.tooltipsEnabled) {
+            tooltip.style("opacity", 0);
+        }
+    }
+
     scaleThreshold(baseThreshold = 0, minValue = 1) {
         const safeBase = Number.isFinite(baseThreshold) ? Math.max(0, Math.floor(baseThreshold)) : 0;
         const safeMin = Number.isFinite(minValue) ? Math.max(0, Math.floor(minValue)) : 0;
@@ -1200,7 +1489,18 @@ class KGGraphVis extends HTMLElement {
             : [];
         const details = existingDetails.filter(line => line !== "Link geometry simplified for dense graphs."
             && line !== "Parallel link offset layout disabled for dense edges."
-            && line !== "Link motion sampling enabled to keep animation smooth.");
+            && line !== "Link motion sampling enabled to keep animation smooth."
+            && line !== "Node labels hidden to keep rendering responsive."
+            && line !== "Edge labels hidden to reduce draw cost."
+            && line !== "Node tooltips disabled for very large graph.");
+        const hasNodes = Array.isArray(this.graph?.nodes) && this.graph.nodes.length > 0;
+        const hasEdges = Array.isArray(this.graph?.links) && this.graph.links.length > 0;
+        if (hasNodes && !this.nodeLabelSelection) {
+            details.push("Node labels hidden to keep rendering responsive.");
+        }
+        if (hasEdges && !this.linkLabelSelection) {
+            details.push("Edge labels hidden to reduce draw cost.");
+        }
         if (this.simplifyLinkGeometry) {
             details.push("Link geometry simplified for dense graphs.");
         }
@@ -1209,6 +1509,9 @@ class KGGraphVis extends HTMLElement {
         }
         if (this.linkPathTickThrottleMs > 0) {
             details.push("Link motion sampling enabled to keep animation smooth.");
+        }
+        if (!this.tooltipsEnabled) {
+            details.push("Node tooltips disabled for very large graph.");
         }
         const uniqueDetails = [...new Set(details)];
         this.baseRenderProfile = {
@@ -1224,18 +1527,46 @@ class KGGraphVis extends HTMLElement {
         }
         const nodeCount = this.graph.nodes.length;
         const linkCount = this.graph.links.length;
+        const largeNodeThreshold = this.scaleThreshold(this.LARGE_GRAPH_NODE_THRESHOLD, 100);
+        const largeLinkThreshold = this.scaleThreshold(this.LARGE_GRAPH_LINK_THRESHOLD, 180);
         const hugeNodeThreshold = this.scaleThreshold(this.HUGE_GRAPH_NODE_THRESHOLD, 120);
         const hugeLinkThreshold = this.scaleThreshold(this.HUGE_GRAPH_LINK_THRESHOLD, 240);
+        const autoHideNodeLabelThreshold = this.scaleThreshold(this.AUTO_HIDE_NODE_LABEL_THRESHOLD, 200);
+        const disableNodeLabelThreshold = this.scaleThreshold(this.DISABLE_LABEL_CREATION_NODE_THRESHOLD, 180);
         const disableEdgeLabelThreshold = this.scaleThreshold(this.DISABLE_LABEL_CREATION_LINK_THRESHOLD, 180);
+        const disableTooltipNodeThreshold = this.scaleThreshold(this.DISABLE_TOOLTIP_NODE_THRESHOLD, 600);
+        const disableTooltipLinkThreshold = this.scaleThreshold(this.DISABLE_TOOLTIP_LINK_THRESHOLD, 1200);
         const autoHideEdgeLabelThreshold = this.scaleThreshold(this.AUTO_HIDE_EDGE_LABEL_THRESHOLD, 80);
         const simplifyLinkThreshold = this.scaleThreshold(this.SIMPLIFY_LINK_GEOMETRY_LINK_THRESHOLD, 180);
         const parallelLayoutThreshold = this.scaleThreshold(this.PARALLEL_LAYOUT_MAX_LINK_THRESHOLD, 200);
+        const isLargeGraph = nodeCount >= largeNodeThreshold || linkCount >= largeLinkThreshold;
+        const isVeryLargeGraph = nodeCount >= autoHideNodeLabelThreshold;
         const isHugeGraph = nodeCount >= hugeNodeThreshold || linkCount >= hugeLinkThreshold;
 
+        const shouldCreateNodeLabels = nodeCount < disableNodeLabelThreshold
+            && linkCount < disableEdgeLabelThreshold;
         const shouldCreateEdgeLabels = linkCount < disableEdgeLabelThreshold && !isHugeGraph;
+        const shouldEnableTooltips = nodeCount <= disableTooltipNodeThreshold
+            && linkCount <= disableTooltipLinkThreshold;
         const nextEdgeLabelsAutoHidden = !shouldCreateEdgeLabels || linkCount >= autoHideEdgeLabelThreshold;
         const nextSimplifyLinkGeometry = isHugeGraph || linkCount >= simplifyLinkThreshold;
         const nextParallelLayoutSimplified = linkCount > parallelLayoutThreshold;
+        const nextNodeLabelZoomThreshold = shouldCreateNodeLabels
+            ? (isVeryLargeGraph ? 0.62 : (isLargeGraph ? 0.38 : 0.2))
+            : 2.0;
+        const nextEdgeLabelZoomThreshold = shouldCreateEdgeLabels
+            ? (nextEdgeLabelsAutoHidden ? 0.92 : (isLargeGraph ? 0.5 : 0.2))
+            : 2.0;
+        if (isVeryLargeGraph) {
+            this.LABEL_TICK_THROTTLE = this.LABEL_TICK_THROTTLE_VERY_LARGE;
+            this.labelVisibilityThrottleMs = this.LABEL_VISIBILITY_THROTTLE_VERY_LARGE;
+        } else if (isLargeGraph) {
+            this.LABEL_TICK_THROTTLE = this.LABEL_TICK_THROTTLE_LARGE;
+            this.labelVisibilityThrottleMs = this.LABEL_VISIBILITY_THROTTLE_LARGE;
+        } else {
+            this.LABEL_TICK_THROTTLE = this.LABEL_TICK_THROTTLE_SMALL;
+            this.labelVisibilityThrottleMs = this.LABEL_VISIBILITY_THROTTLE_SMALL;
+        }
         this.applyMotionSamplingProfile(nodeCount, linkCount);
 
         let geometryChanged = false;
@@ -1253,7 +1584,35 @@ class KGGraphVis extends HTMLElement {
             geometryChanged = true;
         }
 
-        const visibilityChanged = nextEdgeLabelsAutoHidden !== this.edgeLabelsAutoHidden;
+        let structureChanged = false;
+        if (shouldCreateNodeLabels && !this.nodeLabelSelection) {
+            structureChanged = this.ensureNodeLabelsCreated() || structureChanged;
+        } else if (!shouldCreateNodeLabels && this.nodeLabelSelection) {
+            structureChanged = this.removeNodeLabels() || structureChanged;
+        }
+        if (shouldCreateEdgeLabels && !this.linkLabelSelection) {
+            structureChanged = this.ensureEdgeLabelsCreated() || structureChanged;
+        } else if (!shouldCreateEdgeLabels && this.linkLabelSelection) {
+            structureChanged = this.removeEdgeLabels() || structureChanged;
+        }
+        this.nodeLabelCreationEnabled = shouldCreateNodeLabels;
+        this.edgeLabelCreationEnabled = shouldCreateEdgeLabels;
+
+        const tooltipChanged = shouldEnableTooltips !== this.tooltipsEnabled;
+        this.tooltipsEnabled = shouldEnableTooltips;
+        if (!this.tooltipsEnabled) {
+            this.hideGlobalTooltip();
+        }
+
+        const thresholdChanged = this.nodeLabelZoomThreshold !== nextNodeLabelZoomThreshold
+            || this.edgeLabelZoomThreshold !== nextEdgeLabelZoomThreshold;
+        this.nodeLabelZoomThreshold = nextNodeLabelZoomThreshold;
+        this.edgeLabelZoomThreshold = nextEdgeLabelZoomThreshold;
+
+        const visibilityChanged = nextEdgeLabelsAutoHidden !== this.edgeLabelsAutoHidden
+            || thresholdChanged
+            || structureChanged
+            || tooltipChanged;
         this.edgeLabelsAutoHidden = nextEdgeLabelsAutoHidden;
         this.updateArrowheadVisibility(true);
         this.refreshBaseRenderProfileForAdaptiveToggles();
@@ -1477,6 +1836,7 @@ class KGGraphVis extends HTMLElement {
     }
 
     stopPerformanceMonitoring() {
+        this.cancelBackgroundLayoutRefinement();
         if (this.performanceLagActive) {
             this.notifyLagCleared();
         }
@@ -2031,15 +2391,7 @@ class KGGraphVis extends HTMLElement {
 
     onInteraction(shouldHideLabels = true) {
         this.isInteracting = true;
-        if (this.tooltipShowTimerHandle) {
-            clearTimeout(this.tooltipShowTimerHandle);
-            this.tooltipShowTimerHandle = null;
-        }
-        if (this.tooltipMoveTimerHandle) {
-            clearTimeout(this.tooltipMoveTimerHandle);
-            this.tooltipMoveTimerHandle = null;
-        }
-        d3.select("#global-tooltip").style("opacity", 0);
+        this.hideGlobalTooltip();
         const wasHidden = this.labelsHiddenForInteraction;
         const shouldHide = shouldHideLabels && this.shouldHideLabelsDuringInteraction();
         this.clearHoverFocus(false);
@@ -3203,6 +3555,71 @@ class KGGraphVis extends HTMLElement {
         });
     }
 
+    cancelBackgroundLayoutRefinement() {
+        this.backgroundRefineToken += 1;
+    }
+
+    scheduleBackgroundLayoutRefinement(nodeCount = 0, linkCount = 0) {
+        if (!this.simulation || this.staticLayoutMode) {
+            return;
+        }
+        const safeNodeCount = Number.isFinite(nodeCount) ? Math.max(0, Math.floor(nodeCount)) : 0;
+        const safeLinkCount = Number.isFinite(linkCount) ? Math.max(0, Math.floor(linkCount)) : 0;
+        if (safeNodeCount < this.BACKGROUND_LAYOUT_REFINE_NODE_THRESHOLD
+            && safeLinkCount < this.BACKGROUND_LAYOUT_REFINE_LINK_THRESHOLD) {
+            return;
+        }
+        const simulationRef = this.simulation;
+        const preLayoutProfile = this.resolvePreLayoutProfile(safeNodeCount, safeLinkCount, false);
+        if (!preLayoutProfile.enabled) {
+            return;
+        }
+        const isVeryLargeGraph = safeNodeCount >= this.PRE_LAYOUT_VERY_LARGE_NODE_THRESHOLD
+            || safeLinkCount >= this.PRE_LAYOUT_VERY_LARGE_LINK_THRESHOLD;
+        const maxTicksCap = isVeryLargeGraph
+            ? this.BACKGROUND_LAYOUT_REFINE_MAX_TICKS
+            : Math.max(280, Math.floor(this.BACKGROUND_LAYOUT_REFINE_MAX_TICKS * 0.66));
+        const durationCapMs = isVeryLargeGraph
+            ? this.BACKGROUND_LAYOUT_REFINE_MAX_DURATION_MS
+            : Math.max(900, Math.floor(this.BACKGROUND_LAYOUT_REFINE_MAX_DURATION_MS * 0.62));
+        const backgroundProfile = {
+            enabled: true,
+            maxTicks: Math.max(120, Math.min(maxTicksCap, Math.floor(preLayoutProfile.maxTicks * 0.58))),
+            maxDurationMs: Math.max(420, Math.min(durationCapMs, Math.floor(preLayoutProfile.maxDurationMs * 0.6))),
+            targetAlpha: Math.max(0.04, preLayoutProfile.targetAlpha * 0.88)
+        };
+        const token = ++this.backgroundRefineToken;
+        const launchDelayMs = isVeryLargeGraph ? 420 : 260;
+        setTimeout(() => {
+            if (token !== this.backgroundRefineToken
+                || this.simulation !== simulationRef
+                || this.staticLayoutMode
+                || this.isInteracting) {
+                return;
+            }
+            this.runOfflineLayout(simulationRef, backgroundProfile, {
+                frameBudgetMs: isVeryLargeGraph ? 4 : 5,
+                minBatchTicks: isVeryLargeGraph ? 5 : 4,
+                maxBatchTicks: isVeryLargeGraph ? 72 : 96,
+                shouldAbort: () => token !== this.backgroundRefineToken
+                    || this.simulation !== simulationRef
+                    || this.isInteracting
+            }).then(ticked => {
+                if (token !== this.backgroundRefineToken || this.simulation !== simulationRef) {
+                    return;
+                }
+                if (ticked > 0) {
+                    this.ticked(true);
+                    this.refreshEdgeLabelPositions(true);
+                    this.scheduleLabelVisibilityUpdate();
+                }
+                if (this.simulation === simulationRef && !this.isInteracting) {
+                    simulationRef.alpha(Math.max(simulationRef.alpha(), backgroundProfile.targetAlpha)).alphaTarget(0).restart();
+                }
+            });
+        }, launchDelayMs);
+    }
+
     async precomputeDynamicLayout(nodeCount = 0, linkCount = 0, options = {}) {
         if (!this.graph || !Array.isArray(this.graph.nodes) || this.graph.nodes.length === 0) {
             return 0;
@@ -3493,6 +3910,7 @@ class KGGraphVis extends HTMLElement {
             this.labelVisibilityRaf = null;
         }
         this.clearAutoFitTimers();
+        this.cancelBackgroundLayoutRefinement();
         this.stopPerformanceMonitoring();
 
         const chartSvg = this.shadowRoot.querySelector("#chart-container");
@@ -3503,6 +3921,7 @@ class KGGraphVis extends HTMLElement {
         if (!this.jsonld) {
             this.svg.selectAll("*").remove();
             this.stopPerformanceMonitoring();
+            this.hideGlobalTooltip();
             this.isInteracting = false;
             this.labelsHiddenForInteraction = false;
             this.lastLabelVisibilityUpdate = 0;
@@ -3695,6 +4114,9 @@ class KGGraphVis extends HTMLElement {
         const shouldCreateEdgeLabels = linkCount < disableLinkLabelThreshold && !isHugeGraph;
         const shouldEnableTooltips = nodeCount <= disableTooltipNodeThreshold
             && linkCount <= disableTooltipLinkThreshold;
+        this.nodeLabelCreationEnabled = shouldCreateNodeLabels;
+        this.edgeLabelCreationEnabled = shouldCreateEdgeLabels;
+        this.tooltipsEnabled = shouldEnableTooltips;
         const isParallelLayoutSimplified = linkCount > parallelLayoutThreshold;
         this.parallelLayoutSimplified = isParallelLayoutSimplified;
         this.simplifyLinkGeometry = isHugeGraph || linkCount >= simplifyLinkThreshold;
@@ -3853,7 +4275,7 @@ class KGGraphVis extends HTMLElement {
         this.svg.call(this.zoomBehavior.transform, initialTransform || d3.zoomIdentity);
 
         const linkGroup = gZoom.append("g").attr("class", "links-layer");
-        const labelGroup = gZoom.append("g").attr("class", "labels-layer");
+        gZoom.append("g").attr("class", "labels-layer");
         const nodeGroup = gZoom.append("g").attr("class", "nodes-layer");
         this.focusLabelLayer = gZoom.append("g").attr("class", "focus-label-layer");
 
@@ -3913,16 +4335,9 @@ class KGGraphVis extends HTMLElement {
                 return this.arrowheadsVisible ? markerUrl : null;
             });
 
+        this.linkLabelSelection = null;
         if (shouldCreateEdgeLabels) {
-            this.linkLabelSelection = labelGroup.selectAll("text")
-                .data(this.graph.links)
-                .enter()
-                .append("text")
-                .attr("class", "edge-label")
-                .attr("text-anchor", "middle")
-                .text(link => this.formatLabel(link.name));
-        } else {
-            this.linkLabelSelection = null;
+            this.ensureEdgeLabelsCreated();
         }
 
         this.nodeSelection = nodeGroup.selectAll("g")
@@ -3995,20 +4410,9 @@ class KGGraphVis extends HTMLElement {
                 .attr("stroke-width", 2.6);
         });
 
+        this.nodeLabelSelection = null;
         if (shouldCreateNodeLabels) {
-            this.nodeLabelSelection = this.nodeSelection.append("text")
-                .attr("class", "node-label")
-                .attr("dy", isVeryLargeGraph ? 24 : 35)
-                .attr("text-anchor", "middle")
-                .text(node => {
-                    const displayValue = this.resolveNodeDisplayValue(node);
-                    if (node?.type === "Literal") {
-                        return this.truncateLabel(displayValue);
-                    }
-                    return this.truncateLabel(this.formatLabel(displayValue));
-                });
-        } else {
-            this.nodeLabelSelection = null;
+            this.ensureNodeLabelsCreated();
         }
 
         // Render one immediate layout frame so links/labels are placed before
@@ -4017,198 +4421,8 @@ class KGGraphVis extends HTMLElement {
         this.updateLevelOfDetail(this.currentZoom);
         this.updateArrowheadVisibility(true);
 
-        const tooltip = d3.select("#global-tooltip");
-        if (shouldEnableTooltips) {
-            const TOOLTIP_SHOW_DELAY_MS = 180;
-            const TOOLTIP_MOVE_THROTTLE_MS = 16;
-            const TOOLTIP_OFFSET = 24;
-            const TOOLTIP_MARGIN = 12;
-            let tooltipMoveTimer = null;
-            let tooltipShowTimer = null;
-            let tooltipVisible = false;
-            let lastMouseEvent = null;
-
-            const clearTooltipTimers = () => {
-                if (tooltipShowTimer) {
-                    clearTimeout(tooltipShowTimer);
-                    tooltipShowTimer = null;
-                }
-                if (this.tooltipShowTimerHandle) {
-                    clearTimeout(this.tooltipShowTimerHandle);
-                    this.tooltipShowTimerHandle = null;
-                }
-                if (tooltipMoveTimer) {
-                    clearTimeout(tooltipMoveTimer);
-                    tooltipMoveTimer = null;
-                }
-                if (this.tooltipMoveTimerHandle) {
-                    clearTimeout(this.tooltipMoveTimerHandle);
-                    this.tooltipMoveTimerHandle = null;
-                }
-            };
-
-            const positionTooltip = event => {
-                if (!event?.pageX && !event?.pageY) {
-                    return;
-                }
-                const tooltipNode = tooltip.node();
-                if (!tooltipNode) {
-                    return;
-                }
-
-                const tooltipWidth = Math.max(220, tooltipNode.offsetWidth || 0);
-                const tooltipHeight = Math.max(90, tooltipNode.offsetHeight || 0);
-                const viewportLeft = window.scrollX;
-                const viewportTop = window.scrollY;
-                const viewportRight = viewportLeft + window.innerWidth;
-                const viewportBottom = viewportTop + window.innerHeight;
-                const clientX = Number.isFinite(event.clientX) ? event.clientX : (event.pageX - viewportLeft);
-                const clientY = Number.isFinite(event.clientY) ? event.clientY : (event.pageY - viewportTop);
-
-                let left = event.pageX + TOOLTIP_OFFSET;
-                let top = event.pageY + TOOLTIP_OFFSET;
-
-                if (clientX > window.innerWidth * 0.56) {
-                    left = event.pageX - tooltipWidth - TOOLTIP_OFFSET;
-                }
-                if (clientY > window.innerHeight * 0.56) {
-                    top = event.pageY - tooltipHeight - TOOLTIP_OFFSET;
-                }
-
-                const minLeft = viewportLeft + TOOLTIP_MARGIN;
-                const maxLeft = viewportRight - tooltipWidth - TOOLTIP_MARGIN;
-                const minTop = viewportTop + TOOLTIP_MARGIN;
-                const maxTop = viewportBottom - tooltipHeight - TOOLTIP_MARGIN;
-                const clampedLeft = Math.max(minLeft, Math.min(maxLeft, left));
-                const clampedTop = Math.max(minTop, Math.min(maxTop, top));
-
-                tooltip
-                    .style("left", `${clampedLeft}px`)
-                    .style("top", `${clampedTop}px`);
-            };
-
-            const hideTooltip = () => {
-                clearTooltipTimers();
-                tooltipVisible = false;
-                tooltip.style("opacity", 0);
-            };
-
-            const throttleTooltip = (callback, delay = TOOLTIP_MOVE_THROTTLE_MS) => {
-                return (...args) => {
-                    const event = d3.event;
-                    if (!tooltipMoveTimer) {
-                        tooltipMoveTimer = setTimeout(() => {
-                            callback(event, ...args);
-                            tooltipMoveTimer = null;
-                            this.tooltipMoveTimerHandle = null;
-                        }, delay);
-                        this.tooltipMoveTimerHandle = tooltipMoveTimer;
-                    }
-                };
-            };
-
-            this.nodeSelection
-                .on("mouseover", node => {
-                    this.applyHoverFocus(node);
-                    const isLiteral = node.type === "Literal";
-                    const displayValue = this.resolveNodeDisplayValue(node);
-                    const title = isLiteral
-                        ? `"${this.formatLabel(displayValue)}"`
-                        : this.formatLabel(displayValue);
-                    let content = `<div class="tooltip-title">${title}</div>`;
-
-                    if (isLiteral) {
-                        content += `<div class="tooltip-row"><strong>Value</strong> <span>"${displayValue}"</span></div>`;
-                        let typeValue = "xsd:string";
-                        if (node.datatype) {
-                            typeValue = this.formatLabel(node.datatype);
-                        } else if (!Number.isNaN(Number(displayValue))) {
-                            typeValue = "xsd:decimal";
-                        }
-                        content += `<div class="tooltip-row"><strong>Type</strong> <span>${typeValue}</span></div>`;
-                        if (node.language) {
-                            content += `<div class="tooltip-row"><strong>Lang</strong> <span>${node.language}</span></div>`;
-                        }
-                    } else if (node.type === "Blank") {
-                        content += `<div class="tooltip-row"><strong>ID</strong> <span>${node.id}</span></div>`;
-                        content += `<div class="tooltip-row"><strong>Type</strong> <span>Blank Node</span></div>`;
-                    } else {
-                        content += `<div class="tooltip-row"><strong>URI</strong> <span>${node.id}</span></div>`;
-                        content += `<div class="tooltip-row"><strong>Type</strong> <span>${node.type}</span></div>`;
-                    }
-
-                    if (node.graphs?.size > 1) {
-                        const graphList = Array.from(node.graphs).join(", ");
-                        content += `<div class="tooltip-row"><strong>Graphs</strong> <span>${graphList}</span></div>`;
-                        content += `<div class="tooltip-row"><strong>Primary</strong> <span>${node.graph || GRAPH_DEFAULTS.defaultGraphId}</span></div>`;
-                    } else {
-                        content += `<div class="tooltip-row"><strong>Graph</strong> <span>${node.graph || GRAPH_DEFAULTS.defaultGraphId}</span></div>`;
-                    }
-                    const nodeId = this.getLinkEndpointId(node?.id ?? node);
-                    const connectedIndexes = nodeId ? (this.linkIndexesByNodeId.get(nodeId) ?? []) : [];
-                    const connectedCount = connectedIndexes.length;
-                    if (connectedCount > 0) {
-                        const displayedLabelCount = this.resolveHoverFocusLabelBudget(connectedCount);
-                        content += `<div class="tooltip-row"><strong>Links</strong> <span>${connectedCount}</span></div>`;
-                        if (displayedLabelCount < connectedCount) {
-                            content += `<div class="tooltip-row"><strong>Detail</strong> <span>${displayedLabelCount}/${connectedCount} labels shown. Zoom in for full local labels.</span></div>`;
-                        }
-                    }
-
-                    hideTooltip();
-                    tooltip.html(content);
-                    lastMouseEvent = d3.event;
-                    positionTooltip(lastMouseEvent);
-                    tooltipShowTimer = setTimeout(() => {
-                        tooltipShowTimer = null;
-                        this.tooltipShowTimerHandle = null;
-                        if (!lastMouseEvent) {
-                            return;
-                        }
-                        positionTooltip(lastMouseEvent);
-                        tooltipVisible = true;
-                        tooltip.style("opacity", 1);
-                    }, TOOLTIP_SHOW_DELAY_MS);
-                    this.tooltipShowTimerHandle = tooltipShowTimer;
-
-                    const target = d3.event?.currentTarget;
-                    if (target) {
-                        d3.select(target).on("mousemove", throttleTooltip(event => {
-                            if (event?.pageX != null && event?.pageY != null) {
-                                lastMouseEvent = event;
-                                if (tooltipVisible) {
-                                    positionTooltip(event);
-                                }
-                            }
-                        }));
-                    }
-                })
-                .on("mouseout", () => {
-                    this.clearHoverFocus(true);
-                    hideTooltip();
-                    const target = d3.event?.currentTarget;
-                    if (target) {
-                        d3.select(target).on("mousemove", null);
-                    }
-                });
-        } else {
-            if (this.tooltipShowTimerHandle) {
-                clearTimeout(this.tooltipShowTimerHandle);
-                this.tooltipShowTimerHandle = null;
-            }
-            if (this.tooltipMoveTimerHandle) {
-                clearTimeout(this.tooltipMoveTimerHandle);
-                this.tooltipMoveTimerHandle = null;
-            }
-            tooltip.style("opacity", 0);
-            this.nodeSelection
-                .on("mouseover", node => {
-                    this.applyHoverFocus(node);
-                })
-                .on("mouseout", () => {
-                    this.clearHoverFocus(true);
-                });
-        }
+        this.tooltipsEnabled = shouldEnableTooltips;
+        this.bindNodeInteractions();
 
         this.refreshOverlayPanels();
         const clampedAlpha = Number.isFinite(initialAlpha)
@@ -4233,7 +4447,9 @@ class KGGraphVis extends HTMLElement {
                 }
             }, settleHoldMs);
             this.startPerformanceMonitoring(nodeCount, linkCount);
+            this.scheduleBackgroundLayoutRefinement(nodeCount, linkCount);
         } else {
+            this.cancelBackgroundLayoutRefinement();
             this.stopPerformanceMonitoring();
             this.refreshEdgeLabelPositions(true);
             this.scheduleLabelVisibilityUpdate();
