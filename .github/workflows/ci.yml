@@ -43,7 +43,8 @@ jobs:
 
             - name: Publish test results in PR checks
               if: always()
-              uses: EnricoMi/publish-unit-test-result-action@v2
+              # Use the linux variant on self-hosted runner to avoid Docker dependency.
+              uses: EnricoMi/publish-unit-test-result-action/linux@v2
               with:
                   files: |
                       build/test-results/**/*.xml
