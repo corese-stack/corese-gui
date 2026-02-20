@@ -27,38 +27,22 @@ jobs:
                       target: linux-x64
                       gradle_cmd: ./gradlew
                       jpackage_type: app-image
-                      java_distribution: temurin
-                      java_architecture: x64
                     - os: ubuntu-24.04-arm
                       target: linux-arm64
                       gradle_cmd: ./gradlew
                       jpackage_type: app-image
-                      java_distribution: temurin
-                      java_architecture: aarch64
                     - os: windows-2025
                       target: windows-x64
                       gradle_cmd: ./gradlew.bat
                       jpackage_type: exe
-                      java_distribution: temurin
-                      java_architecture: x64
-                    - os: windows-11-arm
-                      target: windows-arm64
-                      gradle_cmd: ./gradlew.bat
-                      jpackage_type: exe
-                      java_distribution: zulu
-                      java_architecture: aarch64
                     - os: macos-15-intel
                       target: macos-x64
                       gradle_cmd: ./gradlew
                       jpackage_type: dmg
-                      java_distribution: temurin
-                      java_architecture: x64
                     - os: macos-15
                       target: macos-arm64
                       gradle_cmd: ./gradlew
                       jpackage_type: dmg
-                      java_distribution: temurin
-                      java_architecture: aarch64
 
         steps:
             - name: Checkout sources
@@ -72,18 +56,9 @@ jobs:
             - name: Set up JDK 25
               uses: actions/setup-java@v4
               with:
-                  distribution: ${{ matrix.java_distribution }}
+                  distribution: temurin
                   java-version: "25"
-                  architecture: ${{ matrix.java_architecture }}
                   cache: gradle
-
-            - name: Warn if macOS icon asset is missing
-              if: startsWith(matrix.target, 'macos-')
-              shell: bash
-              run: |
-                  if [[ ! -f packaging/jpackage/corese-gui.icns ]]; then
-                      echo "::notice::packaging/jpackage/corese-gui.icns is missing. macOS bundles will use the default app icon."
-                  fi
 
             - name: Build artifacts for current platform
               run: ${{ matrix.gradle_cmd }} --no-daemon clean shadowJar jpackageCurrentPlatform -PjpackageType=${{ matrix.jpackage_type }}
