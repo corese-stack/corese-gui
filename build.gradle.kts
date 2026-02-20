@@ -162,11 +162,12 @@ val jpackageExecutable = packagingJavaHome.map { javaHome ->
 
 /*
  * Per-platform icon resolution for jpackage.
- * Keep build-only icons under packaging/ (not bundled in runtime resources).
+ * Keep jpackage icons under packaging/.
+ * Note: the app runtime icon still lives in src/main/resources/images/ for JavaFX loading.
  * Override in CI or local builds with: -PjpackageIcon=<path>
  * Note: macOS uses platform default icon if packaging/jpackage/corese-gui.icns is absent.
  */
-val defaultPngJpackageIcon = file("src/main/resources/images/corese-gui-logo.png")
+val linuxJpackageIcon = file("packaging/jpackage/corese-gui.png")
 val windowsJpackageIcon = file("packaging/jpackage/corese-gui.ico")
 val macosJpackageIcon = file("packaging/jpackage/corese-gui.icns")
 
@@ -178,7 +179,7 @@ val overriddenJpackageIcon = (findProperty("jpackageIcon") as String?)
 val defaultJpackageIcon = when (hostOs) {
     "windows" -> windowsJpackageIcon
     "macos" -> macosJpackageIcon
-    else -> defaultPngJpackageIcon
+    else -> linuxJpackageIcon
 }
 
 val jpackageIcon = overriddenJpackageIcon ?: defaultJpackageIcon

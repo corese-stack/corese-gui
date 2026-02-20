@@ -52,7 +52,7 @@ jobs:
                   tag: dev-prerelease
                   name: Development Pre-release
                   body: |
-                      Latest unsigned multi-platform build from `develop`.
+                      Latest unsigned multi-platform build from the selected source ref.
                       macOS packages are unsigned. If blocked by Gatekeeper, right-click -> Open.
 
                       Last updated: ${{ steps.timestamp.outputs.timestamp }}
