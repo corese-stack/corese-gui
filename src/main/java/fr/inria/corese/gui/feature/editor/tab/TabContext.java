@@ -11,21 +11,25 @@ import javafx.scene.control.Tab;
 /**
  * Context object that holds all components associated with a tab.
  *
- * <p>This class follows the Context Object pattern to encapsulate all tab-related data and
- * controllers in a single object. It is stored in the tab's {@link Tab#setUserData(Object)}
- * property, eliminating the need for parallel Maps and reducing memory leak risks.
+ * <p>
+ * This class follows the Context Object pattern to encapsulate all tab-related
+ * data and controllers in a single object. It is stored in the tab's
+ * {@link Tab#setUserData(Object)} property, eliminating the need for parallel
+ * Maps and reducing memory leak risks.
  *
- * <p><b>Benefits:</b>
+ * <p>
+ * <b>Benefits:</b>
  *
  * <ul>
- *   <li>Single source of truth: all tab data is in one place
- *   <li>No parallel Maps to maintain and synchronize
- *   <li>Automatic cleanup: when tab is garbage collected, context is too
- *   <li>Type-safe access to tab components
- *   <li>Easy to extend with new tab-related data
+ * <li>Single source of truth: all tab data is in one place
+ * <li>No parallel Maps to maintain and synchronize
+ * <li>Automatic cleanup: when tab is garbage collected, context is too
+ * <li>Type-safe access to tab components
+ * <li>Easy to extend with new tab-related data
  * </ul>
  *
- * <p><b>Usage:</b>
+ * <p>
+ * <b>Usage:</b>
  *
  * <pre>{@code
  * // Create and attach to tab
@@ -39,237 +43,255 @@ import javafx.scene.control.Tab;
  */
 public class TabContext {
 
-  // ===============================================================================
-  // Fields
-  // ===============================================================================
+	// ===============================================================================
+	// Fields
+	// ===============================================================================
 
-  /** Controller for the code editor in this tab. Always non-null. */
-  private final CodeEditorController editorController;
+	/** Controller for the code editor in this tab. Always non-null. */
+	private final CodeEditorController editorController;
 
-  /** Controller for the result view in this tab. May be null if no result view configured. */
-  private final ResultController resultController;
+	/**
+	 * Controller for the result view in this tab. May be null if no result view
+	 * configured.
+	 */
+	private final ResultController resultController;
 
-  /** Floating execution button for this tab. May be null if no execution configured. */
-  private final FloatingButtonWidget executionButton;
+	/**
+	 * Floating execution button for this tab. May be null if no execution
+	 * configured.
+	 */
+	private final FloatingButtonWidget executionButton;
 
-  /** Property indicating if an execution is currently running for this tab. */
-  private final BooleanProperty executionRunning = new SimpleBooleanProperty(false);
+	// Documented on executionRunningProperty() to avoid javadoc duplicate-property
+	// warnings.
+	private final BooleanProperty executionRunning = new SimpleBooleanProperty(false);
 
-  /**
-   * Reference to the query result associated with this tab.
-   * Stored here to ensure proper lifecycle management and cleanup.
-   */
-  private QueryResultRef queryResultRef;
+	/**
+	 * Reference to the query result associated with this tab. Stored here to ensure
+	 * proper lifecycle management and cleanup.
+	 */
+	private QueryResultRef queryResultRef;
 
-  /** Tracks the last rendered query result id to avoid re-rendering on tab switch. */
-  private String lastRenderedResultId;
+	/**
+	 * Tracks the last rendered query result id to avoid re-rendering on tab switch.
+	 */
+	private String lastRenderedResultId;
 
-  // ===============================================================================
-  // Constructor
-  // ===============================================================================
+	// ===============================================================================
+	// Constructor
+	// ===============================================================================
 
-  /**
-   * Creates a new TabContext with the specified components.
-   *
-   * @param editorController The code editor controller (required)
-   * @param resultController The result controller (nullable)
-   * @param executionButton The floating execution button (nullable)
-   * @throws NullPointerException if editorController is null
-   */
-  public TabContext(
-      CodeEditorController editorController,
-      ResultController resultController,
-      FloatingButtonWidget executionButton) {
-    if (editorController == null) {
-      throw new NullPointerException("editorController cannot be null");
-    }
-    this.editorController = editorController;
-    this.resultController = resultController;
-    this.executionButton = executionButton;
-  }
+	/**
+	 * Creates a new TabContext with the specified components.
+	 *
+	 * @param editorController
+	 *            The code editor controller (required)
+	 * @param resultController
+	 *            The result controller (nullable)
+	 * @param executionButton
+	 *            The floating execution button (nullable)
+	 * @throws NullPointerException
+	 *             if editorController is null
+	 */
+	public TabContext(CodeEditorController editorController, ResultController resultController,
+			FloatingButtonWidget executionButton) {
+		if (editorController == null) {
+			throw new NullPointerException("editorController cannot be null");
+		}
+		this.editorController = editorController;
+		this.resultController = resultController;
+		this.executionButton = executionButton;
+	}
 
-  // ===============================================================================
-  // Static Factory Methods
-  // ===============================================================================
+	// ===============================================================================
+	// Static Factory Methods
+	// ===============================================================================
 
-  /**
-   * Retrieves the TabContext from a tab's userData.
-   *
-   * @param tab The tab to get context from
-   * @return The TabContext, or null if tab is null or has no context
-   */
-  public static TabContext get(Tab tab) {
-    if (tab == null) {
-      return null;
-    }
-    Object userData = tab.getUserData();
-    return userData instanceof TabContext tabContext ? tabContext : null;
-  }
+	/**
+	 * Retrieves the TabContext from a tab's userData.
+	 *
+	 * @param tab
+	 *            The tab to get context from
+	 * @return The TabContext, or null if tab is null or has no context
+	 */
+	public static TabContext get(Tab tab) {
+		if (tab == null) {
+			return null;
+		}
+		Object userData = tab.getUserData();
+		return userData instanceof TabContext tabContext ? tabContext : null;
+	}
 
-  /**
-   * Checks if a tab has a TabContext attached.
-   *
-   * @param tab The tab to check
-   * @return true if the tab has a TabContext, false otherwise
-   */
-  public static boolean hasContext(Tab tab) {
-    return get(tab) != null;
-  }
+	/**
+	 * Checks if a tab has a TabContext attached.
+	 *
+	 * @param tab
+	 *            The tab to check
+	 * @return true if the tab has a TabContext, false otherwise
+	 */
+	public static boolean hasContext(Tab tab) {
+		return get(tab) != null;
+	}
 
-  // ===============================================================================
-  // Getters & Setters
-  // ===============================================================================
+	// ===============================================================================
+	// Getters & Setters
+	// ===============================================================================
 
-  /**
-   * Gets the code editor controller for this tab.
-   *
-   * @return The editor controller (never null)
-   */
-  public CodeEditorController getEditorController() {
-    return editorController;
-  }
+	/**
+	 * Gets the code editor controller for this tab.
+	 *
+	 * @return The editor controller (never null)
+	 */
+	public CodeEditorController getEditorController() {
+		return editorController;
+	}
 
-  /**
-   * Gets the result controller for this tab.
-   *
-   * @return The result controller, or null if not configured
-   */
-  public ResultController getResultController() {
-    return resultController;
-  }
+	/**
+	 * Gets the result controller for this tab.
+	 *
+	 * @return The result controller, or null if not configured
+	 */
+	public ResultController getResultController() {
+		return resultController;
+	}
 
-  /**
-   * Gets the floating execution button for this tab.
-   *
-   * @return The execution button, or null if not configured
-   */
-  public FloatingButtonWidget getExecutionButton() {
-    return executionButton;
-  }
+	/**
+	 * Gets the floating execution button for this tab.
+	 *
+	 * @return The execution button, or null if not configured
+	 */
+	public FloatingButtonWidget getExecutionButton() {
+		return executionButton;
+	}
 
-  /**
-   * Sets the query result reference for this tab.
-   *
-   * @param queryResultRef The query result reference
-   */
-  public void setQueryResultRef(QueryResultRef queryResultRef) {
-    this.queryResultRef = queryResultRef;
-    if (queryResultRef == null) {
-      lastRenderedResultId = null;
-    }
-  }
+	/**
+	 * Sets the query result reference for this tab.
+	 *
+	 * @param queryResultRef
+	 *            The query result reference
+	 */
+	public void setQueryResultRef(QueryResultRef queryResultRef) {
+		this.queryResultRef = queryResultRef;
+		if (queryResultRef == null) {
+			lastRenderedResultId = null;
+		}
+	}
 
-  /**
-   * Gets the query result reference for this tab.
-   *
-   * @return The query result reference, or null if none
-   */
-  public QueryResultRef getQueryResultRef() {
-    return queryResultRef;
-  }
+	/**
+	 * Gets the query result reference for this tab.
+	 *
+	 * @return The query result reference, or null if none
+	 */
+	public QueryResultRef getQueryResultRef() {
+		return queryResultRef;
+	}
 
-  /**
-   * Returns true if the current result reference has already been rendered.
-   *
-   * @param resultRef The current query result reference
-   * @return true if already rendered, false otherwise
-   */
-  public boolean isResultRendered(QueryResultRef resultRef) {
-    if (resultRef == null || resultRef.getId() == null) {
-      return false;
-    }
-    return resultRef.getId().equals(lastRenderedResultId);
-  }
+	/**
+	 * Returns true if the current result reference has already been rendered.
+	 *
+	 * @param resultRef
+	 *            The current query result reference
+	 * @return true if already rendered, false otherwise
+	 */
+	public boolean isResultRendered(QueryResultRef resultRef) {
+		if (resultRef == null || resultRef.getId() == null) {
+			return false;
+		}
+		return resultRef.getId().equals(lastRenderedResultId);
+	}
 
-  /**
-   * Marks the provided result reference as rendered.
-   *
-   * @param resultRef The result reference that has been rendered
-   */
-  public void markResultRendered(QueryResultRef resultRef) {
-    if (resultRef == null || resultRef.getId() == null) {
-      return;
-    }
-    lastRenderedResultId = resultRef.getId();
-  }
+	/**
+	 * Marks the provided result reference as rendered.
+	 *
+	 * @param resultRef
+	 *            The result reference that has been rendered
+	 */
+	public void markResultRendered(QueryResultRef resultRef) {
+		if (resultRef == null || resultRef.getId() == null) {
+			return;
+		}
+		lastRenderedResultId = resultRef.getId();
+	}
 
-  /**
-   * Checks if this tab has a result controller configured.
-   *
-   * @return true if result controller is present
-   */
-  public boolean hasResultController() {
-    return resultController != null;
-  }
+	/**
+	 * Checks if this tab has a result controller configured.
+	 *
+	 * @return true if result controller is present
+	 */
+	public boolean hasResultController() {
+		return resultController != null;
+	}
 
-  /**
-   * Checks if this tab has an execution button configured.
-   *
-   * @return true if execution button is present
-   */
-  public boolean hasExecutionButton() {
-    return executionButton != null;
-  }
+	/**
+	 * Checks if this tab has an execution button configured.
+	 *
+	 * @return true if execution button is present
+	 */
+	public boolean hasExecutionButton() {
+		return executionButton != null;
+	}
 
-  /**
-   * Returns the execution running property.
-   *
-   * @return the property
-   */
-  public BooleanProperty executionRunningProperty() {
-    return executionRunning;
-  }
+	/**
+	 * Returns the execution running property.
+	 *
+	 * @return the property
+	 */
+	public BooleanProperty executionRunningProperty() {
+		return executionRunning;
+	}
 
-  /**
-   * Checks if execution is running.
-   *
-   * @return true if running
-   */
-  public boolean isExecutionRunning() {
-    return executionRunning.get();
-  }
+	/**
+	 * Checks if execution is running.
+	 *
+	 * @return true if running
+	 */
+	public boolean isExecutionRunning() {
+		return executionRunning.get();
+	}
 
-  // ===============================================================================
-  // Resource Management
-  // ===============================================================================
+	// ===============================================================================
+	// Resource Management
+	// ===============================================================================
 
-  /**
-   * Disposes of all resources held by this context to prevent memory leaks.
-   *
-   * <p>This method should be called when the tab is being closed. It ensures that:
-   * <ul>
-   *   <li>All controllers are properly disposed
-   *   <li>All bindings are unbound
-   *   <li>All listeners are removed
-   *   <li>Query results are released from the service
-   * </ul>
-   *
-   * <p>After calling dispose(), this context should not be used anymore.
-   */
-  public void dispose() {
-    // Release query result if present
-    if (queryResultRef != null) {
-      fr.inria.corese.gui.core.service.QueryService.getInstance().releaseResult(queryResultRef.getId());
-      queryResultRef = null;
-    }
+	/**
+	 * Disposes of all resources held by this context to prevent memory leaks.
+	 *
+	 * <p>
+	 * This method should be called when the tab is being closed. It ensures that:
+	 * <ul>
+	 * <li>All controllers are properly disposed
+	 * <li>All bindings are unbound
+	 * <li>All listeners are removed
+	 * <li>Query results are released from the service
+	 * </ul>
+	 *
+	 * <p>
+	 * After calling dispose(), this context should not be used anymore.
+	 */
+	public void dispose() {
+		// Release query result if present
+		if (queryResultRef != null) {
+			fr.inria.corese.gui.core.service.QueryService.getInstance().releaseResult(queryResultRef.getId());
+			queryResultRef = null;
+		}
 
-    // Dispose editor controller
-    if (editorController != null) {
-      editorController.dispose();
-    }
+		// Dispose editor controller
+		if (editorController != null) {
+			editorController.dispose();
+		}
 
-    // Dispose result controller if present
-    if (resultController instanceof AutoCloseable autoCloseable) {
-      try {
-        autoCloseable.close();
-      } catch (Exception _) {
-        // Log but don't throw - we're cleaning up
-      }
-    }
+		// Dispose result controller if present
+		if (resultController instanceof AutoCloseable autoCloseable) {
+			try {
+				autoCloseable.close();
+			} catch (Exception _) {
+				// Log but don't throw - we're cleaning up
+			}
+		}
 
-    // Execution button cleanup (unbind if needed)
-    if (executionButton != null) {
-      executionButton.disableProperty().unbind();
-    }
-  }
+		// Execution button cleanup (unbind if needed)
+		if (executionButton != null) {
+			executionButton.disableProperty().unbind();
+		}
+	}
 }

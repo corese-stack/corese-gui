@@ -19,7 +19,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
  * <p>
  * This view is intentionally created empty - the controller is responsible for
  * configuring which tabs should be shown based on
- * {@link fr.inria.corese.gui.core.ResultViewConfig}.
+ * {@link fr.inria.corese.gui.core.config.ResultViewConfig}.
  *
  * <p>
  * <b>Design rationale:</b>

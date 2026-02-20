@@ -30,16 +30,14 @@ public final class SettingsModel {
 
 	// ===== Properties =====
 
-	/** The currently selected application theme. */
+	// Backing properties (documented on property accessor methods to avoid javadoc
+	// duplicate-property warnings).
 	private final ObjectProperty<Theme> theme = new SimpleObjectProperty<>();
 
-	/** The current accent color. */
 	private final ObjectProperty<Color> accentColor = new SimpleObjectProperty<>(ThemeManager.getDefaultAccentColor());
 
-	/** Whether to automatically detect and use the system theme. */
 	private final BooleanProperty useSystemTheme = new SimpleBooleanProperty(true); // Enabled by default
 
-	/** Global interface scale factor (1.0 = 100%). */
 	private final DoubleProperty uiScale = new SimpleDoubleProperty(ThemeManager.getDefaultUiScale());
 
 	// ===== Constructors =====
