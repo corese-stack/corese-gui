@@ -49,7 +49,12 @@ copy_installer_or_archive_app_image() {
                 echo "No *.$jpackage_type installer found in $jpackage_dir" >&2
                 exit 1
             fi
-            cp "${installers[@]}" "$out_dir/"
+            for installer in "${installers[@]}"; do
+                local installer_name installer_stem
+                installer_name="$(basename "$installer")"
+                installer_stem="${installer_name%.$jpackage_type}"
+                cp "$installer" "$out_dir/${installer_stem}-${target}.${jpackage_type}"
+            done
             ;;
         *)
             echo "Unsupported jpackage type '$jpackage_type'" >&2
