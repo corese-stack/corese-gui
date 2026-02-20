@@ -92,6 +92,7 @@ class KGGraphVis extends HTMLElement {
         this.globalLegendElement = null;
         this.namedLegendElement = null;
         this.simplifyLinkGeometry = false;
+        this.parallelLayoutSimplified = false;
         this.baseRenderProfile = {
             mode: "normal",
             summary: "Standard rendering",
@@ -118,6 +119,9 @@ class KGGraphVis extends HTMLElement {
         this.performanceLowFpsSince = 0;
         this.performanceWarmupUntil = 0;
         this.performanceContext = { nodeCount: 0, linkCount: 0 };
+        this.performanceAdaptiveThresholdScale = 1.12;
+        this.performanceLastAdaptiveUpdateAt = 0;
+        this.performanceLastMeasuredFps = 0;
 
         // Graph coloring
         this.graphColorMap = new Map();
@@ -178,6 +182,14 @@ class KGGraphVis extends HTMLElement {
         this.LAG_MONITOR_MAX_SAMPLES = 90;
         this.LAG_MONITOR_NOTIFY_INTERVAL_MS = 480;
         this.LAG_MONITOR_CLEAR_HYSTERESIS_FPS = 2;
+        this.ADAPTIVE_THRESHOLD_SCALE_MIN = 0.72;
+        this.ADAPTIVE_THRESHOLD_SCALE_MAX = 1.34;
+        this.ADAPTIVE_THRESHOLD_SMOOTHING = 0.34;
+        this.ADAPTIVE_THRESHOLD_EPSILON = 0.035;
+        this.ADAPTIVE_THRESHOLD_UPDATE_INTERVAL_MS = 260;
+        this.ADAPTIVE_FPS_STRONG_HEADROOM = 10;
+        this.ADAPTIVE_FPS_MILD_HEADROOM = 4;
+        this.ADAPTIVE_FPS_ALLOWED_DEFICIT = 4;
         this.AUTO_OVERVIEW_PADDING = 760;
         this.AUTO_OVERVIEW_MAX_SCALE = 0.09;
         this.AUTO_RECENTER_DELAY_MS = 560;
@@ -319,7 +331,8 @@ class KGGraphVis extends HTMLElement {
         const shouldCreateExportEdgeLabels = hasGraphData && !this.linkLabelSelection && labelsLayer && !labelsLayer.empty();
 
         if (shouldCreateExportNodeLabels) {
-            const nodeLabelOffset = this.graph.nodes.length >= this.AUTO_HIDE_NODE_LABEL_THRESHOLD ? 24 : 35;
+            const denseNodeLabelThreshold = this.scaleThreshold(this.AUTO_HIDE_NODE_LABEL_THRESHOLD, 200);
+            const nodeLabelOffset = this.graph.nodes.length >= denseNodeLabelThreshold ? 24 : 35;
             temporaryNodeLabels = labelsLayer
                 .selectAll("text.node-label-export-temp")
                 .data(this.graph.nodes.filter(node =>
@@ -1101,11 +1114,142 @@ class KGGraphVis extends HTMLElement {
             .style("opacity", 1);
     }
 
+    scaleThreshold(baseThreshold = 0, minValue = 1) {
+        const safeBase = Number.isFinite(baseThreshold) ? Math.max(0, Math.floor(baseThreshold)) : 0;
+        const safeMin = Number.isFinite(minValue) ? Math.max(0, Math.floor(minValue)) : 0;
+        const scaled = Math.floor(safeBase * this.performanceAdaptiveThresholdScale);
+        return Math.max(safeMin, scaled);
+    }
+
+    resolveAdaptiveThresholdScaleTarget(avgFps, nodeCount = 0, linkCount = 0) {
+        const safeFps = Number.isFinite(avgFps) ? Math.max(0, avgFps) : 0;
+        if (safeFps <= 0) {
+            return this.performanceAdaptiveThresholdScale;
+        }
+        const safeNodeCount = Number.isFinite(nodeCount) ? Math.max(0, Math.floor(nodeCount)) : 0;
+        const safeLinkCount = Number.isFinite(linkCount) ? Math.max(0, Math.floor(linkCount)) : 0;
+        const veryLargeGraph = safeNodeCount >= this.PRE_LAYOUT_VERY_LARGE_NODE_THRESHOLD
+            || safeLinkCount >= this.PRE_LAYOUT_VERY_LARGE_LINK_THRESHOLD;
+        const staticLayoutGraph = safeNodeCount >= this.STATIC_LAYOUT_NODE_THRESHOLD
+            || safeLinkCount >= this.STATIC_LAYOUT_LINK_THRESHOLD;
+        const fpsTarget = this.LAG_MONITOR_FPS_THRESHOLD;
+
+        if (safeFps >= fpsTarget + this.ADAPTIVE_FPS_STRONG_HEADROOM) {
+            return staticLayoutGraph ? 1.0 : (veryLargeGraph ? 1.08 : 1.28);
+        }
+        if (safeFps >= fpsTarget + this.ADAPTIVE_FPS_MILD_HEADROOM) {
+            return staticLayoutGraph ? 0.96 : (veryLargeGraph ? 1.02 : 1.16);
+        }
+        if (safeFps >= fpsTarget - 2) {
+            return staticLayoutGraph ? 0.9 : 1.0;
+        }
+        if (safeFps >= fpsTarget - this.ADAPTIVE_FPS_ALLOWED_DEFICIT) {
+            return veryLargeGraph ? 0.82 : 0.9;
+        }
+        return veryLargeGraph ? 0.74 : 0.82;
+    }
+
+    refreshBaseRenderProfileForAdaptiveToggles() {
+        const existingDetails = Array.isArray(this.baseRenderProfile?.details)
+            ? this.baseRenderProfile.details
+            : [];
+        const details = existingDetails.filter(line => line !== "Link geometry simplified for dense graphs."
+            && line !== "Parallel link offset layout disabled for dense edges.");
+        if (this.simplifyLinkGeometry) {
+            details.push("Link geometry simplified for dense graphs.");
+        }
+        if (this.parallelLayoutSimplified) {
+            details.push("Parallel link offset layout disabled for dense edges.");
+        }
+        const uniqueDetails = [...new Set(details)];
+        this.baseRenderProfile = {
+            mode: uniqueDetails.length > 0 ? "degraded" : "normal",
+            summary: uniqueDetails.length > 0 ? "Performance mode enabled" : "Standard rendering",
+            details: uniqueDetails
+        };
+    }
+
+    applyAdaptiveRenderingToggles() {
+        if (!this.graph || !Array.isArray(this.graph.nodes) || !Array.isArray(this.graph.links)) {
+            return;
+        }
+        const nodeCount = this.graph.nodes.length;
+        const linkCount = this.graph.links.length;
+        const hugeNodeThreshold = this.scaleThreshold(this.HUGE_GRAPH_NODE_THRESHOLD, 120);
+        const hugeLinkThreshold = this.scaleThreshold(this.HUGE_GRAPH_LINK_THRESHOLD, 240);
+        const disableEdgeLabelThreshold = this.scaleThreshold(this.DISABLE_LABEL_CREATION_LINK_THRESHOLD, 180);
+        const autoHideEdgeLabelThreshold = this.scaleThreshold(this.AUTO_HIDE_EDGE_LABEL_THRESHOLD, 80);
+        const simplifyLinkThreshold = this.scaleThreshold(this.SIMPLIFY_LINK_GEOMETRY_LINK_THRESHOLD, 180);
+        const parallelLayoutThreshold = this.scaleThreshold(this.PARALLEL_LAYOUT_MAX_LINK_THRESHOLD, 200);
+        const isHugeGraph = nodeCount >= hugeNodeThreshold || linkCount >= hugeLinkThreshold;
+
+        const shouldCreateEdgeLabels = linkCount < disableEdgeLabelThreshold && !isHugeGraph;
+        const nextEdgeLabelsAutoHidden = !shouldCreateEdgeLabels || linkCount >= autoHideEdgeLabelThreshold;
+        const nextSimplifyLinkGeometry = isHugeGraph || linkCount >= simplifyLinkThreshold;
+        const nextParallelLayoutSimplified = linkCount > parallelLayoutThreshold;
+
+        let geometryChanged = false;
+        if (nextSimplifyLinkGeometry !== this.simplifyLinkGeometry) {
+            this.simplifyLinkGeometry = nextSimplifyLinkGeometry;
+            geometryChanged = true;
+        }
+        if (nextParallelLayoutSimplified !== this.parallelLayoutSimplified) {
+            this.parallelLayoutSimplified = nextParallelLayoutSimplified;
+            if (this.parallelLayoutSimplified) {
+                this.resetLinkOffsets(this.graph.links);
+            } else {
+                this.assignParallelLinkOffsets(this.graph.links);
+            }
+            geometryChanged = true;
+        }
+
+        const visibilityChanged = nextEdgeLabelsAutoHidden !== this.edgeLabelsAutoHidden;
+        this.edgeLabelsAutoHidden = nextEdgeLabelsAutoHidden;
+        this.updateArrowheadVisibility(true);
+        this.refreshBaseRenderProfileForAdaptiveToggles();
+
+        if (geometryChanged) {
+            this.ticked();
+            this.refreshEdgeLabelPositions(true);
+        }
+        if (visibilityChanged) {
+            this.updateLevelOfDetail(this.currentZoom);
+            return;
+        }
+        this.notifyEffectiveRenderProfile();
+    }
+
+    updateAdaptiveThresholdScale(avgFps, now = performance.now()) {
+        if (!Number.isFinite(avgFps) || avgFps <= 0) {
+            return false;
+        }
+        if ((now - this.performanceLastAdaptiveUpdateAt) < this.ADAPTIVE_THRESHOLD_UPDATE_INTERVAL_MS) {
+            return false;
+        }
+        const nodeCount = this.performanceContext?.nodeCount ?? (Array.isArray(this.graph?.nodes) ? this.graph.nodes.length : 0);
+        const linkCount = this.performanceContext?.linkCount ?? (Array.isArray(this.graph?.links) ? this.graph.links.length : 0);
+        const targetScale = this.resolveAdaptiveThresholdScaleTarget(avgFps, nodeCount, linkCount);
+        const smoothedScale = this.performanceAdaptiveThresholdScale
+            + (targetScale - this.performanceAdaptiveThresholdScale) * this.ADAPTIVE_THRESHOLD_SMOOTHING;
+        const clampedScale = Math.max(this.ADAPTIVE_THRESHOLD_SCALE_MIN,
+            Math.min(this.ADAPTIVE_THRESHOLD_SCALE_MAX, smoothedScale));
+        if (Math.abs(clampedScale - this.performanceAdaptiveThresholdScale) < this.ADAPTIVE_THRESHOLD_EPSILON) {
+            this.performanceLastAdaptiveUpdateAt = now;
+            return false;
+        }
+        this.performanceAdaptiveThresholdScale = clampedScale;
+        this.performanceLastAdaptiveUpdateAt = now;
+        this.applyAdaptiveRenderingToggles();
+        return true;
+    }
+
     updateArrowheadVisibility(force = false) {
         const nodeCount = Array.isArray(this.graph?.nodes) ? this.graph.nodes.length : 0;
         const edgeCount = Array.isArray(this.graph?.links) ? this.graph.links.length : 0;
-        const isVeryDenseGraph = nodeCount >= this.arrowheadHideNodeThreshold
-            || edgeCount >= this.arrowheadHideLinkThreshold;
+        const hideArrowNodeThreshold = this.scaleThreshold(this.arrowheadHideNodeThreshold, 360);
+        const hideArrowLinkThreshold = this.scaleThreshold(this.arrowheadHideLinkThreshold, 720);
+        const isVeryDenseGraph = nodeCount >= hideArrowNodeThreshold
+            || edgeCount >= hideArrowLinkThreshold;
         const shouldShowArrowheads = !isVeryDenseGraph || this.currentZoom >= this.arrowheadZoomThreshold;
         if (!force && shouldShowArrowheads === this.arrowheadsVisible) {
             return;
@@ -1163,6 +1307,9 @@ class KGGraphVis extends HTMLElement {
         this.performanceWarmupUntil = 0;
         this.performanceLagActive = false;
         this.performanceLastLagNotifyAt = 0;
+        this.performanceLastAdaptiveUpdateAt = 0;
+        this.performanceLastMeasuredFps = 0;
+        this.performanceAdaptiveThresholdScale = 1.12;
         this.performanceContext = { nodeCount: 0, linkCount: 0 };
     }
 
@@ -1196,6 +1343,14 @@ class KGGraphVis extends HTMLElement {
             }
             this.performanceLastTimestamp = timestamp;
 
+            const minAdaptiveSamples = Math.max(8, Math.floor(this.LAG_MONITOR_MIN_SAMPLES * 0.35));
+            if (this.performanceSampleWindow.length >= minAdaptiveSamples) {
+                const rollingTotalFps = this.performanceSampleWindow.reduce((acc, value) => acc + value, 0);
+                const rollingAverageFps = rollingTotalFps / this.performanceSampleWindow.length;
+                this.performanceLastMeasuredFps = rollingAverageFps;
+                this.updateAdaptiveThresholdScale(rollingAverageFps, now);
+            }
+
             const simulationSettled = !this.simulation || this.simulation.alpha() <= 0.12 || this.simulationStopped;
             const settleTimeoutReached = now >= this.performanceWarmupUntil + 1500;
             const monitorWindowOpen = now >= this.performanceWarmupUntil
@@ -1205,6 +1360,7 @@ class KGGraphVis extends HTMLElement {
                 && this.performanceSampleWindow.length >= this.LAG_MONITOR_MIN_SAMPLES) {
                 const totalFps = this.performanceSampleWindow.reduce((acc, value) => acc + value, 0);
                 const averageFps = totalFps / this.performanceSampleWindow.length;
+                this.performanceLastMeasuredFps = averageFps;
                 if (averageFps < this.LAG_MONITOR_FPS_THRESHOLD) {
                     if (this.performanceLowFpsSince <= 0) {
                         this.performanceLowFpsSince = now;
@@ -1673,10 +1829,12 @@ class KGGraphVis extends HTMLElement {
         if (!this.interactionHideLabels) return false;
         const nodeCount = this.graph?.nodes?.length ?? 0;
         const linkCount = this.graph?.links?.length ?? 0;
+        const hideNodeThreshold = this.scaleThreshold(this.interactionHideNodeThreshold, 120);
+        const hideLinkThreshold = this.scaleThreshold(this.interactionHideLinkThreshold, 220);
         // In JavaFX WebView, hiding labels during interaction avoids visual trails
         // on heavier graphs while preserving smooth motion on small graphs.
-        return nodeCount >= this.interactionHideNodeThreshold
-            || linkCount >= this.interactionHideLinkThreshold;
+        return nodeCount >= hideNodeThreshold
+            || linkCount >= hideLinkThreshold;
     }
 
     hideLabelsForInteraction() {
@@ -2059,21 +2217,30 @@ class KGGraphVis extends HTMLElement {
         if (hasEdges && !this.arrowheadsVisible) {
             effectiveDetails.push("Arrow heads hidden at low zoom for readability.");
         }
+        if (this.performanceAdaptiveThresholdScale >= 1.18) {
+            effectiveDetails.push("Adaptive performance calibration allows richer detail on this device.");
+        } else if (this.performanceAdaptiveThresholdScale <= 0.9) {
+            effectiveDetails.push("Adaptive performance calibration tightened details to keep rendering smooth.");
+        }
 
         const uniqueDetails = [...new Set(effectiveDetails)];
-        const isDegraded = String(base.mode || "normal").toLowerCase() === "degraded"
-            || !effectiveNodeLabelsVisible
-            || !effectiveEdgeLabelsVisible
-            || (hasEdges && !this.arrowheadsVisible);
-
         const baseMode = String(base.mode || "normal").toLowerCase();
+        const hasHardNodeLabelDrop = hasNodes && !this.nodeLabelSelection;
+        const hasHardEdgeLabelDrop = hasEdges && !this.linkLabelSelection;
+        const isDegraded = baseMode === "degraded"
+            || hasHardNodeLabelDrop
+            || hasHardEdgeLabelDrop
+            || this.performanceLagActive;
+
         const effectiveSummary = !isDegraded
-            ? "Standard rendering"
+            ? (uniqueDetails.length > 0 ? "Adaptive detail mode" : "Standard rendering")
             : interactionHidden
                 ? "Interaction optimization active"
-                : baseMode === "degraded"
-                    ? (String(base.summary || "").trim() || "Performance mode enabled")
-                    : "Adaptive detail mode";
+                : this.performanceLagActive && this.performanceLastMeasuredFps > 0
+                    ? `Performance pressure detected (~${Math.round(this.performanceLastMeasuredFps * 10) / 10} FPS)`
+                    : baseMode === "degraded"
+                        ? (String(base.summary || "").trim() || "Performance mode enabled")
+                        : "Performance mode enabled";
 
         const effectiveProfile = {
             mode: isDegraded ? "degraded" : "normal",
@@ -2650,22 +2817,22 @@ class KGGraphVis extends HTMLElement {
 
         if (staticMode) {
             if (safeNodeCount >= 4200 || safeLinkCount >= 8400) {
-                return { enabled: true, maxTicks: 2200, maxDurationMs: 5200, targetAlpha: 0.035 };
+                return { enabled: true, maxTicks: 2800, maxDurationMs: 6400, targetAlpha: 0.03 };
             }
-            return { enabled: true, maxTicks: 1500, maxDurationMs: 3800, targetAlpha: 0.05 };
+            return { enabled: true, maxTicks: 1900, maxDurationMs: 4800, targetAlpha: 0.045 };
         }
 
         if (safeNodeCount >= this.PRE_LAYOUT_VERY_LARGE_NODE_THRESHOLD
             || safeLinkCount >= this.PRE_LAYOUT_VERY_LARGE_LINK_THRESHOLD) {
-            return { enabled: true, maxTicks: 1200, maxDurationMs: 3200, targetAlpha: 0.075 };
+            return { enabled: true, maxTicks: 1700, maxDurationMs: 4600, targetAlpha: 0.07 };
         }
         if (safeNodeCount >= this.PRE_LAYOUT_LARGE_NODE_THRESHOLD
             || safeLinkCount >= this.PRE_LAYOUT_LARGE_LINK_THRESHOLD) {
-            return { enabled: true, maxTicks: 820, maxDurationMs: 2300, targetAlpha: 0.10 };
+            return { enabled: true, maxTicks: 1200, maxDurationMs: 3300, targetAlpha: 0.09 };
         }
         if (safeNodeCount >= this.PRE_LAYOUT_MEDIUM_NODE_THRESHOLD
             || safeLinkCount >= this.PRE_LAYOUT_MEDIUM_LINK_THRESHOLD) {
-            return { enabled: true, maxTicks: 460, maxDurationMs: 1350, targetAlpha: 0.14 };
+            return { enabled: true, maxTicks: 640, maxDurationMs: 1900, targetAlpha: 0.13 };
         }
         return { enabled: false, maxTicks: 0, maxDurationMs: 0, targetAlpha: 1 };
     }
@@ -2702,7 +2869,9 @@ class KGGraphVis extends HTMLElement {
         if (!profile.enabled) {
             return 0;
         }
-        const isLargeGraph = nodeCount >= this.LARGE_GRAPH_NODE_THRESHOLD || linkCount >= this.LARGE_GRAPH_LINK_THRESHOLD;
+        const largeNodeThreshold = this.scaleThreshold(this.LARGE_GRAPH_NODE_THRESHOLD, 100);
+        const largeLinkThreshold = this.scaleThreshold(this.LARGE_GRAPH_LINK_THRESHOLD, 180);
+        const isLargeGraph = nodeCount >= largeNodeThreshold || linkCount >= largeLinkThreshold;
         const isVeryLargeGraph = nodeCount >= this.PRE_LAYOUT_VERY_LARGE_NODE_THRESHOLD
             || linkCount >= this.PRE_LAYOUT_VERY_LARGE_LINK_THRESHOLD;
         const componentCount = Math.max(1, this.componentTargets?.size || 0);
@@ -2983,6 +3152,8 @@ class KGGraphVis extends HTMLElement {
             this.lastLabelUpdate = 0;
             this.graph = { nodes: [], links: [] };
             this.staticLayoutMode = false;
+            this.simplifyLinkGeometry = false;
+            this.parallelLayoutSimplified = false;
             this.simulation = null;
             this.linkSelection = null;
             this.nodeSelection = null;
@@ -3026,10 +3197,13 @@ class KGGraphVis extends HTMLElement {
             this.notifyGraphStats();
 
             this.buildConnectedComponents();
-            if ((this.graph?.links?.length || 0) <= this.PARALLEL_LAYOUT_MAX_LINK_THRESHOLD) {
+            const parallelLayoutThreshold = this.scaleThreshold(this.PARALLEL_LAYOUT_MAX_LINK_THRESHOLD, 200);
+            if ((this.graph?.links?.length || 0) <= parallelLayoutThreshold) {
                 this.assignParallelLinkOffsets(this.graph.links);
+                this.parallelLayoutSimplified = false;
             } else {
                 this.resetLinkOffsets(this.graph.links);
+                this.parallelLayoutSimplified = true;
             }
             const anchor = this.computeLayoutAnchor(previousNodeStateById);
             let reusedNodeCount = 0;
@@ -3103,17 +3277,30 @@ class KGGraphVis extends HTMLElement {
         const nodeCount = this.graph.nodes.length;
         const linkCount = this.graph.links.length;
         this.staticLayoutMode = Boolean(useStaticLayout);
-        const isLargeGraph = nodeCount >= this.LARGE_GRAPH_NODE_THRESHOLD || linkCount >= this.LARGE_GRAPH_LINK_THRESHOLD;
-        const isVeryLargeGraph = nodeCount >= this.AUTO_HIDE_NODE_LABEL_THRESHOLD;
-        const isHugeGraph = nodeCount >= this.HUGE_GRAPH_NODE_THRESHOLD || linkCount >= this.HUGE_GRAPH_LINK_THRESHOLD;
-        const shouldCreateNodeLabels = nodeCount < this.DISABLE_LABEL_CREATION_NODE_THRESHOLD
-            && linkCount < this.DISABLE_LABEL_CREATION_LINK_THRESHOLD;
-        const shouldCreateEdgeLabels = linkCount < this.DISABLE_LABEL_CREATION_LINK_THRESHOLD && !isHugeGraph;
-        const shouldEnableTooltips = nodeCount <= this.DISABLE_TOOLTIP_NODE_THRESHOLD
-            && linkCount <= this.DISABLE_TOOLTIP_LINK_THRESHOLD;
-        const isParallelLayoutSimplified = linkCount > this.PARALLEL_LAYOUT_MAX_LINK_THRESHOLD;
-        this.simplifyLinkGeometry = isHugeGraph || linkCount >= this.SIMPLIFY_LINK_GEOMETRY_LINK_THRESHOLD;
-        this.edgeLabelsAutoHidden = !shouldCreateEdgeLabels || linkCount >= this.AUTO_HIDE_EDGE_LABEL_THRESHOLD;
+        const largeNodeThreshold = this.scaleThreshold(this.LARGE_GRAPH_NODE_THRESHOLD, 100);
+        const largeLinkThreshold = this.scaleThreshold(this.LARGE_GRAPH_LINK_THRESHOLD, 180);
+        const hugeNodeThreshold = this.scaleThreshold(this.HUGE_GRAPH_NODE_THRESHOLD, 220);
+        const hugeLinkThreshold = this.scaleThreshold(this.HUGE_GRAPH_LINK_THRESHOLD, 420);
+        const autoHideNodeLabelThreshold = this.scaleThreshold(this.AUTO_HIDE_NODE_LABEL_THRESHOLD, 200);
+        const disableNodeLabelThreshold = this.scaleThreshold(this.DISABLE_LABEL_CREATION_NODE_THRESHOLD, 180);
+        const disableLinkLabelThreshold = this.scaleThreshold(this.DISABLE_LABEL_CREATION_LINK_THRESHOLD, 240);
+        const disableTooltipNodeThreshold = this.scaleThreshold(this.DISABLE_TOOLTIP_NODE_THRESHOLD, 600);
+        const disableTooltipLinkThreshold = this.scaleThreshold(this.DISABLE_TOOLTIP_LINK_THRESHOLD, 1200);
+        const simplifyLinkThreshold = this.scaleThreshold(this.SIMPLIFY_LINK_GEOMETRY_LINK_THRESHOLD, 180);
+        const autoHideEdgeLabelThreshold = this.scaleThreshold(this.AUTO_HIDE_EDGE_LABEL_THRESHOLD, 80);
+        const parallelLayoutThreshold = this.scaleThreshold(this.PARALLEL_LAYOUT_MAX_LINK_THRESHOLD, 200);
+        const isLargeGraph = nodeCount >= largeNodeThreshold || linkCount >= largeLinkThreshold;
+        const isVeryLargeGraph = nodeCount >= autoHideNodeLabelThreshold;
+        const isHugeGraph = nodeCount >= hugeNodeThreshold || linkCount >= hugeLinkThreshold;
+        const shouldCreateNodeLabels = nodeCount < disableNodeLabelThreshold
+            && linkCount < disableLinkLabelThreshold;
+        const shouldCreateEdgeLabels = linkCount < disableLinkLabelThreshold && !isHugeGraph;
+        const shouldEnableTooltips = nodeCount <= disableTooltipNodeThreshold
+            && linkCount <= disableTooltipLinkThreshold;
+        const isParallelLayoutSimplified = linkCount > parallelLayoutThreshold;
+        this.parallelLayoutSimplified = isParallelLayoutSimplified;
+        this.simplifyLinkGeometry = isHugeGraph || linkCount >= simplifyLinkThreshold;
+        this.edgeLabelsAutoHidden = !shouldCreateEdgeLabels || linkCount >= autoHideEdgeLabelThreshold;
         this.nodeLabelZoomThreshold = shouldCreateNodeLabels
             ? (isVeryLargeGraph ? 0.62 : (isLargeGraph ? 0.38 : 0.2))
             : 2.0;
@@ -3210,11 +3397,16 @@ class KGGraphVis extends HTMLElement {
             }
             const runtimePreLayoutProfile = this.resolvePreLayoutProfile(nodeCount, linkCount, false);
             if (runtimePreLayoutProfile.enabled) {
+                const runtimeTickFactor = isVeryLargeGraph ? 0.62 : (isLargeGraph ? 0.54 : 0.4);
+                const runtimeDurationFactor = isVeryLargeGraph ? 0.64 : (isLargeGraph ? 0.56 : 0.42);
+                const runtimeMinTicks = isVeryLargeGraph ? 260 : (isLargeGraph ? 170 : 80);
+                const runtimeMinDurationMs = isVeryLargeGraph ? 680 : (isLargeGraph ? 420 : 180);
                 const runtimeProfile = {
                     enabled: true,
-                    maxTicks: Math.max(80, Math.floor(runtimePreLayoutProfile.maxTicks * 0.35)),
-                    maxDurationMs: Math.max(180, Math.floor(runtimePreLayoutProfile.maxDurationMs * 0.35)),
-                    targetAlpha: Math.max(0.16, runtimePreLayoutProfile.targetAlpha)
+                    maxTicks: Math.max(runtimeMinTicks, Math.floor(runtimePreLayoutProfile.maxTicks * runtimeTickFactor)),
+                    maxDurationMs: Math.max(runtimeMinDurationMs,
+                        Math.floor(runtimePreLayoutProfile.maxDurationMs * runtimeDurationFactor)),
+                    targetAlpha: Math.max(0.06, runtimePreLayoutProfile.targetAlpha * 0.9)
                 };
                 this.runOfflineLayout(this.simulation, runtimeProfile);
             }

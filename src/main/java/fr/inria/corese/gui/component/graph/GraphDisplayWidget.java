@@ -473,11 +473,28 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	 *            optional known triple count (&lt; 0 when unknown)
 	 */
 	public void displayGraph(String jsonLdData, int tripleCountHint) {
+		displayGraphInternal(jsonLdData, tripleCountHint, false, false);
+	}
+
+	/**
+	 * Displays an RDF graph while bypassing automatic preview guardrails.
+	 *
+	 * <p>
+	 * Intended for explicit user action ("Display anyway"), so heavy previews can be
+	 * rendered without a second confirmation cycle.
+	 */
+	public void displayGraphForced(String jsonLdData, int tripleCountHint) {
+		displayGraphInternal(jsonLdData, tripleCountHint, true, true);
+	}
+
+	private void displayGraphInternal(String jsonLdData, int tripleCountHint, boolean bypassAutoPreviewGuardrails,
+			boolean forceLoadingOverlay) {
 		if (disposed) {
 			return;
 		}
 		int normalizedTripleCountHint = Math.max(-1, tripleCountHint);
-		if (!runOnFxThreadOrDefer(() -> displayGraph(jsonLdData, normalizedTripleCountHint))) {
+		if (!runOnFxThreadOrDefer(() -> displayGraphInternal(jsonLdData, normalizedTripleCountHint,
+				bypassAutoPreviewGuardrails, forceLoadingOverlay))) {
 			return;
 		}
 
@@ -492,12 +509,12 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			return;
 		}
 
-		if (shouldDeferAutomaticRender(jsonLdData, normalizedTripleCountHint)) {
+		if (!bypassAutoPreviewGuardrails && shouldDeferAutomaticRender(jsonLdData, normalizedTripleCountHint)) {
 			deferGraphRendering(jsonLdData, normalizedTripleCountHint);
 			return;
 		}
 
-		renderGraph(jsonLdData, normalizedTripleCountHint);
+		renderGraph(jsonLdData, normalizedTripleCountHint, forceLoadingOverlay || bypassAutoPreviewGuardrails);
 	}
 
 	/**
@@ -536,7 +553,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		showSafetyOverlay(-1, normalizedTripleCountHint, manualRenderAvailable);
 	}
 
-	private void renderGraph(String jsonLdData, int tripleCountHint) {
+	private void renderGraph(String jsonLdData, int tripleCountHint, boolean forceLoadingOverlay) {
 		if (disposed) {
 			return;
 		}
@@ -545,7 +562,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		blockedJsonLdData = null;
 		blockedTripleCountHint = -1;
 		long requestId = renderRequestCounter.incrementAndGet();
-		if (!hasRenderedGraph || !pageLoaded) {
+		if (forceLoadingOverlay || !hasRenderedGraph || !pageLoaded) {
 			showLoadingOverlay();
 		}
 
@@ -598,16 +615,34 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		if (blockedJsonLdData != null && !blockedJsonLdData.isBlank()) {
 			String jsonLdData = blockedJsonLdData;
 			int tripleCountHint = blockedTripleCountHint;
-			renderGraph(jsonLdData, tripleCountHint);
+			renderGraph(jsonLdData, tripleCountHint, true);
 			return;
 		}
 		if (onManualRenderRequested == null) {
 			return;
 		}
+		safetyActionButton.setDisable(true);
+		showLoadingOverlay();
+		loadingOverlay.toFront();
 		try {
 			onManualRenderRequested.run();
 		} catch (Exception e) {
+			hideLoadingOverlay();
+			safetyActionButton.setDisable(false);
 			LOGGER.warn("Manual graph render callback failed", e);
+		}
+	}
+
+	public void notifyManualRenderFailed() {
+		if (disposed) {
+			return;
+		}
+		if (!runOnFxThreadOrDefer(this::notifyManualRenderFailed)) {
+			return;
+		}
+		hideLoadingOverlay();
+		if (safetyOverlay.isVisible()) {
+			safetyActionButton.setDisable(!hasManualRenderAction());
 		}
 	}
 

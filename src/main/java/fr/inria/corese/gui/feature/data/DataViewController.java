@@ -304,6 +304,7 @@ public class DataViewController implements AutoCloseable {
 				LOGGER.warn("Failed to render graph manually", e);
 				Platform.runLater(() -> {
 					try {
+						view.getGraphWidget().notifyManualRenderFailed();
 						NotificationWidget.getInstance().showErrorWithDetails("Graph Preview",
 								"Manual graph rendering failed: " + e.getMessage(), e);
 					} finally {
@@ -328,7 +329,7 @@ public class DataViewController implements AutoCloseable {
 			updateToolbarActionStates();
 			return;
 		}
-		view.getGraphWidget().displayGraph(jsonLdSnapshot, status.tripleCount());
+		view.getGraphWidget().displayGraphForced(jsonLdSnapshot, status.tripleCount());
 		view.setGraphEmptyStateVisible(false);
 		view.updateStatus(status);
 		updateToolbarActionStates();
