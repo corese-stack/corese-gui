@@ -63,10 +63,15 @@ public final class QueryResultRenderSupport {
 
 	public static void loadGraphAndTextAsync(ResultController controller, String resultId,
 			SerializationFormat textFormat, QueryService queryService) {
-		loadGraphAndTextAsync(controller, resultId, textFormat, queryService, null);
+		loadGraphAndTextAsync(controller, resultId, -1, textFormat, queryService, null);
 	}
 
 	public static void loadGraphAndTextAsync(ResultController controller, String resultId,
+			SerializationFormat textFormat, QueryService queryService, Runnable onComplete) {
+		loadGraphAndTextAsync(controller, resultId, -1, textFormat, queryService, onComplete);
+	}
+
+	public static void loadGraphAndTextAsync(ResultController controller, String resultId, int graphTripleCountHint,
 			SerializationFormat textFormat, QueryService queryService, Runnable onComplete) {
 		if (controller == null || resultId == null || textFormat == null || queryService == null) {
 			if (onComplete != null) {
@@ -79,7 +84,7 @@ public final class QueryResultRenderSupport {
 				String jsonLdResult = queryService.formatResult(resultId, SerializationFormat.JSON_LD);
 				String textResult = queryService.formatResult(resultId, textFormat);
 				Platform.runLater(() -> {
-					controller.displayGraph(jsonLdResult);
+					controller.displayGraph(jsonLdResult, graphTripleCountHint);
 					controller.updateText(textResult);
 				});
 			} finally {

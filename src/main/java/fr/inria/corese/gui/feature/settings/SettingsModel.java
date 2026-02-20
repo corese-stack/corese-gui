@@ -4,9 +4,11 @@ import atlantafx.base.theme.Theme;
 import fr.inria.corese.gui.core.theme.ThemeManager;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.paint.Color;
 
@@ -39,6 +41,9 @@ public final class SettingsModel {
 	private final BooleanProperty useSystemTheme = new SimpleBooleanProperty(true); // Enabled by default
 
 	private final DoubleProperty uiScale = new SimpleDoubleProperty(ThemeManager.getDefaultUiScale());
+
+	private final IntegerProperty graphAutoRenderTriplesLimit = new SimpleIntegerProperty(
+			ThemeManager.getDefaultGraphAutoRenderTriplesLimit());
 
 	// ===== Constructors =====
 
@@ -159,5 +164,33 @@ public final class SettingsModel {
 	 */
 	public void setUiScale(double scale) {
 		this.uiScale.set(scale);
+	}
+
+	/**
+	 * Returns the graph auto-preview triples limit property.
+	 *
+	 * @return graph triples limit property
+	 */
+	public IntegerProperty graphAutoRenderTriplesLimitProperty() {
+		return graphAutoRenderTriplesLimit;
+	}
+
+	/**
+	 * Gets the graph auto-preview triples limit.
+	 *
+	 * @return max triples before preview is paused
+	 */
+	public int getGraphAutoRenderTriplesLimit() {
+		return graphAutoRenderTriplesLimit.get();
+	}
+
+	/**
+	 * Sets the graph auto-preview triples limit.
+	 *
+	 * @param value
+	 *            max triples before preview is paused
+	 */
+	public void setGraphAutoRenderTriplesLimit(int value) {
+		graphAutoRenderTriplesLimit.set(value);
 	}
 }

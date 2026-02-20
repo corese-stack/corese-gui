@@ -117,7 +117,7 @@ public final class MainController {
 				continue;
 			}
 			boolean handled = executeShortcut(shortcut.action());
-			if (handled) {
+			if (handled || shortcut.action() == KeyboardShortcutRegistry.Action.EXECUTE_PRIMARY_ACTION) {
 				event.consume();
 			}
 			return;

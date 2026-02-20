@@ -269,8 +269,8 @@ public class QueryViewController {
 		QueryResultRenderSupport.bindOnFormatChanged(controller, resultId, queryService);
 		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Query",
 				"Rendering result...");
-		QueryResultRenderSupport.loadGraphAndTextAsync(controller, resultId, preferredFormat, queryService,
-				loadingHandle::close);
+		QueryResultRenderSupport.loadGraphAndTextAsync(controller, resultId, resultRef.getResultCount(),
+				preferredFormat, queryService, loadingHandle::close);
 	}
 
 	private void registerResultTabPreference(Tab tab) {

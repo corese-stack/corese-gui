@@ -47,12 +47,49 @@ const cm = CodeMirror.fromTextArea(editorArea, {
     styleActiveLine: true,
     extraKeys: {
         "Ctrl-Space": "autocomplete",
+        "Ctrl-Enter": () => undefined,
+        "Cmd-Enter": () => undefined,
         "Cmd-/": "toggleComment",
         "Ctrl-/": "toggleComment",
         "Ctrl-C": () => copySelectionToClipboard(),
         "Cmd-C": () => copySelectionToClipboard(),
         "Ctrl-X": () => cutSelectionToClipboard(),
         "Cmd-X": () => cutSelectionToClipboard()
+    }
+});
+
+let lastRunShortcutTs = 0;
+
+function preventRunShortcutLineBreak(event) {
+    const isEnter = event && (event.key === "Enter" || event.code === "Enter" || event.keyCode === 13);
+    if (!isEnter || !(event.ctrlKey || event.metaKey)) {
+        return undefined;
+    }
+    lastRunShortcutTs = Date.now();
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === "function") {
+        event.stopImmediatePropagation();
+    }
+    return false;
+}
+
+const editorWrapper = cm.getWrapperElement();
+editorWrapper.addEventListener("keydown", preventRunShortcutLineBreak, true);
+editorWrapper.addEventListener("keypress", preventRunShortcutLineBreak, true);
+
+cm.on("beforeChange", (_, changeObj) => {
+    if (!changeObj || typeof changeObj.cancel !== "function") {
+        return;
+    }
+    // Defensive guard: if an Enter insert still sneaks through right after Ctrl/Cmd+Enter,
+    // cancel it to keep query text unchanged.
+    if (Date.now() - lastRunShortcutTs > 120) {
+        return;
+    }
+    const inserted = Array.isArray(changeObj.text) ? changeObj.text.join("\n") : "";
+    if (inserted.includes("\n") || inserted.includes("\r")) {
+        changeObj.cancel();
     }
 });
 

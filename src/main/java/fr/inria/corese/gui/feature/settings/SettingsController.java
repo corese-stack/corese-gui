@@ -20,6 +20,7 @@ public final class SettingsController {
 	private final ThemeManager themeManager;
 	private static final double SCALE_EPSILON = 0.0001;
 	private static final double UI_SCALE_STEP = 0.1;
+	private static final int GRAPH_TRIPLE_LIMIT_STEP = 100;
 
 	public SettingsController(SettingsModel model, SettingsView view) {
 		this.model = model;
@@ -36,6 +37,8 @@ public final class SettingsController {
 		view.getThemeComboBox().getItems().addAll(themeManager.getBaseThemes());
 		view.updateUiScaleDisplay(themeManager.getUiScale());
 		updateUiScaleStepperState(themeManager.getUiScale());
+		view.updateGraphPreviewLimitDisplay(themeManager.getGraphAutoRenderTriplesLimit());
+		updateGraphPreviewLimitStepperState(themeManager.getGraphAutoRenderTriplesLimit());
 		updateThemeSelection();
 		updateControlsDisabledState();
 	}
@@ -56,6 +59,7 @@ public final class SettingsController {
 		}
 		model.setUseSystemTheme(themeManager.isSystemThemeEnabled());
 		model.setUiScale(themeManager.getUiScale());
+		model.setGraphAutoRenderTriplesLimit(themeManager.getGraphAutoRenderTriplesLimit());
 	}
 
 	private void bindModelToThemeManager() {
@@ -73,6 +77,11 @@ public final class SettingsController {
 		model.uiScaleProperty().addListener((obs, oldVal, newVal) -> {
 			if (newVal != null) {
 				themeManager.setUiScale(newVal.doubleValue());
+			}
+		});
+		model.graphAutoRenderTriplesLimitProperty().addListener((obs, oldVal, newVal) -> {
+			if (newVal != null) {
+				themeManager.setGraphAutoRenderTriplesLimit(newVal.intValue());
 			}
 		});
 	}
@@ -98,6 +107,11 @@ public final class SettingsController {
 				model.setUiScale(newVal.doubleValue());
 			}
 		});
+		themeManager.graphAutoRenderTriplesLimitProperty().addListener((obs, oldVal, newVal) -> {
+			if (newVal != null && newVal.intValue() != model.getGraphAutoRenderTriplesLimit()) {
+				model.setGraphAutoRenderTriplesLimit(newVal.intValue());
+			}
+		});
 	}
 
 	private void setupViewBindings() {
@@ -115,6 +129,13 @@ public final class SettingsController {
 				updateUiScaleStepperState(scaleValue);
 			}
 		});
+		model.graphAutoRenderTriplesLimitProperty().addListener((obs, oldValue, newValue) -> {
+			if (newValue != null) {
+				int value = newValue.intValue();
+				view.updateGraphPreviewLimitDisplay(value);
+				updateGraphPreviewLimitStepperState(value);
+			}
+		});
 
 		model.useSystemThemeProperty().addListener((obs, oldValue, newValue) -> updateControlsDisabledState());
 	}
@@ -123,6 +144,8 @@ public final class SettingsController {
 		view.getThemeComboBox().setOnAction(e -> handleThemeChange());
 		view.setOnUiScaleDecrease(() -> adjustUiScale(-UI_SCALE_STEP));
 		view.setOnUiScaleIncrease(() -> adjustUiScale(+UI_SCALE_STEP));
+		view.setOnGraphPreviewLimitDecrease(() -> adjustGraphPreviewLimit(-GRAPH_TRIPLE_LIMIT_STEP));
+		view.setOnGraphPreviewLimitIncrease(() -> adjustGraphPreviewLimit(+GRAPH_TRIPLE_LIMIT_STEP));
 
 		view.getLightModeButton().setOnAction(e -> {
 			if (view.getLightModeButton().isSelected())
@@ -207,5 +230,16 @@ public final class SettingsController {
 		double maxScale = ThemeManager.getMaxUiScale();
 		view.setUiScaleDecreaseDisabled(scale <= minScale + SCALE_EPSILON);
 		view.setUiScaleIncreaseDisabled(scale >= maxScale - SCALE_EPSILON);
+	}
+
+	private void adjustGraphPreviewLimit(int delta) {
+		model.setGraphAutoRenderTriplesLimit(model.getGraphAutoRenderTriplesLimit() + delta);
+	}
+
+	private void updateGraphPreviewLimitStepperState(int value) {
+		int min = ThemeManager.getMinGraphAutoRenderTriplesLimit();
+		int max = ThemeManager.getMaxGraphAutoRenderTriplesLimit();
+		view.setGraphPreviewLimitDecreaseDisabled(value <= min);
+		view.setGraphPreviewLimitIncreaseDisabled(value >= max);
 	}
 }

@@ -29,6 +29,13 @@ public final class DataStatusTooltipSupport {
 		applyTooltip(label, tooltipLines, title);
 	}
 
+	public static void updateStatusTextMetric(Label label, String title, String value, List<String> tooltipLines) {
+		String safeTitle = (title == null || title.isBlank()) ? "Details" : title.trim();
+		String safeValue = (value == null || value.isBlank()) ? "n/a" : value.trim();
+		label.setText(safeTitle + ": " + safeValue);
+		applyTooltip(label, tooltipLines, safeTitle);
+	}
+
 	public static List<String> buildTriplesTooltipLines(DataWorkspaceStatus status) {
 		int namedGraphTriples = Math.max(0, status.tripleCount() - status.defaultGraphTripleCount());
 		return List.of("Explicit triples: " + formatCount(status.explicitTripleCount()),

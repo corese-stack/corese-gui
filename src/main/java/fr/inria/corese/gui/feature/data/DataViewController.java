@@ -17,6 +17,7 @@ import fr.inria.corese.gui.core.service.GraphMutationBus;
 import fr.inria.corese.gui.core.service.GraphMutationEvent;
 import fr.inria.corese.gui.core.service.ReasoningProfile;
 import fr.inria.corese.gui.core.service.ReasoningService;
+import fr.inria.corese.gui.core.theme.ThemeManager;
 import fr.inria.corese.gui.feature.data.dialog.DataClearGraphDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataReloadSourcesDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataRulePreviewDialog;
@@ -60,9 +61,13 @@ public class DataViewController implements AutoCloseable {
 	private final AtomicBoolean reasoningRecomputeScheduled = new AtomicBoolean(false);
 	private final AtomicBoolean dataOperationInProgress = new AtomicBoolean(false);
 	private final AtomicBoolean syncingReasoningUi = new AtomicBoolean(false);
+	private final AtomicBoolean graphSnapshotRefreshRunning = new AtomicBoolean(false);
+	private final AtomicBoolean graphSnapshotRefreshRequested = new AtomicBoolean(false);
+	private final AtomicBoolean manualGraphRenderInProgress = new AtomicBoolean(false);
 	private final Map<ReasoningProfile, ToggleSwitch> reasoningToggles = new EnumMap<>(ReasoningProfile.class);
 
 	private AutoCloseable mutationSubscription;
+	private final ThemeManager themeManager;
 
 	private static final long GRAPH_REFRESH_DEBOUNCE_MS = 120L;
 	private static final long REASONING_REFRESH_DEBOUNCE_MS = 260L;
@@ -74,6 +79,7 @@ public class DataViewController implements AutoCloseable {
 		this.workspaceService = DefaultDataWorkspaceService.getInstance();
 		this.reasoningService = DefaultReasoningService.getInstance();
 		this.mutationBus = GraphMutationBus.getInstance();
+		this.themeManager = ThemeManager.getInstance();
 		this.ruleFileController = new DataRuleFileController(view, workspaceService, reasoningService,
 				this::refreshReasoningUiState, this::refreshGraphSnapshot);
 		initialize();
@@ -90,6 +96,8 @@ public class DataViewController implements AutoCloseable {
 	private void configureGraphSurface() {
 		view.configureGraphEmptyState(this::handleLoadFile, this::handleLoadUri);
 		view.setOnGraphFilesDropped(this::handleGraphFilesDropped);
+		view.getGraphWidget().setOnRenderStatusChanged(view::updateGraphRenderStatus);
+		view.getGraphWidget().setOnManualRenderRequested(this::handleManualGraphRenderRequest);
 	}
 
 	private void configureToolbar() {
@@ -202,21 +210,132 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void refreshGraphSnapshot() {
+		graphSnapshotRefreshRequested.set(true);
+		runGraphSnapshotRefreshLoop();
+	}
+
+	private void runGraphSnapshotRefreshLoop() {
+		if (!graphSnapshotRefreshRunning.compareAndSet(false, true)) {
+			return;
+		}
+		AppExecutors.execute(() -> {
+			try {
+				while (graphSnapshotRefreshRequested.getAndSet(false)) {
+					GraphSnapshotPayload payload = computeGraphSnapshotPayload();
+					if (payload == null) {
+						continue;
+					}
+					Platform.runLater(() -> applyGraphSnapshotPayload(payload));
+				}
+			} finally {
+				graphSnapshotRefreshRunning.set(false);
+				if (graphSnapshotRefreshRequested.get()) {
+					runGraphSnapshotRefreshLoop();
+				}
+			}
+		});
+	}
+
+	private GraphSnapshotPayload computeGraphSnapshotPayload() {
 		try {
 			DataWorkspaceStatus status = workspaceService.getStatus();
-			String jsonLdSnapshot = workspaceService.getGraphSnapshotJsonLd();
-			boolean hasRenderableGraph = jsonLdSnapshot != null && !jsonLdSnapshot.isBlank();
-			if (!hasRenderableGraph) {
-				view.getGraphWidget().clear();
-			} else {
-				view.getGraphWidget().displayGraph(jsonLdSnapshot);
-			}
-			view.setGraphEmptyStateVisible(!hasRenderableGraph);
-			view.updateStatus(status);
-			updateToolbarActionStates();
+			int maxAutoRenderTriples = themeManager.getGraphAutoRenderTriplesLimit();
+			boolean skipSnapshotSerialization = status.tripleCount() > 0 && maxAutoRenderTriples > 0
+					&& status.tripleCount() > maxAutoRenderTriples;
+			String jsonLdSnapshot = skipSnapshotSerialization ? "" : workspaceService.getGraphSnapshotJsonLd();
+			return new GraphSnapshotPayload(status, jsonLdSnapshot, skipSnapshotSerialization);
 		} catch (Exception e) {
 			LOGGER.warn("Failed to refresh graph snapshot", e);
+			return null;
 		}
+	}
+
+	private void applyGraphSnapshotPayload(GraphSnapshotPayload payload) {
+		if (payload == null || dataOperationInProgress.get()) {
+			return;
+		}
+		DataWorkspaceStatus status = payload.status();
+		String jsonLdSnapshot = payload.jsonLdSnapshot();
+		boolean snapshotSkippedForLimit = payload.snapshotSkippedForLimit();
+		if (status.tripleCount() <= 0) {
+			view.getGraphWidget().clear();
+			view.setGraphEmptyStateVisible(true);
+			view.updateStatus(status);
+			updateToolbarActionStates();
+			return;
+		}
+		if (snapshotSkippedForLimit) {
+			view.getGraphWidget().pausePreviewForLargeGraph(status.tripleCount(), status.namedGraphCount());
+			view.setGraphEmptyStateVisible(false);
+			view.updateStatus(status);
+			updateToolbarActionStates();
+			return;
+		}
+		boolean hasRenderableGraph = jsonLdSnapshot != null && !jsonLdSnapshot.isBlank();
+		if (!hasRenderableGraph) {
+			view.getGraphWidget().clear();
+		} else {
+			view.getGraphWidget().displayGraph(jsonLdSnapshot, status.tripleCount());
+		}
+		view.setGraphEmptyStateVisible(status.tripleCount() <= 0);
+		view.updateStatus(status);
+		updateToolbarActionStates();
+	}
+
+	private void handleManualGraphRenderRequest() {
+		if (dataOperationInProgress.get()) {
+			return;
+		}
+		if (!manualGraphRenderInProgress.compareAndSet(false, true)) {
+			return;
+		}
+		AppExecutors.execute(() -> {
+			try {
+				DataWorkspaceStatus status = workspaceService.getStatus();
+				String jsonLdSnapshot = workspaceService.getGraphSnapshotJsonLd();
+				Platform.runLater(() -> {
+					try {
+						applyManualGraphRender(status, jsonLdSnapshot);
+					} finally {
+						manualGraphRenderInProgress.set(false);
+					}
+				});
+			} catch (Exception e) {
+				LOGGER.warn("Failed to render graph manually", e);
+				Platform.runLater(() -> {
+					try {
+						NotificationWidget.getInstance().showErrorWithDetails("Graph Preview",
+								"Manual graph rendering failed: " + e.getMessage(), e);
+					} finally {
+						manualGraphRenderInProgress.set(false);
+					}
+				});
+			}
+		});
+	}
+
+	private void applyManualGraphRender(DataWorkspaceStatus status, String jsonLdSnapshot) {
+		if (status == null) {
+			return;
+		}
+		if (dataOperationInProgress.get()) {
+			return;
+		}
+		if (status.tripleCount() <= 0 || jsonLdSnapshot == null || jsonLdSnapshot.isBlank()) {
+			view.getGraphWidget().clear();
+			view.setGraphEmptyStateVisible(true);
+			view.updateStatus(status);
+			updateToolbarActionStates();
+			return;
+		}
+		view.getGraphWidget().displayGraph(jsonLdSnapshot, status.tripleCount());
+		view.setGraphEmptyStateVisible(false);
+		view.updateStatus(status);
+		updateToolbarActionStates();
+	}
+
+	private record GraphSnapshotPayload(DataWorkspaceStatus status, String jsonLdSnapshot,
+			boolean snapshotSkippedForLimit) {
 	}
 
 	private void refreshReasoningUiState() {

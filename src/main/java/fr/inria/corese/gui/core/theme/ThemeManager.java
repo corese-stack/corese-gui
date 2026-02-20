@@ -10,9 +10,11 @@ import java.util.prefs.Preferences;
 import javafx.application.Application;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
@@ -44,11 +46,15 @@ public final class ThemeManager {
 	private static final String PREF_SYSTEM_THEME = "app.systemThemeEnabled";
 	private static final String PREF_SIDEBAR_COLLAPSED = "app.sidebarCollapsed";
 	private static final String PREF_UI_SCALE = "app.uiScale";
+	private static final String PREF_GRAPH_AUTO_RENDER_TRIPLES = "app.graphAutoRenderTriplesLimit";
 	private static final String DEFAULT_ACCENT_HEX = "#0078D4";
 	private static final String DEFAULT_WEB_THEME_NAME = "default";
 	private static final double DEFAULT_UI_SCALE = 1.0;
 	private static final double MIN_UI_SCALE = 0.5;
 	private static final double MAX_UI_SCALE = 2.0;
+	private static final int DEFAULT_GRAPH_AUTO_RENDER_TRIPLES = 800;
+	private static final int MIN_GRAPH_AUTO_RENDER_TRIPLES = 100;
+	private static final int MAX_GRAPH_AUTO_RENDER_TRIPLES = 50_000;
 	private static final double SCALE_EPSILON = 0.0001;
 	private static final String ROOT_MANAGED_STYLE_BLOCK_KEY = "corese.themeManager.managedStyle";
 
@@ -59,6 +65,8 @@ public final class ThemeManager {
 	private final BooleanProperty systemThemeEnabled = new SimpleBooleanProperty(false);
 	private final BooleanProperty sidebarCollapsed = new SimpleBooleanProperty(false);
 	private final DoubleProperty uiScale = new SimpleDoubleProperty(DEFAULT_UI_SCALE);
+	private final IntegerProperty graphAutoRenderTriplesLimit = new SimpleIntegerProperty(
+			DEFAULT_GRAPH_AUTO_RENDER_TRIPLES);
 	private final Preferences preferences = Preferences.userNodeForPackage(ThemeManager.class);
 	private boolean loadingPreferences = false;
 
@@ -109,6 +117,21 @@ public final class ThemeManager {
 	/** Returns the maximum supported global UI scale. */
 	public static double getMaxUiScale() {
 		return MAX_UI_SCALE;
+	}
+
+	/** Returns the default graph auto-preview triples limit. */
+	public static int getDefaultGraphAutoRenderTriplesLimit() {
+		return DEFAULT_GRAPH_AUTO_RENDER_TRIPLES;
+	}
+
+	/** Returns the minimum graph auto-preview triples limit. */
+	public static int getMinGraphAutoRenderTriplesLimit() {
+		return MIN_GRAPH_AUTO_RENDER_TRIPLES;
+	}
+
+	/** Returns the maximum graph auto-preview triples limit. */
+	public static int getMaxGraphAutoRenderTriplesLimit() {
+		return MAX_GRAPH_AUTO_RENDER_TRIPLES;
 	}
 
 	/**
@@ -201,6 +224,16 @@ public final class ThemeManager {
 				return;
 			}
 			applyUiScaleInternal();
+			savePreferences();
+		});
+
+		graphAutoRenderTriplesLimit.addListener((obs, oldVal, newVal) -> {
+			int requested = newVal == null ? DEFAULT_GRAPH_AUTO_RENDER_TRIPLES : newVal.intValue();
+			int safe = clampGraphAutoRenderTriplesLimit(requested);
+			if (safe != requested) {
+				graphAutoRenderTriplesLimit.set(safe);
+				return;
+			}
 			savePreferences();
 		});
 	}
@@ -374,6 +407,22 @@ public final class ThemeManager {
 		this.uiScale.set(safeScale);
 	}
 
+	public IntegerProperty graphAutoRenderTriplesLimitProperty() {
+		return graphAutoRenderTriplesLimit;
+	}
+
+	public int getGraphAutoRenderTriplesLimit() {
+		return graphAutoRenderTriplesLimit.get();
+	}
+
+	public void setGraphAutoRenderTriplesLimit(int value) {
+		int safeValue = clampGraphAutoRenderTriplesLimit(value);
+		if (graphAutoRenderTriplesLimit.get() == safeValue) {
+			return;
+		}
+		graphAutoRenderTriplesLimit.set(safeValue);
+	}
+
 	/** Releases background theme monitoring resources. */
 	public void shutdown() {
 		systemThemeMonitor.stop();
@@ -450,6 +499,10 @@ public final class ThemeManager {
 			return DEFAULT_UI_SCALE;
 		}
 		return Math.clamp(scale, MIN_UI_SCALE, MAX_UI_SCALE);
+	}
+
+	private static int clampGraphAutoRenderTriplesLimit(int value) {
+		return Math.clamp(value, MIN_GRAPH_AUTO_RENDER_TRIPLES, MAX_GRAPH_AUTO_RENDER_TRIPLES);
 	}
 
 	// ===== Theme Queries =====
@@ -619,11 +672,14 @@ public final class ThemeManager {
 			String colorHex = preferences.get(PREF_ACCENT_COLOR, null);
 			boolean collapsed = preferences.getBoolean(PREF_SIDEBAR_COLLAPSED, false);
 			double savedScale = clampUiScale(preferences.getDouble(PREF_UI_SCALE, DEFAULT_UI_SCALE));
+			int savedGraphAutoRenderTriplesLimit = clampGraphAutoRenderTriplesLimit(
+					preferences.getInt(PREF_GRAPH_AUTO_RENDER_TRIPLES, DEFAULT_GRAPH_AUTO_RENDER_TRIPLES));
 
 			// Apply settings
 			setSystemThemeEnabled(useSystem);
 			setSidebarCollapsed(collapsed);
 			setUiScale(savedScale);
+			setGraphAutoRenderTriplesLimit(savedGraphAutoRenderTriplesLimit);
 
 			if (useSystem && getTheme() == null) {
 				// Provide a fast, safe fallback so CSS variables are available immediately.
@@ -672,6 +728,7 @@ public final class ThemeManager {
 			preferences.putBoolean(PREF_SYSTEM_THEME, isSystemThemeEnabled());
 			preferences.putBoolean(PREF_SIDEBAR_COLLAPSED, isSidebarCollapsed());
 			preferences.putDouble(PREF_UI_SCALE, getUiScale());
+			preferences.putInt(PREF_GRAPH_AUTO_RENDER_TRIPLES, getGraphAutoRenderTriplesLimit());
 
 			if (!isSystemThemeEnabled()) {
 				if (getTheme() != null) {

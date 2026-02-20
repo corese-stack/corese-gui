@@ -6,6 +6,8 @@ import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.emptystate.EmptyStateWidget;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget;
+import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderMode;
+import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderStatus;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.service.DataWorkspaceStatus;
@@ -67,7 +69,12 @@ public class DataView extends AbstractView {
 	private static final String TOOLTIP_TITLE_SOURCES = "Sources";
 	private static final String TOOLTIP_TITLE_NAMED_GRAPHS = "Named Graphs";
 	private static final String TOOLTIP_TITLE_INFERRED = "Inferred";
+	private static final String TOOLTIP_TITLE_RENDER = "View";
 	private static final double CARD_RADIUS = 8.0;
+	private static final String STYLE_CLASS_RENDER_STATUS_LABEL = "data-status-label-render-mode";
+	private static final String STYLE_CLASS_RENDER_STATUS_NORMAL = "data-status-label-render-normal";
+	private static final String STYLE_CLASS_RENDER_STATUS_DEGRADED = "data-status-label-render-degraded";
+	private static final String STYLE_CLASS_RENDER_STATUS_PAUSED = "data-status-label-render-paused";
 
 	private final GraphDisplayWidget graphWidget = new GraphDisplayWidget();
 	private final ToolbarWidget toolbarWidget = new ToolbarWidget();
@@ -92,6 +99,7 @@ public class DataView extends AbstractView {
 	private final Label sourceCountLabel = new Label();
 	private final Label namedGraphCountLabel = new Label();
 	private final Label inferredTripleCountLabel = new Label();
+	private final Label renderModeLabel = new Label();
 	private DataViewController controller;
 	private EmptyStateWidget graphEmptyStateWidget;
 	private EmptyStateWidget ruleFilesEmptyStateWidget;
@@ -106,6 +114,7 @@ public class DataView extends AbstractView {
 		CssUtils.applyViewStyles(getRoot(), COMMON_STYLESHEET_PATH);
 		initializeLayout();
 		updateStatus(DataWorkspaceStatus.empty());
+		updateGraphRenderStatus(GraphRenderStatus.normal());
 		updateRuleFiles(List.of(), (id, enabled) -> {
 		}, id -> {
 		}, id -> {
@@ -265,8 +274,9 @@ public class DataView extends AbstractView {
 	}
 
 	private HBox createStatusBar() {
-		HBox primaryStatusGroup = createStatusGroup(tripleCountLabel, sourceCountLabel);
-		HBox secondaryStatusGroup = createStatusGroup(namedGraphCountLabel, inferredTripleCountLabel);
+		HBox primaryStatusGroup = createStatusGroup(tripleCountLabel, sourceCountLabel, namedGraphCountLabel,
+				inferredTripleCountLabel);
+		HBox secondaryStatusGroup = createStatusGroup(renderModeLabel);
 		secondaryStatusGroup.getStyleClass().add(STYLE_CLASS_STATUS_GROUP_SECONDARY);
 
 		Region statusSpacer = new Region();
@@ -284,11 +294,12 @@ public class DataView extends AbstractView {
 	}
 
 	private void initializeStatusMetricLabels() {
-		for (Label label : List.of(tripleCountLabel, sourceCountLabel, namedGraphCountLabel,
-				inferredTripleCountLabel)) {
+		for (Label label : List.of(tripleCountLabel, sourceCountLabel, namedGraphCountLabel, inferredTripleCountLabel,
+				renderModeLabel)) {
 			label.getStyleClass().add("data-status-label");
 			label.setFocusTraversable(false);
 		}
+		renderModeLabel.getStyleClass().add(STYLE_CLASS_RENDER_STATUS_LABEL);
 	}
 
 	private void initializeGraphContainer() {
@@ -685,6 +696,30 @@ public class DataView extends AbstractView {
 				safeStatus.namedGraphCount(), DataStatusTooltipSupport.buildNamedGraphTooltipLines(safeStatus));
 		DataStatusTooltipSupport.updateStatusMetric(inferredTripleCountLabel, TOOLTIP_TITLE_INFERRED,
 				safeStatus.inferredTripleCount(), DataStatusTooltipSupport.buildReasoningTooltipLines(safeStatus));
+	}
+
+	public void updateGraphRenderStatus(GraphRenderStatus status) {
+		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
+		String summary = switch (safeStatus.mode()) {
+			case NORMAL -> "Standard";
+			case DEGRADED -> "Degraded";
+			case PAUSED -> "Paused";
+		};
+		List<String> tooltipLines = safeStatus.details().isEmpty()
+				? List.of("Rendering uses the standard profile.")
+				: safeStatus.details();
+		DataStatusTooltipSupport.updateStatusTextMetric(renderModeLabel, TOOLTIP_TITLE_RENDER, summary, tooltipLines);
+		applyRenderStatusStyle(safeStatus.mode());
+	}
+
+	private void applyRenderStatusStyle(GraphRenderMode mode) {
+		renderModeLabel.getStyleClass().removeAll(STYLE_CLASS_RENDER_STATUS_NORMAL, STYLE_CLASS_RENDER_STATUS_DEGRADED,
+				STYLE_CLASS_RENDER_STATUS_PAUSED);
+		switch (mode) {
+			case DEGRADED -> renderModeLabel.getStyleClass().add(STYLE_CLASS_RENDER_STATUS_DEGRADED);
+			case PAUSED -> renderModeLabel.getStyleClass().add(STYLE_CLASS_RENDER_STATUS_PAUSED);
+			default -> renderModeLabel.getStyleClass().add(STYLE_CLASS_RENDER_STATUS_NORMAL);
+		}
 	}
 
 }

@@ -87,6 +87,22 @@
     -fx-text-fill: -color-fg-muted;
 }
 
+.data-status-label-render-mode {
+    -fx-font-weight: 600;
+}
+
+.data-status-label-render-normal {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.data-status-label-render-degraded {
+    -fx-text-fill: -color-warning-fg;
+}
+
+.data-status-label-render-paused {
+    -fx-text-fill: -color-danger-fg;
+}
+
 /**
  * A floating panel container with background, border, and shadow.
  * Used for overlays like format selectors, configuration boxes, etc.

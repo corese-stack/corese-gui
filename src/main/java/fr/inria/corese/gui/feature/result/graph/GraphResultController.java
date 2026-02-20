@@ -40,6 +40,7 @@ public class GraphResultController implements AutoCloseable {
 				ButtonFactory.zoomIn(view.getGraphWidget()::zoomIn),
 				ButtonFactory.zoomOut(view.getGraphWidget()::zoomOut)));
 		view.getGraphWidget().setOnGraphStatsChanged(view::updateGraphStatus);
+		view.getGraphWidget().setOnRenderStatusChanged(view::updateGraphRenderStatus);
 	}
 
 	/**
@@ -78,7 +79,11 @@ public class GraphResultController implements AutoCloseable {
 	 *            a valid JSON-LD structure compatible with the graph visualizer.
 	 */
 	public void displayGraph(String jsonLdData) {
-		view.getGraphWidget().displayGraph(jsonLdData);
+		displayGraph(jsonLdData, -1);
+	}
+
+	public void displayGraph(String jsonLdData, int tripleCountHint) {
+		view.getGraphWidget().displayGraph(jsonLdData, tripleCountHint);
 	}
 
 	/**

@@ -2,6 +2,8 @@ package fr.inria.corese.gui.feature.result.graph;
 
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget;
+import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderMode;
+import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderStatus;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphStats;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.theme.CssUtils;
@@ -13,6 +15,7 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
 /**
@@ -33,12 +36,18 @@ public class GraphResultView extends AbstractView {
 
 	private static final String TOOLTIP_TITLE_TRIPLES = "Triples";
 	private static final String TOOLTIP_TITLE_NAMED_GRAPHS = "Named Graphs";
+	private static final String TOOLTIP_TITLE_RENDER = "View";
 	private static final String STYLE_CLASS_ROOT = "graph-result-root";
+	private static final String STYLE_CLASS_RENDER_STATUS_LABEL = "data-status-label-render-mode";
+	private static final String STYLE_CLASS_RENDER_STATUS_NORMAL = "data-status-label-render-normal";
+	private static final String STYLE_CLASS_RENDER_STATUS_DEGRADED = "data-status-label-render-degraded";
+	private static final String STYLE_CLASS_RENDER_STATUS_PAUSED = "data-status-label-render-paused";
 
 	private final GraphDisplayWidget graphWidget;
 	private final ToolbarWidget toolbarWidget;
 	private final Label tripleCountLabel = new Label();
 	private final Label namedGraphCountLabel = new Label();
+	private final Label renderModeLabel = new Label();
 
 	public GraphResultView() {
 		super(new BorderPane(), null);
@@ -64,18 +73,27 @@ public class GraphResultView extends AbstractView {
 		root.setCenter(graphCard);
 
 		updateGraphStatus(new GraphStats(0, 0, List.of()));
+		updateGraphRenderStatus(GraphRenderStatus.normal());
 	}
 
 	private void initializeStatusLabels() {
 		tripleCountLabel.getStyleClass().add("data-status-label");
 		namedGraphCountLabel.getStyleClass().add("data-status-label");
+		renderModeLabel.getStyleClass().addAll("data-status-label", STYLE_CLASS_RENDER_STATUS_LABEL);
 		tripleCountLabel.setFocusTraversable(false);
 		namedGraphCountLabel.setFocusTraversable(false);
+		renderModeLabel.setFocusTraversable(false);
 	}
 
 	private HBox createStatusBar() {
 		HBox primaryStatusGroup = createStatusGroup(tripleCountLabel, namedGraphCountLabel);
-		HBox statusBar = new HBox(10, primaryStatusGroup);
+		HBox secondaryStatusGroup = createStatusGroup(renderModeLabel);
+		secondaryStatusGroup.getStyleClass().add("data-status-group-secondary");
+
+		Region statusSpacer = new Region();
+		HBox.setHgrow(statusSpacer, Priority.ALWAYS);
+
+		HBox statusBar = new HBox(10, primaryStatusGroup, statusSpacer, secondaryStatusGroup);
 		statusBar.getStyleClass().add("data-status-bar");
 		return statusBar;
 	}
@@ -96,6 +114,30 @@ public class GraphResultView extends AbstractView {
 
 	public void updateGraphStatus(int tripleCount, int namedGraphCount) {
 		updateGraphStatus(new GraphStats(tripleCount, namedGraphCount, List.of()));
+	}
+
+	public void updateGraphRenderStatus(GraphRenderStatus status) {
+		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
+		String summary = switch (safeStatus.mode()) {
+			case NORMAL -> "Standard";
+			case DEGRADED -> "Degraded";
+			case PAUSED -> "Paused";
+		};
+		List<String> tooltipLines = safeStatus.details().isEmpty()
+				? List.of("Rendering uses the standard profile.")
+				: safeStatus.details();
+		DataStatusTooltipSupport.updateStatusTextMetric(renderModeLabel, TOOLTIP_TITLE_RENDER, summary, tooltipLines);
+		applyRenderStatusStyle(safeStatus.mode());
+	}
+
+	private void applyRenderStatusStyle(GraphRenderMode mode) {
+		renderModeLabel.getStyleClass().removeAll(STYLE_CLASS_RENDER_STATUS_NORMAL, STYLE_CLASS_RENDER_STATUS_DEGRADED,
+				STYLE_CLASS_RENDER_STATUS_PAUSED);
+		switch (mode) {
+			case DEGRADED -> renderModeLabel.getStyleClass().add(STYLE_CLASS_RENDER_STATUS_DEGRADED);
+			case PAUSED -> renderModeLabel.getStyleClass().add(STYLE_CLASS_RENDER_STATUS_PAUSED);
+			default -> renderModeLabel.getStyleClass().add(STYLE_CLASS_RENDER_STATUS_NORMAL);
+		}
 	}
 
 	public void setToolbarActions(List<ButtonConfig> buttons) {

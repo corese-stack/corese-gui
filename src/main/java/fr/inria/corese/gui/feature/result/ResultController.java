@@ -278,8 +278,12 @@ public class ResultController implements AutoCloseable {
 	// ==============================================================================================
 
 	public void displayGraph(String jsonLdData) {
+		displayGraph(jsonLdData, -1);
+	}
+
+	public void displayGraph(String jsonLdData, int tripleCountHint) {
 		if (graphController != null) {
-			graphController.displayGraph(jsonLdData);
+			graphController.displayGraph(jsonLdData, tripleCountHint);
 		}
 	}
 

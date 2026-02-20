@@ -4,9 +4,11 @@ import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.theme.ThemeManager;
 import fr.inria.corese.gui.utils.AppExecutors;
+import java.util.ArrayList;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import javafx.beans.value.ChangeListener;
@@ -81,11 +83,11 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	private static final String STYLE_CLASS_SAFETY_ACTION = "graph-safety-action";
 	private static final String STYLE_CLASS_SAFETY_ACTIONS = "graph-safety-actions";
 	private static final int MASK_FADE_MS = 140;
-	private static final int DEFAULT_MAX_AUTO_RENDER_CHARS = 1_500_000;
+	private static final int DEFAULT_MAX_AUTO_RENDER_CHARS = 0;
 	private static final String SAFETY_TITLE = "Graph preview paused";
 	private static final String SAFETY_ACTION = "Display anyway";
-	private static final String SAFETY_HINT = "A large graph was detected and automatic preview is paused to keep the application responsive.";
-	private static final String SAFETY_RISK_HINT = "Manual rendering can freeze the interface or exhaust available memory.";
+	private static final String SAFETY_HINT = "Automatic preview is paused to keep the application responsive.";
+	private static final String SAFETY_RISK_HINT = "Manual rendering can freeze the interface on large graphs.";
 	private static final String LOADING_HINT = "Rendering graph preview...";
 	private static final double LOADING_INDICATOR_SIZE = 36;
 
@@ -100,6 +102,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	private final StackPane safetyOverlay;
 	private final Label safetyMessageLabel;
 	private final Button safetyActionButton;
+	private final HBox safetyActionsBox;
 	private final ThemeManager themeManager;
 	private final JavaBridge bridge = new JavaBridge();
 	private final AtomicLong renderRequestCounter = new AtomicLong();
@@ -123,15 +126,28 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			Platform.runLater(this::updateTheme);
 		}
 	};
+	private final ChangeListener<Number> maxAutoRenderTriplesChangeListener = (obs, oldValue, newValue) -> {
+		if (!disposed && newValue != null) {
+			setMaxAutoRenderTriples(newValue.intValue());
+		}
+	};
 
 	private boolean pageLoaded = false;
 	private String pendingJsonLdData = null;
+	private int pendingTripleCountHint = -1;
 	private String blockedJsonLdData = null;
+	private int blockedTripleCountHint = -1;
 	private String lastRequestedJsonLdData = null;
+	private int lastRequestedTripleCountHint = -1;
 	private int maxAutoRenderChars = DEFAULT_MAX_AUTO_RENDER_CHARS;
+	private int maxAutoRenderTriples = ThemeManager.getDefaultGraphAutoRenderTriplesLimit();
 	private boolean hasRenderedGraph = false;
+	private GraphRenderStatus currentRenderStatus = GraphRenderStatus.normal();
 	private Consumer<GraphStats> onGraphStatsChanged = stats -> {
 	};
+	private Consumer<GraphRenderStatus> onRenderStatusChanged = status -> {
+	};
+	private Runnable onManualRenderRequested = null;
 
 	// ==============================================================================================
 	// Constructor
@@ -149,7 +165,9 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		this.loadingOverlay = createLoadingOverlay();
 		this.safetyMessageLabel = new Label();
 		this.safetyActionButton = new Button(SAFETY_ACTION);
+		this.safetyActionsBox = new HBox(safetyActionButton);
 		this.safetyOverlay = createSafetyOverlay();
+		setMaxAutoRenderTriples(themeManager.getGraphAutoRenderTriplesLimit());
 
 		initializeLayout();
 		initializeListeners();
@@ -217,11 +235,10 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 
 		safetyActionButton.getStyleClass().addAll(STYLE_CLASS_SAFETY_ACTION, Styles.DANGER);
 		safetyActionButton.setOnAction(event -> renderBlockedGraph());
-		HBox actions = new HBox(safetyActionButton);
-		actions.getStyleClass().add(STYLE_CLASS_SAFETY_ACTIONS);
-		actions.setAlignment(Pos.CENTER_RIGHT);
+		safetyActionsBox.getStyleClass().add(STYLE_CLASS_SAFETY_ACTIONS);
+		safetyActionsBox.setAlignment(Pos.CENTER_RIGHT);
 
-		VBox card = new VBox(10, titleLabel, safetyMessageLabel, actions);
+		VBox card = new VBox(10, titleLabel, safetyMessageLabel, safetyActionsBox);
 		card.getStyleClass().addAll(STYLE_CLASS_SAFETY_CARD, "floating-panel");
 		card.setPrefHeight(Region.USE_COMPUTED_SIZE);
 		card.setMinHeight(Region.USE_PREF_SIZE);
@@ -245,6 +262,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 
 		themeManager.themeProperty().addListener(themeChangeListener);
 		themeManager.accentColorProperty().addListener(accentColorChangeListener);
+		themeManager.graphAutoRenderTriplesLimitProperty().addListener(maxAutoRenderTriplesChangeListener);
 	}
 
 	private void handleSceneAttachment(Scene newScene) {
@@ -291,8 +309,10 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 
 			if (pendingJsonLdData != null) {
 				String jsonLdData = pendingJsonLdData;
+				int tripleCountHint = pendingTripleCountHint;
 				pendingJsonLdData = null;
-				displayGraph(jsonLdData);
+				pendingTripleCountHint = -1;
+				displayGraph(jsonLdData, tripleCountHint);
 			} else {
 				hideLoadingOverlay();
 			}
@@ -325,9 +345,63 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		}
 	}
 
+	public enum GraphRenderMode {
+		NORMAL, DEGRADED, PAUSED
+	}
+
+	public record GraphRenderStatus(GraphRenderMode mode, String summary, List<String> details) {
+
+		public GraphRenderStatus {
+			mode = mode == null ? GraphRenderMode.NORMAL : mode;
+			summary = normalizeSummary(mode, summary);
+			details = details == null
+					? List.of()
+					: details.stream().map(line -> line == null ? "" : line.trim()).filter(line -> !line.isBlank())
+							.toList();
+		}
+
+		public static GraphRenderStatus normal() {
+			return new GraphRenderStatus(GraphRenderMode.NORMAL, "Standard rendering", List.of());
+		}
+
+		public static GraphRenderStatus degraded(String summary, List<String> details) {
+			return new GraphRenderStatus(GraphRenderMode.DEGRADED, summary, details);
+		}
+
+		public static GraphRenderStatus paused(String summary, List<String> details) {
+			return new GraphRenderStatus(GraphRenderMode.PAUSED, summary, details);
+		}
+
+		private static String normalizeSummary(GraphRenderMode mode, String summary) {
+			if (summary != null && !summary.isBlank()) {
+				return summary.trim();
+			}
+			return switch (mode) {
+				case NORMAL -> "Standard rendering";
+				case DEGRADED -> "Performance mode enabled";
+				case PAUSED -> "Automatic preview paused";
+			};
+		}
+	}
+
 	public void setOnGraphStatsChanged(Consumer<GraphStats> listener) {
 		onGraphStatsChanged = listener == null ? stats -> {
 		} : listener;
+	}
+
+	public void setOnRenderStatusChanged(Consumer<GraphRenderStatus> listener) {
+		onRenderStatusChanged = listener == null ? status -> {
+		} : listener;
+		GraphRenderStatus snapshot = currentRenderStatus;
+		if (Platform.isFxApplicationThread()) {
+			onRenderStatusChanged.accept(snapshot);
+			return;
+		}
+		Platform.runLater(() -> onRenderStatusChanged.accept(snapshot));
+	}
+
+	public void setOnManualRenderRequested(Runnable listener) {
+		onManualRenderRequested = listener;
 	}
 
 	public void setBorderVisible(boolean visible) {
@@ -350,10 +424,23 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	 *            The RDF data in JSON-LD format (null or empty clears the view)
 	 */
 	public void displayGraph(String jsonLdData) {
+		displayGraph(jsonLdData, -1);
+	}
+
+	/**
+	 * Displays an RDF graph from JSON-LD formatted data with a triple-count hint.
+	 *
+	 * @param jsonLdData
+	 *            RDF data in JSON-LD format (null or empty clears the view)
+	 * @param tripleCountHint
+	 *            optional known triple count (&lt; 0 when unknown)
+	 */
+	public void displayGraph(String jsonLdData, int tripleCountHint) {
 		if (disposed) {
 			return;
 		}
-		if (!runOnFxThreadOrDefer(() -> displayGraph(jsonLdData))) {
+		int normalizedTripleCountHint = Math.max(-1, tripleCountHint);
+		if (!runOnFxThreadOrDefer(() -> displayGraph(jsonLdData, normalizedTripleCountHint))) {
 			return;
 		}
 
@@ -362,25 +449,62 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			return;
 		}
 		boolean sameAsLoadedRequest = pageLoaded && pendingJsonLdData == null && blockedJsonLdData == null
-				&& jsonLdData.equals(lastRequestedJsonLdData);
+				&& jsonLdData.equals(lastRequestedJsonLdData)
+				&& normalizedTripleCountHint == lastRequestedTripleCountHint;
 		if (sameAsLoadedRequest || jsonLdData.equals(pendingJsonLdData) || jsonLdData.equals(blockedJsonLdData)) {
 			return;
 		}
 
-		if (shouldDeferAutomaticRender(jsonLdData)) {
-			deferGraphRendering(jsonLdData);
+		if (shouldDeferAutomaticRender(jsonLdData, normalizedTripleCountHint)) {
+			deferGraphRendering(jsonLdData, normalizedTripleCountHint);
 			return;
 		}
 
-		renderGraph(jsonLdData);
+		renderGraph(jsonLdData, normalizedTripleCountHint);
 	}
 
-	private void renderGraph(String jsonLdData) {
+	/**
+	 * Shows a paused preview state without serializing a new JSON-LD snapshot.
+	 *
+	 * <p>
+	 * Used when the graph is known to be above the auto-preview threshold and the
+	 * current view should stay responsive.
+	 */
+	public void pausePreviewForLargeGraph(int tripleCountHint) {
+		pausePreviewForLargeGraph(tripleCountHint, 0);
+	}
+
+	public void pausePreviewForLargeGraph(int tripleCountHint, int namedGraphCountHint) {
+		if (disposed) {
+			return;
+		}
+		int normalizedTripleCountHint = Math.max(0, tripleCountHint);
+		int normalizedNamedGraphCountHint = Math.max(0, namedGraphCountHint);
+		if (!runOnFxThreadOrDefer(
+				() -> pausePreviewForLargeGraph(normalizedTripleCountHint, normalizedNamedGraphCountHint))) {
+			return;
+		}
+		renderRequestCounter.incrementAndGet();
+		blockedJsonLdData = null;
+		blockedTripleCountHint = normalizedTripleCountHint;
+		pendingJsonLdData = null;
+		pendingTripleCountHint = -1;
+		hideLoadingOverlay();
+		if (normalizedTripleCountHint > 0) {
+			notifyGraphStatsChanged(normalizedTripleCountHint, normalizedNamedGraphCountHint);
+		}
+		boolean manualRenderAvailable = hasManualRenderAction();
+		notifyRenderStatusChanged(buildPausedRenderStatus(-1, normalizedTripleCountHint, manualRenderAvailable));
+		showSafetyOverlay(-1, normalizedTripleCountHint, manualRenderAvailable);
+	}
+
+	private void renderGraph(String jsonLdData, int tripleCountHint) {
 		if (disposed) {
 			return;
 		}
 		hideSafetyOverlay();
 		blockedJsonLdData = null;
+		blockedTripleCountHint = -1;
 		long requestId = renderRequestCounter.incrementAndGet();
 		if (!hasRenderedGraph || !pageLoaded) {
 			showLoadingOverlay();
@@ -388,6 +512,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 
 		if (!pageLoaded) {
 			pendingJsonLdData = jsonLdData;
+			pendingTripleCountHint = tripleCountHint;
 			if (getScene() == null) {
 				return;
 			}
@@ -398,41 +523,104 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		}
 
 		lastRequestedJsonLdData = jsonLdData;
+		lastRequestedTripleCountHint = tripleCountHint;
 		prepareGraphInjectionAsync(requestId, jsonLdData);
 	}
 
-	private boolean shouldDeferAutomaticRender(String jsonLdData) {
+	private boolean shouldDeferAutomaticRender(String jsonLdData, int tripleCountHint) {
+		if (maxAutoRenderTriples > 0 && tripleCountHint > maxAutoRenderTriples) {
+			return true;
+		}
 		return maxAutoRenderChars > 0 && jsonLdData.length() > maxAutoRenderChars;
 	}
 
-	private void deferGraphRendering(String jsonLdData) {
+	private void deferGraphRendering(String jsonLdData, int tripleCountHint) {
 		if (disposed) {
 			return;
 		}
 		renderRequestCounter.incrementAndGet();
 		blockedJsonLdData = jsonLdData;
+		blockedTripleCountHint = tripleCountHint;
 		pendingJsonLdData = null;
+		pendingTripleCountHint = -1;
 		hideLoadingOverlay();
-		clearRenderedGraph();
-		showSafetyOverlay();
+		if (tripleCountHint > 0) {
+			notifyGraphStatsChanged(tripleCountHint, 0);
+		}
+		notifyRenderStatusChanged(buildPausedRenderStatus(jsonLdData.length(), tripleCountHint, true));
+		showSafetyOverlay(jsonLdData.length(), tripleCountHint, true);
 	}
 
 	private void renderBlockedGraph() {
 		if (disposed) {
 			return;
 		}
-		if (blockedJsonLdData == null || blockedJsonLdData.isBlank()) {
+		if (blockedJsonLdData != null && !blockedJsonLdData.isBlank()) {
+			String jsonLdData = blockedJsonLdData;
+			int tripleCountHint = blockedTripleCountHint;
+			renderGraph(jsonLdData, tripleCountHint);
 			return;
 		}
-		String jsonLdData = blockedJsonLdData;
-		renderGraph(jsonLdData);
+		if (onManualRenderRequested == null) {
+			return;
+		}
+		try {
+			onManualRenderRequested.run();
+		} catch (Exception e) {
+			LOGGER.warn("Manual graph render callback failed", e);
+		}
 	}
 
-	private void showSafetyOverlay() {
-		safetyMessageLabel.setText(String.format("%s%n%s", SAFETY_HINT, SAFETY_RISK_HINT));
+	private void showSafetyOverlay(int jsonChars, int tripleCountHint, boolean allowManualRender) {
+		safetyMessageLabel.setText(buildSafetyMessage(jsonChars, tripleCountHint));
+		safetyActionButton.setDisable(!allowManualRender);
+		safetyActionButton.setManaged(allowManualRender);
+		safetyActionButton.setVisible(allowManualRender);
+		safetyActionsBox.setManaged(allowManualRender);
+		safetyActionsBox.setVisible(allowManualRender);
 		setGraphCanvasVisible(false);
 		safetyOverlay.setManaged(true);
 		safetyOverlay.setVisible(true);
+	}
+
+	private boolean hasManualRenderAction() {
+		return onManualRenderRequested != null;
+	}
+
+	private String buildSafetyMessage(int jsonChars, int tripleCountHint) {
+		StringBuilder message = new StringBuilder(SAFETY_HINT);
+		if (maxAutoRenderTriples > 0 && tripleCountHint > maxAutoRenderTriples) {
+			message.append(String.format(Locale.ROOT, "%nDetected %d triples (limit: %d).", tripleCountHint,
+					maxAutoRenderTriples));
+		}
+		if (maxAutoRenderChars > 0 && jsonChars > maxAutoRenderChars) {
+			message.append(String.format(Locale.ROOT, "%nSerialized graph size: %,d chars (limit: %,d).", jsonChars,
+					maxAutoRenderChars));
+		}
+		message.append('\n').append("You can adjust this threshold in Settings > Appearance > Graph Preview.");
+		message.append('\n').append(SAFETY_RISK_HINT);
+		return message.toString();
+	}
+
+	private GraphRenderStatus buildPausedRenderStatus(int jsonChars, int tripleCountHint,
+			boolean manualRenderAvailable) {
+		List<String> details = new ArrayList<>();
+		if (maxAutoRenderTriples > 0 && tripleCountHint > maxAutoRenderTriples) {
+			details.add(String.format(Locale.ROOT, "Detected %d triples (auto-preview limit: %d).", tripleCountHint,
+					maxAutoRenderTriples));
+		}
+		if (jsonChars >= 0 && maxAutoRenderChars > 0 && jsonChars > maxAutoRenderChars) {
+			details.add(String.format(Locale.ROOT, "Serialized graph size: %,d chars (limit: %,d).", jsonChars,
+					maxAutoRenderChars));
+		}
+		details.add("Threshold can be changed in Settings > Appearance > Graph Preview.");
+		if (manualRenderAvailable) {
+			details.add("Use \"Display anyway\" to force rendering on demand.");
+		} else {
+			details.add("Preview payload is skipped at this size to keep the UI responsive.");
+		}
+		details.add("Manual rendering can freeze the interface on very large graphs.");
+		return GraphRenderStatus.paused("Automatic preview paused", details);
 	}
 
 	private void hideSafetyOverlay() {
@@ -443,6 +631,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 
 	private void setGraphCanvasVisible(boolean visible) {
 		webView.setVisible(visible);
+		webView.setManaged(visible);
 	}
 
 	private void loadGraphPage() {
@@ -587,6 +776,31 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		Platform.runLater(() -> onGraphStatsChanged.accept(stats));
 	}
 
+	private void notifyRenderStatusChanged(GraphRenderStatus status) {
+		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
+		if (safeStatus.equals(currentRenderStatus)) {
+			return;
+		}
+		currentRenderStatus = safeStatus;
+		if (Platform.isFxApplicationThread()) {
+			onRenderStatusChanged.accept(safeStatus);
+			return;
+		}
+		Platform.runLater(() -> onRenderStatusChanged.accept(safeStatus));
+	}
+
+	private static GraphRenderMode parseRenderMode(String modeValue) {
+		if (modeValue == null || modeValue.isBlank()) {
+			return GraphRenderMode.NORMAL;
+		}
+		String normalized = modeValue.trim().toLowerCase(Locale.ROOT);
+		return switch (normalized) {
+			case "degraded" -> GraphRenderMode.DEGRADED;
+			case "paused" -> GraphRenderMode.PAUSED;
+			default -> GraphRenderMode.NORMAL;
+		};
+	}
+
 	public void clear() {
 		if (!runOnFxThreadOrDefer(this::clear)) {
 			return;
@@ -597,11 +811,15 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		renderRequestCounter.incrementAndGet();
 		hideSafetyOverlay();
 		blockedJsonLdData = null;
+		blockedTripleCountHint = -1;
 		pendingJsonLdData = null;
+		pendingTripleCountHint = -1;
 		lastRequestedJsonLdData = null;
+		lastRequestedTripleCountHint = -1;
 		hasRenderedGraph = false;
 		hideLoadingOverlay();
 		clearRenderedGraph();
+		notifyRenderStatusChanged(GraphRenderStatus.normal());
 		notifyGraphStatsChanged(0, 0);
 	}
 
@@ -617,6 +835,14 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		return maxAutoRenderChars;
 	}
 
+	public void setMaxAutoRenderTriples(int maxAutoRenderTriples) {
+		this.maxAutoRenderTriples = Math.max(0, maxAutoRenderTriples);
+	}
+
+	public int getMaxAutoRenderTriples() {
+		return maxAutoRenderTriples;
+	}
+
 	/** Releases WebView resources and detaches global listeners. */
 	@Override
 	public void close() {
@@ -630,8 +856,11 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		disposed = true;
 		renderRequestCounter.incrementAndGet();
 		pendingJsonLdData = null;
+		pendingTripleCountHint = -1;
 		blockedJsonLdData = null;
+		blockedTripleCountHint = -1;
 		lastRequestedJsonLdData = null;
+		lastRequestedTripleCountHint = -1;
 		hasRenderedGraph = false;
 		hideSafetyOverlay();
 		loadingOverlay.setVisible(false);
@@ -674,6 +903,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 
 		themeManager.themeProperty().removeListener(themeChangeListener);
 		themeManager.accentColorProperty().removeListener(accentColorChangeListener);
+		themeManager.graphAutoRenderTriplesLimitProperty().removeListener(maxAutoRenderTriplesChangeListener);
 	}
 
 	/**
@@ -767,6 +997,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			Platform.runLater(() -> {
 				hasRenderedGraph = false;
 				hideLoadingOverlay();
+				notifyRenderStatusChanged(GraphRenderStatus.paused("Rendering failed",
+						List.of(message == null || message.isBlank() ? "Unknown rendering error." : message.trim())));
 			});
 		}
 
@@ -793,6 +1025,20 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			List<GraphStats.NamedGraphStat> namedGraphStats = GraphBridgeParsing
 					.parseNamedGraphStats(namedGraphStatsValue);
 			notifyGraphStatsChanged(tripleCount, namedGraphCount, namedGraphStats);
+		}
+
+		public void onGraphRenderProfileUpdated(String modeValue, String summaryValue) {
+			onGraphRenderProfileUpdated(modeValue, summaryValue, null);
+		}
+
+		public void onGraphRenderProfileUpdated(String modeValue, String summaryValue, Object detailsValue) {
+			if (disposed) {
+				return;
+			}
+			GraphRenderMode mode = parseRenderMode(modeValue);
+			String summary = GraphBridgeParsing.parseTrimmedString(summaryValue);
+			List<String> details = GraphBridgeParsing.parseStringList(detailsValue);
+			notifyRenderStatusChanged(new GraphRenderStatus(mode, summary, details));
 		}
 	}
 }

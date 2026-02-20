@@ -18,14 +18,15 @@ final class GraphDisplayScripts {
 		String safeGraphElementId = escapeForJsSingleQuoted(graphElementId);
 		return """
 				(function() {
+				  var graphPayload = '%s';
 				  if (window.renderGraphFromBase64) {
-				    window.renderGraphFromBase64('%s', '%s');
+				    window.renderGraphFromBase64(graphPayload, '%s');
 				    return;
 				  }
 				  try {
 				    var el = document.getElementById('%s');
 				    if (!el) throw new Error('Graph component not found');
-				    var decoded = decodeURIComponent(escape(window.atob('%s')));
+				    var decoded = decodeURIComponent(escape(window.atob(graphPayload)));
 				    el.jsonld = decoded;
 				    if (window.bridge && typeof window.bridge.onGraphRenderComplete === 'function') {
 				      window.bridge.onGraphRenderComplete('%s');
@@ -36,8 +37,7 @@ final class GraphDisplayScripts {
 				    }
 				  }
 				})();
-				""".formatted(safeBase64Json, safeRequestId, safeGraphElementId, safeBase64Json, safeRequestId,
-				safeRequestId);
+				""".formatted(safeBase64Json, safeRequestId, safeGraphElementId, safeRequestId, safeRequestId);
 	}
 
 	static String buildGraphCommandScript(String graphElementId, String commandScript) {

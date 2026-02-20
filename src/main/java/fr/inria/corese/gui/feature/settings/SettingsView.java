@@ -74,6 +74,9 @@ public final class SettingsView extends AbstractView {
 	private Button uiScaleDecreaseButton;
 	private Button uiScaleIncreaseButton;
 	private Label uiScaleValueLabel;
+	private Button graphPreviewLimitDecreaseButton;
+	private Button graphPreviewLimitIncreaseButton;
+	private Label graphPreviewLimitValueLabel;
 
 	// ===== Constructor =====
 
@@ -148,8 +151,10 @@ public final class SettingsView extends AbstractView {
 		accentColorTile.setAction(accentColorPicker);
 
 		Tile uiScaleTile = createUiScaleTile();
+		Tile graphPreviewLimitTile = createGraphPreviewLimitTile();
 
-		section.getChildren().addAll(sectionTitle, systemThemeTile, themeTile, accentColorTile, uiScaleTile);
+		section.getChildren().addAll(sectionTitle, systemThemeTile, themeTile, accentColorTile, uiScaleTile,
+				graphPreviewLimitTile);
 		return section;
 	}
 
@@ -178,6 +183,27 @@ public final class SettingsView extends AbstractView {
 		button.getStyleClass().addAll(Styles.BUTTON_OUTLINED, "settings-scale-stepper-button");
 		button.setFocusTraversable(false);
 		return button;
+	}
+
+	private Tile createGraphPreviewLimitTile() {
+		Tile tile = new Tile("Graph Preview Limit", "Maximum number of triples allowed for automatic preview");
+
+		graphPreviewLimitDecreaseButton = createUiScaleStepperButton("-");
+		graphPreviewLimitDecreaseButton.getStyleClass().add("settings-scale-stepper-button-left");
+
+		graphPreviewLimitIncreaseButton = createUiScaleStepperButton("+");
+		graphPreviewLimitIncreaseButton.getStyleClass().add("settings-scale-stepper-button-right");
+
+		graphPreviewLimitValueLabel = new Label("800");
+		graphPreviewLimitValueLabel.getStyleClass().add("settings-scale-stepper-value");
+
+		HBox stepper = new HBox(0, graphPreviewLimitDecreaseButton, graphPreviewLimitValueLabel,
+				graphPreviewLimitIncreaseButton);
+		stepper.getStyleClass().add("settings-scale-stepper");
+		stepper.setAlignment(Pos.CENTER_RIGHT);
+
+		tile.setAction(stepper);
+		return tile;
 	}
 
 	// ===== Getters for Controller =====
@@ -227,6 +253,32 @@ public final class SettingsView extends AbstractView {
 	public void setUiScaleIncreaseDisabled(boolean disabled) {
 		if (uiScaleIncreaseButton != null) {
 			uiScaleIncreaseButton.setDisable(disabled);
+		}
+	}
+
+	public void setOnGraphPreviewLimitDecrease(Runnable handler) {
+		setButtonAction(graphPreviewLimitDecreaseButton, handler);
+	}
+
+	public void setOnGraphPreviewLimitIncrease(Runnable handler) {
+		setButtonAction(graphPreviewLimitIncreaseButton, handler);
+	}
+
+	public void updateGraphPreviewLimitDisplay(int tripleLimit) {
+		if (graphPreviewLimitValueLabel != null) {
+			graphPreviewLimitValueLabel.setText(String.valueOf(Math.max(0, tripleLimit)));
+		}
+	}
+
+	public void setGraphPreviewLimitDecreaseDisabled(boolean disabled) {
+		if (graphPreviewLimitDecreaseButton != null) {
+			graphPreviewLimitDecreaseButton.setDisable(disabled);
+		}
+	}
+
+	public void setGraphPreviewLimitIncreaseDisabled(boolean disabled) {
+		if (graphPreviewLimitIncreaseButton != null) {
+			graphPreviewLimitIncreaseButton.setDisable(disabled);
 		}
 	}
 

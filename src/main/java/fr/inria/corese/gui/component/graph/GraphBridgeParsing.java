@@ -75,6 +75,40 @@ final class GraphBridgeParsing {
 		}
 	}
 
+	static String parseTrimmedString(Object value) {
+		if (value == null) {
+			return "";
+		}
+		String normalized = String.valueOf(value).trim();
+		return normalized;
+	}
+
+	static List<String> parseStringList(Object value) {
+		if (value == null) {
+			return List.of();
+		}
+		if (value instanceof JSObject arrayObject) {
+			int size = parseArrayLength(arrayObject);
+			if (size <= 0) {
+				return List.of();
+			}
+			List<String> lines = new ArrayList<>(size);
+			for (int index = 0; index < size; index++) {
+				try {
+					String line = parseTrimmedString(arrayObject.getSlot(index));
+					if (!line.isBlank()) {
+						lines.add(line);
+					}
+				} catch (Exception _) {
+					// Ignore malformed entry and continue with remaining values.
+				}
+			}
+			return lines;
+		}
+		String singleLine = parseTrimmedString(value);
+		return singleLine.isBlank() ? List.of() : List.of(singleLine);
+	}
+
 	private static int parseArrayLength(JSObject arrayObject) {
 		try {
 			return parseNonNegativeInt(arrayObject.getMember("length"));
