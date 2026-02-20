@@ -11,7 +11,7 @@ import java.util.Locale;
  */
 public final class GraphResultStatusTooltipSupport {
 
-	private static final int TOOLTIP_PREVIEW_LIMIT = 8;
+	private static final int TOOLTIP_PREVIEW_LIMIT = 5;
 	private static final NumberFormat INTEGER_FORMAT = NumberFormat.getIntegerInstance(Locale.getDefault());
 
 	private GraphResultStatusTooltipSupport() {
@@ -21,39 +21,36 @@ public final class GraphResultStatusTooltipSupport {
 	public static List<String> buildTriplesTooltipLines(GraphStats stats) {
 		GraphStats safeStats = safeStats(stats);
 		int namedGraphTriples = sanitizedNamedGraphStats(safeStats).stream()
-				.mapToInt(GraphStats.NamedGraphStat::tripleCount)
-				.sum();
+				.mapToInt(GraphStats.NamedGraphStat::tripleCount).sum();
 		namedGraphTriples = Math.min(namedGraphTriples, safeStats.tripleCount());
 		int defaultGraphTriples = Math.max(0, safeStats.tripleCount() - namedGraphTriples);
 
-		return List.of("Explicit triples: " + formatCount(safeStats.tripleCount()),
-				"Default graph triples: " + formatCount(defaultGraphTriples),
-				"Triples in named graphs: " + formatCount(namedGraphTriples));
+		return List.of("Explicit: " + formatCount(safeStats.tripleCount()),
+				"Default graph: " + formatCount(defaultGraphTriples),
+				"Named graphs: " + formatCount(namedGraphTriples));
 	}
 
 	public static List<String> buildNamedGraphTooltipLines(GraphStats stats) {
 		GraphStats safeStats = safeStats(stats);
 		List<GraphStats.NamedGraphStat> namedGraphStats = sanitizedNamedGraphStats(safeStats);
 		if (namedGraphStats.isEmpty()) {
-			return List.of("No named graph currently contains triples.");
+			return List.of("No named graph with triples.");
 		}
 
 		List<String> lines = new ArrayList<>();
 		int displayed = Math.min(TOOLTIP_PREVIEW_LIMIT, namedGraphStats.size());
 		for (int index = 0; index < displayed; index++) {
 			GraphStats.NamedGraphStat stat = namedGraphStats.get(index);
-			lines.add(shortenGraphName(stat.graphId()) + ": " + formatCount(stat.tripleCount()) + " triples");
+			lines.add(shortenGraphName(stat.graphId()) + ": " + formatCount(stat.tripleCount()));
 		}
 		if (namedGraphStats.size() > displayed) {
-			lines.add("... and " + formatCount(namedGraphStats.size() - displayed) + " more named graphs.");
+			lines.add("+ " + formatCount(namedGraphStats.size() - displayed) + " more");
 		}
 		return lines;
 	}
 
 	private static List<GraphStats.NamedGraphStat> sanitizedNamedGraphStats(GraphStats stats) {
-		return stats.namedGraphStats().stream()
-				.filter(stat -> stat != null && !stat.graphId().isBlank())
-				.toList();
+		return stats.namedGraphStats().stream().filter(stat -> stat != null && !stat.graphId().isBlank()).toList();
 	}
 
 	private static GraphStats safeStats(GraphStats stats) {

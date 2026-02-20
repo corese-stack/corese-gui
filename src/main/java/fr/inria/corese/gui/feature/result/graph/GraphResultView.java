@@ -120,12 +120,10 @@ public class GraphResultView extends AbstractView {
 		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
 		String summary = switch (safeStatus.mode()) {
 			case NORMAL -> "Standard";
-			case DEGRADED -> "Degraded";
+			case DEGRADED -> "Adaptive";
 			case PAUSED -> "Paused";
 		};
-		List<String> tooltipLines = safeStatus.details().isEmpty()
-				? List.of("Rendering uses the standard profile.")
-				: safeStatus.details();
+		List<String> tooltipLines = DataStatusTooltipSupport.buildRenderTooltipLines(safeStatus);
 		DataStatusTooltipSupport.updateStatusTextMetric(renderModeLabel, TOOLTIP_TITLE_RENDER, summary, tooltipLines);
 		applyRenderStatusStyle(safeStatus.mode());
 	}

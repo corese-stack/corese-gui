@@ -4,6 +4,8 @@ import atlantafx.base.controls.ToggleSwitch;
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
+import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderMode;
+import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderStatus;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.io.ExportHelper;
 import fr.inria.corese.gui.core.io.FileDialogState;
@@ -71,7 +73,14 @@ public class DataViewController implements AutoCloseable {
 
 	private static final long GRAPH_REFRESH_DEBOUNCE_MS = 120L;
 	private static final long REASONING_REFRESH_DEBOUNCE_MS = 260L;
+	private static final double INITIAL_AUTO_PREVIEW_SCALE = 1.10;
+	private static final double AUTO_PREVIEW_SCALE_MIN = 0.65;
+	private static final double AUTO_PREVIEW_SCALE_MAX = 1.60;
+	private static final double AUTO_PREVIEW_SCALE_NORMAL_STEP = 0.05;
+	private static final double AUTO_PREVIEW_SCALE_DEGRADED_STEP = 0.07;
+	private static final double AUTO_PREVIEW_SCALE_PAUSED_STEP = 0.12;
 	private static final List<String> RDF_FILE_EXTENSIONS = FileTypeSupport.rdfExtensions();
+	private volatile double adaptiveAutoPreviewScale = INITIAL_AUTO_PREVIEW_SCALE;
 
 	public DataViewController(DataView view) {
 		this.view = view;
@@ -96,8 +105,9 @@ public class DataViewController implements AutoCloseable {
 	private void configureGraphSurface() {
 		view.configureGraphEmptyState(this::handleLoadFile, this::handleLoadUri);
 		view.setOnGraphFilesDropped(this::handleGraphFilesDropped);
-		view.getGraphWidget().setOnRenderStatusChanged(view::updateGraphRenderStatus);
+		view.getGraphWidget().setOnRenderStatusChanged(this::handleGraphRenderStatusChanged);
 		view.getGraphWidget().setOnManualRenderRequested(this::handleManualGraphRenderRequest);
+		applyAdaptiveAutoPreviewLimitToGraphWidget();
 	}
 
 	private void configureToolbar() {
@@ -236,10 +246,40 @@ public class DataViewController implements AutoCloseable {
 		});
 	}
 
+	private void handleGraphRenderStatusChanged(GraphRenderStatus status) {
+		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
+		view.updateGraphRenderStatus(safeStatus);
+		updateAdaptiveAutoPreviewScale(safeStatus.mode());
+		applyAdaptiveAutoPreviewLimitToGraphWidget();
+	}
+
+	private void updateAdaptiveAutoPreviewScale(GraphRenderMode mode) {
+		GraphRenderMode safeMode = mode == null ? GraphRenderMode.NORMAL : mode;
+		double nextScale = adaptiveAutoPreviewScale;
+		switch (safeMode) {
+			case NORMAL -> nextScale += AUTO_PREVIEW_SCALE_NORMAL_STEP;
+			case DEGRADED -> nextScale -= AUTO_PREVIEW_SCALE_DEGRADED_STEP;
+			case PAUSED -> nextScale -= AUTO_PREVIEW_SCALE_PAUSED_STEP;
+		}
+		adaptiveAutoPreviewScale = Math.max(AUTO_PREVIEW_SCALE_MIN, Math.min(AUTO_PREVIEW_SCALE_MAX, nextScale));
+	}
+
+	private int resolveAdaptiveAutoPreviewLimit() {
+		int baseLimit = Math.max(ThemeManager.getMinGraphAutoRenderTriplesLimit(),
+				themeManager.getGraphAutoRenderTriplesLimit());
+		int scaledLimit = (int) Math.round(baseLimit * adaptiveAutoPreviewScale);
+		return Math.max(ThemeManager.getMinGraphAutoRenderTriplesLimit(),
+				Math.min(ThemeManager.getMaxGraphAutoRenderTriplesLimit(), scaledLimit));
+	}
+
+	private void applyAdaptiveAutoPreviewLimitToGraphWidget() {
+		view.getGraphWidget().setMaxAutoRenderTriples(resolveAdaptiveAutoPreviewLimit());
+	}
+
 	private GraphSnapshotPayload computeGraphSnapshotPayload() {
 		try {
 			DataWorkspaceStatus status = workspaceService.getStatus();
-			int maxAutoRenderTriples = themeManager.getGraphAutoRenderTriplesLimit();
+			int maxAutoRenderTriples = resolveAdaptiveAutoPreviewLimit();
 			boolean skipSnapshotSerialization = status.tripleCount() > 0 && maxAutoRenderTriples > 0
 					&& status.tripleCount() > maxAutoRenderTriples;
 			String jsonLdSnapshot = skipSnapshotSerialization ? "" : workspaceService.getGraphSnapshotJsonLd();
@@ -254,6 +294,7 @@ public class DataViewController implements AutoCloseable {
 		if (payload == null || dataOperationInProgress.get()) {
 			return;
 		}
+		applyAdaptiveAutoPreviewLimitToGraphWidget();
 		DataWorkspaceStatus status = payload.status();
 		String jsonLdSnapshot = payload.jsonLdSnapshot();
 		boolean snapshotSkippedForLimit = payload.snapshotSkippedForLimit();
@@ -284,6 +325,7 @@ public class DataViewController implements AutoCloseable {
 
 	private void handleManualGraphRenderRequest() {
 		if (dataOperationInProgress.get()) {
+			view.getGraphWidget().notifyManualRenderFailed();
 			return;
 		}
 		if (!manualGraphRenderInProgress.compareAndSet(false, true)) {
@@ -317,9 +359,11 @@ public class DataViewController implements AutoCloseable {
 
 	private void applyManualGraphRender(DataWorkspaceStatus status, String jsonLdSnapshot) {
 		if (status == null) {
+			view.getGraphWidget().notifyManualRenderFailed();
 			return;
 		}
 		if (dataOperationInProgress.get()) {
+			view.getGraphWidget().notifyManualRenderFailed();
 			return;
 		}
 		if (status.tripleCount() <= 0 || jsonLdSnapshot == null || jsonLdSnapshot.isBlank()) {
