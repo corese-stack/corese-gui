@@ -25,6 +25,7 @@ import org.gradle.jvm.tasks.Jar
  *
  * Common local commands:
  * - `./gradlew clean check`
+ * - `./gradlew run`
  * - `./gradlew shadowJar`
  * - `./gradlew jpackageCurrentPlatform`
  * - `./gradlew packageCurrentPlatform`
@@ -35,6 +36,7 @@ import org.gradle.jvm.tasks.Jar
 plugins {
     // Java project (compilation, testing, standard jar).
     java
+    application
 
     // JavaFX dependency wiring with OS-specific native artifacts.
     id("org.openjfx.javafxplugin") version "0.1.0"
@@ -206,6 +208,11 @@ javafx {
     modules("javafx.controls", "javafx.web", "javafx.swing")
 }
 
+application {
+    mainClass.set(Meta.mainClass)
+    applicationDefaultJvmArgs = listOf("--enable-native-access=javafx.graphics,javafx.web")
+}
+
 /*
  * Publication block kept active for Maven Central flow.
  * Signing is enabled only when signing keys are provided.
@@ -270,6 +277,13 @@ tasks.withType<Javadoc>().configureEach {
     options.encoding = "UTF-8"
     isFailOnError = false
     (options as CoreJavadocOptions).addBooleanOption("Xdoclint:none", true)
+}
+
+// Keep only developer run task from application plugin; distribution archives are disabled on purpose.
+listOf("startScripts", "installDist", "distZip", "distTar").forEach { taskName ->
+    tasks.named(taskName) {
+        enabled = false
+    }
 }
 
 /*

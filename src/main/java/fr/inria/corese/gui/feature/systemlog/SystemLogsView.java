@@ -67,6 +67,7 @@ public final class SystemLogsView extends AbstractView {
 
 		StackPane tableContainer = new StackPane(logTableView, emptyStateWidget);
 		tableContainer.getStyleClass().add("system-logs-table-container");
+		RoundedClipSupport.applyBottomRoundedClip(tableContainer, CARD_RADIUS);
 		VBox.setVgrow(tableContainer, Priority.ALWAYS);
 
 		workspaceCard.getChildren().setAll(headerBox, tableContainer);

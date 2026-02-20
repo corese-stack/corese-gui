@@ -9,6 +9,8 @@
 .system-logs-card {
     -fx-padding: 0;
     -fx-spacing: 0;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
 }
 
 .system-logs-header {
@@ -50,6 +52,12 @@
 .system-logs-table .clipped-container,
 .system-logs-table .sheet {
     -fx-background-color: -color-bg-default;
+    -fx-background-radius: 0 0 8px 8px;
+}
+
+.system-logs-table .virtual-flow .corner {
+    -fx-background-color: -color-bg-default;
+    -fx-background-radius: 0 0 8px 8px;
 }
 
 .system-logs-table .column-header-background {
