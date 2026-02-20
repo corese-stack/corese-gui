@@ -124,6 +124,11 @@ class KGGraphVis extends HTMLElement {
         this.performanceLastMeasuredFps = 0;
         this.layoutTaskToken = 0;
         this.lastDrawPromise = Promise.resolve();
+        this.offlineLayoutPerfScore = 1;
+        this.offlineLayoutThroughputSamples = [];
+        this.lastRenderTiming = null;
+        this.renderTimingHistory = [];
+        this.renderTimingPressureActive = false;
 
         // Graph coloring
         this.graphColorMap = new Map();
@@ -204,6 +209,14 @@ class KGGraphVis extends HTMLElement {
         this.OFFLINE_LAYOUT_FRAME_BUDGET_MS = 7;
         this.OFFLINE_LAYOUT_MIN_BATCH_TICKS = 8;
         this.OFFLINE_LAYOUT_MAX_BATCH_TICKS = 180;
+        this.OFFLINE_LAYOUT_PERF_WINDOW_SIZE = 28;
+        this.OFFLINE_LAYOUT_PERF_SCORE_MIN = 0.74;
+        this.OFFLINE_LAYOUT_PERF_SCORE_MAX = 1.28;
+        this.OFFLINE_LAYOUT_PERF_SCORE_SMOOTHING = 0.24;
+        this.OFFLINE_LAYOUT_PERF_SCORE_EPSILON = 0.012;
+        this.RENDER_TIMING_HISTORY_SIZE = 24;
+        this.RENDER_TIMING_PRESSURE_MULTIPLIER = 1.28;
+        this.RENDER_TIMING_MIN_TOTAL_MS = 320;
         this.AUTO_OVERVIEW_PADDING = 760;
         this.AUTO_OVERVIEW_MAX_SCALE = 0.09;
         this.AUTO_RECENTER_DELAY_MS = 560;
@@ -1280,6 +1293,88 @@ class KGGraphVis extends HTMLElement {
         return true;
     }
 
+    computePercentile(values = [], percentile = 0.5) {
+        if (!Array.isArray(values) || values.length === 0) {
+            return 0;
+        }
+        const sorted = values
+            .filter(value => Number.isFinite(value))
+            .sort((left, right) => left - right);
+        if (sorted.length === 0) {
+            return 0;
+        }
+        const clampedPercentile = Math.max(0, Math.min(1, Number(percentile)));
+        const position = (sorted.length - 1) * clampedPercentile;
+        const lowerIndex = Math.floor(position);
+        const upperIndex = Math.ceil(position);
+        if (lowerIndex === upperIndex) {
+            return sorted[lowerIndex];
+        }
+        const fraction = position - lowerIndex;
+        return sorted[lowerIndex] + (sorted[upperIndex] - sorted[lowerIndex]) * fraction;
+    }
+
+    updateOfflineLayoutPerfScore(ticks = 0, elapsedMs = 0) {
+        const safeTicks = Number.isFinite(ticks) ? Math.max(0, Math.floor(ticks)) : 0;
+        const safeElapsedMs = Number.isFinite(elapsedMs) ? Math.max(0, Number(elapsedMs)) : 0;
+        if (safeTicks < 24 || safeElapsedMs < 8) {
+            return false;
+        }
+        const throughput = safeTicks / safeElapsedMs;
+        if (!Number.isFinite(throughput) || throughput <= 0) {
+            return false;
+        }
+        this.offlineLayoutThroughputSamples.push(throughput);
+        if (this.offlineLayoutThroughputSamples.length > this.OFFLINE_LAYOUT_PERF_WINDOW_SIZE) {
+            this.offlineLayoutThroughputSamples.shift();
+        }
+        const baseline = this.computePercentile(this.offlineLayoutThroughputSamples, 0.72);
+        if (!Number.isFinite(baseline) || baseline <= 0) {
+            return false;
+        }
+        const targetScore = Math.max(this.OFFLINE_LAYOUT_PERF_SCORE_MIN,
+            Math.min(this.OFFLINE_LAYOUT_PERF_SCORE_MAX, throughput / baseline));
+        const smoothedScore = this.offlineLayoutPerfScore
+            + (targetScore - this.offlineLayoutPerfScore) * this.OFFLINE_LAYOUT_PERF_SCORE_SMOOTHING;
+        if (Math.abs(smoothedScore - this.offlineLayoutPerfScore) < this.OFFLINE_LAYOUT_PERF_SCORE_EPSILON) {
+            return false;
+        }
+        this.offlineLayoutPerfScore = smoothedScore;
+        return true;
+    }
+
+    recordRenderTimingSample(sample = {}) {
+        const nodeCount = Number.isFinite(sample.nodeCount) ? Math.max(0, Math.floor(sample.nodeCount)) : 0;
+        const linkCount = Number.isFinite(sample.linkCount) ? Math.max(0, Math.floor(sample.linkCount)) : 0;
+        const parseMs = Number.isFinite(sample.parseMs) ? Math.max(0, Number(sample.parseMs)) : 0;
+        const preLayoutMs = Number.isFinite(sample.preLayoutMs) ? Math.max(0, Number(sample.preLayoutMs)) : 0;
+        const renderMs = Number.isFinite(sample.renderMs) ? Math.max(0, Number(sample.renderMs)) : 0;
+        const totalMs = Number.isFinite(sample.totalMs) ? Math.max(0, Number(sample.totalMs)) : 0;
+        const normalizedUnits = Math.max(1, nodeCount + linkCount * 0.7);
+        const normalizedCostMs = totalMs / normalizedUnits;
+
+        this.lastRenderTiming = {
+            nodeCount,
+            linkCount,
+            parseMs,
+            preLayoutMs,
+            renderMs,
+            totalMs,
+            normalizedCostMs
+        };
+        this.renderTimingHistory.push(normalizedCostMs);
+        if (this.renderTimingHistory.length > this.RENDER_TIMING_HISTORY_SIZE) {
+            this.renderTimingHistory.shift();
+        }
+        const baselineCost = this.computePercentile(this.renderTimingHistory, 0.6);
+        if (!Number.isFinite(baselineCost) || baselineCost <= 0) {
+            this.renderTimingPressureActive = false;
+            return;
+        }
+        this.renderTimingPressureActive = totalMs >= this.RENDER_TIMING_MIN_TOTAL_MS
+            && normalizedCostMs > (baselineCost * this.RENDER_TIMING_PRESSURE_MULTIPLIER);
+    }
+
     resolveMotionSamplingProfile(nodeCount = 0, linkCount = 0) {
         const safeNodeCount = Number.isFinite(nodeCount) ? Math.max(0, Math.floor(nodeCount)) : 0;
         const safeLinkCount = Number.isFinite(linkCount) ? Math.max(0, Math.floor(linkCount)) : 0;
@@ -1301,8 +1396,17 @@ class KGGraphVis extends HTMLElement {
                 ? this.LINK_PATH_TICK_THROTTLE_LARGE
                 : this.LINK_PATH_TICK_THROTTLE_SMALL;
 
-        const underPressure = this.performanceLagActive || this.performanceAdaptiveThresholdScale <= 0.96;
-        const withHeadroom = !this.performanceLagActive && this.performanceAdaptiveThresholdScale >= 1.16;
+        const perfScore = Math.max(this.OFFLINE_LAYOUT_PERF_SCORE_MIN,
+            Math.min(this.OFFLINE_LAYOUT_PERF_SCORE_MAX, this.offlineLayoutPerfScore));
+        tickThrottle /= perfScore;
+        linkPathThrottle /= perfScore;
+
+        const underPressure = this.performanceLagActive
+            || this.renderTimingPressureActive
+            || this.performanceAdaptiveThresholdScale <= 0.96;
+        const withHeadroom = !this.performanceLagActive
+            && !this.renderTimingPressureActive
+            && this.performanceAdaptiveThresholdScale >= 1.16;
         if (underPressure) {
             tickThrottle += isHugeGraph ? 8 : 4;
             linkPathThrottle += this.LINK_PATH_TICK_PRESSURE_DELTA;
@@ -2328,6 +2432,15 @@ class KGGraphVis extends HTMLElement {
         } else if (this.performanceAdaptiveThresholdScale <= 0.9) {
             effectiveDetails.push("Adaptive performance calibration tightened details to keep rendering smooth.");
         }
+        if (this.offlineLayoutPerfScore <= 0.9) {
+            effectiveDetails.push("Offline layout budget reduced after runtime calibration.");
+        } else if (this.offlineLayoutPerfScore >= 1.1) {
+            effectiveDetails.push("Offline layout budget expanded after runtime calibration.");
+        }
+        if (this.renderTimingPressureActive && this.lastRenderTiming?.totalMs > 0) {
+            const roundedTotalMs = Math.round(this.lastRenderTiming.totalMs);
+            effectiveDetails.push(`Recent draw phase took about ${roundedTotalMs} ms, applying conservative detail.`);
+        }
 
         const uniqueDetails = [...new Set(effectiveDetails)];
         const baseMode = String(base.mode || "normal").toLowerCase();
@@ -2336,7 +2449,8 @@ class KGGraphVis extends HTMLElement {
         const isDegraded = baseMode === "degraded"
             || hasHardNodeLabelDrop
             || hasHardEdgeLabelDrop
-            || this.performanceLagActive;
+            || this.performanceLagActive
+            || this.renderTimingPressureActive;
 
         const effectiveSummary = !isDegraded
             ? (uniqueDetails.length > 0 ? "Adaptive detail mode" : "Standard rendering")
@@ -2344,6 +2458,8 @@ class KGGraphVis extends HTMLElement {
                 ? "Interaction optimization active"
                 : this.performanceLagActive && this.performanceLastMeasuredFps > 0
                     ? `Performance pressure detected (~${Math.round(this.performanceLastMeasuredFps * 10) / 10} FPS)`
+                    : this.renderTimingPressureActive && this.lastRenderTiming?.totalMs > 0
+                        ? `Render pressure detected (~${Math.round(this.lastRenderTiming.totalMs)} ms draw phase)`
                     : baseMode === "degraded"
                         ? (String(base.summary || "").trim() || "Performance mode enabled")
                         : "Performance mode enabled";
@@ -2960,6 +3076,12 @@ class KGGraphVis extends HTMLElement {
         let minBatchTicks = this.OFFLINE_LAYOUT_MIN_BATCH_TICKS;
         let maxBatchTicks = this.OFFLINE_LAYOUT_MAX_BATCH_TICKS;
 
+        const perfScore = Math.max(this.OFFLINE_LAYOUT_PERF_SCORE_MIN,
+            Math.min(this.OFFLINE_LAYOUT_PERF_SCORE_MAX, this.offlineLayoutPerfScore));
+        frameBudgetMs *= perfScore;
+        minBatchTicks *= perfScore;
+        maxBatchTicks *= perfScore;
+
         if (isHugeGraph) {
             frameBudgetMs = Math.max(4, frameBudgetMs - 2);
             minBatchTicks = Math.max(5, minBatchTicks - 2);
@@ -2969,8 +3091,12 @@ class KGGraphVis extends HTMLElement {
             maxBatchTicks = Math.max(120, maxBatchTicks - 24);
         }
 
-        const underPressure = this.performanceLagActive || this.performanceAdaptiveThresholdScale <= 0.96;
-        const withHeadroom = !this.performanceLagActive && this.performanceAdaptiveThresholdScale >= 1.16;
+        const underPressure = this.performanceLagActive
+            || this.renderTimingPressureActive
+            || this.performanceAdaptiveThresholdScale <= 0.96;
+        const withHeadroom = !this.performanceLagActive
+            && !this.renderTimingPressureActive
+            && this.performanceAdaptiveThresholdScale >= 1.16;
         if (underPressure) {
             frameBudgetMs = Math.max(3, frameBudgetMs - 1);
             minBatchTicks = Math.max(4, minBatchTicks - 1);
@@ -3017,18 +3143,34 @@ class KGGraphVis extends HTMLElement {
         let ticks = 0;
 
         return await new Promise(resolve => {
-            const finish = () => {
+            const finish = (aborted = false) => {
                 simulation.stop();
+                const elapsedMs = performance.now() - startedAt;
+                if (!aborted) {
+                    this.updateOfflineLayoutPerfScore(ticks, elapsedMs);
+                }
                 resolve(ticks);
             };
-            const shouldFinish = () => ticks >= maxTicks
-                || simulation.alpha() <= targetAlpha
-                || (performance.now() - startedAt) >= maxDurationMs
-                || shouldAbort();
+            const resolveStopReason = () => {
+                if (shouldAbort()) {
+                    return "aborted";
+                }
+                if (ticks >= maxTicks) {
+                    return "maxTicks";
+                }
+                if (simulation.alpha() <= targetAlpha) {
+                    return "targetAlpha";
+                }
+                if ((performance.now() - startedAt) >= maxDurationMs) {
+                    return "maxDuration";
+                }
+                return "";
+            };
 
             const runBatch = () => {
-                if (shouldFinish()) {
-                    finish();
+                const startReason = resolveStopReason();
+                if (startReason) {
+                    finish(startReason === "aborted");
                     return;
                 }
                 const batchStart = performance.now();
@@ -3050,8 +3192,9 @@ class KGGraphVis extends HTMLElement {
                         break;
                     }
                 }
-                if (shouldFinish()) {
-                    finish();
+                const endReason = resolveStopReason();
+                if (endReason) {
+                    finish(endReason === "aborted");
                     return;
                 }
                 requestAnimationFrame(runBatch);
@@ -3330,6 +3473,10 @@ class KGGraphVis extends HTMLElement {
     async drawChart() {
         const layoutToken = ++this.layoutTaskToken;
         const isStaleDraw = () => layoutToken !== this.layoutTaskToken;
+        const drawStartedAt = performance.now();
+        let parseDurationMs = 0;
+        let preLayoutDurationMs = 0;
+        let renderDurationMs = 0;
         if (!this.width || !this.height) this.updateSize();
         const previousNodeStateById = this.captureNodeStateById();
         let hadExistingLayout = previousNodeStateById.size > 0;
@@ -3360,6 +3507,8 @@ class KGGraphVis extends HTMLElement {
             this.labelsHiddenForInteraction = false;
             this.lastLabelVisibilityUpdate = 0;
             this.lastLabelUpdate = 0;
+            this.lastRenderTiming = null;
+            this.renderTimingPressureActive = false;
             this.graph = { nodes: [], links: [] };
             this.staticLayoutMode = false;
             this.simplifyLinkGeometry = false;
@@ -3383,9 +3532,11 @@ class KGGraphVis extends HTMLElement {
 
         let parsedGraph = null;
         try {
+            const parseStartedAt = performance.now();
             this.jsonLDOntology = JSON.parse(this.jsonld);
             this.rebuildGraphContextPrefixes();
             parsedGraph = this.createGraph();
+            parseDurationMs = performance.now() - parseStartedAt;
         } catch (e) {
             console.error("Graph drawing error:", e);
             return;
@@ -3445,6 +3596,7 @@ class KGGraphVis extends HTMLElement {
             const isMediumOrLargerGraph = this.graph.nodes.length >= this.PRE_LAYOUT_MEDIUM_NODE_THRESHOLD
                 || this.graph.links.length >= this.PRE_LAYOUT_MEDIUM_LINK_THRESHOLD;
             let precomputedTicks = 0;
+            const preLayoutStartedAt = performance.now();
             if (useStaticLayout && (!hadExistingLayout || addedRatio > 0.28)) {
                 precomputedTicks = await this.applyStaticComponentLayout({
                     shouldAbort: isStaleDraw
@@ -3468,6 +3620,7 @@ class KGGraphVis extends HTMLElement {
                     }
                 }
             }
+            preLayoutDurationMs = performance.now() - preLayoutStartedAt;
             const initialAlpha = !hadExistingLayout
                 ? 1
                 : precomputedTicks > 0
@@ -3485,13 +3638,24 @@ class KGGraphVis extends HTMLElement {
                 }
             }
 
+            const renderStartedAt = performance.now();
             const rendered = await this.renderGraph(initialTransform, initialAlpha, useStaticLayout, {
                 layoutToken,
                 shouldAbort: isStaleDraw
             });
+            renderDurationMs = performance.now() - renderStartedAt;
             if (!rendered || isStaleDraw()) {
                 return;
             }
+            this.recordRenderTimingSample({
+                nodeCount: this.graph.nodes.length,
+                linkCount: this.graph.links.length,
+                parseMs: parseDurationMs,
+                preLayoutMs: preLayoutDurationMs,
+                renderMs: renderDurationMs,
+                totalMs: performance.now() - drawStartedAt
+            });
+            this.notifyEffectiveRenderProfile();
             if (shouldAutoFit) {
                 this.scheduleAutoFit(this.AUTO_RECENTER_DELAY_MS, true);
             }
