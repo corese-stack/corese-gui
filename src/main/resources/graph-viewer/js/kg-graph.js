@@ -132,8 +132,17 @@ class KGGraphVis extends HTMLElement {
         this.reservedGraphHues = [];
 
         // Performance optimization
-        this.TICK_THROTTLE = 16; // ~60fps throttle for ticked()
+        this.TICK_THROTTLE_SMALL = 16;
+        this.TICK_THROTTLE_LARGE = 22;
+        this.TICK_THROTTLE_VERY_LARGE = 34;
+        this.TICK_THROTTLE = this.TICK_THROTTLE_SMALL;
         this.lastTickTime = 0;
+        this.LINK_PATH_TICK_THROTTLE_SMALL = 0;
+        this.LINK_PATH_TICK_THROTTLE_LARGE = 12;
+        this.LINK_PATH_TICK_THROTTLE_VERY_LARGE = 28;
+        this.LINK_PATH_TICK_PRESSURE_DELTA = 10;
+        this.linkPathTickThrottleMs = this.LINK_PATH_TICK_THROTTLE_SMALL;
+        this.lastLinkPathUpdate = 0;
         this.LABEL_TICK_THROTTLE_SMALL = 16; // ~60fps for small graphs
         this.LABEL_TICK_THROTTLE_LARGE = 24;
         this.LABEL_TICK_THROTTLE_VERY_LARGE = 50;
@@ -1177,12 +1186,16 @@ class KGGraphVis extends HTMLElement {
             ? this.baseRenderProfile.details
             : [];
         const details = existingDetails.filter(line => line !== "Link geometry simplified for dense graphs."
-            && line !== "Parallel link offset layout disabled for dense edges.");
+            && line !== "Parallel link offset layout disabled for dense edges."
+            && line !== "Link motion sampling enabled to keep animation smooth.");
         if (this.simplifyLinkGeometry) {
             details.push("Link geometry simplified for dense graphs.");
         }
         if (this.parallelLayoutSimplified) {
             details.push("Parallel link offset layout disabled for dense edges.");
+        }
+        if (this.linkPathTickThrottleMs > 0) {
+            details.push("Link motion sampling enabled to keep animation smooth.");
         }
         const uniqueDetails = [...new Set(details)];
         this.baseRenderProfile = {
@@ -1210,6 +1223,7 @@ class KGGraphVis extends HTMLElement {
         const nextEdgeLabelsAutoHidden = !shouldCreateEdgeLabels || linkCount >= autoHideEdgeLabelThreshold;
         const nextSimplifyLinkGeometry = isHugeGraph || linkCount >= simplifyLinkThreshold;
         const nextParallelLayoutSimplified = linkCount > parallelLayoutThreshold;
+        this.applyMotionSamplingProfile(nodeCount, linkCount);
 
         let geometryChanged = false;
         if (nextSimplifyLinkGeometry !== this.simplifyLinkGeometry) {
@@ -1264,6 +1278,49 @@ class KGGraphVis extends HTMLElement {
         this.performanceLastAdaptiveUpdateAt = now;
         this.applyAdaptiveRenderingToggles();
         return true;
+    }
+
+    resolveMotionSamplingProfile(nodeCount = 0, linkCount = 0) {
+        const safeNodeCount = Number.isFinite(nodeCount) ? Math.max(0, Math.floor(nodeCount)) : 0;
+        const safeLinkCount = Number.isFinite(linkCount) ? Math.max(0, Math.floor(linkCount)) : 0;
+        const largeNodeThreshold = this.scaleThreshold(this.LARGE_GRAPH_NODE_THRESHOLD, 100);
+        const largeLinkThreshold = this.scaleThreshold(this.LARGE_GRAPH_LINK_THRESHOLD, 180);
+        const hugeNodeThreshold = this.scaleThreshold(this.HUGE_GRAPH_NODE_THRESHOLD, 220);
+        const hugeLinkThreshold = this.scaleThreshold(this.HUGE_GRAPH_LINK_THRESHOLD, 420);
+        const isLargeGraph = safeNodeCount >= largeNodeThreshold || safeLinkCount >= largeLinkThreshold;
+        const isHugeGraph = safeNodeCount >= hugeNodeThreshold || safeLinkCount >= hugeLinkThreshold;
+
+        let tickThrottle = isHugeGraph
+            ? this.TICK_THROTTLE_VERY_LARGE
+            : isLargeGraph
+                ? this.TICK_THROTTLE_LARGE
+                : this.TICK_THROTTLE_SMALL;
+        let linkPathThrottle = isHugeGraph
+            ? this.LINK_PATH_TICK_THROTTLE_VERY_LARGE
+            : isLargeGraph
+                ? this.LINK_PATH_TICK_THROTTLE_LARGE
+                : this.LINK_PATH_TICK_THROTTLE_SMALL;
+
+        const underPressure = this.performanceLagActive || this.performanceAdaptiveThresholdScale <= 0.96;
+        const withHeadroom = !this.performanceLagActive && this.performanceAdaptiveThresholdScale >= 1.16;
+        if (underPressure) {
+            tickThrottle += isHugeGraph ? 8 : 4;
+            linkPathThrottle += this.LINK_PATH_TICK_PRESSURE_DELTA;
+        } else if (withHeadroom) {
+            tickThrottle = Math.max(this.TICK_THROTTLE_SMALL, tickThrottle - 2);
+            linkPathThrottle = Math.max(0, linkPathThrottle - 4);
+        }
+
+        return {
+            tickThrottle: Math.max(8, Math.floor(tickThrottle)),
+            linkPathThrottle: Math.max(0, Math.floor(linkPathThrottle))
+        };
+    }
+
+    applyMotionSamplingProfile(nodeCount = 0, linkCount = 0) {
+        const profile = this.resolveMotionSamplingProfile(nodeCount, linkCount);
+        this.TICK_THROTTLE = profile.tickThrottle;
+        this.linkPathTickThrottleMs = profile.linkPathThrottle;
     }
 
     updateArrowheadVisibility(force = false) {
@@ -2886,6 +2943,51 @@ class KGGraphVis extends HTMLElement {
         return { enabled: false, maxTicks: 0, maxDurationMs: 0, targetAlpha: 1 };
     }
 
+    resolveOfflineLayoutBatchProfile(simulation = null) {
+        const simulationNodeCount = simulation && typeof simulation.nodes === "function"
+            ? simulation.nodes().length
+            : 0;
+        const safeNodeCount = Math.max(simulationNodeCount, Array.isArray(this.graph?.nodes) ? this.graph.nodes.length : 0);
+        const safeLinkCount = Array.isArray(this.graph?.links) ? this.graph.links.length : 0;
+        const largeNodeThreshold = this.scaleThreshold(this.LARGE_GRAPH_NODE_THRESHOLD, 100);
+        const largeLinkThreshold = this.scaleThreshold(this.LARGE_GRAPH_LINK_THRESHOLD, 180);
+        const hugeNodeThreshold = this.scaleThreshold(this.HUGE_GRAPH_NODE_THRESHOLD, 220);
+        const hugeLinkThreshold = this.scaleThreshold(this.HUGE_GRAPH_LINK_THRESHOLD, 420);
+        const isLargeGraph = safeNodeCount >= largeNodeThreshold || safeLinkCount >= largeLinkThreshold;
+        const isHugeGraph = safeNodeCount >= hugeNodeThreshold || safeLinkCount >= hugeLinkThreshold;
+
+        let frameBudgetMs = this.OFFLINE_LAYOUT_FRAME_BUDGET_MS;
+        let minBatchTicks = this.OFFLINE_LAYOUT_MIN_BATCH_TICKS;
+        let maxBatchTicks = this.OFFLINE_LAYOUT_MAX_BATCH_TICKS;
+
+        if (isHugeGraph) {
+            frameBudgetMs = Math.max(4, frameBudgetMs - 2);
+            minBatchTicks = Math.max(5, minBatchTicks - 2);
+            maxBatchTicks = Math.max(90, maxBatchTicks - 52);
+        } else if (isLargeGraph) {
+            frameBudgetMs = Math.max(5, frameBudgetMs - 1);
+            maxBatchTicks = Math.max(120, maxBatchTicks - 24);
+        }
+
+        const underPressure = this.performanceLagActive || this.performanceAdaptiveThresholdScale <= 0.96;
+        const withHeadroom = !this.performanceLagActive && this.performanceAdaptiveThresholdScale >= 1.16;
+        if (underPressure) {
+            frameBudgetMs = Math.max(3, frameBudgetMs - 1);
+            minBatchTicks = Math.max(4, minBatchTicks - 1);
+            maxBatchTicks = Math.max(minBatchTicks + 20, maxBatchTicks - 24);
+        } else if (withHeadroom) {
+            frameBudgetMs = Math.min(10, frameBudgetMs + 1);
+            minBatchTicks = Math.min(14, minBatchTicks + 1);
+            maxBatchTicks = Math.min(240, maxBatchTicks + 32);
+        }
+
+        return {
+            frameBudgetMs: Math.max(1, Math.floor(frameBudgetMs)),
+            minBatchTicks: Math.max(1, Math.floor(minBatchTicks)),
+            maxBatchTicks: Math.max(Math.max(1, Math.floor(minBatchTicks)), Math.floor(maxBatchTicks))
+        };
+    }
+
     async runOfflineLayout(simulation, profile, options = {}) {
         if (!simulation || !profile?.enabled) {
             return 0;
@@ -2894,15 +2996,16 @@ class KGGraphVis extends HTMLElement {
         const maxTicks = Math.max(0, Math.floor(profile.maxTicks ?? 0));
         const maxDurationMs = Math.max(0, Number(profile.maxDurationMs ?? 0));
         const targetAlpha = Number.isFinite(profile.targetAlpha) ? profile.targetAlpha : 0.1;
+        const batchProfile = this.resolveOfflineLayoutBatchProfile(simulation);
         const frameBudgetMs = Number.isFinite(options.frameBudgetMs)
             ? Math.max(1, Math.floor(options.frameBudgetMs))
-            : this.OFFLINE_LAYOUT_FRAME_BUDGET_MS;
+            : batchProfile.frameBudgetMs;
         const minBatchTicks = Number.isFinite(options.minBatchTicks)
             ? Math.max(1, Math.floor(options.minBatchTicks))
-            : this.OFFLINE_LAYOUT_MIN_BATCH_TICKS;
+            : batchProfile.minBatchTicks;
         const maxBatchTicks = Number.isFinite(options.maxBatchTicks)
             ? Math.max(minBatchTicks, Math.floor(options.maxBatchTicks))
-            : this.OFFLINE_LAYOUT_MAX_BATCH_TICKS;
+            : batchProfile.maxBatchTicks;
         const shouldAbort = typeof options.shouldAbort === "function" ? options.shouldAbort : () => false;
 
         if (maxTicks <= 0 || maxDurationMs <= 0) {
@@ -3297,6 +3400,7 @@ class KGGraphVis extends HTMLElement {
         this.labelsHiddenForInteraction = false;
         this.lastLabelVisibilityUpdate = 0;
         this.lastLabelUpdate = 0;
+        this.lastLinkPathUpdate = 0;
         this.hoveredNodeId = null;
 
         try {
@@ -3447,6 +3551,7 @@ class KGGraphVis extends HTMLElement {
             this.LABEL_TICK_THROTTLE = this.LABEL_TICK_THROTTLE_SMALL;
             this.labelVisibilityThrottleMs = this.LABEL_VISIBILITY_THROTTLE_SMALL;
         }
+        this.applyMotionSamplingProfile(nodeCount, linkCount);
         const renderProfileDetails = [];
         if (!shouldCreateNodeLabels) {
             renderProfileDetails.push("Node labels hidden to keep rendering responsive.");
@@ -3459,6 +3564,9 @@ class KGGraphVis extends HTMLElement {
         }
         if (isParallelLayoutSimplified) {
             renderProfileDetails.push("Parallel link offset layout disabled for dense edges.");
+        }
+        if (this.linkPathTickThrottleMs > 0) {
+            renderProfileDetails.push("Link motion sampling enabled to keep animation smooth.");
         }
         if (!shouldEnableTooltips) {
             renderProfileDetails.push("Node tooltips disabled for very large graph.");
@@ -3550,6 +3658,7 @@ class KGGraphVis extends HTMLElement {
                 .on("tick", () => this.tickedThrottled())
                 .on("end", () => {
                     this.simulationStopped = true;
+                    this.ticked(true);
                     this.refreshEdgeLabelPositions(true);
                     this.scheduleLabelVisibilityUpdate();
                 });
@@ -3984,7 +4093,7 @@ class KGGraphVis extends HTMLElement {
             this.simulationStopped = true;
         }
 
-        this.ticked();
+        this.ticked(false);
         this.scheduleLabelVisibilityUpdate();
     }
 
@@ -3992,17 +4101,22 @@ class KGGraphVis extends HTMLElement {
      * Animation tick function.
      * Updates SVG element positions based on simulation data.
      */
-    ticked() {
+    ticked(forceLinkRefresh = true) {
         const hasPos = d => d && typeof d.x === 'number' && typeof d.y === 'number';
+        const now = performance.now();
+        const shouldRefreshLinks = forceLinkRefresh
+            || this.linkPathTickThrottleMs <= 0
+            || (now - this.lastLinkPathUpdate) >= this.linkPathTickThrottleMs;
 
         // Update Links
-        if (this.linkSelection) {
+        if (this.linkSelection && shouldRefreshLinks) {
             this.linkSelection.attr("d", d => {
                 if (!hasPos(d.source) || !hasPos(d.target)) return null;
                 const geometry = this.buildLinkGeometry(d);
                 d.geometry = geometry;
                 return geometry ? geometry.path : null;
             });
+            this.lastLinkPathUpdate = now;
         }
 
         // Update Nodes
@@ -4014,8 +4128,7 @@ class KGGraphVis extends HTMLElement {
         }
 
         // Update Edge Labels (throttled)
-        if (this.linkLabelSelection) {
-            const now = performance.now();
+        if (this.linkLabelSelection && shouldRefreshLinks) {
             if (now - this.lastLabelUpdate >= this.LABEL_TICK_THROTTLE) {
                 this.lastLabelUpdate = now;
                 this.refreshEdgeLabelPositions(false);
