@@ -1,15 +1,16 @@
 name: Publish Development Pre-release
 
 on:
-    push:
-        branches:
-            - develop
     workflow_dispatch:
         inputs:
             ref:
-                description: "Branch, tag, or commit to pre-release (default: develop HEAD)"
-                required: false
+                description: "Branch or commit to pre-release (recommended: develop)"
+                required: true
                 type: string
+
+concurrency:
+    group: prerelease-${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
 
 permissions:
     contents: write
@@ -43,7 +44,7 @@ jobs:
             - name: Checkout sources
               uses: actions/checkout@v4
               with:
-                  ref: ${{ github.event.inputs.ref || github.ref }}
+                  ref: ${{ github.event.inputs.ref }}
 
             - name: Validate Gradle wrapper
               uses: gradle/actions/wrapper-validation@v4
@@ -99,7 +100,7 @@ jobs:
                       Latest unsigned multi-platform build from `develop`.
 
                       Last updated: ${{ steps.timestamp.outputs.timestamp }}
-                      Source ref: `${{ github.event.inputs.ref || github.ref_name }}`
+                      Source ref: `${{ github.event.inputs.ref }}`
                       Commit: `${{ github.sha }}`
                   prerelease: true
                   allowUpdates: true

@@ -11,6 +11,10 @@ on:
         tags:
             - "v*.*.*"
 
+concurrency:
+    group: release-${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
 permissions:
     contents: write
 

@@ -11,6 +11,10 @@ on:
                 required: true
                 type: string
 
+concurrency:
+    group: maven-central-${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
 permissions:
     contents: read
 
