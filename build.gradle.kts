@@ -72,7 +72,8 @@ object Meta {
 
     // Plain Java launcher for classpath-friendly startup (fat JAR + jpackage).
     const val mainClass = "fr.inria.corese.gui.Launcher"
-    const val nativeAccessOption = "--enable-native-access=ALL-UNNAMED"
+    // JDK 25+ warns for restricted native access in JavaFX internals unless modules are explicit.
+    const val nativeAccessOption = "--enable-native-access=ALL-UNNAMED,javafx.graphics,javafx.web"
 }
 
 /*
