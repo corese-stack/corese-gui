@@ -28,6 +28,18 @@ jobs:
         runs-on: ubuntu-24.04
 
         steps:
+            - name: Resolve source commit
+              id: source-commit
+              uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.inputs.ref }}
+                  fetch-depth: 1
+
+            - name: Capture source commit SHA
+              id: source-sha
+              shell: bash
+              run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
             - name: Download all pre-release artifacts
               uses: actions/download-artifact@v4
               with:
@@ -57,7 +69,7 @@ jobs:
 
                       Last updated: ${{ steps.timestamp.outputs.timestamp }}
                       Source ref: `${{ github.event.inputs.ref }}`
-                      Commit: `${{ github.sha }}`
+                      Commit: `${{ steps.source-sha.outputs.sha }}`
                   prerelease: true
                   allowUpdates: true
                   replacesArtifacts: true
