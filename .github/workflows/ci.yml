@@ -1,4 +1,5 @@
 name: Continuous Integration
+run-name: ${{ github.actor }} triggered CI on ${{ github.ref_name }}
 
 on:
     push:
@@ -19,11 +20,16 @@ permissions:
 jobs:
     build-test:
         name: CI (linux-x64)
-        runs-on: ubuntu-24.04
+        runs-on: [self-hosted, corese-stack-ubuntu-24]
+
+        env:
+            PACKAGE_TOKEN: ${{ secrets.JLS_TOKEN }}
 
         steps:
             - name: Checkout sources
               uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
 
             - name: Validate Gradle wrapper
               uses: gradle/actions/wrapper-validation@v4
