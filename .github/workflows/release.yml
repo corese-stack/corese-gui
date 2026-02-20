@@ -59,16 +59,45 @@ jobs:
                   java-version: "25"
                   cache: gradle
 
+            - name: Generate macOS jpackage icon
+              if: startsWith(matrix.target, 'macos-')
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  icon_src="src/main/resources/images/corese-gui-logo.png"
+                  iconset_dir="build/tmp/corese-gui.iconset"
+                  icon_out="build/tmp/corese-gui.icns"
+
+                  rm -rf "$iconset_dir"
+                  mkdir -p "$iconset_dir"
+
+                  sips -z 16 16 "$icon_src" --out "$iconset_dir/icon_16x16.png"
+                  sips -z 32 32 "$icon_src" --out "$iconset_dir/icon_16x16@2x.png"
+                  sips -z 32 32 "$icon_src" --out "$iconset_dir/icon_32x32.png"
+                  sips -z 64 64 "$icon_src" --out "$iconset_dir/icon_32x32@2x.png"
+                  sips -z 128 128 "$icon_src" --out "$iconset_dir/icon_128x128.png"
+                  sips -z 256 256 "$icon_src" --out "$iconset_dir/icon_128x128@2x.png"
+                  sips -z 256 256 "$icon_src" --out "$iconset_dir/icon_256x256.png"
+                  sips -z 512 512 "$icon_src" --out "$iconset_dir/icon_256x256@2x.png"
+                  sips -z 512 512 "$icon_src" --out "$iconset_dir/icon_512x512.png"
+                  sips -z 1024 1024 "$icon_src" --out "$iconset_dir/icon_512x512@2x.png"
+
+                  iconutil -c icns "$iconset_dir" -o "$icon_out"
+                  echo "JPACKAGE_ICON_PROP=-PjpackageIcon=$PWD/$icon_out" >> "$GITHUB_ENV"
+
             - name: Build release artifacts for current platform
-              run: ${{ matrix.gradle_cmd }} --no-daemon clean shadowJar jpackageCurrentPlatform -PjpackageType=${{ matrix.jpackage_type }}
+              run: ${{ matrix.gradle_cmd }} --no-daemon clean shadowJar jpackageCurrentPlatform -PjpackageType=${{ matrix.jpackage_type }} ${{ env.JPACKAGE_ICON_PROP }}
+
+            - name: Collect publishable artifacts
+              shell: bash
+              run: ./.github/scripts/collect-release-assets.sh "${{ matrix.target }}" "${{ matrix.jpackage_type }}" "build/publish/${{ matrix.target }}"
 
             - name: Upload release artifacts
               uses: actions/upload-artifact@v4
               with:
                   name: corese-gui-${{ matrix.target }}
-                  path: |
-                      build/libs/*-standalone-${{ matrix.target }}.jar
-                      build/jpackage/output/${{ matrix.target }}/**
+                  if-no-files-found: error
+                  path: build/publish/${{ matrix.target }}/*
 
     release:
         needs: build-artifacts

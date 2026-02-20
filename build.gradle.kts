@@ -160,6 +160,22 @@ val jpackageExecutable = packagingJavaHome.map { javaHome ->
     file("$javaHome/bin/$executable").absolutePath
 }
 
+/*
+ * Per-platform icon resolution for jpackage.
+ * Override in CI or local builds with: -PjpackageIcon=<path>
+ */
+val defaultJpackageIcon = when (hostOs) {
+    "windows" -> file("src/main/jpackage/corese-gui.ico")
+    "macos" -> file("src/main/jpackage/corese-gui.icns")
+    else -> file("src/main/resources/images/corese-gui-logo.png")
+}
+
+val jpackageIcon = (findProperty("jpackageIcon") as String?)
+    ?.trim()
+    ?.takeIf { it.isNotEmpty() }
+    ?.let { file(it) }
+    ?: defaultJpackageIcon
+
 java {
     // Required for Maven publication completeness.
     withSourcesJar()
@@ -365,6 +381,12 @@ tasks.register<Exec>("jpackageCurrentPlatform") {
             "--runtime-image", packagingJavaHome.get(),
             "--java-options", "--enable-native-access=javafx.graphics,javafx.web"
         )
+
+        if (jpackageIcon.exists()) {
+            args("--icon", jpackageIcon.absolutePath)
+        } else {
+            logger.lifecycle("No jpackage icon found at '{}', using platform default icon.", jpackageIcon.path)
+        }
 
         // Installer-specific options are intentionally skipped for app-image.
         if (jpackageType != "app-image") {
