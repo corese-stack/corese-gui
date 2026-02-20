@@ -209,9 +209,12 @@ public final class DataStatusTooltipSupport {
 			case "Offline layout budget reduced after runtime calibration." -> "Offline layout budget reduced.";
 			case "Offline layout budget expanded after runtime calibration." -> "Offline layout budget expanded.";
 			case "Threshold can be changed in Settings > Appearance > Graph Preview." -> "Adjust limit in Settings.";
+			case "Base limit can be changed in Settings > Appearance > Graph Preview." ->
+				"Adjust base limit in Settings.";
 			case "Use \"Display anyway\" to force rendering on demand." -> "Use \"Display anyway\" to render now.";
 			case "Use \"Display anyway\" to force rendering." -> "Use \"Display anyway\" to render now.";
 			case "Adjust base limit in Settings > Appearance > Graph Preview." -> "Adjust base limit in Settings.";
+			case "Runtime adapts this limit from current performance." -> "Runtime auto-adjusts this limit.";
 			case "Preview payload is skipped at this size to keep the UI responsive." ->
 				"Preview payload skipped at this size.";
 			case "Manual rendering can freeze the interface on very large graphs." ->
