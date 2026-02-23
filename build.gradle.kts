@@ -3,6 +3,7 @@ import java.util.Locale
 import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.Sync
+import org.gradle.api.tasks.bundling.Zip
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
@@ -341,6 +342,10 @@ tasks.named<ShadowJar>("shadowJar") {
 
 val jpackageInputDir = layout.buildDirectory.dir("jpackage/input/$hostTarget")
 val jpackageOutputDir = layout.buildDirectory.dir("jpackage/output/$hostTarget")
+val windowsPortableImageDir = layout.buildDirectory.dir("jpackage/portable/$hostTarget")
+val windowsPortableOutputDir = layout.buildDirectory.dir("portable/$hostTarget")
+val windowsPortableMarkerFileName = ".corese-portable"
+val windowsPortableArchiveName = "${Meta.artifactId}-${project.version}-$hostTarget-portable.zip"
 val mainJarFileName = tasks.named<Jar>("jar").flatMap { it.archiveFileName }
 
 /*
@@ -417,10 +422,87 @@ tasks.register<Exec>("jpackageCurrentPlatform") {
     }
 }
 
+if (hostOs == "windows") {
+    tasks.register<Exec>("jpackagePortableCurrentPlatform") {
+        group = "distribution"
+        description = "Builds a portable app-image for $hostTarget."
+        dependsOn(tasks.named("prepareJpackageInput"))
+
+        inputs.dir(jpackageInputDir)
+        outputs.dir(windowsPortableImageDir)
+
+        doFirst {
+            val inputDir = jpackageInputDir.get().asFile
+            val outputDir = windowsPortableImageDir.get().asFile
+            if (outputDir.exists()) {
+                outputDir.deleteRecursively()
+            }
+            outputDir.mkdirs()
+
+            commandLine(
+                jpackageExecutable.get(),
+                "--type", "app-image",
+                "--name", Meta.appName,
+                "--dest", outputDir.absolutePath,
+                "--input", inputDir.absolutePath,
+                "--main-jar", mainJarFileName.get(),
+                "--main-class", Meta.mainClass,
+                "--app-version", jpackageAppVersion,
+                "--vendor", Meta.appVendor,
+                "--runtime-image", packagingJavaHome.get(),
+                "--java-options", Meta.nativeAccessOption
+            )
+
+            if (jpackageIcon.exists()) {
+                args("--icon", jpackageIcon.absolutePath)
+            } else {
+                logger.lifecycle("No jpackage icon found at '{}', using platform default icon.", jpackageIcon.path)
+            }
+        }
+    }
+
+    tasks.register("preparePortableRuntimeMarkerCurrentPlatform") {
+        group = "distribution"
+        description = "Marks the Windows portable app-image for runtime update targeting."
+        dependsOn("jpackagePortableCurrentPlatform")
+
+        val markerPath = windowsPortableImageDir.map { it.file("${Meta.appName}/$windowsPortableMarkerFileName") }
+        inputs.dir(windowsPortableImageDir)
+        outputs.file(markerPath)
+
+        doLast {
+            val portableAppDir = windowsPortableImageDir.get().dir(Meta.appName).asFile
+            if (!portableAppDir.isDirectory) {
+                error("Portable app-image directory not found: ${portableAppDir.path}")
+            }
+            val markerFile = portableAppDir.resolve(windowsPortableMarkerFileName)
+            markerFile.parentFile.mkdirs()
+            markerFile.writeText("portable-distribution\n")
+        }
+    }
+
+    tasks.register<Zip>("windowsPortableZipCurrentPlatform") {
+        group = "distribution"
+        description = "Builds a Windows portable ZIP for $hostTarget."
+        dependsOn("preparePortableRuntimeMarkerCurrentPlatform")
+
+        from(windowsPortableImageDir.map { it.dir(Meta.appName) })
+        destinationDirectory.set(windowsPortableOutputDir)
+        archiveFileName.set(windowsPortableArchiveName)
+        includeEmptyDirs = false
+    }
+}
+
 tasks.register("packageCurrentPlatform") {
     group = "distribution"
     description = "Builds both standalone JAR and unsigned jpackage bundle for $hostTarget."
     dependsOn("shadowJar", "jpackageCurrentPlatform")
+}
+
+if (hostOs == "windows") {
+    tasks.named("packageCurrentPlatform") {
+        dependsOn("windowsPortableZipCurrentPlatform")
+    }
 }
 
 // Keep build output aligned with CI/release expectations.

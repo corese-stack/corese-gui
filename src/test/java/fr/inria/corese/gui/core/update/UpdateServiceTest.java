@@ -32,6 +32,8 @@ class UpdateServiceTest {
 						"https://example.test/corese-gui-5.0.0-SNAPSHOT-standalone-windows-x64.jar"),
 				new UpdateService.UpdateAsset("corese-gui-5.0.0-windows-x64.exe",
 						"https://example.test/corese-gui-5.0.0-windows-x64.exe"),
+				new UpdateService.UpdateAsset("corese-gui-5.0.0-windows-x64-portable.zip",
+						"https://example.test/corese-gui-5.0.0-windows-x64-portable.zip"),
 				new UpdateService.UpdateAsset("corese-gui-linux-arm64.tar.gz",
 						"https://example.test/corese-gui-linux-arm64.tar.gz"),
 				new UpdateService.UpdateAsset("corese-gui-linux-x64.tar.gz",
@@ -102,6 +104,20 @@ class UpdateServiceTest {
 	}
 
 	@Test
+	void selectPreferredAsset_prefersPortableZipWhenRuntimeIsPortable() {
+		List<UpdateService.UpdateAsset> assets = List.of(
+				new UpdateService.UpdateAsset("corese-gui-5.1.0-windows-x64.msi", "https://example.test/win.msi"),
+				new UpdateService.UpdateAsset("corese-gui-5.1.0-windows-x64.exe", "https://example.test/win.exe"),
+				new UpdateService.UpdateAsset("corese-gui-5.1.0-windows-x64-portable.zip",
+						"https://example.test/win-portable.zip"));
+
+		Optional<UpdateService.UpdateAsset> selected = UpdateService.selectPreferredAsset(assets, "windows", "x64",
+				true);
+		assertTrue(selected.isPresent());
+		assertEquals("corese-gui-5.1.0-windows-x64-portable.zip", selected.get().name());
+	}
+
+	@Test
 	void selectPreferredAsset_matchesCurrentDevPrerelease_linuxX64() {
 		Optional<UpdateService.UpdateAsset> selected = UpdateService.selectPreferredAsset(devPrereleaseAssetsFixture(),
 				"linux", "x64");
@@ -123,6 +139,14 @@ class UpdateServiceTest {
 				"windows", "x64");
 		assertTrue(selected.isPresent());
 		assertEquals("corese-gui-5.0.0-windows-x64.exe", selected.get().name());
+	}
+
+	@Test
+	void selectPreferredAsset_matchesCurrentDevPrerelease_windowsPortableX64() {
+		Optional<UpdateService.UpdateAsset> selected = UpdateService.selectPreferredAsset(devPrereleaseAssetsFixture(),
+				"windows", "x64", true);
+		assertTrue(selected.isPresent());
+		assertEquals("corese-gui-5.0.0-windows-x64-portable.zip", selected.get().name());
 	}
 
 	@Test

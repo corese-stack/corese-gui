@@ -46,9 +46,12 @@ public final class UpdateService {
 	private static final String UPDATE_API_URL_SYSTEM_PROPERTY = "corese.update.apiLatestUrl";
 	private static final String CURRENT_VERSION_SYSTEM_PROPERTY = "corese.update.currentVersion";
 	private static final String FLATPAK_OVERRIDE_SYSTEM_PROPERTY = "corese.update.forceFlatpak";
+	private static final String RUNTIME_FLAVOR_SYSTEM_PROPERTY = "corese.update.runtimeFlavor";
+	private static final String JPACKAGE_APP_PATH_SYSTEM_PROPERTY = "jpackage.app-path";
 	private static final String MIN_RELEASE_AGE_MINUTES_SYSTEM_PROPERTY = "corese.update.minReleaseAgeMinutes";
 	private static final long DEFAULT_MIN_RELEASE_AGE_MINUTES = 20L;
 	private static final String PREF_STARTUP_UPDATE_NOTIFICATION = "update.startupNotificationEnabled";
+	private static final String PORTABLE_RUNTIME_MARKER_FILE_NAME = ".corese-portable";
 
 	private static final Pattern VERSION_NUMBER_PATTERN = Pattern.compile("\\d+");
 	private static final UpdateService INSTANCE = new UpdateService();
@@ -138,7 +141,7 @@ public final class UpdateService {
 		}
 	}
 
-	private record RuntimeTarget(String osToken, String archToken) {
+	private record RuntimeTarget(String osToken, String archToken, boolean preferPortablePackage) {
 	}
 
 	private record VersionParts(List<Integer> numbers, String qualifier) {
@@ -323,8 +326,8 @@ public final class UpdateService {
 		String latestVersion = normalizeVersionForDisplay(parsedRelease.tagName());
 		String releaseName = parsedRelease.name().isBlank() ? latestVersion : parsedRelease.name();
 		RuntimeTarget target = resolveRuntimeTarget();
-		UpdateAsset preferredAsset = selectPreferredAsset(parsedRelease.assets(), target.osToken(), target.archToken())
-				.orElse(null);
+		UpdateAsset preferredAsset = selectPreferredAsset(parsedRelease.assets(), target.osToken(), target.archToken(),
+				target.preferPortablePackage()).orElse(null);
 
 		UpdateInfo info = new UpdateInfo(currentVersion, latestVersion, parsedRelease.htmlUrl(), releaseName,
 				preferredAsset, parsedRelease.assets());
@@ -425,7 +428,42 @@ public final class UpdateService {
 	private static RuntimeTarget resolveRuntimeTarget() {
 		String os = normalizeOsToken(System.getProperty("os.name"));
 		String arch = normalizeArchToken(System.getProperty("os.arch"));
-		return new RuntimeTarget(os, arch);
+		boolean preferPortablePackage = resolvePortableRuntimePreference(os);
+		return new RuntimeTarget(os, arch, preferPortablePackage);
+	}
+
+	private static boolean resolvePortableRuntimePreference(String osToken) {
+		String normalizedFlavor = normalizeText(System.getProperty(RUNTIME_FLAVOR_SYSTEM_PROPERTY))
+				.toLowerCase(Locale.ROOT);
+		if ("portable".equals(normalizedFlavor)) {
+			return true;
+		}
+		if ("installer".equals(normalizedFlavor)) {
+			return false;
+		}
+		if (!"windows".equals(osToken)) {
+			return false;
+		}
+		return hasPortableRuntimeMarker();
+	}
+
+	private static boolean hasPortableRuntimeMarker() {
+		String launcherPathValue = normalizeText(System.getProperty(JPACKAGE_APP_PATH_SYSTEM_PROPERTY));
+		if (launcherPathValue.isBlank()) {
+			return false;
+		}
+		try {
+			Path launcherPath = Path.of(launcherPathValue);
+			Path launcherDirectory = launcherPath.getParent();
+			if (launcherDirectory == null) {
+				return false;
+			}
+			Path markerPath = launcherDirectory.resolve(PORTABLE_RUNTIME_MARKER_FILE_NAME);
+			return Files.exists(markerPath);
+		} catch (Exception e) {
+			LOGGER.debug("Portable runtime marker probe failed", e);
+			return false;
+		}
 	}
 
 	static boolean isNewerVersion(String candidateVersion, String currentVersion) {
@@ -524,6 +562,11 @@ public final class UpdateService {
 	}
 
 	static Optional<UpdateAsset> selectPreferredAsset(List<UpdateAsset> assets, String osToken, String archToken) {
+		return selectPreferredAsset(assets, osToken, archToken, false);
+	}
+
+	static Optional<UpdateAsset> selectPreferredAsset(List<UpdateAsset> assets, String osToken, String archToken,
+			boolean preferPortablePackage) {
 		List<UpdateAsset> safeAssets = assets == null ? List.of() : assets;
 		if (safeAssets.isEmpty()) {
 			return Optional.empty();
@@ -539,7 +582,7 @@ public final class UpdateService {
 				String normalizedName = asset.name().toLowerCase(Locale.ROOT);
 				if (isSupportedPackageAsset(normalizedName)) {
 					int targetRank = resolveTargetRank(normalizedName, normalizedOs, normalizedArch, exactTargetToken);
-					int formatRank = resolveFormatRank(normalizedName, normalizedOs);
+					int formatRank = resolveFormatRank(normalizedName, normalizedOs, preferPortablePackage);
 					int standalonePenalty = normalizedName.contains("standalone") ? 1 : 0;
 					candidates.add(new AssetCandidate(asset, targetRank, formatRank, standalonePenalty,
 							normalizedName.length()));
@@ -649,29 +692,54 @@ public final class UpdateService {
 		return false;
 	}
 
-	private static int resolveFormatRank(String normalizedName, String osToken) {
+	private static int resolveFormatRank(String normalizedName, String osToken, boolean preferPortablePackage) {
 		return switch (osToken) {
-			case "windows" -> resolveWindowsFormatRank(normalizedName);
+			case "windows" -> resolveWindowsFormatRank(normalizedName, preferPortablePackage);
 			case "macos" -> resolveMacOsFormatRank(normalizedName);
 			case "linux" -> resolveLinuxFormatRank(normalizedName);
 			default -> normalizedName.endsWith(".jar") ? 1 : 2;
 		};
 	}
 
-	private static int resolveWindowsFormatRank(String normalizedName) {
+	private static int resolveWindowsFormatRank(String normalizedName, boolean preferPortablePackage) {
+		if (preferPortablePackage) {
+			if (normalizedName.endsWith(".zip") && isPortableAssetName(normalizedName)) {
+				return 0;
+			}
+			if (normalizedName.endsWith(".zip")) {
+				return 1;
+			}
+			if (normalizedName.endsWith(".msi")) {
+				return 2;
+			}
+			if (normalizedName.endsWith(".exe")) {
+				return 3;
+			}
+			if (normalizedName.endsWith(".jar")) {
+				return 5;
+			}
+			return 4;
+		}
 		if (normalizedName.endsWith(".msi")) {
 			return 0;
 		}
 		if (normalizedName.endsWith(".exe")) {
 			return 1;
 		}
-		if (normalizedName.endsWith(".zip")) {
+		if (normalizedName.endsWith(".zip") && isPortableAssetName(normalizedName)) {
 			return 2;
 		}
-		if (normalizedName.endsWith(".jar")) {
-			return 5;
+		if (normalizedName.endsWith(".zip")) {
+			return 3;
 		}
-		return 3;
+		if (normalizedName.endsWith(".jar")) {
+			return 6;
+		}
+		return 4;
+	}
+
+	private static boolean isPortableAssetName(String normalizedName) {
+		return containsTokenWithBoundary(normalizedName, "portable");
 	}
 
 	private static int resolveMacOsFormatRank(String normalizedName) {

@@ -63,9 +63,27 @@ copy_installer_or_archive_app_image() {
     esac
 }
 
+copy_windows_portable_zip() {
+    if [[ "$target" != windows-* ]]; then
+        return
+    fi
+
+    local portable_dir="build/portable/$target"
+    shopt -s nullglob
+    local portable_zips=("$portable_dir"/*-portable.zip)
+    shopt -u nullglob
+
+    if [[ ${#portable_zips[@]} -eq 0 ]]; then
+        echo "No portable ZIP found for target '$target' in $portable_dir" >&2
+        exit 1
+    fi
+    cp "${portable_zips[@]}" "$out_dir/"
+}
+
 reset_output_directory
 copy_standalone_jar
 copy_installer_or_archive_app_image
+copy_windows_portable_zip
 
 echo "Prepared distribution assets:"
 find "$out_dir" -maxdepth 1 -type f | sort | while IFS= read -r file; do
