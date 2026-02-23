@@ -5,8 +5,6 @@ import fr.inria.corese.core.kgram.core.Mapping;
 import fr.inria.corese.core.kgram.core.Mappings;
 import fr.inria.corese.core.query.QueryProcess;
 import fr.inria.corese.core.sparql.api.IDatatype;
-import fr.inria.corese.gui.core.service.DataSourceRegistryService.DataSource;
-import fr.inria.corese.gui.core.service.DataSourceRegistryService.SourceType;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

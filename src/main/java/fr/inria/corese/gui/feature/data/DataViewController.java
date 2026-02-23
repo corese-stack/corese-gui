@@ -10,7 +10,7 @@ import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.io.ExportHelper;
 import fr.inria.corese.gui.core.io.FileDialogState;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
-import fr.inria.corese.gui.core.service.DataSourceRegistryService.DataSource;
+import fr.inria.corese.gui.core.service.DataSource;
 import fr.inria.corese.gui.core.service.DataWorkspaceService;
 import fr.inria.corese.gui.core.service.DataWorkspaceStatus;
 import fr.inria.corese.gui.core.service.DefaultDataWorkspaceService;
@@ -258,7 +258,8 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private int resolveGraphPreviewLimit() {
-		return Math.max(ThemeManager.getMinGraphAutoRenderTriplesLimit(), themeManager.getGraphAutoRenderTriplesLimit());
+		return Math.max(ThemeManager.getMinGraphAutoRenderTriplesLimit(),
+				themeManager.getGraphAutoRenderTriplesLimit());
 	}
 
 	private void applyGraphPreviewLimitToGraphWidget() {

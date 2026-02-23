@@ -8,8 +8,6 @@ import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.component.button.IconButtonWidget;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
-import fr.inria.corese.gui.core.service.ModalService;
-import fr.inria.corese.gui.core.service.ModalService.UnsavedChangesResult;
 import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -286,26 +284,27 @@ public class DialogLayout extends VBox {
 	 *            The callback to receive the user's choice.
 	 * @return A new unsaved changes dialog instance.
 	 */
-	public static DialogLayout createUnsavedChanges(String message, Consumer<UnsavedChangesResult> callback) {
+	public static DialogLayout createUnsavedChanges(String message,
+			Consumer<ModalService.UnsavedChangesResult> callback) {
 		Label msgLabel = new Label(message);
 
 		Button saveBtn = new Button("Save");
 		saveBtn.getStyleClass().add(Styles.ACCENT);
 		saveBtn.setOnAction(e -> {
 			ModalService.getInstance().hide();
-			callback.accept(UnsavedChangesResult.SAVE);
+			callback.accept(ModalService.UnsavedChangesResult.SAVE);
 		});
 
 		Button dontSaveBtn = new Button("Don't Save");
 		dontSaveBtn.setOnAction(e -> {
 			ModalService.getInstance().hide();
-			callback.accept(UnsavedChangesResult.DONT_SAVE);
+			callback.accept(ModalService.UnsavedChangesResult.DONT_SAVE);
 		});
 
 		Button cancelBtn = new Button("Cancel");
 		cancelBtn.setOnAction(e -> {
 			ModalService.getInstance().hide();
-			callback.accept(UnsavedChangesResult.CANCEL);
+			callback.accept(ModalService.UnsavedChangesResult.CANCEL);
 		});
 
 		return new DialogLayout("Unsaved Changes", msgLabel, cancelBtn, dontSaveBtn, saveBtn);

@@ -8,7 +8,7 @@ import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.io.FileDialogState;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
-import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.service.RdfConversionService;
 import fr.inria.corese.gui.feature.editor.code.support.CodeEditorFileSupport;
 import fr.inria.corese.gui.utils.AppExecutors;
@@ -200,11 +200,11 @@ public class CodeEditorController {
 			AppExecutors.execute(() -> {
 				try {
 					String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
-						Platform.runLater(() -> loadingHandle.closeThen(() -> {
-							model.setContent(content);
-							model.setFilePath(file.getAbsolutePath());
-							model.markAsSavedAndResetHistory();
-						}));
+					Platform.runLater(() -> loadingHandle.closeThen(() -> {
+						model.setContent(content);
+						model.setFilePath(file.getAbsolutePath());
+						model.markAsSavedAndResetHistory();
+					}));
 				} catch (IOException e) {
 					LOGGER.error("Failed to open file", e);
 					Platform.runLater(() -> loadingHandle.closeThen(() -> ModalService.getInstance()

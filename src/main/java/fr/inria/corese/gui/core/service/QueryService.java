@@ -14,6 +14,7 @@ import fr.inria.corese.core.sparql.exceptions.EngineException;
 import fr.inria.corese.core.sparql.triple.parser.ASTQuery;
 import fr.inria.corese.gui.core.enums.QueryType;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.core.io.DemoHttpFallbackSupport;
 import fr.inria.corese.gui.core.model.QueryResultRef;
 
 /**

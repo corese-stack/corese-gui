@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.core.service;
+package fr.inria.corese.gui.core.io;
 
 import java.net.URI;
 import java.util.regex.Matcher;
@@ -8,7 +8,7 @@ import javax.net.ssl.SSLHandshakeException;
 /**
  * Shared helpers for HTTPS->HTTP fallback on known demo URLs.
  */
-final class DemoHttpFallbackSupport {
+public final class DemoHttpFallbackSupport {
 
 	private static final String HTTPS_SCHEME = "https";
 	private static final String HTTP_SCHEME = "http";
@@ -22,15 +22,15 @@ final class DemoHttpFallbackSupport {
 		throw new AssertionError("Utility class");
 	}
 
-	static String demoHost() {
+	public static String demoHost() {
 		return DEMO_HTTP_FALLBACK_HOST;
 	}
 
-	static String demoPathPrefix() {
+	public static String demoPathPrefix() {
 		return DEMO_HTTP_FALLBACK_PATH_PREFIX;
 	}
 
-	static boolean isSslHandshakeFailure(Throwable throwable) {
+	public static boolean isSslHandshakeFailure(Throwable throwable) {
 		Throwable current = throwable;
 		while (current != null) {
 			if (current instanceof SSLHandshakeException) {
@@ -41,14 +41,14 @@ final class DemoHttpFallbackSupport {
 		return false;
 	}
 
-	static URI resolveUriAfterSslFailure(URI uri, Throwable failure) {
+	public static URI resolveUriAfterSslFailure(URI uri, Throwable failure) {
 		if (!isSslHandshakeFailure(failure)) {
 			return null;
 		}
 		return toHttpUriIfCandidate(uri);
 	}
 
-	static String rewriteLoadUrisToHttp(String query) {
+	public static String rewriteLoadUrisToHttp(String query) {
 		if (query == null || query.isBlank()) {
 			return query;
 		}

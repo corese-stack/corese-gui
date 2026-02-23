@@ -3,7 +3,7 @@ package fr.inria.corese.gui.feature.data.dialog;
 import fr.inria.corese.gui.component.editor.CodeMirrorWidget;
 import fr.inria.corese.gui.core.dialog.DialogLayout;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import java.util.Locale;

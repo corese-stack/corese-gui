@@ -8,7 +8,7 @@ import fr.inria.corese.gui.core.io.FileDialogState;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.service.DataWorkspaceService;
 import fr.inria.corese.gui.core.service.DataWorkspaceStatus;
-import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.service.ReasoningService;
 import fr.inria.corese.gui.core.service.ReasoningService.RuleFileState;
 import fr.inria.corese.gui.feature.data.dialog.DataClearRuleFilesDialog;

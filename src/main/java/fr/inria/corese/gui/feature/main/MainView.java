@@ -2,7 +2,7 @@ package fr.inria.corese.gui.feature.main;
 
 import atlantafx.base.controls.ModalPane;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
-import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.view.AbstractView;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;

@@ -5,7 +5,7 @@ import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.editor.CodeMirrorWidget;
 import fr.inria.corese.gui.component.tabstrip.TabStripController;
-import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.theme.ThemeManager;
 import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.utils.fx.RoundedClipSupport;

@@ -15,7 +15,7 @@ import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.shortcut.KeyboardShortcutRegistry;
 import fr.inria.corese.gui.core.model.QueryResultRef;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
-import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.service.QueryService;
 import fr.inria.corese.gui.core.service.RdfDataService;
 import fr.inria.corese.gui.core.io.FileDialogState;

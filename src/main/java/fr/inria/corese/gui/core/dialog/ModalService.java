@@ -1,7 +1,6 @@
-package fr.inria.corese.gui.core.service;
+package fr.inria.corese.gui.core.dialog;
 
 import atlantafx.base.controls.ModalPane;
-import fr.inria.corese.gui.core.dialog.DialogLayout;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;

@@ -3,7 +3,7 @@ package fr.inria.corese.gui.feature.data.dialog;
 import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.component.input.UriInputListWidget;
 import fr.inria.corese.gui.core.dialog.DialogLayout;
-import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;

@@ -3,7 +3,6 @@ package fr.inria.corese.gui.core.service;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Tracks loaded data sources (local files and remote URIs) for reload
@@ -11,30 +10,6 @@ import java.util.Objects;
  */
 @SuppressWarnings("java:S6548") // Singleton is intentional for app-wide source tracking
 public final class DataSourceRegistryService {
-
-	/**
-	 * Type of registered source.
-	 */
-	public enum SourceType {
-		FILE, URI
-	}
-
-	/**
-	 * Immutable source descriptor.
-	 *
-	 * @param type
-	 *            source type
-	 * @param location
-	 *            absolute file path or URI
-	 */
-	public record DataSource(SourceType type, String location) {
-		public DataSource {
-			Objects.requireNonNull(type, "type must not be null");
-			if (location == null || location.isBlank()) {
-				throw new IllegalArgumentException("location must not be blank");
-			}
-		}
-	}
 
 	private static final DataSourceRegistryService INSTANCE = new DataSourceRegistryService();
 

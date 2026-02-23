@@ -3,6 +3,7 @@ package fr.inria.corese.gui.core.service;
 import fr.inria.corese.core.load.Load;
 import fr.inria.corese.core.load.LoadFormat;
 import fr.inria.corese.core.load.LoadException;
+import fr.inria.corese.gui.core.io.DemoHttpFallbackSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -4,7 +4,7 @@ import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.component.editor.CodeMirrorWidget;
 import fr.inria.corese.gui.core.dialog.DialogLayout;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import java.util.Objects;
 import java.util.function.Consumer;

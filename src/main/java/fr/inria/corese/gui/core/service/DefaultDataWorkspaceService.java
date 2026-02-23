@@ -2,8 +2,6 @@ package fr.inria.corese.gui.core.service;
 
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-import fr.inria.corese.gui.core.service.DataSourceRegistryService.DataSource;
-import fr.inria.corese.gui.core.service.DataSourceRegistryService.SourceType;
 import fr.inria.corese.gui.core.service.ReasoningService.RuleFileState;
 import java.io.File;
 import java.util.ArrayList;

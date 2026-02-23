@@ -1,7 +1,6 @@
 package fr.inria.corese.gui.core.service;
 
 import fr.inria.corese.gui.core.enums.SerializationFormat;
-import fr.inria.corese.gui.core.service.DataSourceRegistryService.DataSource;
 import java.io.File;
 import java.util.List;
 

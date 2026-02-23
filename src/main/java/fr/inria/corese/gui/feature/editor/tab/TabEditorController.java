@@ -2,7 +2,7 @@ package fr.inria.corese.gui.feature.editor.tab;
 
 import fr.inria.corese.gui.component.button.FloatingButtonWidget;
 import fr.inria.corese.gui.core.io.ImportHelper;
-import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.editor.tab.support.TabEditorDropFilePolicy;
 import fr.inria.corese.gui.feature.editor.tab.support.TabEditorFileMatcher;

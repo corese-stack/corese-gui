@@ -1,7 +1,7 @@
 package fr.inria.corese.gui.feature.data.dialog;
 
 import fr.inria.corese.gui.core.dialog.DialogLayout;
-import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.service.ReasoningService.RuleFileState;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import java.util.LinkedHashMap;

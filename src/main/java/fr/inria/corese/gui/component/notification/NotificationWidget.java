@@ -2,7 +2,7 @@ package fr.inria.corese.gui.component.notification;
 
 import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
-import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;

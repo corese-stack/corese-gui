@@ -16,7 +16,7 @@ import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.model.ValidationResult;
 import fr.inria.corese.gui.core.shortcut.KeyboardShortcutRegistry;
-import fr.inria.corese.gui.core.service.ModalService;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
