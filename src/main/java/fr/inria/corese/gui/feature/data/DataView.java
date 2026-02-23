@@ -319,29 +319,49 @@ public class DataView extends AbstractView {
 	}
 
 	private void setupGraphDropListeners() {
+		graphContainer.addEventFilter(DragEvent.DRAG_ENTERED, this::handleGraphDragEntered);
 		graphContainer.addEventFilter(DragEvent.DRAG_OVER, this::handleGraphDragOver);
+		graphContainer.addEventFilter(DragEvent.DRAG_EXITED, this::handleGraphDragExited);
 		graphContainer.addEventFilter(DragEvent.DRAG_DROPPED, this::handleGraphDropped);
 	}
 
+	private void handleGraphDragEntered(DragEvent event) {
+		handleDragEntered(event, onGraphFilesDropped, this::setGraphDropActive);
+	}
+
 	private void handleGraphDragOver(DragEvent event) {
-		handleDragOver(event, onGraphFilesDropped);
+		handleDragOver(event, onGraphFilesDropped, this::setGraphDropActive);
+	}
+
+	private void handleGraphDragExited(DragEvent event) {
+		handleDragExited(this::setGraphDropActive);
 	}
 
 	private void handleGraphDropped(DragEvent event) {
-		handleDropped(event, onGraphFilesDropped);
+		handleDropped(event, onGraphFilesDropped, this::setGraphDropActive);
 	}
 
 	private void setupRuleFilesDropListeners() {
+		ruleFilesContent.addEventFilter(DragEvent.DRAG_ENTERED, this::handleRuleFilesDragEntered);
 		ruleFilesContent.addEventFilter(DragEvent.DRAG_OVER, this::handleRuleFilesDragOver);
+		ruleFilesContent.addEventFilter(DragEvent.DRAG_EXITED, this::handleRuleFilesDragExited);
 		ruleFilesContent.addEventFilter(DragEvent.DRAG_DROPPED, this::handleRuleFilesDropped);
 	}
 
+	private void handleRuleFilesDragEntered(DragEvent event) {
+		handleDragEntered(event, onRuleFilesDropped, this::setRuleFilesDropActive);
+	}
+
 	private void handleRuleFilesDragOver(DragEvent event) {
-		handleDragOver(event, onRuleFilesDropped);
+		handleDragOver(event, onRuleFilesDropped, this::setRuleFilesDropActive);
+	}
+
+	private void handleRuleFilesDragExited(DragEvent event) {
+		handleDragExited(this::setRuleFilesDropActive);
 	}
 
 	private void handleRuleFilesDropped(DragEvent event) {
-		handleDropped(event, onRuleFilesDropped);
+		handleDropped(event, onRuleFilesDropped, this::setRuleFilesDropActive);
 	}
 
 	private boolean hasFilesInDragboard(DragEvent event) {
@@ -369,18 +389,36 @@ public class DataView extends AbstractView {
 		}
 	}
 
-	private void handleDragOver(DragEvent event, Consumer<List<File>> dropHandler) {
+	private void handleDragEntered(DragEvent event, Consumer<List<File>> dropHandler, Consumer<Boolean> overlayToggle) {
 		if (!isDropEnabled(dropHandler)) {
+			handleDragExited(overlayToggle);
 			return;
 		}
-		if (hasFilesInDragboard(event)) {
+		overlayToggle.accept(hasFilesInDragboard(event));
+	}
+
+	private void handleDragOver(DragEvent event, Consumer<List<File>> dropHandler, Consumer<Boolean> overlayToggle) {
+		if (!isDropEnabled(dropHandler)) {
+			handleDragExited(overlayToggle);
+			return;
+		}
+		boolean hasFiles = hasFilesInDragboard(event);
+		overlayToggle.accept(hasFiles);
+		if (hasFiles) {
 			event.acceptTransferModes(TransferMode.COPY);
 			event.consume();
 		}
 	}
 
-	private void handleDropped(DragEvent event, Consumer<List<File>> dropHandler) {
+	private void handleDragExited(Consumer<Boolean> overlayToggle) {
+		if (overlayToggle != null) {
+			overlayToggle.accept(false);
+		}
+	}
+
+	private void handleDropped(DragEvent event, Consumer<List<File>> dropHandler, Consumer<Boolean> overlayToggle) {
 		if (!isDropEnabled(dropHandler)) {
+			handleDragExited(overlayToggle);
 			return;
 		}
 		boolean completed = false;
@@ -389,6 +427,7 @@ public class DataView extends AbstractView {
 			dropHandler.accept(draggedFiles);
 			completed = true;
 		}
+		handleDragExited(overlayToggle);
 		event.setDropCompleted(completed);
 		event.consume();
 	}
