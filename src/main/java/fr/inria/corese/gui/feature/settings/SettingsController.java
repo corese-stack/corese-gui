@@ -1,7 +1,9 @@
 package fr.inria.corese.gui.feature.settings;
 
+import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.theme.AppThemeRegistry;
 import fr.inria.corese.gui.core.theme.ThemeManager;
+import fr.inria.corese.gui.core.update.UpdateService;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ToggleButton;
 
@@ -18,6 +20,8 @@ public final class SettingsController {
 	private final SettingsModel model;
 	private final SettingsView view;
 	private final ThemeManager themeManager;
+	private final UpdateService updateService;
+	private UpdateService.UpdateInfo downloadableUpdateInfo;
 	private static final double SCALE_EPSILON = 0.0001;
 	private static final double UI_SCALE_STEP = 0.1;
 	private static final int GRAPH_TRIPLE_LIMIT_MIN_STEP = 100;
@@ -26,6 +30,7 @@ public final class SettingsController {
 		this.model = model;
 		this.view = view;
 		this.themeManager = ThemeManager.getInstance();
+		this.updateService = UpdateService.getInstance();
 
 		initializeView();
 		setupBindings();
@@ -41,6 +46,10 @@ public final class SettingsController {
 		updateGraphPreviewLimitStepperState(themeManager.getGraphAutoRenderTriplesLimit());
 		updateThemeSelection();
 		updateControlsDisabledState();
+		boolean flatpakManaged = updateService.isFlatpakManagedRuntime();
+		view.setUpdateControlsVisible(!flatpakManaged);
+		view.setStartupUpdateNotificationEnabled(updateService.isStartupUpdateNotificationEnabled());
+		applyUpdateResult(updateService.getLastResult());
 	}
 
 	private void setupBindings() {
@@ -146,6 +155,9 @@ public final class SettingsController {
 		view.setOnUiScaleIncrease(() -> adjustUiScale(+UI_SCALE_STEP));
 		view.setOnGraphPreviewLimitDecrease(() -> adjustGraphPreviewLimit(false));
 		view.setOnGraphPreviewLimitIncrease(() -> adjustGraphPreviewLimit(true));
+		view.setOnCheckForUpdates(this::handlePrimaryUpdateActionRequested);
+		view.setOnOpenReleaseNotes(updateService::openLatestReleasePage);
+		view.setOnStartupUpdateNotificationChange(updateService::setStartupUpdateNotificationEnabled);
 
 		view.getLightModeButton().setOnAction(e -> {
 			if (view.getLightModeButton().isSelected())
@@ -285,5 +297,45 @@ public final class SettingsController {
 		int min = ThemeManager.getMinGraphAutoRenderTriplesLimit();
 		view.setGraphPreviewLimitDecreaseDisabled(value <= min);
 		view.setGraphPreviewLimitIncreaseDisabled(false);
+	}
+
+	private void handleCheckForUpdatesRequested() {
+		updateService.checkForUpdatesAsync(true, result -> {
+			applyUpdateResult(result);
+			if (result == null || result.status() == UpdateService.Status.CHECKING) {
+				return;
+			}
+			switch (result.status()) {
+				case UPDATE_AVAILABLE ->
+					NotificationWidget.getInstance().showInfo("Update available", result.message());
+				case UP_TO_DATE -> NotificationWidget.getInstance().showSuccess("Updates", result.message());
+				case FLATPAK_MANAGED -> NotificationWidget.getInstance().showInfo("Updates", result.message());
+				case UNAVAILABLE -> NotificationWidget.getInstance().showWarning("Updates", result.message());
+				case NOT_CHECKED, CHECKING -> {
+					// No-op
+				}
+			}
+		});
+	}
+
+	private void handlePrimaryUpdateActionRequested() {
+		if (downloadableUpdateInfo != null) {
+			updateService.openDownload(downloadableUpdateInfo);
+			return;
+		}
+		handleCheckForUpdatesRequested();
+	}
+
+	private void applyUpdateResult(UpdateService.CheckResult result) {
+		UpdateService.CheckResult safeResult = result == null ? UpdateService.CheckResult.notChecked() : result;
+		boolean flatpakManaged = safeResult.status() == UpdateService.Status.FLATPAK_MANAGED
+				|| updateService.isFlatpakManagedRuntime();
+		boolean checking = safeResult.status() == UpdateService.Status.CHECKING;
+		boolean downloadableUpdateAvailable = safeResult.status() == UpdateService.Status.UPDATE_AVAILABLE
+				&& safeResult.info() != null && safeResult.info().preferredAsset() != null;
+		downloadableUpdateInfo = downloadableUpdateAvailable ? safeResult.info() : null;
+
+		view.setPrimaryUpdateActionState(checking, downloadableUpdateAvailable, flatpakManaged || checking);
+		view.setReleaseNotesDisabled(flatpakManaged || checking);
 	}
 }

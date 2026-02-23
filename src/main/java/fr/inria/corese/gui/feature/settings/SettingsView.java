@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import javafx.scene.Cursor;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.control.Button;
 import javafx.scene.control.ColorPicker;
@@ -77,6 +78,11 @@ public final class SettingsView extends AbstractView {
 	private Button graphPreviewLimitDecreaseButton;
 	private Button graphPreviewLimitIncreaseButton;
 	private Label graphPreviewLimitValueLabel;
+	private Button checkUpdatesButton;
+	private Button openReleaseNotesButton;
+	private ToggleSwitch startupUpdateNotificationSwitch;
+	private Tile updatesTile;
+	private Tile updateNotificationTile;
 
 	// ===== Constructor =====
 
@@ -186,8 +192,7 @@ public final class SettingsView extends AbstractView {
 	}
 
 	private Tile createGraphPreviewLimitTile() {
-		Tile tile = new Tile("Graph Preview Limit",
-				"Triple limit for automatic preview.");
+		Tile tile = new Tile("Graph Preview Limit", "Triple limit for automatic preview.");
 
 		graphPreviewLimitDecreaseButton = createUiScaleStepperButton("-");
 		graphPreviewLimitDecreaseButton.getStyleClass().add("settings-scale-stepper-button-left");
@@ -283,6 +288,56 @@ public final class SettingsView extends AbstractView {
 		}
 	}
 
+	public void setOnCheckForUpdates(Runnable handler) {
+		setButtonAction(checkUpdatesButton, handler);
+	}
+
+	public void setOnOpenReleaseNotes(Runnable handler) {
+		setButtonAction(openReleaseNotesButton, handler);
+	}
+
+	public void setUpdateControlsVisible(boolean visible) {
+		setNodeVisibleAndManaged(updatesTile, visible);
+		setNodeVisibleAndManaged(updateNotificationTile, visible);
+	}
+
+	public void setStartupUpdateNotificationEnabled(boolean enabled) {
+		if (startupUpdateNotificationSwitch != null) {
+			startupUpdateNotificationSwitch.setSelected(enabled);
+		}
+	}
+
+	public void setOnStartupUpdateNotificationChange(java.util.function.Consumer<Boolean> handler) {
+		if (startupUpdateNotificationSwitch == null) {
+			return;
+		}
+		startupUpdateNotificationSwitch.selectedProperty().addListener((obs, previous, selected) -> {
+			if (handler != null) {
+				handler.accept(Boolean.TRUE.equals(selected));
+			}
+		});
+	}
+
+	public void setReleaseNotesDisabled(boolean disabled) {
+		if (openReleaseNotesButton != null) {
+			openReleaseNotesButton.setDisable(disabled);
+		}
+	}
+
+	public void setPrimaryUpdateActionState(boolean checking, boolean downloadMode, boolean disabled) {
+		if (checkUpdatesButton == null) {
+			return;
+		}
+		if (checking) {
+			checkUpdatesButton.setText("Checking...");
+		} else if (downloadMode) {
+			checkUpdatesButton.setText("Download Update");
+		} else {
+			checkUpdatesButton.setText("Check Now");
+		}
+		checkUpdatesButton.setDisable(disabled);
+	}
+
 	private VBox createKeyboardShortcutsSection() {
 		VBox section = new VBox(12);
 		section.getStyleClass().addAll("settings-section", "settings-shortcuts-section", "app-card", "app-card-subtle");
@@ -351,6 +406,14 @@ public final class SettingsView extends AbstractView {
 				handler.run();
 			}
 		});
+	}
+
+	private static void setNodeVisibleAndManaged(Node node, boolean visible) {
+		if (node == null) {
+			return;
+		}
+		node.setVisible(visible);
+		node.setManaged(visible);
 	}
 
 	private Map<String, List<ShortcutDisplayEntry>> buildShortcutDisplayEntriesByCategory() {
@@ -423,7 +486,9 @@ public final class SettingsView extends AbstractView {
 		sectionTitle.getStyleClass().add(Styles.TITLE_3);
 
 		HBox aboutRow = createAboutRow();
-		section.getChildren().addAll(sectionTitle, aboutRow);
+		updatesTile = createUpdatesTile();
+		updateNotificationTile = createUpdateNotificationTile();
+		section.getChildren().addAll(sectionTitle, aboutRow, updatesTile, updateNotificationTile);
 		return section;
 	}
 
@@ -493,6 +558,30 @@ public final class SettingsView extends AbstractView {
 		LogoShadowEffects.installDefaultAnimation(logoWrapper, (DropShadow) coreseLogo.getEffect());
 
 		return logoWrapper;
+	}
+
+	private Tile createUpdatesTile() {
+		Tile updatesTile = new Tile("Updates", "Check and update application");
+
+		checkUpdatesButton = new Button("Check Now");
+		checkUpdatesButton.getStyleClass().add(Styles.BUTTON_OUTLINED);
+
+		openReleaseNotesButton = new Button("Release Notes");
+		openReleaseNotesButton.getStyleClass().add(Styles.BUTTON_OUTLINED);
+		HBox actionButtons = new HBox(8, checkUpdatesButton, openReleaseNotesButton);
+		actionButtons.getStyleClass().add("settings-update-button-row");
+		actionButtons.setAlignment(Pos.CENTER_RIGHT);
+
+		updatesTile.setAction(actionButtons);
+
+		return updatesTile;
+	}
+
+	private Tile createUpdateNotificationTile() {
+		Tile tile = new Tile("Update Notifications", "Show update notifications at startup");
+		startupUpdateNotificationSwitch = new ToggleSwitch();
+		tile.setAction(startupUpdateNotificationSwitch);
+		return tile;
 	}
 
 	private Button createLinkButton(String text, String url, ButtonIcon icon) {

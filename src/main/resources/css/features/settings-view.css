@@ -118,6 +118,11 @@
     -fx-alignment: center-right;
 }
 
+.settings-update-button-row {
+    -fx-spacing: 8px;
+    -fx-alignment: center-right;
+}
+
 .settings-shortcuts-subtitle {
     -fx-text-fill: -color-fg-muted;
 }

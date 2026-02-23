@@ -1,8 +1,12 @@
 package fr.inria.corese.gui.feature.main;
 
+import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.core.enums.ViewId;
 import fr.inria.corese.gui.core.shortcut.KeyboardShortcutRegistry;
+import fr.inria.corese.gui.core.dialog.DialogLayout;
+import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.theme.ThemeManager;
+import fr.inria.corese.gui.core.update.UpdateService;
 import fr.inria.corese.gui.feature.data.DataView;
 import fr.inria.corese.gui.feature.data.DataViewController;
 import fr.inria.corese.gui.feature.main.navigation.NavigationBarController;
@@ -13,8 +17,12 @@ import fr.inria.corese.gui.feature.validation.ValidationView;
 import java.util.function.Predicate;
 import javafx.application.Platform;
 import javafx.event.EventHandler;
+import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.Label;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.VBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +48,7 @@ public final class MainController {
 
 	/** Manager for loading and caching views. */
 	private final ViewManager viewManager;
+	private final UpdateService updateService;
 	private ViewId currentViewId = ViewId.DATA;
 	private Scene shortcutScene;
 	private final EventHandler<KeyEvent> shortcutEventHandler = this::handleShortcutPressed;
@@ -60,6 +69,7 @@ public final class MainController {
 		this.view = view;
 		this.navController = navController;
 		this.viewManager = viewManager;
+		this.updateService = UpdateService.getInstance();
 		initialize();
 	}
 
@@ -91,6 +101,8 @@ public final class MainController {
 
 		// Preload other views in background after a short delay to ensure fluidity
 		preloadOtherViewsAsync(ViewId.DATA);
+
+		scheduleStartupUpdateCheck();
 	}
 
 	/**
@@ -358,5 +370,55 @@ public final class MainController {
 
 		preloadThread.setDaemon(true);
 		preloadThread.start();
+	}
+
+	private void scheduleStartupUpdateCheck() {
+		if (updateService.isFlatpakManagedRuntime()) {
+			return;
+		}
+		if (!updateService.isStartupUpdateNotificationEnabled()) {
+			return;
+		}
+		updateService.checkForUpdatesAsync(false, this::handleStartupUpdateResult);
+	}
+
+	private void handleStartupUpdateResult(UpdateService.CheckResult result) {
+		if (result == null || result.status() != UpdateService.Status.UPDATE_AVAILABLE || result.info() == null) {
+			return;
+		}
+		showStartupUpdateDialog(result.info());
+	}
+
+	private void showStartupUpdateDialog(UpdateService.UpdateInfo info) {
+		Label messageLabel = new Label("A new version of Corese GUI is available: " + info.latestVersion()
+				+ " (installed: " + info.currentVersion() + ").");
+		messageLabel.setWrapText(true);
+
+		CheckBox disableStartupNotifications = new CheckBox("Do not notify about updates at startup");
+		disableStartupNotifications.setSelected(!updateService.isStartupUpdateNotificationEnabled());
+		disableStartupNotifications.selectedProperty()
+				.addListener((obs, previous, selected) -> updateService.setStartupUpdateNotificationEnabled(!selected));
+
+		VBox content = new VBox(8, messageLabel, disableStartupNotifications);
+		Button laterButton = new Button("Later");
+		laterButton.setOnAction(event -> ModalService.getInstance().hide());
+
+		Button releaseNotesButton = new Button("Open Release Notes");
+		releaseNotesButton.getStyleClass().add(Styles.BUTTON_OUTLINED);
+		releaseNotesButton.setOnAction(event -> {
+			ModalService.getInstance().hide();
+			updateService.openReleasePage(info);
+		});
+
+		Button downloadButton = new Button("Download Update");
+		downloadButton.getStyleClass().add(Styles.ACCENT);
+		downloadButton.setOnAction(event -> {
+			ModalService.getInstance().hide();
+			updateService.openDownload(info);
+		});
+
+		ModalService.getInstance()
+				.show(new DialogLayout("Update Available", content, laterButton, releaseNotesButton, downloadButton)
+						.compact());
 	}
 }
