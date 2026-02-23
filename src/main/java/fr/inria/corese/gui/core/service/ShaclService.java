@@ -1,6 +1,8 @@
 package fr.inria.corese.gui.core.service;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
@@ -55,6 +57,8 @@ public class ShaclService {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ShaclService.class);
 	private static final ShaclService INSTANCE = new ShaclService();
+	private static final String SHACL_SHACL_RESOURCE_PATH = "data/shaclshacl.ttl";
+	private static final int SHACL_SHACL_REPORT_MAX_CHARS = 40_000;
 
 	private final Map<String, Graph> reportCache;
 
@@ -101,12 +105,18 @@ public class ShaclService {
 			Load.create(shapesGraph).parse(new ByteArrayInputStream(shapesContent.getBytes(StandardCharsets.UTF_8)),
 					Loader.format.TURTLE_FORMAT);
 
-			// 3. Run Validation
+			// 3. Validate shapes graph itself (SHACL-SHACL) before validating data
+			ValidationResult metaValidation = validateShapesGraph(shapesGraph);
+			if (metaValidation != null) {
+				return metaValidation;
+			}
+
+			// 4. Run Validation
 			Shacl shacl = new Shacl(dataGraph, shapesGraph);
 			Graph reportGraph = shacl.eval();
 			boolean conforms = shacl.conform(reportGraph);
 
-			// 4. Cache Report
+			// 5. Cache Report
 			String reportId = UUID.randomUUID().toString();
 			reportCache.put(reportId, reportGraph);
 
@@ -117,6 +127,49 @@ public class ShaclService {
 			LOGGER.error("SHACL validation exception", e);
 			return new ValidationResult(false, null, buildValidationErrorMessage(e));
 		}
+	}
+
+	private ValidationResult validateShapesGraph(Graph shapesGraph) throws LoadException, EngineException {
+		Graph shaclShaclGraph = loadShaclShaclGraph();
+		Shacl shaclShacl = new Shacl(shapesGraph, shaclShaclGraph);
+		Graph shaclShaclReport = shaclShacl.eval();
+		if (shaclShacl.conform(shaclShaclReport)) {
+			return null;
+		}
+
+		int issueCount = shaclShacl.nbResult(shaclShaclReport);
+		String issueSuffix = issueCount > 0 ? " (" + issueCount + " issue(s))." : ".";
+		String message = "SHACL-SHACL pre-validation failed: the shapes graph is not valid SHACL" + issueSuffix
+				+ " Fix the shapes file before running data validation.";
+		String details = buildShaclShaclReportDetails(shaclShaclReport);
+		return new ValidationResult(false, null, message, details);
+	}
+
+	private Graph loadShaclShaclGraph() throws LoadException {
+		Graph shaclShaclGraph = Graph.create();
+		ClassLoader classLoader = ShaclService.class.getClassLoader();
+		try (InputStream stream = classLoader.getResourceAsStream(SHACL_SHACL_RESOURCE_PATH)) {
+			if (stream == null) {
+				throw new IOException("Missing SHACL-SHACL profile resource: " + SHACL_SHACL_RESOURCE_PATH);
+			}
+			Load.create(shaclShaclGraph).parse(stream, Loader.format.TURTLE_FORMAT);
+			return shaclShaclGraph;
+		} catch (IOException e) {
+			throw LoadException.create(e, SHACL_SHACL_RESOURCE_PATH);
+		}
+	}
+
+	private String buildShaclShaclReportDetails(Graph reportGraph) {
+		String turtleReport = ResultFormatter.getInstance().formatGraph(reportGraph, SerializationFormat.TURTLE);
+		if (turtleReport == null || turtleReport.isBlank() || turtleReport.startsWith("Error formatting graph:")) {
+			return "";
+		}
+		String details = "SHACL-SHACL report (Turtle)\n\n" + turtleReport.strip();
+		if (details.length() <= SHACL_SHACL_REPORT_MAX_CHARS) {
+			return details;
+		}
+		return details.substring(0, SHACL_SHACL_REPORT_MAX_CHARS)
+				+ "\n\n... report truncated for display (copy to inspect full content).";
 	}
 
 	/**

@@ -270,6 +270,8 @@ public class TabEditorView extends AbstractView {
 	}
 
 	private void setupFileDropListeners() {
+		contentContainer.addEventFilter(DragEvent.DRAG_ENTERED, this::handleFileDragEntered);
+		contentContainer.addEventFilter(DragEvent.DRAG_EXITED, this::handleFileDragExited);
 		contentContainer.addEventFilter(DragEvent.DRAG_OVER, this::handleFileDragOver);
 		contentContainer.addEventFilter(DragEvent.DRAG_DROPPED, this::handleFileDropped);
 	}
@@ -663,16 +665,32 @@ public class TabEditorView extends AbstractView {
 
 	private void handleFileDragOver(DragEvent event) {
 		if (!isFileDropEnabled()) {
+			setFileDropActive(false);
 			return;
 		}
-		if (hasFilesInDragboard(event)) {
+		boolean hasFiles = hasFilesInDragboard(event);
+		setFileDropActive(hasFiles);
+		if (hasFiles) {
 			event.acceptTransferModes(TransferMode.COPY);
 			event.consume();
 		}
 	}
 
+	private void handleFileDragEntered(DragEvent event) {
+		if (!isFileDropEnabled()) {
+			setFileDropActive(false);
+			return;
+		}
+		setFileDropActive(hasFilesInDragboard(event));
+	}
+
+	private void handleFileDragExited(DragEvent event) {
+		setFileDropActive(false);
+	}
+
 	private void handleFileDropped(DragEvent event) {
 		if (!isFileDropEnabled()) {
+			setFileDropActive(false);
 			return;
 		}
 		boolean completed = false;
@@ -681,6 +699,7 @@ public class TabEditorView extends AbstractView {
 			onFilesDropped.accept(draggedFiles);
 			completed = true;
 		}
+		setFileDropActive(false);
 		event.setDropCompleted(completed);
 		event.consume();
 	}

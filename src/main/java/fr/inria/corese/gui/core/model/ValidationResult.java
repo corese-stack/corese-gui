@@ -9,11 +9,17 @@ public class ValidationResult {
     private final boolean conforms;
     private final String reportId;
     private final String errorMessage;
+    private final String errorDetails;
 
     public ValidationResult(boolean conforms, String reportId, String errorMessage) {
+        this(conforms, reportId, errorMessage, null);
+    }
+
+    public ValidationResult(boolean conforms, String reportId, String errorMessage, String errorDetails) {
         this.conforms = conforms;
         this.reportId = reportId;
         this.errorMessage = errorMessage;
+        this.errorDetails = errorDetails;
     }
 
     public boolean isConforms() {
@@ -29,5 +35,9 @@ public class ValidationResult {
 
     public String getErrorMessage() {
         return errorMessage;
+    }
+
+    public String getErrorDetails() {
+        return errorDetails;
     }
 }

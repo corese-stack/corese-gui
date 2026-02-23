@@ -205,7 +205,12 @@ public class ValidationController {
 			// Handle validation errors (e.g., syntax errors in shapes) with query-like
 			// modal
 			tabEditorController.hideResultPane();
-			ModalService.getInstance().showError("Validation Error", result.getErrorMessage());
+			if (result.getErrorDetails() != null && !result.getErrorDetails().isBlank()) {
+				ModalService.getInstance().showError("Validation Error", result.getErrorMessage(),
+						result.getErrorDetails());
+			} else {
+				ModalService.getInstance().showError("Validation Error", result.getErrorMessage());
+			}
 			return;
 		}
 
