@@ -19,6 +19,21 @@
  * Overrides console.log and console.error to forward messages to Java.
  */
 function setupBridge() {
+    const formatConsoleArgument = value => {
+        if (value instanceof Error) {
+            const stack = value.stack ? String(value.stack) : "";
+            return stack ? `${value.message}\n${stack}` : String(value.message);
+        }
+        if (typeof value === "object" && value !== null) {
+            try {
+                return JSON.stringify(value);
+            } catch (e) {
+                return String(value);
+            }
+        }
+        return String(value);
+    };
+
     // Global error handler
     window.onerror = function (msg, url, line, col, error) {
         if (window.bridge) {
@@ -37,19 +52,11 @@ function setupBridge() {
 
     // Override console.error to forward to Java
     const oldError = console.error;
-    console.error = function (msg) {
+    console.error = function () {
         if (window.bridge) {
-            let errorMsg = msg;
-            if (msg instanceof Error) {
-                errorMsg = `${msg.message}\n${msg.stack}`;
-            } else if (typeof msg === 'object') {
-                try {
-                    errorMsg = JSON.stringify(msg);
-                } catch (e) {
-                    errorMsg = String(msg);
-                }
-            }
-            window.bridge.error(String(errorMsg));
+            const args = Array.from(arguments);
+            const errorMsg = args.map(formatConsoleArgument).join(" | ");
+            window.bridge.error(errorMsg);
         }
         oldError.apply(console, arguments);
     };

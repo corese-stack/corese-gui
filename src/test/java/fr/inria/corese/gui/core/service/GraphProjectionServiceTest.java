@@ -1,5 +1,6 @@
 package fr.inria.corese.gui.core.service;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
@@ -7,12 +8,20 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class GraphProjectionServiceTest {
+
+	private static final Pattern BROKEN_QUOTE_IN_VALUE_PATTERN = Pattern.compile(
+			"\\\"@value\\\"\\s*:\\s*\\\"(?:[^\\\"\\\\]|\\\\.)*\\\"(?=\\s*[A-Za-z0-9_<])",
+			Pattern.MULTILINE);
+	private static final Pattern BROKEN_CONTROL_CHAR_IN_VALUE_PATTERN = Pattern.compile(
+			"\\\"@value\\\"\\s*:\\s*\\\"(?:[^\\\"\\\\]|\\\\.)*[\\n\\r\\t](?:[^\\\"\\\\]|\\\\.)*\\\"",
+			Pattern.MULTILINE);
 
 	@TempDir
 	Path tempDir;
@@ -87,6 +96,35 @@ class GraphProjectionServiceTest {
 				"Second projection should still contain triples from the first load.");
 		assertTrue(secondSnapshot.contains("\"@id\": \"ns1:c\""),
 				"Second projection should contain triples from the incremental load.");
+	}
+
+	@Test
+	void snapshotJsonLd_escapesInnerQuotesInLiteralValues() throws IOException {
+		File file = writeTempRdf("rss-feed.rdf", """
+				<?xml version="1.0" encoding="utf-8" ?>
+				<rdf:RDF
+				    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+				    xmlns="http://purl.org/rss/1.0/"
+				    xmlns:dc="http://purl.org/dc/elements/1.1/"
+				    xmlns:content="http://purl.org/rss/1.0/modules/content/">
+				  <item rdf:about="http://example.org/item">
+				    <dc:title>Test</dc:title>
+				    <content:encoded><![CDATA[<div class="answer">Quoted "text"</div>]]></content:encoded>
+				  </item>
+				</rdf:RDF>
+				""");
+
+		rdfDataService.loadFile(file);
+		String jsonLd = projectionService.snapshotJsonLd();
+
+		assertTrue(jsonLd.contains("\"@value\""),
+				"JSON-LD snapshot should include literal values.");
+		assertTrue(jsonLd.contains("\\\"answer\\\""),
+				"Inner quotes in literal values should be escaped in JSON-LD output.");
+		assertFalse(BROKEN_QUOTE_IN_VALUE_PATTERN.matcher(jsonLd).find(),
+				"JSON-LD snapshot should not contain malformed @value strings with unescaped quotes.");
+		assertFalse(BROKEN_CONTROL_CHAR_IN_VALUE_PATTERN.matcher(jsonLd).find(),
+				"JSON-LD snapshot should not contain raw control characters inside @value strings.");
 	}
 
 	private File writeTempRdf(String fileName, String content) throws IOException {

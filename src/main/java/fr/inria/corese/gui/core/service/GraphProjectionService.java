@@ -18,6 +18,7 @@ public final class GraphProjectionService {
 	private static final GraphProjectionService INSTANCE = new GraphProjectionService();
 	private static final List<SerializationFormat> RDF_EXPORT_FORMATS = List
 			.copyOf(Arrays.asList(SerializationFormat.rdfFormats()));
+	private static final String JSON_LD_VALUE_KEY = "\"@value\"";
 
 	private GraphProjectionService() {
 	}
@@ -83,6 +84,21 @@ public final class GraphProjectionService {
 			return jsonLd;
 		}
 
+		SanitizationResult doubleQuotedSanitization = sanitizeMalformedDoubleQuotedValues(jsonLd);
+		SanitizationResult literalQuoteSanitization = sanitizeMalformedLiteralQuotedValues(
+				doubleQuotedSanitization.sanitized());
+		int totalReplacements = doubleQuotedSanitization.replacementCount()
+				+ literalQuoteSanitization.replacementCount();
+		if (totalReplacements > 0) {
+			LOGGER.warn(
+					"Sanitized {} malformed JSON-LD quoted value(s) in graph snapshot (double-quoted: {}, literal-inner-quotes: {}).",
+					totalReplacements, doubleQuotedSanitization.replacementCount(),
+					literalQuoteSanitization.replacementCount());
+		}
+		return totalReplacements == 0 ? jsonLd : literalQuoteSanitization.sanitized();
+	}
+
+	private SanitizationResult sanitizeMalformedDoubleQuotedValues(String jsonLd) {
 		StringBuilder sanitized = new StringBuilder(jsonLd.length());
 		int cursor = 0;
 		int replacementCount = 0;
@@ -99,11 +115,100 @@ public final class GraphProjectionService {
 				}
 			}
 		}
+		return replacementCount == 0
+				? new SanitizationResult(jsonLd, 0)
+				: new SanitizationResult(sanitized.toString(), replacementCount);
+	}
 
-		if (replacementCount > 0) {
-			LOGGER.warn("Sanitized {} malformed JSON-LD quoted value(s) in graph snapshot.", replacementCount);
+	private SanitizationResult sanitizeMalformedLiteralQuotedValues(String jsonLd) {
+		StringBuilder sanitized = new StringBuilder(jsonLd.length());
+		int cursor = 0;
+		int replacementCount = 0;
+
+		while (cursor < jsonLd.length()) {
+			int keyStart = jsonLd.indexOf(JSON_LD_VALUE_KEY, cursor);
+			if (keyStart < 0) {
+				sanitized.append(jsonLd, cursor, jsonLd.length());
+				break;
+			}
+
+			sanitized.append(jsonLd, cursor, keyStart);
+			int keyEnd = keyStart + JSON_LD_VALUE_KEY.length();
+			int colonIndex = jsonLd.indexOf(':', keyEnd);
+			if (colonIndex < 0) {
+				sanitized.append(jsonLd, keyStart, jsonLd.length());
+				break;
+			}
+
+			int valueStart = skipWhitespace(jsonLd, colonIndex + 1);
+			if (valueStart >= jsonLd.length() || jsonLd.charAt(valueStart) != '"') {
+				sanitized.append(jsonLd, keyStart, valueStart);
+				cursor = valueStart;
+				continue;
+			}
+
+			sanitized.append(jsonLd, keyStart, valueStart + 1);
+			int index = valueStart + 1;
+			boolean escaping = false;
+			boolean closed = false;
+
+			while (index < jsonLd.length()) {
+				char current = jsonLd.charAt(index);
+				if (current <= 0x1F) {
+					sanitized.append(escapeJsonControlCharacter(current));
+					replacementCount++;
+					index++;
+					continue;
+				}
+				if (escaping) {
+					sanitized.append(current);
+					escaping = false;
+					index++;
+					continue;
+				}
+				if (current == '\\') {
+					sanitized.append(current);
+					escaping = true;
+					index++;
+					continue;
+				}
+				if (current == '"') {
+					int nextToken = skipWhitespace(jsonLd, index + 1);
+					if (nextToken >= jsonLd.length() || isJsonLiteralValueTerminator(jsonLd.charAt(nextToken))) {
+						sanitized.append(current);
+						index++;
+						cursor = index;
+						closed = true;
+						break;
+					}
+					sanitized.append("\\\"");
+					replacementCount++;
+					index++;
+					continue;
+				}
+				sanitized.append(current);
+				index++;
+			}
+
+			if (!closed) {
+				cursor = index;
+				break;
+			}
 		}
-		return replacementCount == 0 ? jsonLd : sanitized.toString();
+		return replacementCount == 0
+				? new SanitizationResult(jsonLd, 0)
+				: new SanitizationResult(sanitized.toString(), replacementCount);
+	}
+
+	private static String escapeJsonControlCharacter(char value) {
+		return switch (value) {
+			case '\b' -> "\\b";
+			case '\f' -> "\\f";
+			case '\n' -> "\\n";
+			case '\r' -> "\\r";
+			case '\t' -> "\\t";
+			default -> "\\u%04x".formatted((int) value);
+		};
 	}
 
 	private static ReplacementAttempt tryReplaceMalformedQuotedValue(String jsonLd, int cursor, int start,
@@ -225,6 +330,10 @@ public final class GraphProjectionService {
 		}
 		char suffix = jsonLd.charAt(cursor);
 		return suffix == ',' || suffix == '}' || suffix == ']';
+	}
+
+	private static boolean isJsonLiteralValueTerminator(char candidate) {
+		return candidate == ',' || candidate == '}' || candidate == ']';
 	}
 
 	private TopLevelJsonLdParts extractTopLevelContextAndGraph(String jsonLd) {
@@ -413,6 +522,9 @@ public final class GraphProjectionService {
 	}
 
 	private record ReplacementAttempt(int nextCursor, boolean replaced) {
+	}
+
+	private record SanitizationResult(String sanitized, int replacementCount) {
 	}
 
 	private record QuotedStringState(boolean inString, boolean escaping) {
