@@ -2522,6 +2522,27 @@ class KGGraphVis extends HTMLElement {
         this.nodeSelection.call(this.createNodeDragBehavior());
     }
 
+    resolveStaticLinkEndpoints(nodeById = new Map()) {
+        if (!this.staticLayoutMode || !Array.isArray(this.graph?.links) || !nodeById || nodeById.size === 0) {
+            return;
+        }
+        this.graph.links.forEach(link => {
+            if (!link) {
+                return;
+            }
+            const sourceId = this.getLinkEndpointId(link.source);
+            const targetId = this.getLinkEndpointId(link.target);
+            const sourceNode = sourceId ? nodeById.get(sourceId) : null;
+            const targetNode = targetId ? nodeById.get(targetId) : null;
+            if (sourceNode) {
+                link.source = sourceNode;
+            }
+            if (targetNode) {
+                link.target = targetNode;
+            }
+        });
+    }
+
     updateLevelOfDetail(scale = 1) {
         const zoom = scale;
         this.currentZoom = zoom;
@@ -4375,6 +4396,7 @@ class KGGraphVis extends HTMLElement {
         this.notifyEffectiveRenderProfile();
 
         const nodeById = new Map(this.graph.nodes.map(node => [node.id, node]));
+        this.resolveStaticLinkEndpoints(nodeById);
         const getSourceId = link => (link.source && link.source.id) ? link.source.id : link.source;
         const getTargetId = link => (link.target && link.target.id) ? link.target.id : link.target;
 

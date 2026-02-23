@@ -20,7 +20,8 @@ public final class SettingsController {
 	private final ThemeManager themeManager;
 	private static final double SCALE_EPSILON = 0.0001;
 	private static final double UI_SCALE_STEP = 0.1;
-	private static final int GRAPH_TRIPLE_LIMIT_STEP = 100;
+	private static final int GRAPH_TRIPLE_LIMIT_MIN_STEP = 100;
+	private static final double GRAPH_TRIPLE_LIMIT_STEP_RATIO = 0.10;
 
 	public SettingsController(SettingsModel model, SettingsView view) {
 		this.model = model;
@@ -144,8 +145,8 @@ public final class SettingsController {
 		view.getThemeComboBox().setOnAction(e -> handleThemeChange());
 		view.setOnUiScaleDecrease(() -> adjustUiScale(-UI_SCALE_STEP));
 		view.setOnUiScaleIncrease(() -> adjustUiScale(+UI_SCALE_STEP));
-		view.setOnGraphPreviewLimitDecrease(() -> adjustGraphPreviewLimit(-GRAPH_TRIPLE_LIMIT_STEP));
-		view.setOnGraphPreviewLimitIncrease(() -> adjustGraphPreviewLimit(+GRAPH_TRIPLE_LIMIT_STEP));
+		view.setOnGraphPreviewLimitDecrease(() -> adjustGraphPreviewLimit(false));
+		view.setOnGraphPreviewLimitIncrease(() -> adjustGraphPreviewLimit(true));
 
 		view.getLightModeButton().setOnAction(e -> {
 			if (view.getLightModeButton().isSelected())
@@ -232,8 +233,23 @@ public final class SettingsController {
 		view.setUiScaleIncreaseDisabled(scale >= maxScale - SCALE_EPSILON);
 	}
 
-	private void adjustGraphPreviewLimit(int delta) {
-		model.setGraphAutoRenderTriplesLimit(model.getGraphAutoRenderTriplesLimit() + delta);
+	private void adjustGraphPreviewLimit(boolean increase) {
+		int currentValue = model.getGraphAutoRenderTriplesLimit();
+		int step = computeGraphPreviewLimitStep(currentValue);
+		int min = ThemeManager.getMinGraphAutoRenderTriplesLimit();
+		int max = ThemeManager.getMaxGraphAutoRenderTriplesLimit();
+		int nextValue = increase ? currentValue + step : currentValue - step;
+		model.setGraphAutoRenderTriplesLimit(Math.clamp(nextValue, min, max));
+	}
+
+	private static int computeGraphPreviewLimitStep(int currentValue) {
+		if (currentValue <= 0) {
+			return GRAPH_TRIPLE_LIMIT_MIN_STEP;
+		}
+		int adaptiveStep = (int) Math.round(
+				(currentValue * GRAPH_TRIPLE_LIMIT_STEP_RATIO) / GRAPH_TRIPLE_LIMIT_MIN_STEP)
+				* GRAPH_TRIPLE_LIMIT_MIN_STEP;
+		return Math.max(GRAPH_TRIPLE_LIMIT_MIN_STEP, adaptiveStep);
 	}
 
 	private void updateGraphPreviewLimitStepperState(int value) {

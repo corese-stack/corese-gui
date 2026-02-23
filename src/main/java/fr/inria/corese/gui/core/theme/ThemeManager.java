@@ -52,7 +52,7 @@ public final class ThemeManager {
 	private static final double DEFAULT_UI_SCALE = 1.0;
 	private static final double MIN_UI_SCALE = 0.5;
 	private static final double MAX_UI_SCALE = 2.0;
-	private static final int DEFAULT_GRAPH_AUTO_RENDER_TRIPLES = 1_200;
+	private static final int DEFAULT_GRAPH_AUTO_RENDER_TRIPLES = 50_000;
 	private static final int MIN_GRAPH_AUTO_RENDER_TRIPLES = 100;
 	private static final int MAX_GRAPH_AUTO_RENDER_TRIPLES = 50_000;
 	private static final double SCALE_EPSILON = 0.0001;

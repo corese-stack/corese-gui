@@ -187,7 +187,7 @@ public final class SettingsView extends AbstractView {
 
 	private Tile createGraphPreviewLimitTile() {
 		Tile tile = new Tile("Graph Preview Limit",
-				"Triple limit for automatic preview. Increase only if your machine stays responsive.");
+				"Triple limit for automatic preview.");
 
 		graphPreviewLimitDecreaseButton = createUiScaleStepperButton("-");
 		graphPreviewLimitDecreaseButton.getStyleClass().add("settings-scale-stepper-button-left");
