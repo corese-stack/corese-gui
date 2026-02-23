@@ -84,7 +84,10 @@ public final class GraphProjectionService {
 			return jsonLd;
 		}
 
+		// Pass 1: legacy Corese bug where values are emitted as ""value"".
 		SanitizationResult doubleQuotedSanitization = sanitizeMalformedDoubleQuotedValues(jsonLd);
+		// Pass 2: malformed @value literals with raw quotes/control chars inside
+		// string payloads.
 		SanitizationResult literalQuoteSanitization = sanitizeMalformedLiteralQuotedValues(
 				doubleQuotedSanitization.sanitized());
 		int totalReplacements = doubleQuotedSanitization.replacementCount()

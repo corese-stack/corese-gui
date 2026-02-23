@@ -19,14 +19,18 @@ final class GraphDisplayScripts {
 		return """
 				(function() {
 				  var graphPayload = '%s';
-				  if (window.renderGraphFromBase64) {
-				    window.renderGraphFromBase64(graphPayload, '%s');
-				    return;
-				  }
 				  try {
+				    if (window.renderGraphFromBase64) {
+				      window.renderGraphFromBase64(graphPayload, '%s');
+				      return;
+				    }
+				    var decoded = decodeURIComponent(escape(window.atob(graphPayload)));
+				    if (window.renderGraphFromJson) {
+				      window.renderGraphFromJson(decoded, '%s', '%s');
+				      return;
+				    }
 				    var el = document.getElementById('%s');
 				    if (!el) throw new Error('Graph component not found');
-				    var decoded = decodeURIComponent(escape(window.atob(graphPayload)));
 				    el.jsonld = decoded;
 				    if (window.bridge && typeof window.bridge.onGraphRenderComplete === 'function') {
 				      window.bridge.onGraphRenderComplete('%s');
@@ -37,7 +41,8 @@ final class GraphDisplayScripts {
 				    }
 				  }
 				})();
-				""".formatted(safeBase64Json, safeRequestId, safeGraphElementId, safeRequestId, safeRequestId);
+				""".formatted(safeBase64Json, safeRequestId, safeRequestId, safeGraphElementId, safeGraphElementId,
+				safeRequestId, safeRequestId);
 	}
 
 	static String buildGraphCommandScript(String graphElementId, String commandScript) {

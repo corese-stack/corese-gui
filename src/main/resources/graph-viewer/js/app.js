@@ -7,6 +7,20 @@
 
 "use strict";
 
+const DEFAULT_GRAPH_ELEMENT_ID = "myGraph";
+const BRIDGE_PATCH_FLAG = "__coreseBridgePatched";
+
+function getGraphElement(elementId = DEFAULT_GRAPH_ELEMENT_ID) {
+    if (typeof elementId !== "string" || elementId.trim().length === 0) {
+        return document.getElementById(DEFAULT_GRAPH_ELEMENT_ID);
+    }
+    return document.getElementById(elementId.trim());
+}
+
+function decodeBase64Utf8(base64Payload) {
+    return decodeURIComponent(escape(window.atob(base64Payload)));
+}
+
 /* =================================================================
  * JAVA BRIDGE SETUP
  * =================================================================
@@ -19,6 +33,11 @@
  * Overrides console.log and console.error to forward messages to Java.
  */
 function setupBridge() {
+    if (window[BRIDGE_PATCH_FLAG]) {
+        return;
+    }
+    window[BRIDGE_PATCH_FLAG] = true;
+
     const formatConsoleArgument = value => {
         if (value instanceof Error) {
             const stack = value.stack ? String(value.stack) : "";
@@ -84,39 +103,34 @@ function asErrorMessage(error) {
     return String(error && error.message ? error.message : error);
 }
 
-/**
- * Inject graph content from Base64-encoded JSON-LD.
- * Rendering is scheduled asynchronously to keep JavaFX calls lightweight.
- *
- * @param {string} base64Json - Base64 encoded JSON-LD payload.
- * @param {string} requestId - Render request identifier from Java.
- */
-window.renderGraphFromBase64 = function (base64Json, requestId) {
+function notifyRenderComplete(requestId) {
     const renderId = requestId == null ? "" : String(requestId);
-    const graphElement = document.getElementById('myGraph');
-    if (!graphElement) {
-        notifyBridge('onGraphRenderFailed', renderId, 'Graph component not available.');
-        return;
-    }
+    notifyBridge("onGraphRenderComplete", renderId);
+}
 
-    let decoded;
-    try {
-        decoded = decodeURIComponent(escape(window.atob(base64Json)));
-    } catch (error) {
-        notifyBridge('onGraphRenderFailed', renderId, asErrorMessage(error));
+function notifyRenderFailed(requestId, error) {
+    const renderId = requestId == null ? "" : String(requestId);
+    notifyBridge("onGraphRenderFailed", renderId, asErrorMessage(error));
+}
+
+function renderGraphPayload(decodedJsonLd, requestId, graphElementId = DEFAULT_GRAPH_ELEMENT_ID) {
+    const renderId = requestId == null ? "" : String(requestId);
+    const graphElement = getGraphElement(graphElementId);
+    if (!graphElement) {
+        notifyRenderFailed(renderId, `Graph component not available (id: ${graphElementId}).`);
         return;
     }
 
     setTimeout(() => {
         try {
-            graphElement.jsonld = decoded;
+            graphElement.jsonld = decodedJsonLd;
             const drawPromise = graphElement.lastDrawPromise;
             if (drawPromise && typeof drawPromise.then === "function") {
                 Promise.resolve(drawPromise)
-                    .then(() => notifyBridge('onGraphRenderComplete', renderId))
+                    .then(() => notifyRenderComplete(renderId))
                     .catch(error => {
                         console.error("Graph rendering failed:", error);
-                        notifyBridge('onGraphRenderFailed', renderId, asErrorMessage(error));
+                        notifyRenderFailed(renderId, error);
                     });
                 return;
             }
@@ -147,7 +161,7 @@ window.renderGraphFromBase64 = function (base64Json, requestId) {
                 if ((elapsed >= dynamicMinWait && settled)
                     || (staticLayout && elapsed >= 180)
                     || elapsed >= dynamicWarmupTimeout) {
-                    notifyBridge('onGraphRenderComplete', renderId);
+                    notifyRenderComplete(renderId);
                     return;
                 }
                 requestAnimationFrame(waitForWarmup);
@@ -155,10 +169,48 @@ window.renderGraphFromBase64 = function (base64Json, requestId) {
             requestAnimationFrame(waitForWarmup);
         } catch (error) {
             console.error("Graph rendering failed:", error);
-            notifyBridge('onGraphRenderFailed', renderId, asErrorMessage(error));
+            notifyRenderFailed(renderId, error);
         }
     }, 0);
+}
+
+/**
+ * Inject graph content from Base64-encoded JSON-LD.
+ * Rendering is scheduled asynchronously to keep JavaFX calls lightweight.
+ *
+ * @param {string} base64Json - Base64 encoded JSON-LD payload.
+ * @param {string} requestId - Render request identifier from Java.
+ */
+window.renderGraphFromBase64 = function (base64Json, requestId) {
+    let decoded;
+    try {
+        decoded = decodeBase64Utf8(base64Json);
+    } catch (error) {
+        notifyRenderFailed(requestId, error);
+        return;
+    }
+    renderGraphPayload(decoded, requestId, DEFAULT_GRAPH_ELEMENT_ID);
 };
+
+/**
+ * Inject graph content from plain JSON-LD payload.
+ *
+ * @param {string} jsonLdPayload - JSON-LD payload.
+ * @param {string} requestId - Optional render request identifier.
+ * @param {string} graphElementId - Optional target kg-graph element id.
+ */
+window.renderGraphFromJson = function (jsonLdPayload, requestId, graphElementId) {
+    if (typeof jsonLdPayload !== "string") {
+        notifyRenderFailed(requestId, "Graph payload must be a JSON-LD string.");
+        return;
+    }
+    const targetId = typeof graphElementId === "string" && graphElementId.trim().length > 0
+        ? graphElementId.trim()
+        : DEFAULT_GRAPH_ELEMENT_ID;
+    renderGraphPayload(jsonLdPayload, requestId, targetId);
+};
+
+window.getGraphElement = getGraphElement;
 
 /* =================================================================
  * GLOBAL API - THEME MANAGEMENT
@@ -195,7 +247,7 @@ window.setTheme = function (isDark, accentColor, themeName) {
     }
 
     // Notify graph component of theme change
-    const el = document.getElementById('myGraph');
+    const el = getGraphElement(DEFAULT_GRAPH_ELEMENT_ID);
     if (el && typeof el.setTheme === 'function') {
         el.setTheme(isDark);
     }

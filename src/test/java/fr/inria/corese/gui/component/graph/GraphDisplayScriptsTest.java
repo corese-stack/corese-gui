@@ -35,4 +35,12 @@ class GraphDisplayScriptsTest {
 		assertTrue(script.contains("document.getElementById('my\\'Graph')"));
 		assertTrue(script.contains("el.recenter();"));
 	}
+
+	@Test
+	void buildGraphInjectionScript_prefersSharedRenderApiAndKeepsFallback() {
+		String script = GraphDisplayScripts.buildGraphInjectionScript("abc", "42", "my'Graph");
+		assertTrue(script.contains("window.renderGraphFromBase64(graphPayload, '42')"));
+		assertTrue(script.contains("window.renderGraphFromJson(decoded, '42', 'my\\'Graph')"));
+		assertTrue(script.contains("document.getElementById('my\\'Graph')"));
+	}
 }
