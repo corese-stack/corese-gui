@@ -7,6 +7,7 @@ import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Predicate;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.util.Duration;
@@ -20,10 +21,9 @@ public final class DataStatusTooltipSupport {
 	private static final int TOOLTIP_SHOW_DELAY_MS = 150;
 	private static final int TOOLTIP_HIDE_DELAY_MS = 120;
 	private static final int TOOLTIP_PREVIEW_LIMIT = 5;
-	private static final int TOOLTIP_MAX_LINES = 6;
+	private static final int TOOLTIP_MAX_LINES = 7;
 	private static final int TOOLTIP_MAX_LINE_LENGTH = 96;
-	private static final int RENDER_TOOLTIP_MAX_LINES = 3;
-	private static final int RENDER_DETAIL_PREVIEW_LIMIT = 2;
+	private static final int RENDER_TOOLTIP_MAX_LINES = 7;
 	private static final NumberFormat INTEGER_FORMAT = NumberFormat.getIntegerInstance(Locale.getDefault());
 
 	private DataStatusTooltipSupport() {
@@ -93,53 +93,57 @@ public final class DataStatusTooltipSupport {
 		List<String> normalizedDetails = rawDetails.stream().map(DataStatusTooltipSupport::simplifyRenderDetail)
 				.filter(line -> !line.isBlank()).distinct().toList();
 
-		lines.addAll(selectRenderDetailPreview(safeStatus.mode(), normalizedDetails));
+		lines.addAll(prioritizeRenderDetails(safeStatus.mode(), normalizedDetails));
 		return compactTooltipLines(lines, RENDER_TOOLTIP_MAX_LINES);
 	}
 
-	private static List<String> selectRenderDetailPreview(GraphRenderMode mode, List<String> normalizedDetails) {
-		if (normalizedDetails.size() <= RENDER_DETAIL_PREVIEW_LIMIT) {
-			return normalizedDetails;
+	private static List<String> prioritizeRenderDetails(GraphRenderMode mode, List<String> normalizedDetails) {
+		if (normalizedDetails.isEmpty()) {
+			return List.of(defaultRenderDetail(mode));
 		}
 		if (mode == GraphRenderMode.PAUSED) {
 			return buildPausedDetailPreview(normalizedDetails);
 		}
-		return List.of(normalizedDetails.getFirst(), "More optimizations active.");
+
+		List<String> ordered = new ArrayList<>();
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Interactions:"));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Node labels:"));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Edge labels:"));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Node tooltips:"));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Hover focus:"));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Arrows:"));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Interaction:"));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Layout:"));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Animation:"));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Runtime calibration:"));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Runtime:"));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Warning:"));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Action:"));
+		addMatchingDetails(ordered, normalizedDetails, line -> true);
+		return ordered;
 	}
 
 	private static List<String> buildPausedDetailPreview(List<String> normalizedDetails) {
-		String actionLine = normalizedDetails.stream().filter(DataStatusTooltipSupport::isDisplayAnywayDetail)
-				.findFirst().orElse("");
-		String autoLimitLine = normalizedDetails.stream().filter(DataStatusTooltipSupport::isAutoLimitDetail)
-				.findFirst().orElse("");
-		if (actionLine.isBlank()) {
-			if (!autoLimitLine.isBlank()) {
-				return List.of(autoLimitLine, "More optimizations active.");
+		List<String> ordered = new ArrayList<>();
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Detected "));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Current auto-preview limit:"));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Serialized graph size:"));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Action: adjust preview limit"));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Action: use \"Display anyway\""));
+		addMatchingDetails(ordered, normalizedDetails, line -> line.startsWith("Warning:"));
+		addMatchingDetails(ordered, normalizedDetails, line -> true);
+		return ordered;
+	}
+
+	private static void addMatchingDetails(List<String> target, List<String> source, Predicate<String> predicate) {
+		for (String line : source) {
+			if (line == null || line.isBlank() || target.contains(line)) {
+				continue;
 			}
-			return List.of(normalizedDetails.getFirst(), "More optimizations active.");
+			if (predicate.test(line)) {
+				target.add(line);
+			}
 		}
-		if (!autoLimitLine.isBlank()) {
-			return List.of(actionLine, autoLimitLine);
-		}
-		String secondaryLine = normalizedDetails.stream().filter(line -> !line.equals(actionLine))
-				.filter(line -> line.startsWith("Detected ")).findFirst().orElseGet(() -> normalizedDetails.stream()
-						.filter(line -> !line.equals(actionLine)).findFirst().orElse("Adjust limit in Settings."));
-		return List.of(actionLine, secondaryLine);
-	}
-
-	private static boolean isDisplayAnywayDetail(String line) {
-		if (line == null || line.isBlank()) {
-			return false;
-		}
-		return line.toLowerCase(Locale.ROOT).contains("display anyway");
-	}
-
-	private static boolean isAutoLimitDetail(String line) {
-		if (line == null || line.isBlank()) {
-			return false;
-		}
-		String normalized = line.toLowerCase(Locale.ROOT);
-		return normalized.startsWith("auto limit:") || normalized.startsWith("current auto-preview limit:");
 	}
 
 	public static List<String> compactTooltipLines(List<String> lines, int maxLines) {
@@ -176,9 +180,9 @@ public final class DataStatusTooltipSupport {
 
 	private static String defaultRenderDetail(GraphRenderMode mode) {
 		return switch (mode) {
-			case NORMAL -> "Standard rendering profile.";
-			case DEGRADED -> "Rendering detail reduced for responsiveness.";
-			case PAUSED -> "Use \"Display anyway\" to force rendering.";
+			case NORMAL -> "All graph interactions and labels are available.";
+			case DEGRADED -> "Rendering detail is reduced to keep the interface responsive.";
+			case PAUSED -> "Preview is paused until manual rendering is requested.";
 		};
 	}
 
@@ -188,43 +192,46 @@ public final class DataStatusTooltipSupport {
 			return "";
 		}
 		return switch (safeDetail) {
-			case "Node labels hidden to keep rendering responsive." -> "Node labels reduced.";
-			case "Edge labels hidden to reduce draw cost." -> "Edge labels reduced.";
-			case "Link geometry simplified for dense graphs." -> "Simplified link geometry.";
-			case "Parallel link offset layout disabled for dense edges." -> "Parallel edge offsets disabled.";
-			case "Link motion sampling enabled to keep animation smooth." -> "Link motion sampling enabled.";
-			case "Node tooltips disabled for very large graph." -> "Node tooltips disabled.";
-			case "Force simulation paused for very dense graph." -> "Force simulation paused.";
-			case "Labels temporarily hidden while interacting with the graph." -> "Labels hidden during interaction.";
-			case "Node labels disabled for current graph size." -> "Node labels disabled.";
-			case "Node labels hidden at current zoom level." -> "Node labels hidden at this zoom.";
-			case "Edge labels disabled." -> "Edge labels disabled.";
-			case "Edge labels disabled for current graph size." -> "Edge labels disabled.";
-			case "Edge labels hidden by default for dense graph." -> "Edge labels hidden by default.";
-			case "Edge labels hidden at current zoom level." -> "Edge labels hidden at this zoom.";
-			case "Arrow heads hidden at low zoom for readability." -> "Arrow heads hidden at low zoom.";
+			case "Node labels hidden to keep rendering responsive.",
+					"Node labels disabled for current graph size." -> "Node labels: disabled for this graph size.";
+			case "Edge labels hidden to reduce draw cost.",
+					"Edge labels disabled for current graph size." -> "Edge labels: disabled for this graph size.";
+			case "Link geometry simplified for dense graphs." -> "Layout: link geometry simplified for dense graphs.";
+			case "Parallel link offset layout disabled for dense edges." -> "Layout: parallel edge offsets disabled.";
+			case "Link motion sampling enabled to keep animation smooth." -> "Animation: link motion sampling enabled.";
+			case "Node tooltips disabled for very large graph." -> "Node tooltips: disabled for this graph size.";
+			case "Node hover focus disabled for very large graph." -> "Hover focus: disabled for this graph size.";
+			case "Graph interactions disabled for very large graph." ->
+				"Interactions: zoom/pan/drag/reset disabled for this graph size.";
+			case "Force simulation paused for very dense graph." -> "Layout: force simulation paused after pre-layout.";
+			case "Labels temporarily hidden while interacting with the graph." ->
+				"Interaction: labels hidden while moving the graph.";
+			case "Node labels hidden at current zoom level." -> "Node labels: hidden at current zoom level.";
+			case "Edge labels disabled." -> "Edge labels: disabled by user.";
+			case "Edge labels hidden by default for dense graph." -> "Edge labels: hidden by default on dense graph.";
+			case "Edge labels hidden at current zoom level." -> "Edge labels: hidden at current zoom level.";
+			case "Arrow heads hidden at low zoom for readability." -> "Arrows: hidden at low zoom.";
 			case "Adaptive performance calibration allows richer detail on this device." ->
-				"Device allows richer detail.";
+				"Runtime calibration: device can handle richer detail.";
 			case "Adaptive performance calibration tightened details to keep rendering smooth." ->
-				"Detail reduced after calibration.";
-			case "Offline layout budget reduced after runtime calibration." -> "Offline layout budget reduced.";
-			case "Offline layout budget expanded after runtime calibration." -> "Offline layout budget expanded.";
-			case "Threshold can be changed in Settings > Appearance > Graph Preview." -> "Adjust limit in Settings.";
-			case "Base limit can be changed in Settings > Appearance > Graph Preview." ->
-				"Adjust base limit in Settings.";
-			case "This limit is auto-adjusted for performance." -> "Auto-adjusted for performance.";
-			case "Use \"Display anyway\" to force rendering on demand." -> "Use \"Display anyway\" to render now.";
-			case "Use \"Display anyway\" to force rendering." -> "Use \"Display anyway\" to render now.";
-			case "Adjust base limit in Settings > Appearance > Graph Preview." -> "Adjust base limit in Settings.";
-			case "Auto-adjusted from runtime performance." -> "Auto-adjusted for performance.";
-			case "Based on your Graph Preview setting." -> "Based on your setting.";
-			case "Runtime adapts this limit from current performance." -> "Runtime auto-adjusts this limit.";
+				"Runtime calibration: detail reduced to keep FPS stable.";
+			case "Offline layout budget reduced after runtime calibration." ->
+				"Runtime calibration: offline layout budget reduced.";
+			case "Offline layout budget expanded after runtime calibration." ->
+				"Runtime calibration: offline layout budget expanded.";
+			case "Threshold can be changed in Settings > Appearance > Graph Preview.",
+					"Base limit can be changed in Settings > Appearance > Graph Preview.",
+					"Adjust base limit in Settings > Appearance > Graph Preview.",
+					"Limit can be changed in Settings > Appearance > Graph Preview." ->
+				"Action: adjust preview limit in Settings > Appearance > Graph Preview.";
+			case "Use \"Display anyway\" to force rendering on demand.",
+					"Use \"Display anyway\" to force rendering." -> "Action: use \"Display anyway\" to force rendering now.";
 			case "Preview payload is skipped at this size to keep the UI responsive." ->
-				"Preview payload skipped at this size.";
+				"Preview payload skipped at this size to protect responsiveness.";
 			case "Manual rendering can freeze the interface on very large graphs." ->
-				"Manual render may freeze the UI.";
+				"Warning: manual rendering may freeze the interface on very large graphs.";
 			default -> safeDetail.startsWith("Recent draw phase took about ")
-					? "Rendering load detected; detail reduced."
+					? "Runtime: recent draw phase was heavy; conservative detail enabled."
 					: safeDetail;
 		};
 	}

@@ -2,7 +2,11 @@ package fr.inria.corese.gui.feature.result.graph;
 
 import java.util.List;
 
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
+import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderMode;
+import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderStatus;
+import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphStats;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.io.ExportHelper;
 import javafx.scene.Node;
@@ -18,8 +22,11 @@ import javafx.scene.Node;
 public class GraphResultController implements AutoCloseable {
 
 	private static final String MSG_EXPORT_EMPTY = "No graph to export.";
+	private static final String RENDER_DETAIL_INTERACTION_LOCKED = "Graph interactions disabled for very large graph.";
 
 	private final GraphResultView view;
+	private boolean hasGraphData = false;
+	private boolean graphInteractionsLocked = false;
 
 	/**
 	 * Constructs a new GraphResultController. Initializes the view and configures
@@ -39,8 +46,40 @@ public class GraphResultController implements AutoCloseable {
 				ButtonFactory.centerView(view.getGraphWidget()::centerView),
 				ButtonFactory.zoomIn(view.getGraphWidget()::zoomIn),
 				ButtonFactory.zoomOut(view.getGraphWidget()::zoomOut)));
-		view.getGraphWidget().setOnGraphStatsChanged(view::updateGraphStatus);
-		view.getGraphWidget().setOnRenderStatusChanged(view::updateGraphRenderStatus);
+		view.getGraphWidget().setOnGraphStatsChanged(this::handleGraphStatsChanged);
+		view.getGraphWidget().setOnRenderStatusChanged(this::handleGraphRenderStatusChanged);
+		updateToolbarActionStates();
+	}
+
+	private void handleGraphStatsChanged(GraphStats stats) {
+		GraphStats safeStats = stats == null ? new GraphStats(0, 0, List.of()) : stats;
+		hasGraphData = safeStats.tripleCount() > 0;
+		view.updateGraphStatus(safeStats);
+		updateToolbarActionStates();
+	}
+
+	private void handleGraphRenderStatusChanged(GraphRenderStatus status) {
+		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
+		graphInteractionsLocked = isGraphInteractionLocked(safeStatus);
+		view.updateGraphRenderStatus(safeStatus);
+		updateToolbarActionStates();
+	}
+
+	private static boolean isGraphInteractionLocked(GraphRenderStatus status) {
+		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
+		if (safeStatus.mode() == GraphRenderMode.PAUSED) {
+			return true;
+		}
+		return safeStatus.details().stream().anyMatch(detail -> RENDER_DETAIL_INTERACTION_LOCKED.equals(detail));
+	}
+
+	private void updateToolbarActionStates() {
+		view.setToolbarButtonDisabled(ButtonIcon.EXPORT, !hasGraphData);
+		boolean disableInteractions = !hasGraphData || graphInteractionsLocked;
+		view.setToolbarButtonDisabled(ButtonIcon.LAYOUT_FORCE, disableInteractions);
+		view.setToolbarButtonDisabled(ButtonIcon.CENTER_VIEW, disableInteractions);
+		view.setToolbarButtonDisabled(ButtonIcon.ZOOM_IN, disableInteractions);
+		view.setToolbarButtonDisabled(ButtonIcon.ZOOM_OUT, disableInteractions);
 	}
 
 	/**
@@ -91,6 +130,9 @@ public class GraphResultController implements AutoCloseable {
 	 * view.
 	 */
 	public void clear() {
+		hasGraphData = false;
+		graphInteractionsLocked = false;
+		updateToolbarActionStates();
 		view.getGraphWidget().clear();
 	}
 

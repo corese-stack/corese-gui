@@ -686,34 +686,20 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		return onManualRenderRequested != null;
 	}
 
-	private int resolveBaseAutoRenderTriplesLimit() {
-		return Math.max(ThemeManager.getMinGraphAutoRenderTriplesLimit(),
-				themeManager.getGraphAutoRenderTriplesLimit());
-	}
-
 	private String buildSafetyMessage(int jsonChars, int tripleCountHint) {
 		StringBuilder message = new StringBuilder(SAFETY_HINT);
-		int baseAutoRenderTriplesLimit = resolveBaseAutoRenderTriplesLimit();
 		if (maxAutoRenderTriples > 0 && tripleCountHint > maxAutoRenderTriples) {
 			message.append(String.format(Locale.ROOT, "%nDetected %,d triples (limit: %,d).", tripleCountHint,
 					maxAutoRenderTriples));
 		}
 		if (maxAutoRenderTriples > 0) {
-			if (baseAutoRenderTriplesLimit != maxAutoRenderTriples) {
-				message.append(
-						String.format(Locale.ROOT, "%nCurrent auto-preview limit: %,d triples (base setting: %,d).",
-								maxAutoRenderTriples, baseAutoRenderTriplesLimit));
-			} else {
-				message.append(
-						String.format(Locale.ROOT, "%nCurrent preview limit: %,d triples.", maxAutoRenderTriples));
-			}
-			message.append('\n').append("This limit is auto-adjusted for performance.");
+			message.append(String.format(Locale.ROOT, "%nCurrent preview limit: %,d triples.", maxAutoRenderTriples));
 		}
 		if (maxAutoRenderChars > 0 && jsonChars > maxAutoRenderChars) {
 			message.append(String.format(Locale.ROOT, "%nSerialized graph size: %,d chars (limit: %,d).", jsonChars,
 					maxAutoRenderChars));
 		}
-		message.append('\n').append("You can adjust the base limit in Settings > Appearance > Graph Preview.");
+		message.append('\n').append("You can adjust this limit in Settings > Appearance > Graph Preview.");
 		message.append('\n').append(SAFETY_RISK_HINT);
 		return message.toString();
 	}
@@ -721,26 +707,18 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	private GraphRenderStatus buildPausedRenderStatus(int jsonChars, int tripleCountHint,
 			boolean manualRenderAvailable) {
 		List<String> details = new ArrayList<>();
-		int baseAutoRenderTriplesLimit = resolveBaseAutoRenderTriplesLimit();
 		if (maxAutoRenderTriples > 0 && tripleCountHint > maxAutoRenderTriples) {
 			details.add(String.format(Locale.ROOT, "Detected %,d triples (auto-preview limit: %,d).", tripleCountHint,
 					maxAutoRenderTriples));
 		}
 		if (maxAutoRenderTriples > 0) {
-			if (baseAutoRenderTriplesLimit != maxAutoRenderTriples) {
-				details.add(String.format(Locale.ROOT, "Current auto-preview limit: %,d triples (base setting: %,d).",
-						maxAutoRenderTriples, baseAutoRenderTriplesLimit));
-			} else {
-				details.add(
-						String.format(Locale.ROOT, "Current auto-preview limit: %,d triples.", maxAutoRenderTriples));
-			}
-			details.add("This limit is auto-adjusted for performance.");
+			details.add(String.format(Locale.ROOT, "Current auto-preview limit: %,d triples.", maxAutoRenderTriples));
 		}
 		if (jsonChars >= 0 && maxAutoRenderChars > 0 && jsonChars > maxAutoRenderChars) {
 			details.add(String.format(Locale.ROOT, "Serialized graph size: %,d chars (limit: %,d).", jsonChars,
 					maxAutoRenderChars));
 		}
-		details.add("Base limit can be changed in Settings > Appearance > Graph Preview.");
+		details.add("Limit can be changed in Settings > Appearance > Graph Preview.");
 		if (manualRenderAvailable) {
 			details.add("Use \"Display anyway\" to force rendering on demand.");
 		} else {

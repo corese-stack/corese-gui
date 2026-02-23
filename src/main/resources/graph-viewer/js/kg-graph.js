@@ -101,10 +101,13 @@ class KGGraphVis extends HTMLElement {
         this.staticLayoutMode = false;
         this.lastEffectiveRenderProfileKey = "";
         this.hoveredNodeId = null;
+        this.hoverFocusEnabled = true;
+        this.hoverFocusTimerHandle = null;
         this.linkIndexesByNodeId = new Map();
         this.nodeLabelCreationEnabled = true;
         this.edgeLabelCreationEnabled = true;
         this.tooltipsEnabled = true;
+        this.interactionsLocked = false;
         this.HOVER_FOCUS_MIN_LINK_LABELS = 220;
         this.HOVER_FOCUS_MAX_LINK_LABELS = 1600;
         this.tooltipShowTimerHandle = null;
@@ -181,8 +184,14 @@ class KGGraphVis extends HTMLElement {
         this.AUTO_HIDE_NODE_LABEL_THRESHOLD = 520;
         this.DISABLE_LABEL_CREATION_NODE_THRESHOLD = 380;
         this.DISABLE_LABEL_CREATION_LINK_THRESHOLD = 620;
+        this.DISABLE_HOVER_FOCUS_NODE_THRESHOLD = 900;
+        this.DISABLE_HOVER_FOCUS_LINK_THRESHOLD = 1800;
         this.DISABLE_TOOLTIP_NODE_THRESHOLD = 1800;
         this.DISABLE_TOOLTIP_LINK_THRESHOLD = 3600;
+        this.DISABLE_INTERACTIONS_NODE_THRESHOLD = 2600;
+        this.DISABLE_INTERACTIONS_LINK_THRESHOLD = 5200;
+        this.HOVER_FOCUS_DELAY_BASE_MS = 110;
+        this.HOVER_FOCUS_DELAY_DENSE_MS = 190;
         this.SIMPLIFY_LINK_GEOMETRY_LINK_THRESHOLD = 500;
         this.PARALLEL_LAYOUT_MAX_LINK_THRESHOLD = 600;
         this.PRE_LAYOUT_MEDIUM_NODE_THRESHOLD = 220;
@@ -247,7 +256,7 @@ class KGGraphVis extends HTMLElement {
      * Reset simulation with new alpha (re-heats the simulation).
      */
     reset() {
-        if (!this.simulation) {
+        if (this.interactionsLocked || !this.simulation) {
             return;
         }
         this.simulationStopped = false;
@@ -281,6 +290,9 @@ class KGGraphVis extends HTMLElement {
     }
 
     recenter() {
+        if (this.interactionsLocked) {
+            return;
+        }
         this.fitToGraph(120, true);
     }
 
@@ -288,6 +300,9 @@ class KGGraphVis extends HTMLElement {
      * Zoom in by 30%.
      */
     zoomIn() {
+        if (this.interactionsLocked) {
+            return;
+        }
         if (this.svg && this.zoomBehavior) {
             this.svg.interrupt();
             this.svg.call(this.zoomBehavior.scaleBy, 1.3);
@@ -298,6 +313,9 @@ class KGGraphVis extends HTMLElement {
      * Zoom out by 30%.
      */
     zoomOut() {
+        if (this.interactionsLocked) {
+            return;
+        }
         if (this.svg && this.zoomBehavior) {
             this.svg.interrupt();
             this.svg.call(this.zoomBehavior.scaleBy, 1 / 1.3);
@@ -1037,7 +1055,47 @@ class KGGraphVis extends HTMLElement {
         return Math.min(safeConnectedCount, clampedBudget);
     }
 
+    resolveHoverFocusDelayMs() {
+        if (!this.hoverFocusEnabled) {
+            return 0;
+        }
+        const nodeCount = Array.isArray(this.graph?.nodes) ? this.graph.nodes.length : 0;
+        const linkCount = Array.isArray(this.graph?.links) ? this.graph.links.length : 0;
+        const hoverNodeThreshold = this.scaleThreshold(this.DISABLE_HOVER_FOCUS_NODE_THRESHOLD, 320);
+        const hoverLinkThreshold = this.scaleThreshold(this.DISABLE_HOVER_FOCUS_LINK_THRESHOLD, 640);
+        const denseHoverWindow = nodeCount >= Math.floor(hoverNodeThreshold * 0.72)
+            || linkCount >= Math.floor(hoverLinkThreshold * 0.72);
+        return denseHoverWindow ? this.HOVER_FOCUS_DELAY_DENSE_MS : this.HOVER_FOCUS_DELAY_BASE_MS;
+    }
+
+    clearHoverFocusTimer() {
+        if (this.hoverFocusTimerHandle) {
+            clearTimeout(this.hoverFocusTimerHandle);
+            this.hoverFocusTimerHandle = null;
+        }
+    }
+
+    scheduleHoverFocus(node) {
+        this.clearHoverFocusTimer();
+        if (!this.hoverFocusEnabled || this.interactionsLocked) {
+            return;
+        }
+        const delayMs = this.resolveHoverFocusDelayMs();
+        if (delayMs <= 0) {
+            this.applyHoverFocus(node);
+            return;
+        }
+        this.hoverFocusTimerHandle = setTimeout(() => {
+            this.hoverFocusTimerHandle = null;
+            if (!this.hoverFocusEnabled || this.interactionsLocked || this.isInteracting || this.labelsHiddenForInteraction) {
+                return;
+            }
+            this.applyHoverFocus(node);
+        }, delayMs);
+    }
+
     clearHoverFocus(restoreLabels = true) {
+        this.clearHoverFocusTimer();
         this.hoveredNodeId = null;
         if (this.linkSelection) {
             this.linkSelection
@@ -1063,7 +1121,7 @@ class KGGraphVis extends HTMLElement {
     }
 
     applyHoverFocus(node) {
-        if (!node || this.isInteracting || this.labelsHiddenForInteraction) {
+        if (!node || !this.hoverFocusEnabled || this.interactionsLocked || this.isInteracting || this.labelsHiddenForInteraction) {
             return;
         }
         if (!this.graph || !Array.isArray(this.graph.links) || !this.linkSelection || !this.nodeSelection) {
@@ -1233,6 +1291,7 @@ class KGGraphVis extends HTMLElement {
     }
 
     hideGlobalTooltip() {
+        this.clearHoverFocusTimer();
         if (this.tooltipShowTimerHandle) {
             clearTimeout(this.tooltipShowTimerHandle);
             this.tooltipShowTimerHandle = null;
@@ -1391,7 +1450,7 @@ class KGGraphVis extends HTMLElement {
 
         this.nodeSelection
             .on("mouseover", node => {
-                this.applyHoverFocus(node);
+                this.scheduleHoverFocus(node);
                 if (!this.tooltipsEnabled) {
                     hideTooltip();
                     return;
@@ -1435,6 +1494,7 @@ class KGGraphVis extends HTMLElement {
                 }
             })
             .on("mouseout", () => {
+                this.clearHoverFocusTimer();
                 this.clearHoverFocus(true);
                 hideTooltip();
                 const target = d3.event?.currentTarget;
@@ -1492,7 +1552,9 @@ class KGGraphVis extends HTMLElement {
             && line !== "Link motion sampling enabled to keep animation smooth."
             && line !== "Node labels hidden to keep rendering responsive."
             && line !== "Edge labels hidden to reduce draw cost."
-            && line !== "Node tooltips disabled for very large graph.");
+            && line !== "Node tooltips disabled for very large graph."
+            && line !== "Node hover focus disabled for very large graph."
+            && line !== "Graph interactions disabled for very large graph.");
         const hasNodes = Array.isArray(this.graph?.nodes) && this.graph.nodes.length > 0;
         const hasEdges = Array.isArray(this.graph?.links) && this.graph.links.length > 0;
         if (hasNodes && !this.nodeLabelSelection) {
@@ -1512,6 +1574,12 @@ class KGGraphVis extends HTMLElement {
         }
         if (!this.tooltipsEnabled) {
             details.push("Node tooltips disabled for very large graph.");
+        }
+        if (!this.hoverFocusEnabled) {
+            details.push("Node hover focus disabled for very large graph.");
+        }
+        if (this.interactionsLocked) {
+            details.push("Graph interactions disabled for very large graph.");
         }
         const uniqueDetails = [...new Set(details)];
         this.baseRenderProfile = {
@@ -1534,6 +1602,8 @@ class KGGraphVis extends HTMLElement {
         const autoHideNodeLabelThreshold = this.scaleThreshold(this.AUTO_HIDE_NODE_LABEL_THRESHOLD, 200);
         const disableNodeLabelThreshold = this.scaleThreshold(this.DISABLE_LABEL_CREATION_NODE_THRESHOLD, 180);
         const disableEdgeLabelThreshold = this.scaleThreshold(this.DISABLE_LABEL_CREATION_LINK_THRESHOLD, 180);
+        const disableHoverFocusNodeThreshold = this.scaleThreshold(this.DISABLE_HOVER_FOCUS_NODE_THRESHOLD, 320);
+        const disableHoverFocusLinkThreshold = this.scaleThreshold(this.DISABLE_HOVER_FOCUS_LINK_THRESHOLD, 640);
         const disableTooltipNodeThreshold = this.scaleThreshold(this.DISABLE_TOOLTIP_NODE_THRESHOLD, 600);
         const disableTooltipLinkThreshold = this.scaleThreshold(this.DISABLE_TOOLTIP_LINK_THRESHOLD, 1200);
         const autoHideEdgeLabelThreshold = this.scaleThreshold(this.AUTO_HIDE_EDGE_LABEL_THRESHOLD, 80);
@@ -1546,8 +1616,11 @@ class KGGraphVis extends HTMLElement {
         const shouldCreateNodeLabels = nodeCount < disableNodeLabelThreshold
             && linkCount < disableEdgeLabelThreshold;
         const shouldCreateEdgeLabels = linkCount < disableEdgeLabelThreshold && !isHugeGraph;
+        const shouldEnableHoverFocus = nodeCount < disableHoverFocusNodeThreshold
+            && linkCount < disableHoverFocusLinkThreshold;
         const shouldEnableTooltips = nodeCount <= disableTooltipNodeThreshold
             && linkCount <= disableTooltipLinkThreshold;
+        const shouldLockInteractions = this.resolveInteractionLock(nodeCount, linkCount);
         const nextEdgeLabelsAutoHidden = !shouldCreateEdgeLabels || linkCount >= autoHideEdgeLabelThreshold;
         const nextSimplifyLinkGeometry = isHugeGraph || linkCount >= simplifyLinkThreshold;
         const nextParallelLayoutSimplified = linkCount > parallelLayoutThreshold;
@@ -1597,12 +1670,18 @@ class KGGraphVis extends HTMLElement {
         }
         this.nodeLabelCreationEnabled = shouldCreateNodeLabels;
         this.edgeLabelCreationEnabled = shouldCreateEdgeLabels;
+        const hoverFocusChanged = shouldEnableHoverFocus !== this.hoverFocusEnabled;
+        this.hoverFocusEnabled = shouldEnableHoverFocus;
+        if (!this.hoverFocusEnabled) {
+            this.clearHoverFocus(false);
+        }
 
         const tooltipChanged = shouldEnableTooltips !== this.tooltipsEnabled;
         this.tooltipsEnabled = shouldEnableTooltips;
         if (!this.tooltipsEnabled) {
             this.hideGlobalTooltip();
         }
+        const interactionLockChanged = this.setInteractionLockState(shouldLockInteractions, true);
 
         const thresholdChanged = this.nodeLabelZoomThreshold !== nextNodeLabelZoomThreshold
             || this.edgeLabelZoomThreshold !== nextEdgeLabelZoomThreshold;
@@ -1612,7 +1691,9 @@ class KGGraphVis extends HTMLElement {
         const visibilityChanged = nextEdgeLabelsAutoHidden !== this.edgeLabelsAutoHidden
             || thresholdChanged
             || structureChanged
-            || tooltipChanged;
+            || tooltipChanged
+            || hoverFocusChanged
+            || interactionLockChanged;
         this.edgeLabelsAutoHidden = nextEdgeLabelsAutoHidden;
         this.updateArrowheadVisibility(true);
         this.refreshBaseRenderProfileForAdaptiveToggles();
@@ -1898,10 +1979,9 @@ class KGGraphVis extends HTMLElement {
             const simulationSettled = !this.simulation || this.simulation.alpha() <= 0.12 || this.simulationStopped;
             const settleTimeoutReached = now >= this.performanceWarmupUntil + 1500;
             const monitorWindowOpen = now >= this.performanceWarmupUntil
-                && !this.isInteracting
                 && (simulationSettled || settleTimeoutReached);
-            if (monitorWindowOpen
-                && this.performanceSampleWindow.length >= this.LAG_MONITOR_MIN_SAMPLES) {
+            const hasLagSamples = this.performanceSampleWindow.length >= this.LAG_MONITOR_MIN_SAMPLES;
+            if (monitorWindowOpen && hasLagSamples) {
                 const totalFps = this.performanceSampleWindow.reduce((acc, value) => acc + value, 0);
                 const averageFps = totalFps / this.performanceSampleWindow.length;
                 this.performanceLastMeasuredFps = averageFps;
@@ -1933,13 +2013,11 @@ class KGGraphVis extends HTMLElement {
                         this.notifyLagDetected(averageFps, this.performanceContext.nodeCount, this.performanceContext.linkCount);
                     }
                 }
-            } else {
+            } else if (!monitorWindowOpen) {
                 this.performanceLowFpsSince = 0;
-                if (this.performanceLagActive) {
-                    this.performanceLagActive = false;
-                    this.performanceLastLagNotifyAt = 0;
-                    this.notifyLagCleared();
-                }
+            } else {
+                // Keep current lag state while sample window is still filling up.
+                this.performanceLowFpsSince = 0;
             }
 
             this.performanceMonitorRaf = requestAnimationFrame(step);
@@ -2132,6 +2210,10 @@ class KGGraphVis extends HTMLElement {
                 }
                 svg:active { 
                     cursor: grabbing; 
+                }
+                svg.graph-interactions-locked,
+                svg.graph-interactions-locked:active {
+                    cursor: default;
                 }
                 svg.labels-hidden .node-label,
                 svg.labels-hidden .edge-label {
@@ -2352,6 +2434,94 @@ class KGGraphVis extends HTMLElement {
         this.height = rect.height || 600;
     }
 
+    resolveInteractionLock(nodeCount = 0, linkCount = 0) {
+        const safeNodeCount = Number.isFinite(nodeCount) ? Math.max(0, Math.floor(nodeCount)) : 0;
+        const safeLinkCount = Number.isFinite(linkCount) ? Math.max(0, Math.floor(linkCount)) : 0;
+        const lockNodeThreshold = this.scaleThreshold(this.DISABLE_INTERACTIONS_NODE_THRESHOLD, 1200);
+        const lockLinkThreshold = this.scaleThreshold(this.DISABLE_INTERACTIONS_LINK_THRESHOLD, 2200);
+        return safeNodeCount >= lockNodeThreshold || safeLinkCount >= lockLinkThreshold;
+    }
+
+    setInteractionLockState(locked, clearHoverFocus = false) {
+        const nextLocked = Boolean(locked);
+        if (nextLocked === this.interactionsLocked) {
+            return false;
+        }
+        this.interactionsLocked = nextLocked;
+        if (this.svg) {
+            this.svg.classed("graph-interactions-locked", this.interactionsLocked);
+            this.svg.style("cursor", this.interactionsLocked ? "default" : null);
+        }
+        if (this.interactionsLocked) {
+            if (this.interactionTimer) {
+                clearTimeout(this.interactionTimer);
+                this.interactionTimer = null;
+            }
+            this.hideGlobalTooltip();
+            if (clearHoverFocus) {
+                this.clearHoverFocus(false);
+            }
+            this.labelsHiddenForInteraction = false;
+            this.isInteracting = false;
+        }
+        this.updateNodeDragBehavior();
+        return true;
+    }
+
+    createNodeDragBehavior() {
+        return d3.drag()
+            .on("start", node => {
+                if (this.interactionsLocked) {
+                    return;
+                }
+                this.onInteraction(true);
+                if (this.simulation && !d3.event.active) {
+                    this.simulationStopped = false;
+                    this.simulation.alphaTarget(0.28).restart();
+                }
+                node.fx = node.x;
+                node.fy = node.y;
+            })
+            .on("drag", node => {
+                if (this.interactionsLocked) {
+                    return;
+                }
+                this.onInteraction(true);
+                node.fx = d3.event.x;
+                node.fy = d3.event.y;
+                node.x = d3.event.x;
+                node.y = d3.event.y;
+                // Keep links responsive while dragging, independent of tick throttle.
+                this.ticked();
+            })
+            .on("end", node => {
+                if (this.interactionsLocked) {
+                    return;
+                }
+                this.onInteraction(false);
+                if (this.simulation && !d3.event.active) {
+                    this.simulation.alphaTarget(0);
+                }
+                node.fx = null;
+                node.fy = null;
+                if (!this.simulation) {
+                    node.vx = 0;
+                    node.vy = 0;
+                }
+            });
+    }
+
+    updateNodeDragBehavior() {
+        if (!this.nodeSelection) {
+            return;
+        }
+        this.nodeSelection.on(".drag", null);
+        if (this.interactionsLocked) {
+            return;
+        }
+        this.nodeSelection.call(this.createNodeDragBehavior());
+    }
+
     updateLevelOfDetail(scale = 1) {
         const zoom = scale;
         this.currentZoom = zoom;
@@ -2370,6 +2540,7 @@ class KGGraphVis extends HTMLElement {
     }
 
     shouldHideLabelsDuringInteraction() {
+        if (this.interactionsLocked) return false;
         if (!this.interactionHideLabels) return false;
         const nodeCount = this.graph?.nodes?.length ?? 0;
         const linkCount = this.graph?.links?.length ?? 0;
@@ -2390,6 +2561,17 @@ class KGGraphVis extends HTMLElement {
     }
 
     onInteraction(shouldHideLabels = true) {
+        if (this.interactionsLocked) {
+            this.clearHoverFocus(false);
+            this.hideGlobalTooltip();
+            this.isInteracting = false;
+            this.labelsHiddenForInteraction = false;
+            if (this.svg) {
+                this.svg.classed('labels-hidden', false);
+                this.svg.classed('interaction-active', false);
+            }
+            return;
+        }
         this.isInteracting = true;
         this.hideGlobalTooltip();
         const wasHidden = this.labelsHiddenForInteraction;
@@ -2801,6 +2983,7 @@ class KGGraphVis extends HTMLElement {
         const isDegraded = baseMode === "degraded"
             || hasHardNodeLabelDrop
             || hasHardEdgeLabelDrop
+            || this.interactionsLocked
             || this.performanceLagActive
             || this.renderTimingPressureActive;
 
@@ -2808,6 +2991,8 @@ class KGGraphVis extends HTMLElement {
             ? (uniqueDetails.length > 0 ? "Adaptive detail mode" : "Standard rendering")
             : interactionHidden
                 ? "Interaction optimization active"
+                : this.interactionsLocked
+                    ? "Interactions disabled for very large graph"
                 : this.performanceLagActive && this.performanceLastMeasuredFps > 0
                     ? `Performance pressure detected (~${Math.round(this.performanceLastMeasuredFps * 10) / 10} FPS)`
                     : this.renderTimingPressureActive && this.lastRenderTiming?.totalMs > 0
@@ -3905,6 +4090,7 @@ class KGGraphVis extends HTMLElement {
             clearTimeout(this.interactionTimer);
             this.interactionTimer = null;
         }
+        this.clearHoverFocusTimer();
         if (this.labelVisibilityRaf) {
             cancelAnimationFrame(this.labelVisibilityRaf);
             this.labelVisibilityRaf = null;
@@ -3943,7 +4129,13 @@ class KGGraphVis extends HTMLElement {
             this.graphContextPrefixes = new Map();
             this.graphSummary = this.createEmptyGraphSummary();
             this.hoveredNodeId = null;
+            this.hoverFocusEnabled = true;
             this.linkIndexesByNodeId = new Map();
+            this.interactionsLocked = false;
+            if (this.svg) {
+                this.svg.classed("graph-interactions-locked", false);
+                this.svg.style("cursor", null);
+            }
             this.refreshOverlayPanels();
             this.notifyGraphStats();
             return;
@@ -4101,6 +4293,8 @@ class KGGraphVis extends HTMLElement {
         const autoHideNodeLabelThreshold = this.scaleThreshold(this.AUTO_HIDE_NODE_LABEL_THRESHOLD, 200);
         const disableNodeLabelThreshold = this.scaleThreshold(this.DISABLE_LABEL_CREATION_NODE_THRESHOLD, 180);
         const disableLinkLabelThreshold = this.scaleThreshold(this.DISABLE_LABEL_CREATION_LINK_THRESHOLD, 240);
+        const disableHoverFocusNodeThreshold = this.scaleThreshold(this.DISABLE_HOVER_FOCUS_NODE_THRESHOLD, 320);
+        const disableHoverFocusLinkThreshold = this.scaleThreshold(this.DISABLE_HOVER_FOCUS_LINK_THRESHOLD, 640);
         const disableTooltipNodeThreshold = this.scaleThreshold(this.DISABLE_TOOLTIP_NODE_THRESHOLD, 600);
         const disableTooltipLinkThreshold = this.scaleThreshold(this.DISABLE_TOOLTIP_LINK_THRESHOLD, 1200);
         const simplifyLinkThreshold = this.scaleThreshold(this.SIMPLIFY_LINK_GEOMETRY_LINK_THRESHOLD, 180);
@@ -4112,11 +4306,16 @@ class KGGraphVis extends HTMLElement {
         const shouldCreateNodeLabels = nodeCount < disableNodeLabelThreshold
             && linkCount < disableLinkLabelThreshold;
         const shouldCreateEdgeLabels = linkCount < disableLinkLabelThreshold && !isHugeGraph;
+        const shouldEnableHoverFocus = nodeCount < disableHoverFocusNodeThreshold
+            && linkCount < disableHoverFocusLinkThreshold;
         const shouldEnableTooltips = nodeCount <= disableTooltipNodeThreshold
             && linkCount <= disableTooltipLinkThreshold;
+        const shouldLockInteractions = this.resolveInteractionLock(nodeCount, linkCount);
         this.nodeLabelCreationEnabled = shouldCreateNodeLabels;
         this.edgeLabelCreationEnabled = shouldCreateEdgeLabels;
+        this.hoverFocusEnabled = shouldEnableHoverFocus;
         this.tooltipsEnabled = shouldEnableTooltips;
+        this.setInteractionLockState(shouldLockInteractions, true);
         const isParallelLayoutSimplified = linkCount > parallelLayoutThreshold;
         this.parallelLayoutSimplified = isParallelLayoutSimplified;
         this.simplifyLinkGeometry = isHugeGraph || linkCount >= simplifyLinkThreshold;
@@ -4156,6 +4355,12 @@ class KGGraphVis extends HTMLElement {
         }
         if (!shouldEnableTooltips) {
             renderProfileDetails.push("Node tooltips disabled for very large graph.");
+        }
+        if (!shouldEnableHoverFocus) {
+            renderProfileDetails.push("Node hover focus disabled for very large graph.");
+        }
+        if (this.interactionsLocked) {
+            renderProfileDetails.push("Graph interactions disabled for very large graph.");
         }
         if (this.staticLayoutMode) {
             renderProfileDetails.push("Force simulation paused for very dense graph.");
@@ -4256,9 +4461,14 @@ class KGGraphVis extends HTMLElement {
 
         this.zoomLayer = this.svg.append("g").attr("class", "zoom-layer");
         const gZoom = this.zoomLayer;
+        const defaultZoomFilter = () => {
+            const event = d3.event;
+            return (!event.ctrlKey || event.type === 'wheel') && !event.button;
+        };
 
         this.zoomBehavior = d3.zoom()
             .scaleExtent([0.05, 10])
+            .filter(() => !this.interactionsLocked && defaultZoomFilter())
             .on("zoom", () => {
                 const transform = d3.event.transform;
                 gZoom.attr("transform", transform);
@@ -4343,38 +4553,8 @@ class KGGraphVis extends HTMLElement {
         this.nodeSelection = nodeGroup.selectAll("g")
             .data(this.graph.nodes)
             .enter()
-            .append("g")
-            .call(d3.drag()
-                .on("start", node => {
-                    this.onInteraction(true);
-                    if (this.simulation && !d3.event.active) {
-                        this.simulationStopped = false;
-                        this.simulation.alphaTarget(0.28).restart();
-                    }
-                    node.fx = node.x;
-                    node.fy = node.y;
-                })
-                .on("drag", node => {
-                    this.onInteraction(true);
-                    node.fx = d3.event.x;
-                    node.fy = d3.event.y;
-                    node.x = d3.event.x;
-                    node.y = d3.event.y;
-                    // Keep links responsive while dragging, independent of tick throttle.
-                    this.ticked();
-                })
-                .on("end", node => {
-                    this.onInteraction(false);
-                    if (this.simulation && !d3.event.active) {
-                        this.simulation.alphaTarget(0);
-                    }
-                    node.fx = null;
-                    node.fy = null;
-                    if (!this.simulation) {
-                        node.vx = 0;
-                        node.vy = 0;
-                    }
-                }));
+            .append("g");
+        this.updateNodeDragBehavior();
 
         // Apply initial coordinates immediately to avoid a one-frame flash at
         // (0,0) before the first simulation tick.

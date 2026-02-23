@@ -19,10 +19,11 @@ class DataStatusTooltipSupportTest {
 
 		List<String> lines = DataStatusTooltipSupport.buildRenderTooltipLines(status);
 
-		assertEquals(3, lines.size(), "Tooltip should keep one summary and two detail lines.");
+		assertEquals(4, lines.size(), "Tooltip should keep summary and precise optimization details.");
 		assertEquals("Performance mode enabled", lines.get(0));
-		assertEquals("Simplified link geometry.", lines.get(1));
-		assertEquals("More optimizations active.", lines.get(2));
+		assertEquals("Node tooltips: disabled for this graph size.", lines.get(1));
+		assertEquals("Layout: link geometry simplified for dense graphs.", lines.get(2));
+		assertEquals("Layout: parallel edge offsets disabled.", lines.get(3));
 	}
 
 	@Test
@@ -32,7 +33,8 @@ class DataStatusTooltipSupportTest {
 
 		List<String> lines = DataStatusTooltipSupport.buildRenderTooltipLines(status);
 
-		assertEquals(List.of("Performance mode enabled", "Rendering load detected; detail reduced."), lines);
+		assertEquals(List.of("Performance mode enabled", "Runtime: recent draw phase was heavy; conservative detail enabled."),
+				lines);
 	}
 
 	@Test
@@ -57,9 +59,11 @@ class DataStatusTooltipSupportTest {
 
 		List<String> lines = DataStatusTooltipSupport.buildRenderTooltipLines(status);
 
-		assertEquals(3, lines.size(), "Tooltip should keep summary and two actionable details.");
+		assertEquals(5, lines.size(), "Tooltip should keep key detection, actions, and warning details.");
 		assertEquals("Automatic preview paused", lines.get(0));
-		assertEquals("Use \"Display anyway\" to render now.", lines.get(1));
-		assertEquals("Detected 4,200 triples (auto-preview limit: 1,200).", lines.get(2));
+		assertEquals("Detected 4,200 triples (auto-preview limit: 1,200).", lines.get(1));
+		assertEquals("Action: adjust preview limit in Settings > Appearance > Graph Preview.", lines.get(2));
+		assertEquals("Action: use \"Display anyway\" to force rendering now.", lines.get(3));
+		assertEquals("Warning: manual rendering may freeze the interface on very large graphs.", lines.get(4));
 	}
 }

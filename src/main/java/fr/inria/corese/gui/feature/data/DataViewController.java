@@ -34,7 +34,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
@@ -74,14 +73,9 @@ public class DataViewController implements AutoCloseable {
 
 	private static final long GRAPH_REFRESH_DEBOUNCE_MS = 120L;
 	private static final long REASONING_REFRESH_DEBOUNCE_MS = 260L;
-	private static final double INITIAL_AUTO_PREVIEW_SCALE = 1.10;
-	private static final double AUTO_PREVIEW_SCALE_MIN = 0.65;
-	private static final double AUTO_PREVIEW_SCALE_MAX = 1.60;
-	private static final double AUTO_PREVIEW_SCALE_NORMAL_STEP = 0.05;
-	private static final double AUTO_PREVIEW_SCALE_DEGRADED_STEP = 0.07;
-	private static final double AUTO_PREVIEW_SCALE_PAUSED_STEP = 0.12;
+	private static final String RENDER_DETAIL_INTERACTION_LOCKED = "Graph interactions disabled for very large graph.";
 	private static final List<String> RDF_FILE_EXTENSIONS = FileTypeSupport.rdfExtensions();
-	private volatile double adaptiveAutoPreviewScale = INITIAL_AUTO_PREVIEW_SCALE;
+	private volatile boolean graphInteractionsLocked = false;
 
 	public DataViewController(DataView view) {
 		this.view = view;
@@ -108,7 +102,7 @@ public class DataViewController implements AutoCloseable {
 		view.setOnGraphFilesDropped(this::handleGraphFilesDropped);
 		view.getGraphWidget().setOnRenderStatusChanged(this::handleGraphRenderStatusChanged);
 		view.getGraphWidget().setOnManualRenderRequested(this::handleManualGraphRenderRequest);
-		applyAdaptiveAutoPreviewLimitToGraphWidget();
+		applyGraphPreviewLimitToGraphWidget();
 	}
 
 	private void configureToolbar() {
@@ -249,58 +243,32 @@ public class DataViewController implements AutoCloseable {
 
 	private void handleGraphRenderStatusChanged(GraphRenderStatus status) {
 		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
-		updateAdaptiveAutoPreviewScale(safeStatus.mode());
-		applyAdaptiveAutoPreviewLimitToGraphWidget();
-		view.updateGraphRenderStatus(enrichRenderStatusWithAdaptiveAutoPreviewInfo(safeStatus));
+		graphInteractionsLocked = isGraphInteractionLocked(safeStatus);
+		applyGraphPreviewLimitToGraphWidget();
+		view.updateGraphRenderStatus(safeStatus);
+		updateToolbarActionStates();
 	}
 
-	private GraphRenderStatus enrichRenderStatusWithAdaptiveAutoPreviewInfo(GraphRenderStatus status) {
+	private static boolean isGraphInteractionLocked(GraphRenderStatus status) {
 		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
-		if (safeStatus.mode() != GraphRenderMode.PAUSED) {
-			return safeStatus;
+		if (safeStatus.mode() == GraphRenderMode.PAUSED) {
+			return true;
 		}
-		int baseLimit = Math.max(ThemeManager.getMinGraphAutoRenderTriplesLimit(),
-				themeManager.getGraphAutoRenderTriplesLimit());
-		int effectiveLimit = resolveAdaptiveAutoPreviewLimit();
-		List<String> enrichedDetails = new ArrayList<>();
-		enrichedDetails.add(String.format(Locale.getDefault(), "Auto limit: %,d triples.", effectiveLimit));
-		if (effectiveLimit != baseLimit) {
-			enrichedDetails.add(String.format(Locale.getDefault(), "Base setting: %,d triples.", baseLimit));
-			enrichedDetails.add("Auto-adjusted from runtime performance.");
-		} else {
-			enrichedDetails.add("Based on your Graph Preview setting.");
-		}
-		enrichedDetails.addAll(safeStatus.details());
-		return new GraphRenderStatus(safeStatus.mode(), safeStatus.summary(), enrichedDetails);
+		return safeStatus.details().stream().anyMatch(detail -> RENDER_DETAIL_INTERACTION_LOCKED.equals(detail));
 	}
 
-	private void updateAdaptiveAutoPreviewScale(GraphRenderMode mode) {
-		GraphRenderMode safeMode = mode == null ? GraphRenderMode.NORMAL : mode;
-		double nextScale = adaptiveAutoPreviewScale;
-		switch (safeMode) {
-			case NORMAL -> nextScale += AUTO_PREVIEW_SCALE_NORMAL_STEP;
-			case DEGRADED -> nextScale -= AUTO_PREVIEW_SCALE_DEGRADED_STEP;
-			case PAUSED -> nextScale -= AUTO_PREVIEW_SCALE_PAUSED_STEP;
-		}
-		adaptiveAutoPreviewScale = Math.max(AUTO_PREVIEW_SCALE_MIN, Math.min(AUTO_PREVIEW_SCALE_MAX, nextScale));
+	private int resolveGraphPreviewLimit() {
+		return Math.max(ThemeManager.getMinGraphAutoRenderTriplesLimit(), themeManager.getGraphAutoRenderTriplesLimit());
 	}
 
-	private int resolveAdaptiveAutoPreviewLimit() {
-		int baseLimit = Math.max(ThemeManager.getMinGraphAutoRenderTriplesLimit(),
-				themeManager.getGraphAutoRenderTriplesLimit());
-		int scaledLimit = (int) Math.round(baseLimit * adaptiveAutoPreviewScale);
-		return Math.max(ThemeManager.getMinGraphAutoRenderTriplesLimit(),
-				Math.min(ThemeManager.getMaxGraphAutoRenderTriplesLimit(), scaledLimit));
-	}
-
-	private void applyAdaptiveAutoPreviewLimitToGraphWidget() {
-		view.getGraphWidget().setMaxAutoRenderTriples(resolveAdaptiveAutoPreviewLimit());
+	private void applyGraphPreviewLimitToGraphWidget() {
+		view.getGraphWidget().setMaxAutoRenderTriples(resolveGraphPreviewLimit());
 	}
 
 	private GraphSnapshotPayload computeGraphSnapshotPayload() {
 		try {
 			DataWorkspaceStatus status = workspaceService.getStatus();
-			int maxAutoRenderTriples = resolveAdaptiveAutoPreviewLimit();
+			int maxAutoRenderTriples = resolveGraphPreviewLimit();
 			boolean skipSnapshotSerialization = status.tripleCount() > 0 && maxAutoRenderTriples > 0
 					&& status.tripleCount() > maxAutoRenderTriples;
 			String jsonLdSnapshot = skipSnapshotSerialization ? "" : workspaceService.getGraphSnapshotJsonLd();
@@ -315,11 +283,12 @@ public class DataViewController implements AutoCloseable {
 		if (payload == null || dataOperationInProgress.get()) {
 			return;
 		}
-		applyAdaptiveAutoPreviewLimitToGraphWidget();
+		applyGraphPreviewLimitToGraphWidget();
 		DataWorkspaceStatus status = payload.status();
 		String jsonLdSnapshot = payload.jsonLdSnapshot();
 		boolean snapshotSkippedForLimit = payload.snapshotSkippedForLimit();
 		if (status.tripleCount() <= 0) {
+			graphInteractionsLocked = false;
 			view.getGraphWidget().clear();
 			view.setGraphEmptyStateVisible(true);
 			view.updateStatus(status);
@@ -327,6 +296,7 @@ public class DataViewController implements AutoCloseable {
 			return;
 		}
 		if (snapshotSkippedForLimit) {
+			graphInteractionsLocked = true;
 			view.getGraphWidget().pausePreviewForLargeGraph(status.tripleCount(), status.namedGraphCount());
 			view.setGraphEmptyStateVisible(false);
 			view.updateStatus(status);
@@ -414,8 +384,9 @@ public class DataViewController implements AutoCloseable {
 		boolean hasTrackedSources = !workspaceService.getTrackedSources().isEmpty();
 
 		view.setToolbarButtonDisabled(ButtonIcon.RELOAD, !hasTrackedSources);
-		setToolbarButtonsDisabled(!hasData, ButtonIcon.EXPORT_DATA, ButtonIcon.EXPORT, ButtonIcon.CLEAR,
-				ButtonIcon.LAYOUT_FORCE, ButtonIcon.CENTER_VIEW, ButtonIcon.ZOOM_IN, ButtonIcon.ZOOM_OUT);
+		setToolbarButtonsDisabled(!hasData, ButtonIcon.EXPORT_DATA, ButtonIcon.EXPORT, ButtonIcon.CLEAR);
+		setToolbarButtonsDisabled(!hasData || graphInteractionsLocked, ButtonIcon.LAYOUT_FORCE, ButtonIcon.CENTER_VIEW,
+				ButtonIcon.ZOOM_IN, ButtonIcon.ZOOM_OUT);
 	}
 
 	private void setToolbarButtonsDisabled(boolean disabled, ButtonIcon... buttonIcons) {

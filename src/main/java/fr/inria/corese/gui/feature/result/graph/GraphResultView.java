@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.feature.result.graph;
 
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
+import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderMode;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderStatus;
@@ -140,6 +141,10 @@ public class GraphResultView extends AbstractView {
 
 	public void setToolbarActions(List<ButtonConfig> buttons) {
 		toolbarWidget.setButtons(buttons);
+	}
+
+	public void setToolbarButtonDisabled(ButtonIcon buttonIcon, boolean disabled) {
+		toolbarWidget.setButtonDisabled(buttonIcon, disabled);
 	}
 
 	public GraphDisplayWidget getGraphWidget() {
