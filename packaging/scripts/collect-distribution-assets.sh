@@ -64,7 +64,7 @@ copy_installer_or_archive_app_image() {
 }
 
 copy_windows_portable_zip() {
-    if [[ "$target" != windows-* ]]; then
+    if [[ "$target" != windows-* || "$jpackage_type" == "app-image" ]]; then
         return
     fi
 
