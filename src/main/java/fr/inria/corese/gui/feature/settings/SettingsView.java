@@ -561,7 +561,7 @@ public final class SettingsView extends AbstractView {
 	}
 
 	private Tile createUpdatesTile() {
-		Tile updatesTile = new Tile("Updates", "Check and update application");
+		Tile updatesActionTile = new Tile("Updates", "Check and update application");
 
 		checkUpdatesButton = new Button("Check Now");
 		checkUpdatesButton.getStyleClass().add(Styles.BUTTON_OUTLINED);
@@ -572,9 +572,9 @@ public final class SettingsView extends AbstractView {
 		actionButtons.getStyleClass().add("settings-update-button-row");
 		actionButtons.setAlignment(Pos.CENTER_RIGHT);
 
-		updatesTile.setAction(actionButtons);
+		updatesActionTile.setAction(actionButtons);
 
-		return updatesTile;
+		return updatesActionTile;
 	}
 
 	private Tile createUpdateNotificationTile() {

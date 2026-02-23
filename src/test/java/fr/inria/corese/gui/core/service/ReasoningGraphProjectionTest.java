@@ -31,9 +31,12 @@ class ReasoningGraphProjectionTest {
 	@Test
 	void owlRlInference_isSerializedAsNamedGraphInJsonLdSnapshot() throws IOException {
 		Path dataset = tempDir.resolve("owlrl-symmetric.ttl");
-		Files.writeString(dataset,
-				"@prefix ex: <http://example.org/> .\n" + "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n"
-						+ "ex:knows a owl:SymmetricProperty .\n" + "ex:alice ex:knows ex:bob .\n");
+		Files.writeString(dataset, """
+				@prefix ex: <http://example.org/> .
+				@prefix owl: <http://www.w3.org/2002/07/owl#> .
+				ex:knows a owl:SymmetricProperty .
+				ex:alice ex:knows ex:bob .
+				""");
 
 		rdfDataService.loadFile(dataset.toFile());
 		reasoningService.setEnabled(ReasoningProfile.OWL_RL, true);

@@ -395,10 +395,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		public GraphRenderStatus {
 			mode = mode == null ? GraphRenderMode.NORMAL : mode;
 			summary = normalizeSummary(mode, summary);
-			details = details == null
-					? List.of()
-					: details.stream().map(line -> line == null ? "" : line.trim()).filter(line -> !line.isBlank())
-							.toList();
+			details = normalizeDetails(details);
 		}
 
 		public static GraphRenderStatus normal() {
@@ -422,6 +419,14 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 				case DEGRADED -> "Performance mode enabled";
 				case PAUSED -> "Automatic preview paused";
 			};
+		}
+
+		private static List<String> normalizeDetails(List<String> details) {
+			if (details == null) {
+				return List.of();
+			}
+			return details.stream().map(line -> line == null ? "" : line.trim()).filter(line -> !line.isBlank())
+					.toList();
 		}
 	}
 
@@ -738,23 +743,6 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 	private void setGraphCanvasVisible(boolean visible) {
 		webView.setVisible(visible);
 		webView.setManaged(visible);
-	}
-
-	private void showLagSuggestion(double avgFps) {
-		double safeFps = Math.max(0.0, avgFps);
-		if (disposed || safeFps <= 0) {
-			return;
-		}
-		if (!hasRenderedGraph || safetyOverlay.isVisible() || loadingOverlay.isVisible()) {
-			return;
-		}
-		if (currentRenderStatus.mode() == GraphRenderMode.PAUSED) {
-			return;
-		}
-		String text = String.format(Locale.ROOT, "Rendering is slow (~%.1f FPS).", safeFps);
-		lagSuggestionLabel.setText(text);
-		lagSuggestionBar.setManaged(true);
-		lagSuggestionBar.setVisible(true);
 	}
 
 	private void hideLagSuggestion() {
@@ -1206,7 +1194,9 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 				return;
 			}
 			double avgFps = GraphBridgeParsing.parseNonNegativeDouble(averageFpsValue);
-			Platform.runLater(() -> showLagSuggestion(avgFps));
+			int nodeCount = GraphBridgeParsing.parseNonNegativeInt(nodeCountValue);
+			int tripleCount = GraphBridgeParsing.parseNonNegativeInt(tripleCountValue);
+			Platform.runLater(() -> showLagSuggestion(avgFps, nodeCount, tripleCount));
 		}
 
 		public void onGraphLagCleared() {
@@ -1214,6 +1204,26 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 				return;
 			}
 			Platform.runLater(GraphDisplayWidget.this::hideLagSuggestion);
+		}
+
+		private void showLagSuggestion(double avgFps, int nodeCount, int tripleCount) {
+			double safeFps = Math.max(0.0, avgFps);
+			if (disposed || safeFps <= 0) {
+				return;
+			}
+			if (!hasRenderedGraph || safetyOverlay.isVisible() || loadingOverlay.isVisible()) {
+				return;
+			}
+			if (currentRenderStatus.mode() == GraphRenderMode.PAUSED) {
+				return;
+			}
+			String text = String.format(Locale.ROOT, "Rendering is slow (~%.1f FPS).", safeFps);
+			lagSuggestionLabel.setText(text);
+			lagSuggestionBar.setManaged(true);
+			lagSuggestionBar.setVisible(true);
+			if (LOGGER.isDebugEnabled() && (nodeCount > 0 || tripleCount > 0)) {
+				LOGGER.debug("Graph lag detected. fps={} nodes={} triples={}", safeFps, nodeCount, tripleCount);
+			}
 		}
 	}
 }

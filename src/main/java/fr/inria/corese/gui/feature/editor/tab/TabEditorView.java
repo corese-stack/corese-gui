@@ -726,7 +726,7 @@ public class TabEditorView extends AbstractView {
 				return List.of();
 			}
 			return List.copyOf(files);
-		} catch (RuntimeException ignored) {
+		} catch (RuntimeException _) {
 			// JavaFX/GTK can throw runtime exceptions while probing clipboard mime types
 			// during DnD.
 			return List.of();

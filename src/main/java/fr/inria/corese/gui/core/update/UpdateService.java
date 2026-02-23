@@ -3,6 +3,7 @@ package fr.inria.corese.gui.core.update;
 import fr.inria.corese.gui.AppConstants;
 import fr.inria.corese.gui.utils.AppExecutors;
 import fr.inria.corese.gui.utils.BrowserUtils;
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -153,6 +154,12 @@ public final class UpdateService {
 	private record JsonStringToken(String value, int nextIndex) {
 	}
 
+	private record ObjectFieldParseResult(String key, String rawValue, int nextIndex) {
+	}
+
+	private record EscapedJsonChar(String value, int nextIndex) {
+	}
+
 	private UpdateService() {
 		this(HttpClient.newBuilder().connectTimeout(REQUEST_TIMEOUT).followRedirects(HttpClient.Redirect.NORMAL)
 				.build());
@@ -206,8 +213,15 @@ public final class UpdateService {
 			CheckResult result;
 			try {
 				result = checkForUpdatesInternal();
-			} catch (Exception e) {
-				LOGGER.warn("Unexpected update check failure", e);
+			} catch (InterruptedException interruptedException) {
+				Thread.currentThread().interrupt();
+				LOGGER.warn("Update check interrupted", interruptedException);
+				result = CheckResult.unavailable("Unable to check for updates.");
+			} catch (IOException ioException) {
+				LOGGER.warn("I/O failure during update check", ioException);
+				result = CheckResult.unavailable("Unable to check for updates.");
+			} catch (RuntimeException runtimeException) {
+				LOGGER.warn("Unexpected update check failure", runtimeException);
 				result = CheckResult.unavailable("Unable to check for updates.");
 			}
 
@@ -278,7 +292,7 @@ public final class UpdateService {
 		openReleasePage(info);
 	}
 
-	private CheckResult checkForUpdatesInternal() throws Exception {
+	private CheckResult checkForUpdatesInternal() throws IOException, InterruptedException {
 		String currentVersion = resolveCurrentVersion();
 		URI endpoint = resolveLatestReleaseEndpoint();
 
@@ -334,7 +348,7 @@ public final class UpdateService {
 		String endpoint = overrideEndpoint.isBlank() ? AppConstants.RELEASES_API_LATEST_URL : overrideEndpoint;
 		try {
 			return URI.create(endpoint);
-		} catch (Exception e) {
+		} catch (IllegalArgumentException _) {
 			LOGGER.warn("Invalid update endpoint override '{}', using default endpoint.", endpoint);
 			return URI.create(AppConstants.RELEASES_API_LATEST_URL);
 		}
@@ -351,7 +365,7 @@ public final class UpdateService {
 				return Duration.ZERO;
 			}
 			return Duration.ofMinutes(value);
-		} catch (NumberFormatException e) {
+		} catch (NumberFormatException _) {
 			LOGGER.warn("Invalid '{}' value '{}', falling back to {} minutes.", MIN_RELEASE_AGE_MINUTES_SYSTEM_PROPERTY,
 					rawMinutes, DEFAULT_MIN_RELEASE_AGE_MINUTES);
 			return Duration.ofMinutes(DEFAULT_MIN_RELEASE_AGE_MINUTES);
@@ -484,7 +498,7 @@ public final class UpdateService {
 		}
 		try {
 			return Integer.parseInt(value);
-		} catch (NumberFormatException e) {
+		} catch (NumberFormatException _) {
 			return Integer.MAX_VALUE;
 		}
 	}
@@ -521,18 +535,16 @@ public final class UpdateService {
 
 		List<AssetCandidate> candidates = new ArrayList<>();
 		for (UpdateAsset asset : safeAssets) {
-			if (asset == null || asset.name().isBlank() || asset.downloadUrl().isBlank()) {
-				continue;
+			if (asset != null && !asset.name().isBlank() && !asset.downloadUrl().isBlank()) {
+				String normalizedName = asset.name().toLowerCase(Locale.ROOT);
+				if (isSupportedPackageAsset(normalizedName)) {
+					int targetRank = resolveTargetRank(normalizedName, normalizedOs, normalizedArch, exactTargetToken);
+					int formatRank = resolveFormatRank(normalizedName, normalizedOs);
+					int standalonePenalty = normalizedName.contains("standalone") ? 1 : 0;
+					candidates.add(new AssetCandidate(asset, targetRank, formatRank, standalonePenalty,
+							normalizedName.length()));
+				}
 			}
-			String normalizedName = asset.name().toLowerCase(Locale.ROOT);
-			if (!isSupportedPackageAsset(normalizedName)) {
-				continue;
-			}
-			int targetRank = resolveTargetRank(normalizedName, normalizedOs, normalizedArch, exactTargetToken);
-			int formatRank = resolveFormatRank(normalizedName, normalizedOs);
-			int standalonePenalty = normalizedName.contains("standalone") ? 1 : 0;
-			candidates
-					.add(new AssetCandidate(asset, targetRank, formatRank, standalonePenalty, normalizedName.length()));
 		}
 
 		Comparator<AssetCandidate> comparator = Comparator.comparingInt(AssetCandidate::targetRank)
@@ -638,61 +650,66 @@ public final class UpdateService {
 	}
 
 	private static int resolveFormatRank(String normalizedName, String osToken) {
-		if ("windows".equals(osToken)) {
-			if (normalizedName.endsWith(".msi")) {
-				return 0;
-			}
-			if (normalizedName.endsWith(".exe")) {
-				return 1;
-			}
-			if (normalizedName.endsWith(".zip")) {
-				return 2;
-			}
-			if (normalizedName.endsWith(".jar")) {
-				return 5;
-			}
-			return 3;
+		return switch (osToken) {
+			case "windows" -> resolveWindowsFormatRank(normalizedName);
+			case "macos" -> resolveMacOsFormatRank(normalizedName);
+			case "linux" -> resolveLinuxFormatRank(normalizedName);
+			default -> normalizedName.endsWith(".jar") ? 1 : 2;
+		};
+	}
+
+	private static int resolveWindowsFormatRank(String normalizedName) {
+		if (normalizedName.endsWith(".msi")) {
+			return 0;
 		}
-		if ("macos".equals(osToken)) {
-			if (normalizedName.endsWith(".dmg")) {
-				return 0;
-			}
-			if (normalizedName.endsWith(".pkg")) {
-				return 1;
-			}
-			if (normalizedName.endsWith(".zip")) {
-				return 2;
-			}
-			if (normalizedName.endsWith(".tar.gz")) {
-				return 3;
-			}
-			if (normalizedName.endsWith(".jar")) {
-				return 5;
-			}
-			return 4;
-		}
-		if ("linux".equals(osToken)) {
-			if (normalizedName.endsWith(".deb")) {
-				return 0;
-			}
-			if (normalizedName.endsWith(".rpm")) {
-				return 1;
-			}
-			if (normalizedName.endsWith(".appimage")) {
-				return 2;
-			}
-			if (normalizedName.endsWith(".tar.gz")) {
-				return 3;
-			}
-			if (normalizedName.endsWith(".jar")) {
-				return 5;
-			}
-			return 4;
-		}
-		if (normalizedName.endsWith(".jar")) {
+		if (normalizedName.endsWith(".exe")) {
 			return 1;
 		}
-		return 2;
+		if (normalizedName.endsWith(".zip")) {
+			return 2;
+		}
+		if (normalizedName.endsWith(".jar")) {
+			return 5;
+		}
+		return 3;
+	}
+
+	private static int resolveMacOsFormatRank(String normalizedName) {
+		if (normalizedName.endsWith(".dmg")) {
+			return 0;
+		}
+		if (normalizedName.endsWith(".pkg")) {
+			return 1;
+		}
+		if (normalizedName.endsWith(".zip")) {
+			return 2;
+		}
+		if (normalizedName.endsWith(".tar.gz")) {
+			return 3;
+		}
+		if (normalizedName.endsWith(".jar")) {
+			return 5;
+		}
+		return 4;
+	}
+
+	private static int resolveLinuxFormatRank(String normalizedName) {
+		if (normalizedName.endsWith(".deb")) {
+			return 0;
+		}
+		if (normalizedName.endsWith(".rpm")) {
+			return 1;
+		}
+		if (normalizedName.endsWith(".appimage")) {
+			return 2;
+		}
+		if (normalizedName.endsWith(".tar.gz")) {
+			return 3;
+		}
+		if (normalizedName.endsWith(".jar")) {
+			return 5;
+		}
+		return 4;
 	}
 
 	static ParsedRelease parseReleasePayload(String responseBody) {
@@ -728,15 +745,13 @@ public final class UpdateService {
 		List<UpdateAsset> assets = new ArrayList<>();
 		for (String value : values) {
 			Map<String, String> fields = parseObjectFields(value);
-			if (fields.isEmpty()) {
-				continue;
+			if (!fields.isEmpty()) {
+				String assetName = parseStringLiteral(fields.get("name"));
+				String downloadUrl = parseStringLiteral(fields.get("browser_download_url"));
+				if (!assetName.isBlank() && !downloadUrl.isBlank()) {
+					assets.add(new UpdateAsset(assetName, downloadUrl));
+				}
 			}
-			String assetName = parseStringLiteral(fields.get("name"));
-			String downloadUrl = parseStringLiteral(fields.get("browser_download_url"));
-			if (assetName.isBlank() || downloadUrl.isBlank()) {
-				continue;
-			}
-			assets.add(new UpdateAsset(assetName, downloadUrl));
 		}
 		return List.copyOf(assets);
 	}
@@ -751,21 +766,18 @@ public final class UpdateService {
 		int index = 1;
 		while (index < safeArray.length()) {
 			index = skipWhitespaces(safeArray, index);
-			if (index >= safeArray.length()) {
-				break;
-			}
-			if (safeArray.charAt(index) == ']') {
-				break;
-			}
-
-			JsonSlice valueSlice = readJsonValueSlice(safeArray, index);
-			if (valueSlice == null) {
-				return List.of();
-			}
-			values.add(valueSlice.raw());
-			index = skipWhitespaces(safeArray, valueSlice.nextIndex());
-			if (index < safeArray.length() && safeArray.charAt(index) == ',') {
-				index++;
+			if (index < safeArray.length() && safeArray.charAt(index) != ']') {
+				JsonSlice valueSlice = readJsonValueSlice(safeArray, index);
+				if (valueSlice == null) {
+					return List.of();
+				}
+				values.add(valueSlice.raw());
+				index = skipWhitespaces(safeArray, valueSlice.nextIndex());
+				if (index < safeArray.length() && safeArray.charAt(index) == ',') {
+					index++;
+				}
+			} else {
+				index = safeArray.length();
 			}
 		}
 		return List.copyOf(values);
@@ -781,35 +793,38 @@ public final class UpdateService {
 		int index = 1;
 		while (index < safeObject.length()) {
 			index = skipWhitespaces(safeObject, index);
-			if (index >= safeObject.length()) {
-				break;
-			}
-			if (safeObject.charAt(index) == '}') {
-				break;
-			}
-
-			JsonStringToken keyToken = parseJsonString(safeObject, index);
-			if (keyToken == null) {
-				return Map.of();
-			}
-			index = skipWhitespaces(safeObject, keyToken.nextIndex());
-			if (index >= safeObject.length() || safeObject.charAt(index) != ':') {
-				return Map.of();
-			}
-
-			index = skipWhitespaces(safeObject, index + 1);
-			JsonSlice valueSlice = readJsonValueSlice(safeObject, index);
-			if (valueSlice == null) {
-				return Map.of();
-			}
-			fields.put(keyToken.value(), valueSlice.raw());
-			index = skipWhitespaces(safeObject, valueSlice.nextIndex());
-
-			if (index < safeObject.length() && safeObject.charAt(index) == ',') {
-				index++;
+			if (index < safeObject.length() && safeObject.charAt(index) != '}') {
+				ObjectFieldParseResult fieldResult = parseObjectField(safeObject, index);
+				if (fieldResult == null) {
+					return Map.of();
+				}
+				fields.put(fieldResult.key(), fieldResult.rawValue());
+				index = skipWhitespaces(safeObject, fieldResult.nextIndex());
+				if (index < safeObject.length() && safeObject.charAt(index) == ',') {
+					index++;
+				}
+			} else {
+				index = safeObject.length();
 			}
 		}
 		return fields;
+	}
+
+	private static ObjectFieldParseResult parseObjectField(String safeObject, int index) {
+		JsonStringToken keyToken = parseJsonString(safeObject, index);
+		if (keyToken == null) {
+			return null;
+		}
+		int separatorIndex = skipWhitespaces(safeObject, keyToken.nextIndex());
+		if (separatorIndex >= safeObject.length() || safeObject.charAt(separatorIndex) != ':') {
+			return null;
+		}
+		int valueIndex = skipWhitespaces(safeObject, separatorIndex + 1);
+		JsonSlice valueSlice = readJsonValueSlice(safeObject, valueIndex);
+		if (valueSlice == null) {
+			return null;
+		}
+		return new ObjectFieldParseResult(keyToken.value(), valueSlice.raw(), valueSlice.nextIndex());
 	}
 
 	private static JsonSlice readJsonValueSlice(String text, int index) {
@@ -855,27 +870,16 @@ public final class UpdateService {
 			if (inString) {
 				if (escaping) {
 					escaping = false;
-					continue;
-				}
-				if (current == '\\') {
+				} else if (current == '\\') {
 					escaping = true;
-					continue;
-				}
-				if (current == '"') {
+				} else if (current == '"') {
 					inString = false;
 				}
-				continue;
-			}
-
-			if (current == '"') {
+			} else if (current == '"') {
 				inString = true;
-				continue;
-			}
-			if (current == openChar) {
+			} else if (current == openChar) {
 				depth++;
-				continue;
-			}
-			if (current == closeChar) {
+			} else if (current == closeChar) {
 				depth--;
 				if (depth == 0) {
 					return new JsonSlice(text.substring(index, cursor + 1), cursor + 1);
@@ -898,39 +902,47 @@ public final class UpdateService {
 				return new JsonStringToken(builder.toString(), cursor + 1);
 			}
 			if (current == '\\') {
-				cursor++;
-				if (cursor >= text.length()) {
+				EscapedJsonChar escapedChar = parseEscapedJsonChar(text, cursor + 1);
+				if (escapedChar == null) {
 					return null;
 				}
-				char escaped = text.charAt(cursor);
-				switch (escaped) {
-					case '"', '\\', '/' -> builder.append(escaped);
-					case 'b' -> builder.append('\b');
-					case 'f' -> builder.append('\f');
-					case 'n' -> builder.append('\n');
-					case 'r' -> builder.append('\r');
-					case 't' -> builder.append('\t');
-					case 'u' -> {
-						if (cursor + 4 >= text.length()) {
-							return null;
-						}
-						String hex = text.substring(cursor + 1, cursor + 5);
-						try {
-							builder.append((char) Integer.parseInt(hex, 16));
-						} catch (NumberFormatException e) {
-							return null;
-						}
-						cursor += 4;
-					}
-					default -> builder.append(escaped);
-				}
+				builder.append(escapedChar.value());
+				cursor = escapedChar.nextIndex();
+			} else {
+				builder.append(current);
 				cursor++;
-				continue;
 			}
-			builder.append(current);
-			cursor++;
 		}
 		return null;
+	}
+
+	private static EscapedJsonChar parseEscapedJsonChar(String text, int index) {
+		if (index >= text.length()) {
+			return null;
+		}
+		char escaped = text.charAt(index);
+		return switch (escaped) {
+			case '"', '\\', '/' -> new EscapedJsonChar(String.valueOf(escaped), index + 1);
+			case 'b' -> new EscapedJsonChar(String.valueOf('\b'), index + 1);
+			case 'f' -> new EscapedJsonChar(String.valueOf('\f'), index + 1);
+			case 'n' -> new EscapedJsonChar(String.valueOf('\n'), index + 1);
+			case 'r' -> new EscapedJsonChar(String.valueOf('\r'), index + 1);
+			case 't' -> new EscapedJsonChar(String.valueOf('\t'), index + 1);
+			case 'u' -> parseUnicodeEscapedChar(text, index);
+			default -> new EscapedJsonChar(String.valueOf(escaped), index + 1);
+		};
+	}
+
+	private static EscapedJsonChar parseUnicodeEscapedChar(String text, int index) {
+		if (index + 4 >= text.length()) {
+			return null;
+		}
+		String hex = text.substring(index + 1, index + 5);
+		try {
+			return new EscapedJsonChar(String.valueOf((char) Integer.parseInt(hex, 16)), index + 5);
+		} catch (NumberFormatException _) {
+			return null;
+		}
 	}
 
 	private static boolean parseBooleanLiteral(String rawValue, boolean defaultValue) {

@@ -101,8 +101,7 @@ final class GraphBridgeParsing {
 		if (value == null) {
 			return "";
 		}
-		String normalized = String.valueOf(value).trim();
-		return normalized;
+		return String.valueOf(value).trim();
 	}
 
 	static List<String> parseStringList(Object value) {

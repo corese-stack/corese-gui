@@ -254,7 +254,7 @@ public class DataViewController implements AutoCloseable {
 		if (safeStatus.mode() == GraphRenderMode.PAUSED) {
 			return true;
 		}
-		return safeStatus.details().stream().anyMatch(detail -> RENDER_DETAIL_INTERACTION_LOCKED.equals(detail));
+		return safeStatus.details().stream().anyMatch(RENDER_DETAIL_INTERACTION_LOCKED::equals);
 	}
 
 	private int resolveGraphPreviewLimit() {

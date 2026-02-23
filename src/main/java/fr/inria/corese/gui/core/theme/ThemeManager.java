@@ -205,9 +205,7 @@ public final class ThemeManager {
 		});
 
 		// When sidebar collapsed changes, save it
-		sidebarCollapsed.addListener((obs, oldVal, newVal) -> {
-			savePreferences();
-		});
+		sidebarCollapsed.addListener((obs, oldVal, newVal) -> savePreferences());
 
 		// When UI scale changes, re-apply managed root styles and persist
 		uiScale.addListener((obs, oldVal, newVal) -> {
@@ -642,7 +640,7 @@ public final class ThemeManager {
 		// Try to find by AppTheme name
 		try {
 			return AppThemeRegistry.valueOf(name).getTheme();
-		} catch (IllegalArgumentException e) {
+		} catch (IllegalArgumentException _) {
 			// Try to find by display name construction (legacy support if needed)
 			for (AppThemeRegistry t : AppThemeRegistry.values()) {
 				String constructedName = t.getBaseName() + (t.isDark() ? " Dark" : " Light");
@@ -692,17 +690,21 @@ public final class ThemeManager {
 				}
 
 				if (colorHex != null) {
-					try {
-						setAccentColor(Color.web(colorHex));
-					} catch (IllegalArgumentException e) {
-						LOGGER.warn("Invalid saved accent color: {}", colorHex);
-					}
+					restoreSavedAccentColor(colorHex);
 				}
 			}
 		} catch (Exception e) {
 			LOGGER.warn("Failed to load preferences", e);
 		} finally {
 			loadingPreferences = false;
+		}
+	}
+
+	private void restoreSavedAccentColor(String colorHex) {
+		try {
+			setAccentColor(Color.web(colorHex));
+		} catch (IllegalArgumentException _) {
+			LOGGER.warn("Invalid saved accent color: {}", colorHex);
 		}
 	}
 

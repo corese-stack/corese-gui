@@ -129,78 +129,77 @@ public final class GraphProjectionService {
 		int replacementCount = 0;
 
 		while (cursor < jsonLd.length()) {
-			int keyStart = jsonLd.indexOf(JSON_LD_VALUE_KEY, cursor);
-			if (keyStart < 0) {
-				sanitized.append(jsonLd, cursor, jsonLd.length());
-				break;
-			}
-
-			sanitized.append(jsonLd, cursor, keyStart);
-			int keyEnd = keyStart + JSON_LD_VALUE_KEY.length();
-			int colonIndex = jsonLd.indexOf(':', keyEnd);
-			if (colonIndex < 0) {
-				sanitized.append(jsonLd, keyStart, jsonLd.length());
-				break;
-			}
-
-			int valueStart = skipWhitespace(jsonLd, colonIndex + 1);
-			if (valueStart >= jsonLd.length() || jsonLd.charAt(valueStart) != '"') {
-				sanitized.append(jsonLd, keyStart, valueStart);
-				cursor = valueStart;
-				continue;
-			}
-
-			sanitized.append(jsonLd, keyStart, valueStart + 1);
-			int index = valueStart + 1;
-			boolean escaping = false;
-			boolean closed = false;
-
-			while (index < jsonLd.length()) {
-				char current = jsonLd.charAt(index);
-				if (current <= 0x1F) {
-					sanitized.append(escapeJsonControlCharacter(current));
-					replacementCount++;
-					index++;
-					continue;
-				}
-				if (escaping) {
-					sanitized.append(current);
-					escaping = false;
-					index++;
-					continue;
-				}
-				if (current == '\\') {
-					sanitized.append(current);
-					escaping = true;
-					index++;
-					continue;
-				}
-				if (current == '"') {
-					int nextToken = skipWhitespace(jsonLd, index + 1);
-					if (nextToken >= jsonLd.length() || isJsonLiteralValueTerminator(jsonLd.charAt(nextToken))) {
-						sanitized.append(current);
-						index++;
-						cursor = index;
-						closed = true;
-						break;
-					}
-					sanitized.append("\\\"");
-					replacementCount++;
-					index++;
-					continue;
-				}
-				sanitized.append(current);
-				index++;
-			}
-
-			if (!closed) {
-				cursor = index;
-				break;
+			LiteralQuotedValueSanitizationStep step = sanitizeLiteralQuotedValueAt(jsonLd, cursor, sanitized);
+			replacementCount += step.replacementCount();
+			cursor = step.nextCursor();
+			if (step.stop()) {
+				cursor = jsonLd.length();
 			}
 		}
 		return replacementCount == 0
 				? new SanitizationResult(jsonLd, 0)
 				: new SanitizationResult(sanitized.toString(), replacementCount);
+	}
+
+	private static LiteralQuotedValueSanitizationStep sanitizeLiteralQuotedValueAt(String jsonLd, int cursor,
+			StringBuilder sanitized) {
+		int keyStart = jsonLd.indexOf(JSON_LD_VALUE_KEY, cursor);
+		if (keyStart < 0) {
+			sanitized.append(jsonLd, cursor, jsonLd.length());
+			return new LiteralQuotedValueSanitizationStep(jsonLd.length(), 0, true);
+		}
+
+		sanitized.append(jsonLd, cursor, keyStart);
+		int keyEnd = keyStart + JSON_LD_VALUE_KEY.length();
+		int colonIndex = jsonLd.indexOf(':', keyEnd);
+		if (colonIndex < 0) {
+			sanitized.append(jsonLd, keyStart, jsonLd.length());
+			return new LiteralQuotedValueSanitizationStep(jsonLd.length(), 0, true);
+		}
+
+		int valueStart = skipWhitespace(jsonLd, colonIndex + 1);
+		if (valueStart >= jsonLd.length() || jsonLd.charAt(valueStart) != '"') {
+			sanitized.append(jsonLd, keyStart, valueStart);
+			return new LiteralQuotedValueSanitizationStep(valueStart, 0, false);
+		}
+
+		sanitized.append(jsonLd, keyStart, valueStart + 1);
+		LiteralQuotedValueContentParseResult parseResult = parseLiteralQuotedValueContent(jsonLd, valueStart + 1,
+				sanitized);
+		return new LiteralQuotedValueSanitizationStep(parseResult.nextCursor(), parseResult.replacementCount(),
+				!parseResult.closed());
+	}
+
+	private static LiteralQuotedValueContentParseResult parseLiteralQuotedValueContent(String jsonLd, int startIndex,
+			StringBuilder sanitized) {
+		int replacementCount = 0;
+		boolean escaping = false;
+		int index = startIndex;
+		while (index < jsonLd.length()) {
+			char current = jsonLd.charAt(index);
+			if (current <= 0x1F) {
+				sanitized.append(escapeJsonControlCharacter(current));
+				replacementCount++;
+			} else if (escaping) {
+				sanitized.append(current);
+				escaping = false;
+			} else if (current == '\\') {
+				sanitized.append(current);
+				escaping = true;
+			} else if (current == '"') {
+				int nextToken = skipWhitespace(jsonLd, index + 1);
+				if (nextToken >= jsonLd.length() || isJsonLiteralValueTerminator(jsonLd.charAt(nextToken))) {
+					sanitized.append(current);
+					return new LiteralQuotedValueContentParseResult(index + 1, replacementCount, true);
+				}
+				sanitized.append("\\\"");
+				replacementCount++;
+			} else {
+				sanitized.append(current);
+			}
+			index++;
+		}
+		return new LiteralQuotedValueContentParseResult(index, replacementCount, false);
 	}
 
 	private static String escapeJsonControlCharacter(char value) {
@@ -531,5 +530,11 @@ public final class GraphProjectionService {
 	}
 
 	private record QuotedStringState(boolean inString, boolean escaping) {
+	}
+
+	private record LiteralQuotedValueSanitizationStep(int nextCursor, int replacementCount, boolean stop) {
+	}
+
+	private record LiteralQuotedValueContentParseResult(int nextCursor, int replacementCount, boolean closed) {
 	}
 }

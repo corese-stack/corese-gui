@@ -127,7 +127,7 @@ public final class SystemThemeDetector {
 				int g = (int) ((value >> 8) & 0xFF);
 				int b = (int) ((value >> 16) & 0xFF);
 				return Color.rgb(r, g, b);
-			} catch (NumberFormatException e) {
+			} catch (NumberFormatException _) {
 				LOGGER.warn("Failed to parse Windows accent color: {}", result);
 			}
 		}
@@ -165,7 +165,7 @@ public final class SystemThemeDetector {
 					case 6 -> Color.web("#DA3B87"); // Pink
 					default -> Color.web("#0164E1");
 				};
-			} catch (NumberFormatException e) {
+			} catch (NumberFormatException _) {
 				LOGGER.warn("Failed to parse macOS accent color index: {}", result);
 			}
 		}
@@ -234,7 +234,7 @@ public final class SystemThemeDetector {
 				return content.contains("ColorScheme=Breeze Dark") || content.contains("ColorScheme=BreezeDark")
 						|| content.toLowerCase().contains("dark");
 			}
-		} catch (Exception e) {
+		} catch (Exception _) {
 			// Ignore
 		}
 		return false;
@@ -348,7 +348,7 @@ public final class SystemThemeDetector {
 					int b = Integer.parseInt(components[2].trim());
 					return Color.rgb(r, g, b);
 				}
-			} catch (Exception e) {
+			} catch (Exception _) {
 				// ignore
 			}
 			return null;
@@ -385,10 +385,10 @@ public final class SystemThemeDetector {
 			}
 			String result = output.toString().trim();
 			return result.isEmpty() ? null : result;
-		} catch (InterruptedException e) {
+		} catch (InterruptedException _) {
 			Thread.currentThread().interrupt();
 			return null;
-		} catch (Exception e) {
+		} catch (Exception _) {
 			if (LOGGER.isDebugEnabled()) {
 				LOGGER.debug("Command execution failed: {}", String.join(" ", command));
 			}
