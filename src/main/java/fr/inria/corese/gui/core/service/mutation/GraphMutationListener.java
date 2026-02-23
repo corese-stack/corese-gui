@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.core.service;
+package fr.inria.corese.gui.core.service.mutation;
 
 /**
  * Listener notified when the shared RDF graph mutates.

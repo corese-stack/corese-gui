@@ -5,6 +5,9 @@ import fr.inria.corese.core.kgram.core.Mapping;
 import fr.inria.corese.core.kgram.core.Mappings;
 import fr.inria.corese.core.query.QueryProcess;
 import fr.inria.corese.core.sparql.api.IDatatype;
+import fr.inria.corese.gui.core.service.data.DataSource;
+import fr.inria.corese.gui.core.service.data.DataWorkspaceStatus;
+import fr.inria.corese.gui.core.service.data.SourceType;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,7 +17,7 @@ import org.slf4j.Logger;
 /**
  * Shared status aggregation helpers for the Data workspace.
  */
-final class DataWorkspaceStatusSupport {
+public final class DataWorkspaceStatusSupport {
 
 	private static final String CORESE_DEFAULT_GRAPH_URI = "http://ns.inria.fr/corese.core.kgram/default";
 	private static final String CORESE_DEFAULT_GRAPH_URI_LEGACY = "http://ns.inria.fr/edelweiss/2010/kgram/default";
@@ -31,14 +34,14 @@ final class DataWorkspaceStatusSupport {
 		throw new AssertionError("Utility class");
 	}
 
-	static SourceStats computeSourceStats(List<DataSource> sources) {
+	public static SourceStats computeSourceStats(List<DataSource> sources) {
 		List<DataSource> safeSources = sources == null ? List.of() : sources;
 		int fileCount = (int) safeSources.stream().filter(source -> source.type() == SourceType.FILE).count();
 		int uriCount = (int) safeSources.stream().filter(source -> source.type() == SourceType.URI).count();
 		return new SourceStats(safeSources.size(), fileCount, uriCount);
 	}
 
-	static GraphCountSnapshot computeGraphCountSnapshot(Graph graph, int totalTripleCount, Logger logger) {
+	public static GraphCountSnapshot computeGraphCountSnapshot(Graph graph, int totalTripleCount, Logger logger) {
 		Map<String, Integer> normalizedCounts = normalizeGraphTripleCounts(computeGraphTripleCounts(graph, logger));
 		int reportedTripleTotal = normalizedCounts.values().stream().mapToInt(Integer::intValue).sum();
 		int unassignedTripleCount = Math.max(0, totalTripleCount - reportedTripleTotal);
@@ -52,7 +55,8 @@ final class DataWorkspaceStatusSupport {
 		return new GraphCountSnapshot(namedGraphCounts, defaultGraphTripleCount);
 	}
 
-	static List<DataWorkspaceStatus.NamedGraphStat> toSortedNamedGraphStats(Map<String, Integer> graphTripleCounts) {
+	public static List<DataWorkspaceStatus.NamedGraphStat> toSortedNamedGraphStats(
+			Map<String, Integer> graphTripleCounts) {
 		if (graphTripleCounts == null || graphTripleCounts.isEmpty()) {
 			return List.of();
 		}
@@ -135,9 +139,9 @@ final class DataWorkspaceStatusSupport {
 		return CORESE_DEFAULT_GRAPH_ALIASES.contains(graphName);
 	}
 
-	record SourceStats(int total, int fileCount, int uriCount) {
+	public record SourceStats(int total, int fileCount, int uriCount) {
 	}
 
-	record GraphCountSnapshot(Map<String, Integer> namedGraphCounts, int defaultGraphTripleCount) {
+	public record GraphCountSnapshot(Map<String, Integer> namedGraphCounts, int defaultGraphTripleCount) {
 	}
 }

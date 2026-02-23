@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.core.service;
+package fr.inria.corese.gui.core.service.data;
 
 import java.io.File;
 import java.util.ArrayList;

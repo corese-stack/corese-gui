@@ -1,6 +1,6 @@
 package fr.inria.corese.gui.feature.systemlog;
 
-import fr.inria.corese.gui.core.service.GraphActivityLogEntry;
+import fr.inria.corese.gui.core.service.activity.GraphActivityLogEntry;
 
 /**
  * Immutable row model for the System Logs table.

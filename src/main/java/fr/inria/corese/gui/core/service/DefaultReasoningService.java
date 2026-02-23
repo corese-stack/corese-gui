@@ -10,6 +10,10 @@ import fr.inria.corese.core.rule.RuleEngine;
 import fr.inria.corese.core.sparql.api.IDatatype;
 import fr.inria.corese.core.sparql.datatype.DatatypeMap;
 import fr.inria.corese.core.sparql.exceptions.EngineException;
+import fr.inria.corese.gui.core.service.activity.GraphActivityLogEntry;
+import fr.inria.corese.gui.core.service.activity.GraphActivityLogService;
+import fr.inria.corese.gui.core.service.mutation.GraphMutationBus;
+import fr.inria.corese.gui.core.service.mutation.GraphMutationEvent;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -260,7 +264,7 @@ public final class DefaultReasoningService implements ReasoningService {
 	private void recomputeEnabledProfilesInternal(boolean logActivity) {
 		Graph mainGraph = GraphStoreService.getInstance().getGraph();
 		int tripleCountBefore = Math.max(0, mainGraph.size());
-		try (var _ = GraphMutationCollectorService.getInstance().suspendPublishing()) {
+		try (var _ = mutationBus.suspendPublishing()) {
 			Graph assertedSnapshot = createAssertedSnapshot(mainGraph);
 			replaceGraphContent(mainGraph, assertedSnapshot);
 
@@ -314,7 +318,7 @@ public final class DefaultReasoningService implements ReasoningService {
 		}
 
 		Graph mainGraph = GraphStoreService.getInstance().getGraph();
-		try (var _ = GraphMutationCollectorService.getInstance().suspendPublishing()) {
+		try (var _ = mutationBus.suspendPublishing()) {
 			Graph assertedSnapshot = createAssertedSnapshot(mainGraph);
 			replaceGraphContent(mainGraph, assertedSnapshot);
 			mainGraph.clean();

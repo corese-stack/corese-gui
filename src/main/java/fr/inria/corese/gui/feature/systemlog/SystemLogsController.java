@@ -1,7 +1,7 @@
 package fr.inria.corese.gui.feature.systemlog;
 
-import fr.inria.corese.gui.core.service.GraphActivityLogEntry;
-import fr.inria.corese.gui.core.service.GraphActivityLogService;
+import fr.inria.corese.gui.core.service.activity.GraphActivityLogEntry;
+import fr.inria.corese.gui.core.service.activity.GraphActivityLogService;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;

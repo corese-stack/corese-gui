@@ -1,7 +1,7 @@
 package fr.inria.corese.gui.feature.data.support;
 
 import fr.inria.corese.gui.component.notification.NotificationWidget;
-import fr.inria.corese.gui.core.service.DataWorkspaceService;
+import fr.inria.corese.gui.core.service.data.DataWorkspaceService;
 import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.service.ReasoningService;
 import java.io.File;

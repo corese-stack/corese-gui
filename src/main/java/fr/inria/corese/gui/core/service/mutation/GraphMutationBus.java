@@ -1,4 +1,4 @@
-package fr.inria.corese.gui.core.service;
+package fr.inria.corese.gui.core.service.mutation;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,6 +15,15 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings("java:S6548") // Singleton is intentional for app-wide event routing
 public final class GraphMutationBus {
+
+	/**
+	 * Scope handle used to suspend/resume low-level mutation event publishing.
+	 */
+	@FunctionalInterface
+	public interface PublishingSuspension extends AutoCloseable {
+		@Override
+		void close();
+	}
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(GraphMutationBus.class);
 	private static final GraphMutationBus INSTANCE = new GraphMutationBus();
@@ -68,5 +77,17 @@ public final class GraphMutationBus {
 				LOGGER.warn("Graph mutation listener failed", e);
 			}
 		}
+	}
+
+	/**
+	 * Temporarily suspends collector-driven mutation event publishing.
+	 *
+	 * <p>
+	 * Callers must close the returned handle to resume publishing.
+	 *
+	 * @return suspension scope
+	 */
+	public PublishingSuspension suspendPublishing() {
+		return GraphMutationCollectorService.getInstance().suspendPublishing();
 	}
 }

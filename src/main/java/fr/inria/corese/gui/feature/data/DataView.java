@@ -10,7 +10,7 @@ import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderMode;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderStatus;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
-import fr.inria.corese.gui.core.service.DataWorkspaceStatus;
+import fr.inria.corese.gui.core.service.data.DataWorkspaceStatus;
 import fr.inria.corese.gui.core.service.ReasoningProfile;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.view.AbstractView;

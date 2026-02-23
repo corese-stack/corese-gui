@@ -3,7 +3,7 @@ package fr.inria.corese.gui.feature.data.dialog;
 import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.core.dialog.DialogLayout;
 import fr.inria.corese.gui.core.dialog.DialogLayout.ImpactTone;
-import fr.inria.corese.gui.core.service.DataSource;
+import fr.inria.corese.gui.core.service.data.DataSource;
 import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import java.util.LinkedHashMap;

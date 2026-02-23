@@ -1,8 +1,19 @@
-package fr.inria.corese.gui.core.service;
+package fr.inria.corese.gui.core.service.data;
 
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.core.service.DataWorkspaceStatusSupport;
+import fr.inria.corese.gui.core.service.DefaultReasoningService;
+import fr.inria.corese.gui.core.service.GraphProjectionService;
+import fr.inria.corese.gui.core.service.GraphStoreService;
+import fr.inria.corese.gui.core.service.RdfDataService;
+import fr.inria.corese.gui.core.service.ReasoningProfile;
+import fr.inria.corese.gui.core.service.ReasoningService;
 import fr.inria.corese.gui.core.service.ReasoningService.RuleFileState;
+import fr.inria.corese.gui.core.service.activity.GraphActivityLogEntry;
+import fr.inria.corese.gui.core.service.activity.GraphActivityLogService;
+import fr.inria.corese.gui.core.service.mutation.GraphMutationBus;
+import fr.inria.corese.gui.core.service.mutation.GraphMutationEvent;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;

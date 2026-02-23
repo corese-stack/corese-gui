@@ -1,7 +1,8 @@
-package fr.inria.corese.gui.core.service;
+package fr.inria.corese.gui.core.service.mutation;
 
 import fr.inria.corese.core.elasticsearch.EdgeChangeListener;
 import fr.inria.corese.core.kgram.api.core.Edge;
+import fr.inria.corese.gui.core.service.GraphStoreService;
 import fr.inria.corese.gui.utils.AppExecutors;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -53,12 +54,6 @@ final class GraphMutationCollectorService {
 	private GraphMutationCollectorService() {
 	}
 
-	@FunctionalInterface
-	interface PublishingSuspension extends AutoCloseable {
-		@Override
-		void close();
-	}
-
 	static GraphMutationCollectorService getInstance() {
 		return INSTANCE;
 	}
@@ -80,7 +75,7 @@ final class GraphMutationCollectorService {
 	 *
 	 * @return scope handle
 	 */
-	PublishingSuspension suspendPublishing() {
+	GraphMutationBus.PublishingSuspension suspendPublishing() {
 		suppressionDepth.incrementAndGet();
 		return () -> {
 			int updated = suppressionDepth.decrementAndGet();

@@ -2,7 +2,7 @@ package fr.inria.corese.gui.feature.data.support;
 
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderMode;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderStatus;
-import fr.inria.corese.gui.core.service.DataWorkspaceStatus;
+import fr.inria.corese.gui.core.service.data.DataWorkspaceStatus;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -192,10 +192,10 @@ public final class DataStatusTooltipSupport {
 			return "";
 		}
 		return switch (safeDetail) {
-			case "Node labels hidden to keep rendering responsive.",
-					"Node labels disabled for current graph size." -> "Node labels: disabled for this graph size.";
-			case "Edge labels hidden to reduce draw cost.",
-					"Edge labels disabled for current graph size." -> "Edge labels: disabled for this graph size.";
+			case "Node labels hidden to keep rendering responsive.", "Node labels disabled for current graph size." ->
+				"Node labels: disabled for this graph size.";
+			case "Edge labels hidden to reduce draw cost.", "Edge labels disabled for current graph size." ->
+				"Edge labels: disabled for this graph size.";
 			case "Link geometry simplified for dense graphs." -> "Layout: link geometry simplified for dense graphs.";
 			case "Parallel link offset layout disabled for dense edges." -> "Layout: parallel edge offsets disabled.";
 			case "Link motion sampling enabled to keep animation smooth." -> "Animation: link motion sampling enabled.";
@@ -224,8 +224,8 @@ public final class DataStatusTooltipSupport {
 					"Adjust base limit in Settings > Appearance > Graph Preview.",
 					"Limit can be changed in Settings > Appearance > Graph Preview." ->
 				"Action: adjust preview limit in Settings > Appearance > Graph Preview.";
-			case "Use \"Display anyway\" to force rendering on demand.",
-					"Use \"Display anyway\" to force rendering." -> "Action: use \"Display anyway\" to force rendering now.";
+			case "Use \"Display anyway\" to force rendering on demand.", "Use \"Display anyway\" to force rendering." ->
+				"Action: use \"Display anyway\" to force rendering now.";
 			case "Preview payload is skipped at this size to keep the UI responsive." ->
 				"Preview payload skipped at this size to protect responsiveness.";
 			case "Manual rendering can freeze the interface on very large graphs." ->

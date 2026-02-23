@@ -16,6 +16,8 @@ import fr.inria.corese.gui.core.enums.QueryType;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.io.DemoHttpFallbackSupport;
 import fr.inria.corese.gui.core.model.QueryResultRef;
+import fr.inria.corese.gui.core.service.activity.GraphActivityLogEntry;
+import fr.inria.corese.gui.core.service.activity.GraphActivityLogService;
 
 /**
  * Service for executing SPARQL queries against the shared Corese graph.

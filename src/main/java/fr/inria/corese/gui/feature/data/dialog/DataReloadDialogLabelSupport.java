@@ -1,7 +1,7 @@
 package fr.inria.corese.gui.feature.data.dialog;
 
-import fr.inria.corese.gui.core.service.DataSource;
-import fr.inria.corese.gui.core.service.SourceType;
+import fr.inria.corese.gui.core.service.data.DataSource;
+import fr.inria.corese.gui.core.service.data.SourceType;
 import fr.inria.corese.gui.core.service.ReasoningService.RuleFileState;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;

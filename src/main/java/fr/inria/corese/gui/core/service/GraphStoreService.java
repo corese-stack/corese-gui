@@ -5,20 +5,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Internal package-private holder for the Corese {@link Graph} instance.
+ * Internal holder for the shared Corese {@link Graph} instance.
  *
  * <p>
  * This class acts as the single source of truth for the RDF data within the GUI
- * adapter layer. It is intentionally package-private to prevent direct access
- * to the {@code Graph} object from outside the {@code core.service} package,
- * enforcing strict encapsulation.
+ * adapter layer.
  *
  * <p>
  * The Singleton pattern is justified here because:
  * <ul>
  * <li>Only one RDF graph should exist for the entire application</li>
  * <li>All adapter services must operate on the same graph instance</li>
- * <li>Package-private visibility ensures controlled access only through service
+ * <li>Centralized visibility ensures controlled access through service
  * APIs</li>
  * </ul>
  *
@@ -32,7 +30,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  */
 @SuppressWarnings("java:S6548") // Singleton pattern is justified for global graph management
-class GraphStoreService {
+public class GraphStoreService {
 
 	// ==============================================================================================
 	// Fields
@@ -56,7 +54,7 @@ class GraphStoreService {
 	}
 
 	// ==============================================================================================
-	// Package-Private API
+	// Public API (internal-use by core services)
 	// ==============================================================================================
 
 	/**
@@ -64,7 +62,7 @@ class GraphStoreService {
 	 *
 	 * @return the singleton instance
 	 */
-	static GraphStoreService getInstance() {
+	public static GraphStoreService getInstance() {
 		return INSTANCE;
 	}
 
@@ -73,14 +71,14 @@ class GraphStoreService {
 	 *
 	 * @return the {@link Graph} instance
 	 */
-	Graph getGraph() {
+	public Graph getGraph() {
 		return graph;
 	}
 
 	/**
 	 * Clears all data from the graph.
 	 */
-	void clear() {
+	public void clear() {
 		try {
 			graph.clear();
 			LOGGER.debug("Graph data cleared.");
@@ -94,7 +92,7 @@ class GraphStoreService {
 	 *
 	 * @return the size of the graph
 	 */
-	int size() {
+	public int size() {
 		return graph.size();
 	}
 
@@ -103,7 +101,7 @@ class GraphStoreService {
 	 *
 	 * @return true if the graph has data, false otherwise
 	 */
-	boolean hasData() {
+	public boolean hasData() {
 		return graph.size() > 0;
 	}
 }

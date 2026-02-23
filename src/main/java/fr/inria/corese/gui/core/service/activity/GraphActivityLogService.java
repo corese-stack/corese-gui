@@ -1,6 +1,8 @@
-package fr.inria.corese.gui.core.service;
+package fr.inria.corese.gui.core.service.activity;
 
 import fr.inria.corese.core.Graph;
+import fr.inria.corese.gui.core.service.DataWorkspaceStatusSupport;
+import fr.inria.corese.gui.core.service.GraphStoreService;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
