@@ -54,7 +54,6 @@ public final class ThemeManager {
 	private static final double MAX_UI_SCALE = 2.0;
 	private static final int DEFAULT_GRAPH_AUTO_RENDER_TRIPLES = 50_000;
 	private static final int MIN_GRAPH_AUTO_RENDER_TRIPLES = 100;
-	private static final int MAX_GRAPH_AUTO_RENDER_TRIPLES = 50_000;
 	private static final double SCALE_EPSILON = 0.0001;
 	private static final String ROOT_MANAGED_STYLE_BLOCK_KEY = "corese.themeManager.managedStyle";
 
@@ -127,11 +126,6 @@ public final class ThemeManager {
 	/** Returns the minimum graph auto-preview triples limit. */
 	public static int getMinGraphAutoRenderTriplesLimit() {
 		return MIN_GRAPH_AUTO_RENDER_TRIPLES;
-	}
-
-	/** Returns the maximum graph auto-preview triples limit. */
-	public static int getMaxGraphAutoRenderTriplesLimit() {
-		return MAX_GRAPH_AUTO_RENDER_TRIPLES;
 	}
 
 	/**
@@ -502,7 +496,7 @@ public final class ThemeManager {
 	}
 
 	private static int clampGraphAutoRenderTriplesLimit(int value) {
-		return Math.clamp(value, MIN_GRAPH_AUTO_RENDER_TRIPLES, MAX_GRAPH_AUTO_RENDER_TRIPLES);
+		return Math.max(value, MIN_GRAPH_AUTO_RENDER_TRIPLES);
 	}
 
 	// ===== Theme Queries =====

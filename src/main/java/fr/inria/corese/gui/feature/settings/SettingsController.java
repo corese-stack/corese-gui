@@ -21,7 +21,6 @@ public final class SettingsController {
 	private static final double SCALE_EPSILON = 0.0001;
 	private static final double UI_SCALE_STEP = 0.1;
 	private static final int GRAPH_TRIPLE_LIMIT_MIN_STEP = 100;
-	private static final double GRAPH_TRIPLE_LIMIT_STEP_RATIO = 0.10;
 
 	public SettingsController(SettingsModel model, SettingsView view) {
 		this.model = model;
@@ -237,25 +236,54 @@ public final class SettingsController {
 		int currentValue = model.getGraphAutoRenderTriplesLimit();
 		int step = computeGraphPreviewLimitStep(currentValue);
 		int min = ThemeManager.getMinGraphAutoRenderTriplesLimit();
-		int max = ThemeManager.getMaxGraphAutoRenderTriplesLimit();
-		int nextValue = increase ? currentValue + step : currentValue - step;
-		model.setGraphAutoRenderTriplesLimit(Math.clamp(nextValue, min, max));
+		int delta = increase ? step : -step;
+		int nextValue = addWithSaturation(currentValue, delta);
+		model.setGraphAutoRenderTriplesLimit(Math.max(nextValue, min));
 	}
 
 	private static int computeGraphPreviewLimitStep(int currentValue) {
 		if (currentValue <= 0) {
 			return GRAPH_TRIPLE_LIMIT_MIN_STEP;
 		}
-		int adaptiveStep = (int) Math.round(
-				(currentValue * GRAPH_TRIPLE_LIMIT_STEP_RATIO) / GRAPH_TRIPLE_LIMIT_MIN_STEP)
-				* GRAPH_TRIPLE_LIMIT_MIN_STEP;
-		return Math.max(GRAPH_TRIPLE_LIMIT_MIN_STEP, adaptiveStep);
+		int rawAdaptiveStep = Math.max(GRAPH_TRIPLE_LIMIT_MIN_STEP, currentValue / 10);
+		return roundToNiceStep(rawAdaptiveStep);
+	}
+
+	private static int roundToNiceStep(int rawStep) {
+		if (rawStep <= GRAPH_TRIPLE_LIMIT_MIN_STEP) {
+			return GRAPH_TRIPLE_LIMIT_MIN_STEP;
+		}
+		int magnitude = 1;
+		while (magnitude <= Integer.MAX_VALUE / 10 && magnitude * 10 <= rawStep) {
+			magnitude *= 10;
+		}
+		double normalized = rawStep / (double) magnitude;
+		int normalizedStep;
+		if (normalized < 1.5d) {
+			normalizedStep = 1;
+		} else if (normalized < 3d) {
+			normalizedStep = 2;
+		} else if (normalized < 7d) {
+			normalizedStep = 5;
+		} else {
+			normalizedStep = 10;
+		}
+		return Math.max(GRAPH_TRIPLE_LIMIT_MIN_STEP, normalizedStep * magnitude);
+	}
+
+	private static int addWithSaturation(int value, int delta) {
+		if (delta > 0 && value > Integer.MAX_VALUE - delta) {
+			return Integer.MAX_VALUE;
+		}
+		if (delta < 0 && value < Integer.MIN_VALUE - delta) {
+			return Integer.MIN_VALUE;
+		}
+		return value + delta;
 	}
 
 	private void updateGraphPreviewLimitStepperState(int value) {
 		int min = ThemeManager.getMinGraphAutoRenderTriplesLimit();
-		int max = ThemeManager.getMaxGraphAutoRenderTriplesLimit();
 		view.setGraphPreviewLimitDecreaseDisabled(value <= min);
-		view.setGraphPreviewLimitIncreaseDisabled(value >= max);
+		view.setGraphPreviewLimitIncreaseDisabled(false);
 	}
 }
