@@ -5,6 +5,7 @@ import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.io.ExportHelper;
+import fr.inria.corese.gui.feature.result.table.support.TableResultPreferenceSupport;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Collections;
@@ -45,7 +46,7 @@ import javafx.scene.input.MouseEvent;
  */
 public class TableResultController {
 
-	private static final int DEFAULT_ROWS_PER_PAGE = 50;
+	private static final int DEFAULT_ROWS_PER_PAGE = TableResultPreferenceSupport.defaultRowsPerPage();
 	private static final KeyCodeCombination COPY_COMBINATION = new KeyCodeCombination(KeyCode.C,
 			KeyCombination.SHORTCUT_DOWN);
 
@@ -63,7 +64,7 @@ public class TableResultController {
 	 */
 	public TableResultController() {
 		this.allRows = new ArrayList<>();
-		this.rowsPerPage = DEFAULT_ROWS_PER_PAGE;
+		this.rowsPerPage = TableResultPreferenceSupport.loadRowsPerPage();
 		this.view = new TableResultView(this::handlePageChange);
 		initialize();
 	}
@@ -76,7 +77,7 @@ public class TableResultController {
 		view.setToolbarButtonDisabled(ButtonIcon.COPY_SELECTION, true);
 
 		// Setup Rows Per Page Listener
-		view.setRowsPerPageText(String.valueOf(DEFAULT_ROWS_PER_PAGE));
+		view.setRowsPerPageText(String.valueOf(rowsPerPage));
 		view.getRowsPerPageProperty().addListener((obs, oldVal, newVal) -> handleRowsPerPageChange(newVal));
 
 		TableView<String[]> tableView = view.getTableView();
@@ -164,8 +165,9 @@ public class TableResultController {
 	private void handleRowsPerPageChange(String newValue) {
 		try {
 			int newRowsPerPage = Integer.parseInt(newValue);
-			if (newRowsPerPage > 0) {
+			if (newRowsPerPage > 0 && newRowsPerPage != rowsPerPage) {
 				this.rowsPerPage = newRowsPerPage;
+				TableResultPreferenceSupport.saveRowsPerPage(newRowsPerPage);
 				updatePagination();
 			}
 		} catch (NumberFormatException _) {
