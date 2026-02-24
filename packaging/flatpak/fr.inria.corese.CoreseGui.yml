@@ -1,0 +1,66 @@
+app-id: fr.inria.corese.CoreseGui
+runtime: org.freedesktop.Platform
+runtime-version: "24.08"
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.openjdk
+command: corese-gui
+
+finish-args:
+  # Needed for remote URI loading, federated queries and update checks.
+  - --share=network
+  # JavaFX rendering (WebView/graph canvas) and broad compositor compatibility.
+  - --device=dri
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  # Narrower filesystem scope than full home access.
+  - --filesystem=xdg-documents
+  - --filesystem=xdg-download
+  - --filesystem=xdg-desktop
+
+modules:
+  - name: openjdk
+    buildsystem: simple
+    build-commands:
+      - /usr/lib/sdk/openjdk/install.sh
+
+  - name: corese-gui
+    buildsystem: simple
+    build-commands:
+      - install -Dm644 corese-gui-standalone.jar /app/bin/corese-gui-standalone.jar
+      - install -Dm755 packaging/flatpak/scripts/run.sh /app/bin/corese-gui
+      - install -Dm644 packaging/flatpak/appdata/${FLATPAK_ID}.appdata.xml /app/share/metainfo/${FLATPAK_ID}.appdata.xml
+      - install -Dm644 packaging/flatpak/appdata/${FLATPAK_ID}.desktop /app/share/applications/${FLATPAK_ID}.desktop
+      - install -Dm644 packaging/assets/logo/${FLATPAK_ID}.svg /app/share/icons/hicolor/scalable/apps/${FLATPAK_ID}.svg
+
+    sources:
+      # Linux x86_64 standalone JAR from GitHub release assets.
+      - type: file
+        dest-filename: corese-gui-standalone.jar
+        only-arches:
+          - x86_64
+        x-checker-data:
+          type: json
+          url: https://api.github.com/repos/corese-stack/corese-gui/releases/latest
+          version-query: .tag_name
+          url-query: '.assets[] | select(.name | endswith("-standalone-linux-x64.jar")) | .browser_download_url'
+
+      # Linux arm64 standalone JAR from GitHub release assets.
+      - type: file
+        dest-filename: corese-gui-standalone.jar
+        only-arches:
+          - aarch64
+        x-checker-data:
+          type: json
+          url: https://api.github.com/repos/corese-stack/corese-gui/releases/latest
+          version-query: .tag_name
+          url-query: '.assets[] | select(.name | endswith("-standalone-linux-arm64.jar")) | .browser_download_url'
+
+      # appdata, desktop and icon files from GitHub repository.
+      - type: archive
+        x-checker-data:
+          type: json
+          url: https://api.github.com/repos/corese-stack/corese-gui/releases/latest
+          version-query: .tag_name
+          url-query: '"https://github.com/corese-stack/corese-gui/archive/refs/tags/" + $version + ".tar.gz"'

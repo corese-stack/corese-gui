@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Corese GUI
+GenericName=Graphical Semantic Web Platform
+Comment=Interact with RDF data and SPARQL queries through a graphical interface.
+Categories=Science;ComputerScience;
+Icon=fr.inria.corese.CoreseGui
+Exec=corese-gui
+Terminal=false
+StartupNotify=false
+Keywords=semantic web;RDF;SPARQL;OWL;SHACL;LDScript;STTL;SPARQL Rule;SPARQL*;RDF*;SPARQL Query;SPARQL Graph;SHACL Validation;
+X-GNOME-FullName=Corese GUI
+DBusActivatable=false

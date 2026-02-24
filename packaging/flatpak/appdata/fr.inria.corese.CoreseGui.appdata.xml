@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+    <id>fr.inria.corese.CoreseGui</id>
+
+    <name>Corese GUI</name>
+    <name xml:lang="fr">Corese GUI</name>
+
+    <summary>Handling the semantic web</summary>
+    <summary xml:lang="fr">Manipuler le web sémantique</summary>
+
+    <developer id="fr.inria.wimmics">
+        <name>Inria Research Team Wimmics</name>
+        <name xml:lang="fr">Équipe de recherche Inria Wimmics</name>
+    </developer>
+
+    <metadata_license>MIT</metadata_license>
+    <project_license>CECILL-C</project_license>
+
+    <branding>
+        <color type="primary" scheme_preference="light">#faa298</color>
+        <color type="primary" scheme_preference="dark">#7f2c22</color>
+    </branding>
+
+    <description>
+        <p>
+            Corese GUI is an interactive sandbox for working with RDF data. It provides an intuitive
+            graphical environment for loading, exploring, querying, reasoning, and validating
+            semantic datasets.
+        </p>
+        <p>
+            The application supports multiple RDF serialization formats for import/export, includes
+            a
+            Turtle editor, and allows running SPARQL queries directly. It also integrates reasoning
+            engines, supporting both standard profiles like RDFS and OWL, as well as custom rule
+            files for advanced inferencing workflows.
+        </p>
+        <p>
+            With Corese GUI, users can visualize and manipulate semantic data, test SHACL
+            validations, and prototype knowledge-based systems with ease.
+        </p>
+
+        <!-- French translation -->
+        <p xml:lang="fr">
+            Corese GUI est un bac à sable interactif pour travailler avec des données
+            RDF. Il offre un environnement graphique intuitif pour charger, explorer, interroger,
+            raisonner et valider des ensembles de données sémantiques.
+        </p>
+        <p xml:lang="fr">
+            L'application prend en charge plusieurs formats de sérialisation RDF à
+            l'import comme à l'export, inclut un éditeur Turtle, et permet d'exécuter directement
+            des requêtes SPARQL. Elle intègre des moteurs de raisonnement prenant en charge les
+            profils standards comme RDFS et OWL, ainsi que des fichiers de règles personnalisés pour
+            des inférences avancées.
+        </p>
+        <p xml:lang="fr">
+            Avec Corese GUI, vous pouvez visualiser et manipuler des données
+            sémantiques, tester des validations SHACL, et prototyper facilement des systèmes à base
+            de connaissances.
+        </p>
+    </description>
+
+
+    <categories>
+        <category>Science</category>
+        <category>DataVisualization</category>
+        <category>Utility</category>
+        <category>ArtificialIntelligence</category>
+        <category>Java</category>
+    </categories>
+
+    <keywords>
+        <keyword>semantic web</keyword>
+        <keyword xml:lang="fr">web sémantique</keyword>
+        <keyword>RDF</keyword>
+        <keyword>SPARQL</keyword>
+        <keyword>OWL</keyword>
+        <keyword>SHACL</keyword>
+        <keyword>LDScript</keyword>
+        <keyword>STTL</keyword>
+        <keyword>SPARQL Rule</keyword>
+        <keyword>SPARQL*</keyword>
+        <keyword>RDF*</keyword>
+        <keyword>SPARQL Query</keyword>
+        <keyword>SPARQL Update</keyword>
+        <keyword>SPARQL Graph</keyword>
+        <keyword>SPARQL Template</keyword>
+        <keyword>RDFS</keyword>
+        <keyword>linked data</keyword>
+        <keyword xml:lang="fr">données liées</keyword>
+        <keyword>graph database</keyword>
+        <keyword xml:lang="fr">base de données de graphes</keyword>
+        <keyword>web of data</keyword>
+        <keyword xml:lang="fr">web de données</keyword>
+        <keyword>knowledge graph</keyword>
+        <keyword xml:lang="fr">graphe de connaissances</keyword>
+        <keyword>ontology</keyword>
+        <keyword xml:lang="fr">ontologie</keyword>
+        <keyword>reasoning</keyword>
+        <keyword xml:lang="fr">raisonnement</keyword>
+        <keyword>inference</keyword>
+        <keyword xml:lang="fr">inférence</keyword>
+        <keyword>inference engine</keyword>
+        <keyword xml:lang="fr">moteur d'inférence</keyword>
+        <keyword>rule engine</keyword>
+        <keyword xml:lang="fr">moteur de règles</keyword>
+        <keyword>knowledge representation</keyword>
+        <keyword xml:lang="fr">représentation des connaissances</keyword>
+    </keywords>
+
+    <content_rating type="oars-1.1" />
+
+    <launchable type="desktop-id">fr.inria.corese.CoreseGui.desktop</launchable>
+
+    <releases>
+
+        <release version="4.6.1" date="2025-10-10">
+            <description>
+            <ul>
+                <li>Fixed RDFS RL inference engine initialization issue causing failures since version 4.6.0.</li>
+                <li>Improved synchronization between UI states and inference engine states.</li>
+
+                <li xml:lang="fr">Correction d'un problème d'initialisation du moteur d'inférence RDFS RL provoquant des échecs depuis la version 4.6.0.</li>
+                <li xml:lang="fr">Amélioration de la synchronisation entre les états de l'interface utilisateur et les états du moteur d'inférence.</li>
+            </ul>
+            </description>
+        </release>
+        <release version="4.6.0" date="2025-08-01">
+            <description>
+                <ul>
+                    <li>Migrated from Maven to Gradle for build management.</li>
+                    <li>Updated all dependencies to their latest versions.</li>
+                    <li>Removed all <code>module-info</code> files.</li>
+                    <li>Cleaned up unused imports and outdated code comments.</li>
+                    <li>Dropped support for <code>shex</code>.</li>
+                    <li>Removed the LUBM benchmark from the source code.</li>
+                    <li>Dropped support for alternative storage systems (Jena TDB1, Corese
+                        Graph,RDF4J Model).</li>
+                    <li>Fixed zooming and panning functionality of graph view.</li>
+                    <li>Allowed to zoom in/out/reset the view in the Corese GUI.</li>
+
+                    <li xml:lang="fr">Migration de Maven vers Gradle pour la gestion du projet.</li>
+                    <li xml:lang="fr">Mise à jour de toutes les dépendances vers leurs dernières
+                        versions.</li>
+                    <li xml:lang="fr">Suppression de tous les fichiers <code>module-info</code>.</li>
+                    <li xml:lang="fr">Nettoyage des imports inutilisés et des commentaires obsolètes
+                        dans le code.</li>
+                    <li xml:lang="fr">Abandon du support de <code>shex</code>.</li>
+                    <li xml:lang="fr">Suppression du benchmark LUBM du code source.</li>
+                    <li xml:lang="fr">Abandon du support des systèmes de stockage alternatifs (Jena
+                        TDB1, Corese
+                        Graph,RDF4J Model).</li>
+                    <li xml:lang="fr">Correction du zoom et du panoramique dans la vue graphique.</li>
+                    <li xml:lang="fr">Possibilité de zoomer avant/arrière/réinitialiser la vue dans
+                        l'interface
+                        Corese.</li>
+                </ul>
+            </description>
+        </release>
+        <release version="4.5.0" date="2023-12-14">
+            <description>
+                <ul>
+                    <li>Updated loading message in Corese-GUI.</li>
+                    <li>Fixed federated query with PREFIX statements failing under some conditions.</li>
+                    <li>Updated json library to 20231013.</li>
+
+                    <li xml:lang="fr">Mise à jour du message de chargement dans Corese-GUI.</li>
+                    <li xml:lang="fr">Correction de la requête fédérée avec des déclarations PREFIX
+                        échouant dans
+                        certaines conditions.</li>
+                    <li xml:lang="fr">Mise à jour de la bibliothèque json à 20231013.</li>
+                </ul>
+            </description>
+        </release>
+        <release version="4.4.1" date="2023-07-25">
+            <description>
+                <ul>
+                    <li>Fixed warning: "sun.reflect.Reflection.getCallerClass is not supported".</li>
+                    <li>Updated json library from 20180813 to 20230227.</li>
+
+                    <li xml:lang="fr">Correction de l'avertissement :
+                        "sun.reflect.Reflection.getCallerClass n'est
+                        pas pris en charge".</li>
+                    <li xml:lang="fr">Mise à jour de la bibliothèque json du 20180813 au 20230227.</li>
+                </ul>
+            </description>
+        </release>
+        <release version="4.4.0" date="2023-03-30">
+            <description>
+                <ul>
+                    <li>Added support of storage Systems (Jena TDB1, RDF4J Model)</li>
+                    <li>Added Beta support for RDF* and SPARQL* (Community Group Report 17 December
+                        2021)</li>
+                    <li>Added Undo/Redo support</li>
+                    <li>Fixed an encoding error when loading a file whose path contains a space</li>
+                    <li>Fixed SPARQL engine bug where it was impossible to load a named graph that
+                        contains a non-empty RDF list.</li>
+                    <li>Fixed issue with "rdf:" not found when sending a federated query to Fuseki.</li>
+                    <li>Fixed non-standard JSON format on query timeout.</li>
+                    <li>Fixed inconsistent status of the OWL and Rules checkboxes that was not
+                        updated during reload.</li>
+                    <li>Fixed the rule engine that was implementing optimizations incompatible with
+                        the `owl:propertyChainAxiom` rule.</li>
+
+                    <li xml:lang="fr">Ajout du support des systèmes de stockage (Jena TDB1, RDF4J
+                        Model)</li>
+                    <li xml:lang="fr">Ajout du support Beta pour RDF* et SPARQL* (Rapport du groupe
+                        communautaire
+                        du 17 décembre 2021)</li>
+                    <li xml:lang="fr">Ajout du support Annuler/Refaire</li>
+                    <li xml:lang="fr">Correction d'une erreur d'encodage lors du chargement d'un
+                        fichier dont le
+                        chemin contient un espace</li>
+                    <li xml:lang="fr">Correction d'un bug du moteur SPARQL où il était impossible de
+                        charger un
+                        graphe nommé contenant une liste RDF non vide.</li>
+                    <li xml:lang="fr">Correction du problème avec "rdf:" non trouvé lors de l'envoi
+                        d'une requête
+                        fédérée à Fuseki.</li>
+                    <li xml:lang="fr">Correction du format JSON non standard lors du dépassement du
+                        temps de
+                        requête.</li>
+                    <li xml:lang="fr">Correction de l'état incohérent des cases à cocher OWL et
+                        Rules qui n'était
+                        pas mis à jour lors du rechargement.</li>
+                    <li xml:lang="fr">Correction du moteur de règles qui mettait en œuvre des
+                        optimisations
+                        incompatibles avec la règle `owl:propertyChainAxiom`.</li>
+                </ul>
+            </description>
+        </release>
+        <release version="4.3.0" date="2021-01-18">
+            <description>
+                <ul>
+                    <li>Added graphical editor for SHACL file.</li>
+                    <li>Added graphical editor for TURTLE file.</li>
+                    <li>Added save graph option.</li>
+
+                    <li xml:lang="fr">Ajout d'un éditeur graphique pour les fichiers SHACL.</li>
+                    <li xml:lang="fr">Ajout d'un éditeur graphique pour les fichiers TURTLE.</li>
+                    <li xml:lang="fr">Ajout de l'option de sauvegarde de graphe.</li>
+                </ul>
+            </description>
+        </release>
+    </releases>
+
+    <url type="homepage">https://github.com/corese-stack/corese-gui</url>
+    <url type="bugtracker">https://github.com/corese-stack/corese-gui/issues/</url>
+    <url type="help">https://corese-stack.github.io/corese-gui/</url>
+    <url type="faq">https://github.com/orgs/corese-stack/discussions</url>
+
+    <update_contact>remi.ceres@inria.fr</update_contact>
+
+    <provides>
+        <binary>corese-gui</binary>
+    </provides>
+
+</component>
