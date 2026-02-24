@@ -243,7 +243,8 @@
         </release>
     </releases>
 
-    <url type="homepage">https://github.com/corese-stack/corese-gui</url>
+    <url type="homepage">https://corese-stack.github.io/corese-gui/</url>
+    <url type="vcs-browser">https://github.com/corese-stack/corese-gui</url>
     <url type="bugtracker">https://github.com/corese-stack/corese-gui/issues/</url>
     <url type="help">https://corese-stack.github.io/corese-gui/</url>
     <url type="faq">https://github.com/orgs/corese-stack/discussions</url>
