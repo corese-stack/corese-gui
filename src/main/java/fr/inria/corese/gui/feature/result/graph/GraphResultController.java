@@ -22,11 +22,10 @@ import javafx.scene.Node;
 public class GraphResultController implements AutoCloseable {
 
 	private static final String MSG_EXPORT_EMPTY = "No graph to export.";
-	private static final String RENDER_DETAIL_INTERACTION_LOCKED = "Graph interactions disabled for very large graph.";
 
 	private final GraphResultView view;
 	private boolean hasGraphData = false;
-	private boolean graphInteractionsLocked = false;
+	private boolean graphPreviewPaused = false;
 
 	/**
 	 * Constructs a new GraphResultController. Initializes the view and configures
@@ -53,29 +52,23 @@ public class GraphResultController implements AutoCloseable {
 
 	private void handleGraphStatsChanged(GraphStats stats) {
 		GraphStats safeStats = stats == null ? new GraphStats(0, 0, List.of()) : stats;
-		hasGraphData = safeStats.tripleCount() > 0;
+		if (safeStats.tripleCount() > 0 || safeStats.namedGraphCount() > 0) {
+			hasGraphData = true;
+		}
 		view.updateGraphStatus(safeStats);
 		updateToolbarActionStates();
 	}
 
 	private void handleGraphRenderStatusChanged(GraphRenderStatus status) {
 		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
-		graphInteractionsLocked = isGraphInteractionLocked(safeStatus);
+		graphPreviewPaused = safeStatus.mode() == GraphRenderMode.PAUSED;
 		view.updateGraphRenderStatus(safeStatus);
 		updateToolbarActionStates();
 	}
 
-	private static boolean isGraphInteractionLocked(GraphRenderStatus status) {
-		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
-		if (safeStatus.mode() == GraphRenderMode.PAUSED) {
-			return true;
-		}
-		return safeStatus.details().stream().anyMatch(RENDER_DETAIL_INTERACTION_LOCKED::equals);
-	}
-
 	private void updateToolbarActionStates() {
 		view.setToolbarButtonDisabled(ButtonIcon.EXPORT, !hasGraphData);
-		boolean disableInteractions = !hasGraphData || graphInteractionsLocked;
+		boolean disableInteractions = !hasGraphData || graphPreviewPaused;
 		view.setToolbarButtonDisabled(ButtonIcon.LAYOUT_FORCE, disableInteractions);
 		view.setToolbarButtonDisabled(ButtonIcon.CENTER_VIEW, disableInteractions);
 		view.setToolbarButtonDisabled(ButtonIcon.ZOOM_IN, disableInteractions);
@@ -122,7 +115,31 @@ public class GraphResultController implements AutoCloseable {
 	}
 
 	public void displayGraph(String jsonLdData, int tripleCountHint) {
+		graphPreviewPaused = false;
+		hasGraphData = resolveHasGraphData(tripleCountHint, jsonLdData);
+		updateToolbarActionStates();
 		view.getGraphWidget().displayGraph(jsonLdData, tripleCountHint);
+	}
+
+	private static boolean resolveHasGraphData(int tripleCountHint, String jsonLdData) {
+		if (tripleCountHint > 0) {
+			return true;
+		}
+		return hasLikelyGraphPayload(jsonLdData);
+	}
+
+	private static boolean hasLikelyGraphPayload(String jsonLdData) {
+		if (jsonLdData == null || jsonLdData.isBlank()) {
+			return false;
+		}
+		String compact = jsonLdData.replaceAll("\\s+", "");
+		if (compact.isEmpty() || "[]".equals(compact) || "{}".equals(compact) || "{\"@graph\":[]}".equals(compact)) {
+			return false;
+		}
+		if (compact.contains("\"@id\"")) {
+			return true;
+		}
+		return compact.contains("\"@graph\":[") && !compact.contains("\"@graph\":[]");
 	}
 
 	/**
@@ -131,7 +148,7 @@ public class GraphResultController implements AutoCloseable {
 	 */
 	public void clear() {
 		hasGraphData = false;
-		graphInteractionsLocked = false;
+		graphPreviewPaused = false;
 		updateToolbarActionStates();
 		view.getGraphWidget().clear();
 	}

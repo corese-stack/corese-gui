@@ -256,7 +256,7 @@ class KGGraphVis extends HTMLElement {
      * Reset simulation with new alpha (re-heats the simulation).
      */
     reset() {
-        if (this.interactionsLocked || !this.simulation) {
+        if (!this.simulation) {
             return;
         }
         this.simulationStopped = false;
@@ -290,9 +290,6 @@ class KGGraphVis extends HTMLElement {
     }
 
     recenter() {
-        if (this.interactionsLocked) {
-            return;
-        }
         this.fitToGraph(120, true);
     }
 
@@ -300,9 +297,6 @@ class KGGraphVis extends HTMLElement {
      * Zoom in by 30%.
      */
     zoomIn() {
-        if (this.interactionsLocked) {
-            return;
-        }
         if (this.svg && this.zoomBehavior) {
             this.svg.interrupt();
             this.svg.call(this.zoomBehavior.scaleBy, 1.3);
@@ -313,9 +307,6 @@ class KGGraphVis extends HTMLElement {
      * Zoom out by 30%.
      */
     zoomOut() {
-        if (this.interactionsLocked) {
-            return;
-        }
         if (this.svg && this.zoomBehavior) {
             this.svg.interrupt();
             this.svg.call(this.zoomBehavior.scaleBy, 1 / 1.3);
