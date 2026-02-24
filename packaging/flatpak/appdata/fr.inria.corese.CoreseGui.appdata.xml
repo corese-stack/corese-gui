@@ -59,6 +59,33 @@
         </p>
     </description>
 
+    <screenshots>
+        <screenshot type="default">
+            <caption>Run SPARQL queries and inspect tabular results.</caption>
+            <image type="source">https://raw.githubusercontent.com/corese-stack/corese-gui/develop/packaging/flatpak/screenshots/query-select-table-results.png</image>
+        </screenshot>
+        <screenshot>
+            <caption>Explore RDF graph results from CONSTRUCT queries.</caption>
+            <image type="source">https://raw.githubusercontent.com/corese-stack/corese-gui/develop/packaging/flatpak/screenshots/query-construct-graph-zoomed.png</image>
+        </screenshot>
+        <screenshot>
+            <caption>Reasoning workspace with built-in profiles and custom rule files.</caption>
+            <image type="source">https://raw.githubusercontent.com/corese-stack/corese-gui/develop/packaging/flatpak/screenshots/data-reasoning-custom-rules.png</image>
+        </screenshot>
+        <screenshot>
+            <caption>Inspect named graphs and graph components in the data view.</caption>
+            <image type="source">https://raw.githubusercontent.com/corese-stack/corese-gui/develop/packaging/flatpak/screenshots/data-graph-exploration.png</image>
+        </screenshot>
+        <screenshot>
+            <caption>Graph result tab in query view.</caption>
+            <image type="source">https://raw.githubusercontent.com/corese-stack/corese-gui/develop/packaging/flatpak/screenshots/query-construct-graph-tab.png</image>
+        </screenshot>
+        <screenshot>
+            <caption>Validate SHACL shapes and inspect validation reports.</caption>
+            <image type="source">https://raw.githubusercontent.com/corese-stack/corese-gui/develop/packaging/flatpak/screenshots/validation-shacl-results.png</image>
+        </screenshot>
+    </screenshots>
+
 
     <categories>
         <category>Science</category>
