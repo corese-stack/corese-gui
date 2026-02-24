@@ -46,7 +46,6 @@ import javafx.scene.input.MouseEvent;
  */
 public class TableResultController {
 
-	private static final int DEFAULT_ROWS_PER_PAGE = TableResultPreferenceSupport.defaultRowsPerPage();
 	private static final KeyCodeCombination COPY_COMBINATION = new KeyCodeCombination(KeyCode.C,
 			KeyCombination.SHORTCUT_DOWN);
 
