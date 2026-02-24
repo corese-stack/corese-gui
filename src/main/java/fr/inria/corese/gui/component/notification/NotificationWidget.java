@@ -334,10 +334,19 @@ public final class NotificationWidget {
 	 * Shows a persistent loading toast with optional title.
 	 */
 	public LoadingHandle showLoading(String title, String message) {
+		return showLoading(title, message, null, null);
+	}
+
+	/**
+	 * Shows a persistent loading toast with optional title and action button.
+	 */
+	public LoadingHandle showLoading(String title, String message, String actionLabel, Runnable actionCallback) {
 		LoadingToastHandle handle = new LoadingToastHandle();
 		String safeTitle = normalizeTitle(title, Tone.LOADING);
 		String safeMessage = normalizeMessage(message);
-		ToastRequest request = new ToastRequest(safeTitle, safeMessage, Tone.LOADING, Duration.ZERO, true, false, null);
+		ToastAction action = actionCallback == null ? null : new ToastAction(actionLabel, actionCallback);
+		ToastRequest request = new ToastRequest(safeTitle, safeMessage, Tone.LOADING, Duration.ZERO, true, false,
+				action);
 		scheduleLoadingShow(request, handle);
 		return handle;
 	}

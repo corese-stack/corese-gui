@@ -2,6 +2,9 @@ package fr.inria.corese.gui.feature.query;
 
 import java.io.File;
 import java.util.List;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +27,7 @@ import fr.inria.corese.gui.feature.editor.tab.TabContext;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
 import fr.inria.corese.gui.feature.query.support.QueryExecutionSupport;
+import fr.inria.corese.gui.feature.query.support.QueryExecutionCancellationSupport;
 import fr.inria.corese.gui.feature.query.support.QueryResultTabPreferenceSupport;
 import fr.inria.corese.gui.feature.query.support.QueryResultRenderSupport;
 import fr.inria.corese.gui.feature.query.template.QueryTemplateDialog;
@@ -46,6 +50,11 @@ public class QueryViewController {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(QueryViewController.class);
 	private static final String QUERY_NOTIFICATION_TITLE = "Query";
+	private static final String QUERY_EXECUTING_MESSAGE = "Executing query...";
+	private static final String QUERY_RENDERING_MESSAGE = "Rendering result...";
+	private static final String QUERY_STOP_ACTION_LABEL = "Stop";
+	private static final String MSG_QUERY_ALREADY_RUNNING = "A query is already running in this tab.";
+	private static final String MSG_QUERY_CANCELLED = "Query execution cancelled.";
 	private static final String MSG_NO_SELECT_RESULTS = "No results found.";
 	private static final String MSG_NO_GRAPH_RESULTS = "No triples produced by this query.";
 
@@ -116,18 +125,25 @@ public class QueryViewController {
 
 	public void executeQuery() {
 		Tab selectedTab = tabEditorController.getSelectedTab();
-		if (selectedTab == null)
+		if (selectedTab == null) {
 			return;
+		}
 
 		TabContext context = TabContext.get(selectedTab);
-		if (context == null)
+		if (context == null) {
 			return;
+		}
+		if (context.isExecutionRunning()) {
+			NotificationWidget.getInstance().showInfo(QUERY_NOTIFICATION_TITLE, MSG_QUERY_ALREADY_RUNNING);
+			return;
+		}
 
 		ResultController resultController = context.getResultController();
 		CodeEditorController codeEditor = context.getEditorController();
 
-		if (resultController == null || codeEditor == null)
+		if (resultController == null || codeEditor == null) {
 			return;
+		}
 
 		final String queryContent = codeEditor.getContent();
 		if (!RdfDataService.getInstance().hasData() && QueryExecutionSupport.looksLikeReadQuery(queryContent)) {
@@ -138,40 +154,141 @@ public class QueryViewController {
 			return;
 		}
 
-		// Release previous result for this tab if any
+		releasePreviousResult(context);
+
+		// Prepare UI
+		resultController.clearResults();
+		setExecutionState(context, true);
+
+		AtomicBoolean cancellationRequested = new AtomicBoolean(false);
+		AtomicBoolean completionSignaled = new AtomicBoolean(false);
+		AtomicReference<Future<?>> futureReference = new AtomicReference<>();
+		AtomicReference<NotificationWidget.LoadingHandle> loadingHandleReference = new AtomicReference<>();
+
+		Runnable stopAction = () -> onQueryCancellationRequested(context, cancellationRequested, completionSignaled,
+				futureReference, loadingHandleReference.get());
+		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance()
+				.showLoading(QUERY_NOTIFICATION_TITLE, QUERY_EXECUTING_MESSAGE, QUERY_STOP_ACTION_LABEL, stopAction);
+		loadingHandleReference.set(loadingHandle);
+
+		// Execute in background
+		Future<?> executionFuture = AppExecutors.submit(() -> runQueryExecution(selectedTab, context, queryContent,
+				loadingHandle, cancellationRequested, completionSignaled));
+		QueryExecutionCancellationSupport.bindFuture(cancellationRequested, futureReference, executionFuture);
+	}
+
+	private void runQueryExecution(Tab sourceTab, TabContext context, String queryContent,
+			NotificationWidget.LoadingHandle loadingHandle, AtomicBoolean cancellationRequested,
+			AtomicBoolean completionSignaled) {
+		try {
+			QueryResultRef resultRef = queryService.executeQuery(queryContent);
+			Platform.runLater(() -> onQueryExecutionCompleted(sourceTab, context, resultRef, loadingHandle,
+					cancellationRequested, completionSignaled));
+		} catch (Exception e) {
+			handleQueryExecutionFailure(context, loadingHandle, cancellationRequested, completionSignaled, e);
+		}
+	}
+
+	private void onQueryExecutionCompleted(Tab sourceTab, TabContext context, QueryResultRef resultRef,
+			NotificationWidget.LoadingHandle loadingHandle, AtomicBoolean cancellationRequested,
+			AtomicBoolean completionSignaled) {
+		if (cancellationRequested.get()) {
+			releaseResultIfPresent(resultRef);
+			completeExecution(context, loadingHandle, completionSignaled, null);
+			return;
+		}
+
+		completeExecution(context, loadingHandle, completionSignaled, () -> {
+			if (resultRef == null) {
+				return;
+			}
+			if (!isTabOpen(sourceTab)) {
+				releaseResultIfPresent(resultRef);
+				return;
+			}
+			// Store result in context (Single Source of Truth)
+			context.setQueryResultRef(resultRef);
+			updateResultsForSelectedQueryTab(sourceTab, true);
+		});
+	}
+
+	private void handleQueryExecutionFailure(TabContext context, NotificationWidget.LoadingHandle loadingHandle,
+			AtomicBoolean cancellationRequested, AtomicBoolean completionSignaled, Exception error) {
+		boolean cancellationLike = QueryExecutionCancellationSupport.shouldTreatAsCancellation(cancellationRequested,
+				error);
+		Platform.runLater(() -> {
+			if (cancellationLike) {
+				completeExecution(context, loadingHandle, completionSignaled,
+						() -> NotificationWidget.getInstance().showInfo(QUERY_NOTIFICATION_TITLE, MSG_QUERY_CANCELLED));
+				return;
+			}
+			completeExecution(context, loadingHandle, completionSignaled,
+					() -> ModalService.getInstance().showException("Query Execution Error", error.getMessage(), error));
+		});
+		if (cancellationLike) {
+			LOGGER.debug("Query execution cancelled");
+			return;
+		}
+		LOGGER.error("Error executing query", error);
+	}
+
+	private void onQueryCancellationRequested(TabContext context, AtomicBoolean cancellationRequested,
+			AtomicBoolean completionSignaled, AtomicReference<Future<?>> futureReference,
+			NotificationWidget.LoadingHandle loadingHandle) {
+		boolean cancelRequested = QueryExecutionCancellationSupport.requestCancellation(cancellationRequested,
+				futureReference);
+		if (!cancelRequested) {
+			return;
+		}
+		completeExecution(context, loadingHandle, completionSignaled,
+				() -> NotificationWidget.getInstance().showInfo(QUERY_NOTIFICATION_TITLE, MSG_QUERY_CANCELLED));
+	}
+
+	private void completeExecution(TabContext context, NotificationWidget.LoadingHandle loadingHandle,
+			AtomicBoolean completionSignaled, Runnable followUp) {
+		if (!completionSignaled.compareAndSet(false, true)) {
+			return;
+		}
+		Runnable completion = () -> {
+			setExecutionState(context, false);
+			if (followUp != null) {
+				followUp.run();
+			}
+		};
+		if (loadingHandle == null) {
+			completion.run();
+			return;
+		}
+		loadingHandle.closeThen(completion);
+	}
+
+	private void releasePreviousResult(TabContext context) {
 		QueryResultRef previousRef = context.getQueryResultRef();
 		if (previousRef != null) {
 			queryService.releaseResult(previousRef.getId());
 			context.setQueryResultRef(null);
 		}
+	}
 
-		// Prepare UI
-		resultController.clearResults();
-		tabEditorController.setExecutionState(true);
-		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Query",
-				"Executing query...");
+	private boolean isTabOpen(Tab tab) {
+		return tab != null && tabEditorController.getTabs().contains(tab);
+	}
 
-		// Execute in background
-		AppExecutors.execute(() -> {
-			try {
-				QueryResultRef resultRef = queryService.executeQuery(queryContent);
+	private void releaseResultIfPresent(QueryResultRef resultRef) {
+		if (resultRef != null && resultRef.getId() != null) {
+			queryService.releaseResult(resultRef.getId());
+		}
+	}
 
-				Platform.runLater(() -> loadingHandle.closeThen(() -> {
-					tabEditorController.setExecutionState(false);
-					if (resultRef != null) {
-						// Store result in context (Single Source of Truth)
-						context.setQueryResultRef(resultRef);
-						updateResultsForSelectedQueryTab(selectedTab, true);
-					}
-				}));
-			} catch (Exception e) {
-				Platform.runLater(() -> loadingHandle.closeThen(() -> {
-					tabEditorController.setExecutionState(false);
-					ModalService.getInstance().showException("Query Execution Error", e.getMessage(), e);
-				}));
-				LOGGER.error("Error executing query", e);
-			}
-		});
+	private static void setExecutionState(TabContext context, boolean running) {
+		if (context == null) {
+			return;
+		}
+		if (Platform.isFxApplicationThread()) {
+			context.executionRunningProperty().set(running);
+			return;
+		}
+		Platform.runLater(() -> context.executionRunningProperty().set(running));
 	}
 
 	private void updateResultsForSelectedQueryTab(Tab selectedQueryTab, boolean forceRefresh) {
@@ -253,7 +370,7 @@ public class QueryViewController {
 		controller.setFormatProvider(format -> queryService.formatResult(resultId, format));
 
 		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Query",
-				"Rendering result...");
+				QUERY_RENDERING_MESSAGE);
 		QueryResultRenderSupport.loadTableAndTextAsync(controller, resultId, preferredFormat, queryService,
 				loadingHandle::close);
 	}
@@ -268,7 +385,7 @@ public class QueryViewController {
 
 		QueryResultRenderSupport.bindOnFormatChanged(controller, resultId, queryService);
 		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Query",
-				"Rendering result...");
+				QUERY_RENDERING_MESSAGE);
 		QueryResultRenderSupport.loadGraphAndTextAsync(controller, resultId, resultRef.getResultCount(),
 				preferredFormat, queryService, loadingHandle::close);
 	}
