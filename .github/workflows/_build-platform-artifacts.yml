@@ -1,4 +1,5 @@
 name: Build Platform Artifacts (Reusable)
+run-name: Build artifacts for ${{ inputs.source_ref }} (${{ inputs.artifact_name_prefix }})
 
 on:
     workflow_call:

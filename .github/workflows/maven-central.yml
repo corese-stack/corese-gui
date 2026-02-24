@@ -1,4 +1,5 @@
 name: Publish Maven Central
+run-name: ${{ github.actor }} triggered Maven Central publish on ${{ github.event.inputs.ref || github.ref_name }}
 
 on:
     push:
@@ -44,7 +45,7 @@ jobs:
                   ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_PASSWORD }}
                   ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_SIGNING_KEY }}
                   ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_SIGNING_PASSPHRASE }}
-              run: ./gradlew --no-daemon publishToMavenCentral
+              run: ./gradlew --no-daemon publishAllPublicationsToMavenCentralRepository
 
             - name: Manual release reminder
-              run: echo "Upload complete. Finalize deployment on https://central.sonatype.com/publishing/deployments"
+              run: echo "Upload complete (no automatic release). Finalize deployment manually on https://central.sonatype.com/publishing/deployments"

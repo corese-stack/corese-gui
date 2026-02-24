@@ -1,4 +1,5 @@
 name: Publish GitHub Release
+run-name: ${{ github.actor }} triggered GitHub release on ${{ github.event.inputs.ref || github.ref_name }}
 
 on:
     workflow_dispatch:
@@ -31,6 +32,11 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
 
         steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.inputs.ref || github.ref_name }}
+
             - name: Download all build artifacts
               uses: actions/download-artifact@v4
               with:
@@ -43,10 +49,40 @@ jobs:
                   cd build/release-assets
                   find . -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
 
+            - name: Extract changelog for release
+              id: changelog
+              env:
+                  TAG_NAME: ${{ github.event.inputs.ref || github.ref_name }}
+              run: |
+                  set -euo pipefail
+
+                  tag="${TAG_NAME#refs/tags/}"
+                  if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                      echo "Invalid tag format: '$tag'. Expected: vX.Y.Z" >&2
+                      exit 1
+                  fi
+                  version="${tag#v}"
+
+                  awk -v version="$version" '
+                      $0 ~ "^## Version " version " - " { in_section = 1; next }
+                      in_section && $0 ~ "^## Version " { exit }
+                      in_section { print }
+                  ' CHANGELOG.md > release_notes.raw.md
+
+                  sed '/./,$!d' release_notes.raw.md | tac | sed '/./,$!d' | tac > release_notes.md
+
+                  if [[ ! -s release_notes.md ]]; then
+                      echo "No changelog entry found for version ${version} in CHANGELOG.md" >&2
+                      exit 1
+                  fi
+
+                  echo "version=${version}" >> "$GITHUB_OUTPUT"
+
             - name: Create GitHub release
               uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ github.event.inputs.ref || github.ref_name }}
-                  generate_release_notes: true
+                  draft: true
+                  body_path: release_notes.md
                   files: |
                       build/release-assets/**/*

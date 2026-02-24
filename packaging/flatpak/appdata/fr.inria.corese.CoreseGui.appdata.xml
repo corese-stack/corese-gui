@@ -136,6 +136,38 @@
 
     <releases>
 
+        <release version="5.0.0" date="2026-02-24">
+            <description>
+                <ul>
+                    <li>Complete rewrite of Corese GUI in JavaFX, rebuilt from scratch.</li>
+                    <li>Introduced a new modular architecture to improve maintainability,
+                        responsiveness, and long-term evolution.</li>
+                    <li>Redesigned the interface with dedicated Data, Query, Validation, System
+                        Logs, and Settings views.</li>
+                    <li>Refreshed result exploration with table/text/graph result views and
+                        smoother navigation.</li>
+                    <li>Improved data workspace handling with clearer source management and graph
+                        status feedback.</li>
+                    <li>Added richer application customization: theme mode, accent color, and
+                        interface scale controls.</li>
+
+                    <li xml:lang="fr">Réécriture complète de Corese GUI en JavaFX, reconstruite
+                        depuis zéro.</li>
+                    <li xml:lang="fr">Introduction d'une nouvelle architecture modulaire pour
+                        améliorer la maintenabilité, la réactivité et l'évolution à long terme.</li>
+                    <li xml:lang="fr">Refonte de l'interface avec des vues dédiées Données,
+                        Requêtes, Validation, Journaux système et Paramètres.</li>
+                    <li xml:lang="fr">Modernisation de l'exploration des résultats avec des vues
+                        tableau/texte/graphe et une navigation plus fluide.</li>
+                    <li xml:lang="fr">Amélioration de la gestion de l'espace de travail des
+                        données avec un suivi des sources et un meilleur retour sur l'état des
+                        graphes.</li>
+                    <li xml:lang="fr">Ajout d'options de personnalisation enrichies : mode de
+                        thème, couleur d'accent et contrôle de l'échelle de l'interface.</li>
+                </ul>
+            </description>
+        </release>
+
         <release version="4.6.1" date="2025-10-10">
             <description>
             <ul>
