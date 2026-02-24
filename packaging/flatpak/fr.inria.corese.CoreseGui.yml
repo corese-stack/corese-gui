@@ -1,28 +1,30 @@
 app-id: fr.inria.corese.CoreseGui
 runtime: org.freedesktop.Platform
-runtime-version: "24.08"
+runtime-version: "25.08"
 sdk: org.freedesktop.Sdk
 sdk-extensions:
-  - org.freedesktop.Sdk.Extension.openjdk
+  - org.freedesktop.Sdk.Extension.openjdk25
 command: corese-gui
 
 finish-args:
   # Needed for remote URI loading, federated queries and update checks.
   - --share=network
-  # GUI display support across modern Linux desktops.
-  - --socket=wayland
-  - --socket=fallback-x11
+  # JavaFX on Linux currently runs through X11/XWayland.
+  - --socket=x11
   # Improves X11 compatibility/performance for JavaFX.
   - --share=ipc
-  # File open/save use-cases without broad home access.
+  # Hardware acceleration for JavaFX rendering (reduces visual glitches).
+  - --device=dri
+  # JavaFX file chooser currently needs explicit filesystem access.
   - --filesystem=xdg-documents
   - --filesystem=xdg-download
+  - --filesystem=xdg-desktop
 
 modules:
   - name: openjdk
     buildsystem: simple
     build-commands:
-      - /usr/lib/sdk/openjdk/install.sh
+      - /usr/lib/sdk/openjdk25/install.sh
 
   - name: corese-gui
     buildsystem: simple
