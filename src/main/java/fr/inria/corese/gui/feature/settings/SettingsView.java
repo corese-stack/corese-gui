@@ -508,13 +508,17 @@ public final class SettingsView extends AbstractView {
 		version.getStyleClass().add("settings-about-version");
 		version.setWrapText(false);
 
+		Label coreseCore = new Label("Based on corese-core v" + AppConstants.CORESE_CORE_VERSION);
+		coreseCore.getStyleClass().add("settings-about-version");
+		coreseCore.setWrapText(false);
+
 		Label license = new Label("License CeCILL-C");
 		license.getStyleClass().add("settings-about-version");
 		license.setWrapText(false);
 		license.setCursor(Cursor.HAND);
 		license.setOnMouseClicked(e -> openURL(AppConstants.LICENSE_URL));
 
-		identity.getChildren().addAll(appName, version, license);
+		identity.getChildren().addAll(appName, version, coreseCore, license);
 		header.getChildren().addAll(logo, identity);
 
 		HBox links = new HBox(10);

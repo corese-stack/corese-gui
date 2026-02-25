@@ -1,5 +1,7 @@
 package fr.inria.corese.gui;
 
+import fr.inria.corese.core.util.CoreseInfo;
+
 /**
  * Application-wide constants for Corese GUI.
  *
@@ -27,6 +29,7 @@ public final class AppConstants {
 	// ===== Application Info =====
 	public static final String APP_NAME = "Corese GUI";
 	public static final String APP_VERSION = resolveAppVersion();
+	public static final String CORESE_CORE_VERSION = CoreseInfo.getVersion();
 	public static final String APP_DESCRIPTION = "A graphical interface for Corese RDF triple store";
 
 	// ===== URLs =====
