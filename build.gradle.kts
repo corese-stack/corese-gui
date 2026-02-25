@@ -59,7 +59,8 @@ plugins {
 object Meta {
     const val groupId = "fr.inria.corese"
     const val artifactId = "corese-gui"
-    const val appName = "corese-gui"
+    const val appName = "Corese GUI"
+    const val appTechnicalName = "corese-gui"
     const val appVendor = "Inria"
     const val appId = "fr.inria.corese.gui"
     const val version = "5.0.0-SNAPSHOT"
@@ -139,6 +140,16 @@ val supportedJpackageTypes = when (hostOs) {
 
 require(jpackageType in supportedJpackageTypes) {
     "Unsupported jpackage type '$jpackageType' for host OS '$hostOs'. Allowed: $supportedJpackageTypes"
+}
+
+/*
+ * Use a user-friendly app name on launchers/menus.
+ * For Linux installer formats, keep a technical lowercase name for compatibility.
+ */
+val jpackageAppName = if (hostOs == "linux" && jpackageType in setOf("deb", "rpm")) {
+    Meta.appTechnicalName
+} else {
+    Meta.appName
 }
 
 /*
@@ -386,7 +397,7 @@ tasks.register<Exec>("jpackageCurrentPlatform") {
         commandLine(
             jpackageExecutable.get(),
             "--type", jpackageType,
-            "--name", Meta.appName,
+            "--name", jpackageAppName,
             "--dest", outputDir.absolutePath,
             "--input", inputDir.absolutePath,
             "--main-jar", mainJarFileName.get(),
@@ -413,7 +424,7 @@ tasks.register<Exec>("jpackageCurrentPlatform") {
                 args("--win-shortcut")
                 args("--win-menu")
                 args("--win-menu-group", "Corese")
-                args("--install-dir", "Corese GUI")
+                args("--install-dir", Meta.appName)
             }
             if (hostOs == "macos" && jpackageType in setOf("dmg", "pkg")) {
                 args("--mac-package-identifier", Meta.appId)
@@ -442,7 +453,7 @@ if (hostOs == "windows") {
             commandLine(
                 jpackageExecutable.get(),
                 "--type", "app-image",
-                "--name", Meta.appName,
+                "--name", jpackageAppName,
                 "--dest", outputDir.absolutePath,
                 "--input", inputDir.absolutePath,
                 "--main-jar", mainJarFileName.get(),
@@ -466,12 +477,12 @@ if (hostOs == "windows") {
         description = "Marks the Windows portable app-image for runtime update targeting."
         dependsOn("jpackagePortableCurrentPlatform")
 
-        val markerPath = windowsPortableImageDir.map { it.file("${Meta.appName}/$windowsPortableMarkerFileName") }
+        val markerPath = windowsPortableImageDir.map { it.file("$jpackageAppName/$windowsPortableMarkerFileName") }
         inputs.dir(windowsPortableImageDir)
         outputs.file(markerPath)
 
         doLast {
-            val portableAppDir = windowsPortableImageDir.get().dir(Meta.appName).asFile
+            val portableAppDir = windowsPortableImageDir.get().dir(jpackageAppName).asFile
             if (!portableAppDir.isDirectory) {
                 error("Portable app-image directory not found: ${portableAppDir.path}")
             }
@@ -486,7 +497,7 @@ if (hostOs == "windows") {
         description = "Builds a Windows portable ZIP for $hostTarget."
         dependsOn("preparePortableRuntimeMarkerCurrentPlatform")
 
-        from(windowsPortableImageDir.map { it.dir(Meta.appName) })
+        from(windowsPortableImageDir.map { it.dir(jpackageAppName) })
         destinationDirectory.set(windowsPortableOutputDir)
         archiveFileName.set(windowsPortableArchiveName)
         includeEmptyDirs = false
