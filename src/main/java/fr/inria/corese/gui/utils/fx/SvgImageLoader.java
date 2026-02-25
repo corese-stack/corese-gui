@@ -5,8 +5,9 @@ import com.github.weisj.jsvg.parser.SVGLoader;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
+import javafx.scene.image.PixelFormat;
+import javafx.scene.image.WritableImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,8 +80,8 @@ public class SvgImageLoader {
       svgDocument.render(null, g2d, null);
       g2d.dispose();
 
-      // Convert to JavaFX Image
-      return SwingFXUtils.toFXImage(bufferedImage, null);
+      // Convert AWT image to JavaFX image without javafx.swing module.
+      return toFxImage(bufferedImage);
 
     } catch (Exception e) {
       LOGGER.warn("Error loading SVG image: {}", resourcePath, e);
@@ -101,5 +102,17 @@ public class SvgImageLoader {
   public static Image loadSvgImage(
       String resourcePath, double width, double height, double scaleFactor) {
     return loadSvgImage(resourcePath, width * scaleFactor, height * scaleFactor);
+  }
+
+  private static Image toFxImage(BufferedImage bufferedImage) {
+    int width = bufferedImage.getWidth();
+    int height = bufferedImage.getHeight();
+
+    WritableImage writableImage = new WritableImage(width, height);
+    int[] argbPixels = bufferedImage.getRGB(0, 0, width, height, null, 0, width);
+    writableImage
+        .getPixelWriter()
+        .setPixels(0, 0, width, height, PixelFormat.getIntArgbInstance(), argbPixels, 0, width);
+    return writableImage;
   }
 }

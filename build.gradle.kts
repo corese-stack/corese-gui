@@ -232,7 +232,7 @@ dependencies {
 
 javafx {
     version = Versions.javafx
-    modules("javafx.controls", "javafx.web", "javafx.swing")
+    modules("javafx.controls", "javafx.web")
 }
 
 application {
