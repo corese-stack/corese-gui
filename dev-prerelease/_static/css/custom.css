@@ -1,0 +1,26 @@
+/* In dark mode, avoid white framing around transparent images. */
+html[data-theme="dark"] .bd-article img {
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+img.homepage-brand-logo {
+    display: block;
+    padding: 12px 0 8px;
+}
+
+h1.homepage-brand-title {
+    text-align: center;
+    margin: 0.55rem 0 1.35rem;
+    padding: 0.25rem 0 0.4rem;
+}
+
+.bd-article {
+    padding-left: 0 !important;
+    padding-top: 0 !important;
+}
+
+.bd-main .bd-content .bd-article-container {
+    max-width: 100%;
+}
