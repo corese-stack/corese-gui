@@ -4,6 +4,8 @@ set -euo pipefail
 target="${1:?missing target (example: linux-x64)}"
 jpackage_type="${2:?missing jpackage type (example: app-image)}"
 out_dir="${3:?missing output directory}"
+artifact_version=""
+app_version=""
 
 reset_output_directory() {
     rm -rf "$out_dir"
@@ -19,6 +21,16 @@ copy_standalone_jar() {
         exit 1
     fi
     cp "${jars[@]}" "$out_dir/"
+
+    local jar_name
+    jar_name="$(basename "${jars[0]}")"
+    if [[ "$jar_name" =~ ^corese-gui-(.+)-standalone-${target}\.jar$ ]]; then
+        artifact_version="${BASH_REMATCH[1]}"
+        app_version="${artifact_version%-SNAPSHOT}"
+    else
+        echo "Cannot infer app version from standalone JAR name: $jar_name" >&2
+        exit 1
+    fi
 }
 
 copy_installer_or_archive_app_image() {
@@ -36,10 +48,9 @@ copy_installer_or_archive_app_image() {
                 echo "No app-image directory found in $jpackage_dir" >&2
                 exit 1
             fi
-
             local app_name
             app_name="$(basename "$app_dir")"
-            tar -C "$jpackage_dir" -czf "$out_dir/${app_name}-${target}.tar.gz" "$app_name"
+            tar -C "$jpackage_dir" -czf "$out_dir/corese-gui-${target}.tar.gz" "$app_name"
             ;;
         exe | msi | dmg | pkg | deb | rpm)
             shopt -s nullglob
@@ -50,10 +61,7 @@ copy_installer_or_archive_app_image() {
                 exit 1
             fi
             for installer in "${installers[@]}"; do
-                local installer_name installer_stem
-                installer_name="$(basename "$installer")"
-                installer_stem="${installer_name%.$jpackage_type}"
-                cp "$installer" "$out_dir/${installer_stem}-${target}.${jpackage_type}"
+                cp "$installer" "$out_dir/corese-gui-${app_version}-${target}.${jpackage_type}"
             done
             ;;
         *)

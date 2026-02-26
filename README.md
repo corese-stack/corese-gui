@@ -29,17 +29,16 @@ It provides a visual workspace to load RDF data, execute SPARQL queries, inspect
 - Apply reasoning with built-in and custom rules
 - Manage data, query, validation, logs, and settings from dedicated views
 
+<p align="center">
+  <img src="packaging/flatpak/screenshots/data-graph-exploration.png" width="49%" alt="Data graph exploration view">
+  <img src="packaging/flatpak/screenshots/query-select-table-results.png" width="49%" alt="SPARQL SELECT table results">
+</p>
+<p align="center">
+  <img src="packaging/flatpak/screenshots/validation-shacl-results.png" width="49%" alt="SHACL validation results">
+  <img src="packaging/flatpak/screenshots/data-reasoning-custom-rules.png" width="49%" alt="Reasoning with custom rules">
+</p>
+
 ## Downloads
-
-Current target release: `v5.0.0`.
-
-Release page: [Corese-GUI v5.0.0](https://github.com/corese-stack/corese-gui/releases/tag/v5.0.0)
-
-Choose the package matching your OS and CPU architecture:
-
-- Windows: `x64` builds
-- macOS: `arm64` for Apple Silicon (M1/M2/M3/M4/M5), `x64` for Intel
-- Linux: `x64` or `arm64` (Flatpak is recommended)
 
 ### Windows
 

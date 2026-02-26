@@ -1,15 +1,7 @@
 Downloads
 =========
 
-|download_channel|.
-
-Release page: `corese-stack/corese-gui |download_tag| <release_page_>`_
-
-Choose the package matching your OS and CPU architecture:
-
-* Windows: ``x64`` builds.
-* macOS: ``arm64`` for Apple Silicon (M1/M2/M3/M4/M5), ``x64`` for Intel.
-* Linux: ``x64`` or ``arm64`` (Flatpak is recommended).
+Release page: `Open release page on GitHub <release_page_>`_
 
 Windows
 -------
@@ -36,7 +28,7 @@ macOS
 Linux
 -----
 
-* Flatpak (recommended): application ``fr.inria.corese.CoreseGui`` on Flathub
+* Flatpak (recommended):
   `Open Flathub page <flathub_page_>`_
 * App archive (x64, ``.tar.gz``):
   `Download archive <linux_archive_x64_>`_
