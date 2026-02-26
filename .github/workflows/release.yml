@@ -44,6 +44,22 @@ jobs:
                   merge-multiple: true
                   path: build/release-assets
 
+            - name: Normalize stable asset filenames
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  shopt -s nullglob
+
+                  cd build/release-assets
+                  for source in *-SNAPSHOT-*; do
+                      target="${source/-SNAPSHOT/}"
+                      if [[ -e "$target" ]]; then
+                          echo "Refusing to overwrite existing file: $target" >&2
+                          exit 1
+                      fi
+                      mv "$source" "$target"
+                  done
+
             - name: Generate checksums
               run: |
                   cd build/release-assets
