@@ -6,12 +6,24 @@ on:
     branches:
       - "main"
   workflow_dispatch:
+  workflow_run:
+    workflows:
+      - "Publish Development Pre-release"
+    types:
+      - completed
+
+concurrency:
+  group: sphinx-prod
+  cancel-in-progress: true
 
 permissions:
   contents: write
 
 jobs:
   build-production-docs:
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: [self-hosted, corese-stack-ubuntu-24]
 
     steps:
