@@ -1,0 +1,44 @@
+[
+  {
+    "name": "dev-prerelease (preview)",
+    "version": "dev-prerelease",
+    "url": "https://corese-stack.github.io/corese-gui/dev-prerelease/",
+    "preferred": true
+  },
+  {
+    "name": "v4.6.1 (legacy)",
+    "version": "v4.6.1",
+    "url": "https://corese-stack.github.io/corese-gui-swing/v4.6.1/",
+    "preferred": false
+  },
+  {
+    "name": "v4.6.0 (legacy)",
+    "version": "v4.6.0",
+    "url": "https://corese-stack.github.io/corese-gui-swing/v4.6.0/",
+    "preferred": false
+  },
+  {
+    "name": "v4.5.0 (legacy)",
+    "version": "v4.5.0",
+    "url": "https://corese-stack.github.io/corese-gui-swing/v4.5.0/",
+    "preferred": false
+  },
+  {
+    "name": "v4.4.1 (legacy)",
+    "version": "v4.4.1",
+    "url": "https://corese-stack.github.io/corese-gui-swing/v4.4.1/",
+    "preferred": false
+  },
+  {
+    "name": "v4.4.0 (legacy)",
+    "version": "v4.4.0",
+    "url": "https://corese-stack.github.io/corese-gui-swing/v4.4.0/",
+    "preferred": false
+  },
+  {
+    "name": "v4.3.0 (legacy)",
+    "version": "v4.3.0",
+    "url": "https://corese-stack.github.io/corese-gui-swing/v4.3.0/",
+    "preferred": false
+  }
+]
