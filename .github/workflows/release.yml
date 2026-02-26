@@ -44,21 +44,22 @@ jobs:
                   merge-multiple: true
                   path: build/release-assets
 
-            - name: Normalize stable asset filenames
+            - name: Fail if SNAPSHOT assets are present
               shell: bash
               run: |
                   set -euo pipefail
-                  shopt -s nullglob
 
                   cd build/release-assets
-                  for source in *-SNAPSHOT-*; do
-                      target="${source/-SNAPSHOT/}"
-                      if [[ -e "$target" ]]; then
-                          echo "Refusing to overwrite existing file: $target" >&2
-                          exit 1
-                      fi
-                      mv "$source" "$target"
-                  done
+                  snapshot_files="$(find . -maxdepth 1 -type f -name '*-SNAPSHOT-*' -printf '%f\n' | sort || true)"
+
+                  if [[ -n "$snapshot_files" ]]; then
+                      echo "Release artifacts must not contain '-SNAPSHOT-' in filenames." >&2
+                      echo "Set a stable version (for example: 5.0.0) before publishing." >&2
+                      echo "" >&2
+                      echo "Detected files:" >&2
+                      echo "$snapshot_files" >&2
+                      exit 1
+                  fi
 
             - name: Generate checksums
               run: |
