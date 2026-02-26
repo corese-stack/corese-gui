@@ -34,6 +34,7 @@ Optional environment variables:
 - `DOCS_BASE_URL` (default: `https://corese-stack.github.io/corese-gui`)
 - `LEGACY_DOCS_BASE_URL` (default: `https://corese-stack.github.io/corese-gui-swing`)
 - `MINIMAL_VERSION` (default: `5.0.0`)
+- `LEGACY_MINIMAL_VERSION` (default: `4.6.0`, lower legacy tags are excluded from switcher)
 - `DEV_PRERELEASE_REF` (default: `dev-prerelease`)
 - `DOCS_DEFAULT_APP_VERSION` (default: `5.0.0`, used on non-tag refs like `main`)
 - `DEV_PRERELEASE_APP_VERSION` (default: `5.0.0`, used to build `-SNAPSHOT` filenames)
@@ -42,7 +43,7 @@ Optional environment variables:
 
 - Stable tags in the form `vX.Y.Z` are published on this documentation site when `X.Y.Z >= 5.0.0`.
 - `dev-prerelease` is included in the switcher as a preview entry when the tag exists.
-- Older semver tags (`< v5.0.0`) are listed as legacy entries and point to `corese-gui-swing`.
+- Legacy semver tags are listed only for `4.6.0 <= vX.Y.Z < 5.0.0` and point to `corese-gui-swing`.
 - Landing-page redirect priority is:
   1. latest stable `vX.Y.Z >= v5.0.0`
   2. `dev-prerelease`

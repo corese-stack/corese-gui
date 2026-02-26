@@ -12,6 +12,7 @@ html_output_file="$2"
 docs_base_url="${DOCS_BASE_URL:-https://corese-stack.github.io/corese-gui}"
 legacy_docs_base_url="${LEGACY_DOCS_BASE_URL:-https://corese-stack.github.io/corese-gui-swing}"
 minimal_version="${MINIMAL_VERSION:-5.0.0}"
+legacy_minimal_version="${LEGACY_MINIMAL_VERSION:-4.6.0}"
 dev_prerelease_ref="${DEV_PRERELEASE_REF:-dev-prerelease}"
 semver_pattern='^v[0-9]+\.[0-9]+\.[0-9]+$'
 
@@ -35,7 +36,7 @@ for tag in $tags; do
         if [[ -z "$latest_stable" ]]; then
             latest_stable="$tag"
         fi
-    else
+    elif version_greater_equal "$version" "$legacy_minimal_version"; then
         legacy_tags+=("$tag")
     fi
 done
