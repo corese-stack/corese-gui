@@ -11,6 +11,7 @@ import fr.inria.corese.gui.feature.main.navigation.NavigationBarController;
 import fr.inria.corese.gui.utils.AppExecutors;
 import fr.inria.corese.gui.utils.fx.SvgImageLoader;
 import java.net.URL;
+import java.util.List;
 import java.util.Objects;
 import javafx.animation.PauseTransition;
 import javafx.application.Application;
@@ -54,6 +55,7 @@ public final class App extends Application {
 		Stage splashStage = createStartupSplashStage();
 		if (splashStage != null) {
 			splashStage.show();
+			recenterSplashAfterShow(splashStage);
 		}
 
 		long startupStartNanos = System.nanoTime();
@@ -155,7 +157,7 @@ public final class App extends Application {
 		splashStage.setScene(scene);
 		splashStage.setResizable(false);
 		splashStage.sizeToScene();
-		centerOnPrimaryScreen(splashStage);
+		splashStage.centerOnScreen();
 		return splashStage;
 	}
 
@@ -197,8 +199,15 @@ public final class App extends Application {
 		}
 	}
 
-	private static void centerOnPrimaryScreen(Stage stage) {
-		Rectangle2D bounds = Screen.getPrimary().getVisualBounds();
+	private static void recenterSplashAfterShow(Stage splashStage) {
+		Platform.runLater(() -> centerStageOnCurrentScreen(splashStage));
+	}
+
+	private static void centerStageOnCurrentScreen(Stage stage) {
+		List<Screen> candidateScreens = Screen.getScreensForRectangle(stage.getX(), stage.getY(),
+				Math.max(stage.getWidth(), 1), Math.max(stage.getHeight(), 1));
+		Screen targetScreen = candidateScreens.isEmpty() ? Screen.getPrimary() : candidateScreens.get(0);
+		Rectangle2D bounds = targetScreen.getVisualBounds();
 		stage.setX(bounds.getMinX() + ((bounds.getWidth() - stage.getWidth()) / 2.0));
 		stage.setY(bounds.getMinY() + ((bounds.getHeight() - stage.getHeight()) / 2.0));
 	}
