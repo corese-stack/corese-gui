@@ -24,7 +24,6 @@ public final class AppConstants {
 	public static final double DEFAULT_HEIGHT = 850;
 	public static final double MIN_WIDTH = 1000;
 	public static final double MIN_HEIGHT = 700;
-	public static final String APP_TITLE = "Corese-GUI";
 
 	// ===== Application Info =====
 	public static final String APP_NAME = "Corese GUI";
