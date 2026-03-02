@@ -5,5 +5,6 @@ export GDK_BACKEND=x11
 
 exec /app/jre/bin/java \
   --enable-native-access=ALL-UNNAMED \
+  -splash:/app/share/corese-gui/startup-splash-primer-dark.png \
   -jar /app/bin/corese-gui-standalone.jar \
   "$@"

@@ -31,6 +31,7 @@ modules:
     build-commands:
       - install -Dm644 corese-gui-standalone.jar /app/bin/corese-gui-standalone.jar
       - install -Dm755 packaging/flatpak/scripts/run.sh /app/bin/corese-gui
+      - install -Dm644 src/main/resources/images/startup-splash-primer-dark.png /app/share/corese-gui/startup-splash-primer-dark.png
       - install -Dm644 packaging/flatpak/appdata/${FLATPAK_ID}.appdata.xml /app/share/metainfo/${FLATPAK_ID}.appdata.xml
       - install -Dm644 packaging/flatpak/appdata/${FLATPAK_ID}.desktop /app/share/applications/${FLATPAK_ID}.desktop
       - install -Dm644 packaging/assets/logo/${FLATPAK_ID}.svg /app/share/icons/hicolor/scalable/apps/${FLATPAK_ID}.svg

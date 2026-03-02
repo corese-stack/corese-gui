@@ -174,6 +174,11 @@ val jpackageExecutable = packagingJavaHome.map { javaHome ->
     file("$javaHome/bin/$executable").absolutePath
 }
 
+val startupSplashImage = file("src/main/resources/images/startup-splash-primer-dark.png")
+val startupSplashEnabled = startupSplashImage.exists()
+val startupSplashJvmOption = "-splash:${startupSplashImage.absolutePath}"
+val startupSplashPackagedJvmOption = "-splash:\$APPDIR/${startupSplashImage.name}"
+
 /*
  * Per-platform icon resolution for jpackage.
  * Keep jpackage icons under packaging/.
@@ -248,7 +253,12 @@ javafx {
 
 application {
     mainClass.set(Meta.mainClass)
-    applicationDefaultJvmArgs = listOf(Meta.nativeAccessOption)
+    applicationDefaultJvmArgs = buildList {
+        add(Meta.nativeAccessOption)
+        if (startupSplashEnabled) {
+            add(startupSplashJvmOption)
+        }
+    }
 }
 
 /*
@@ -332,6 +342,9 @@ tasks.named<Jar>("jar") {
     manifest {
         attributes["Main-Class"] = Meta.mainClass
         attributes["Implementation-Version"] = project.version.toString()
+        if (startupSplashEnabled) {
+            attributes["SplashScreen-Image"] = "images/${startupSplashImage.name}"
+        }
     }
 }
 
@@ -348,6 +361,9 @@ tasks.named<ShadowJar>("shadowJar") {
     manifest {
         attributes["Main-Class"] = Meta.mainClass
         attributes["Implementation-Version"] = project.version.toString()
+        if (startupSplashEnabled) {
+            attributes["SplashScreen-Image"] = "images/${startupSplashImage.name}"
+        }
     }
 }
 
@@ -408,6 +424,11 @@ tasks.register<Exec>("jpackageCurrentPlatform") {
             "--java-options", Meta.nativeAccessOption
         )
 
+        if (startupSplashEnabled) {
+            args("--app-content", startupSplashImage.absolutePath)
+            args("--java-options", startupSplashPackagedJvmOption)
+        }
+
         if (jpackageIcon.exists()) {
             args("--icon", jpackageIcon.absolutePath)
         } else {
@@ -463,6 +484,11 @@ if (hostOs == "windows") {
                 "--runtime-image", packagingJavaHome.get(),
                 "--java-options", Meta.nativeAccessOption
             )
+
+            if (startupSplashEnabled) {
+                args("--app-content", startupSplashImage.absolutePath)
+                args("--java-options", startupSplashPackagedJvmOption)
+            }
 
             if (jpackageIcon.exists()) {
                 args("--icon", jpackageIcon.absolutePath)

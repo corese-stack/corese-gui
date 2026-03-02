@@ -8,11 +8,10 @@ import fr.inria.corese.gui.feature.main.MainController;
 import fr.inria.corese.gui.feature.main.MainView;
 import fr.inria.corese.gui.feature.main.ViewManager;
 import fr.inria.corese.gui.feature.main.navigation.NavigationBarController;
-import fr.inria.corese.gui.feature.startup.splash.StartupSplashController;
 import fr.inria.corese.gui.utils.AppExecutors;
 import fr.inria.corese.gui.utils.fx.SvgImageLoader;
+import java.awt.SplashScreen;
 import java.util.Objects;
-import javafx.animation.PauseTransition;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Rectangle2D;
@@ -20,7 +19,6 @@ import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,17 +40,7 @@ public final class App extends Application {
 	public void start(Stage primaryStage) {
 		Platform.setImplicitExit(true);
 		ThemeManager themeManager = ThemeManager.getInstance();
-
-		StartupSplashController splashController = createStartupSplashController(themeManager);
-		if (splashController != null) {
-			splashController.show();
-		}
-
-		long startupStartNanos = System.nanoTime();
-		PauseTransition initializeDelay = new PauseTransition(Duration.millis(StartupSplashController.RENDER_GUARD_MS));
-		initializeDelay.setOnFinished(
-				event -> initializeAndShowMainStage(primaryStage, splashController, startupStartNanos, themeManager));
-		initializeDelay.play();
+		initializeAndShowMainStage(primaryStage, themeManager);
 	}
 
 	@Override
@@ -69,8 +57,7 @@ public final class App extends Application {
 		System.exit(0);
 	}
 
-	private static void initializeAndShowMainStage(Stage primaryStage, StartupSplashController splashController,
-			long startupStartNanos, ThemeManager themeManager) {
+	private static void initializeAndShowMainStage(Stage primaryStage, ThemeManager themeManager) {
 		try {
 			MainView mainView = new MainView();
 			NavigationBarController navigationController = new NavigationBarController();
@@ -91,44 +78,22 @@ public final class App extends Application {
 			applyInitialWindowSize(primaryStage);
 			primaryStage.setOnCloseRequest(event -> Platform.exit());
 
-			schedulePrimaryStageShow(primaryStage, splashController, startupStartNanos);
+			primaryStage.show();
+			closeNativeSplashIfPresent();
 		} catch (RuntimeException e) {
-			closeSplashStage(splashController);
+			closeNativeSplashIfPresent();
 			throw e;
 		}
 	}
 
-	private static void schedulePrimaryStageShow(Stage primaryStage, StartupSplashController splashController,
-			long startupStartNanos) {
-		double elapsedMs = (System.nanoTime() - startupStartNanos) / 1_000_000.0;
-		double remainingMs = StartupSplashController.MIN_DISPLAY_MS - elapsedMs;
-		if (splashController == null || remainingMs <= 0) {
-			showPrimaryStageAndCloseSplash(primaryStage, splashController);
-			return;
-		}
-		PauseTransition delay = new PauseTransition(Duration.millis(remainingMs));
-		delay.setOnFinished(event -> showPrimaryStageAndCloseSplash(primaryStage, splashController));
-		delay.play();
-	}
-
-	private static void showPrimaryStageAndCloseSplash(Stage primaryStage, StartupSplashController splashController) {
-		primaryStage.show();
-		closeSplashStage(splashController);
-	}
-
-	private static void closeSplashStage(StartupSplashController splashController) {
-		if (splashController == null) {
-			return;
-		}
-		splashController.close();
-	}
-
-	private static StartupSplashController createStartupSplashController(ThemeManager themeManager) {
+	private static void closeNativeSplashIfPresent() {
 		try {
-			return new StartupSplashController(themeManager);
-		} catch (RuntimeException e) {
-			LOGGER.warn("Unable to create startup splash", e);
-			return null;
+			SplashScreen splash = SplashScreen.getSplashScreen();
+			if (splash != null) {
+				splash.close();
+			}
+		} catch (UnsupportedOperationException _) {
+			// No native splash active.
 		}
 	}
 
@@ -140,8 +105,8 @@ public final class App extends Application {
 				return;
 			}
 
-			Image pngIcon = new Image(
-					Objects.requireNonNull(App.class.getResourceAsStream(APP_LOGO_PNG_RESOURCE), "Application icon not found"));
+			Image pngIcon = new Image(Objects.requireNonNull(App.class.getResourceAsStream(APP_LOGO_PNG_RESOURCE),
+					"Application icon not found"));
 			stage.getIcons().add(pngIcon);
 		} catch (Exception e) {
 			LOGGER.warn("Failed to load application icon", e);
