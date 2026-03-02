@@ -70,14 +70,6 @@ It provides a visual workspace to load RDF data, execute SPARQL queries, inspect
 ./gradlew run
 ```
 
-Linux dead-key fallback is enabled by default. Disable it only if needed:
-
-```bash
-CORESE_IM_BOOTSTRAP_MODE=off ./gradlew run
-# or
-CORESE_IM_BOOTSTRAP_DISABLE=1 ./gradlew run
-```
-
 Build artifacts for the current platform:
 
 ```bash
