@@ -177,7 +177,11 @@ val jpackageExecutable = packagingJavaHome.map { javaHome ->
 val startupSplashImage = file("src/main/resources/images/startup-splash-primer-dark.png")
 val startupSplashEnabled = startupSplashImage.exists()
 val startupSplashJvmOption = "-splash:${startupSplashImage.absolutePath}"
-val startupSplashPackagedJvmOption = "-splash:\$APPDIR/${startupSplashImage.name}"
+// jpackage launcher resolves $APPDIR to the jars folder (lib/app on Linux app-image).
+// `--app-content` currently lands in lib/, so splash path is one directory above $APPDIR.
+val startupSplashPackagedJvmOption = "-splash:\$APPDIR/../${startupSplashImage.name}"
+// macOS jpackage can fail codesign when additional app content is injected via --app-content.
+val startupSplashJpackageEnabled = startupSplashEnabled && hostOs != "macos"
 
 /*
  * Per-platform icon resolution for jpackage.
@@ -403,8 +407,8 @@ tasks.register<Exec>("jpackageCurrentPlatform") {
     inputs.property("jpackageAppName", jpackageAppName)
     inputs.property("jpackageAppVersion", jpackageAppVersion)
     inputs.property("jpackageIconPath", jpackageIcon.absolutePath)
-    inputs.property("startupSplashEnabled", startupSplashEnabled)
-    if (startupSplashEnabled) {
+    inputs.property("startupSplashJpackageEnabled", startupSplashJpackageEnabled)
+    if (startupSplashJpackageEnabled) {
         inputs.file(startupSplashImage)
         inputs.property("startupSplashPackagedJvmOption", startupSplashPackagedJvmOption)
     }
@@ -433,7 +437,7 @@ tasks.register<Exec>("jpackageCurrentPlatform") {
             "--java-options", Meta.nativeAccessOption
         )
 
-        if (startupSplashEnabled) {
+        if (startupSplashJpackageEnabled) {
             args("--app-content", startupSplashImage.absolutePath)
             args("--java-options", startupSplashPackagedJvmOption)
         }
@@ -472,8 +476,8 @@ if (hostOs == "windows") {
         inputs.property("jpackageAppName", jpackageAppName)
         inputs.property("jpackageAppVersion", jpackageAppVersion)
         inputs.property("jpackageIconPath", jpackageIcon.absolutePath)
-        inputs.property("startupSplashEnabled", startupSplashEnabled)
-        if (startupSplashEnabled) {
+        inputs.property("startupSplashJpackageEnabled", startupSplashJpackageEnabled)
+        if (startupSplashJpackageEnabled) {
             inputs.file(startupSplashImage)
             inputs.property("startupSplashPackagedJvmOption", startupSplashPackagedJvmOption)
         }
@@ -502,7 +506,7 @@ if (hostOs == "windows") {
                 "--java-options", Meta.nativeAccessOption
             )
 
-            if (startupSplashEnabled) {
+            if (startupSplashJpackageEnabled) {
                 args("--app-content", startupSplashImage.absolutePath)
                 args("--java-options", startupSplashPackagedJvmOption)
             }

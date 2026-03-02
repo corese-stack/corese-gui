@@ -1,5 +1,6 @@
 package fr.inria.corese.gui.core.bootstrap;
 
+import java.awt.SplashScreen;
 import java.io.File;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -72,6 +73,7 @@ public final class LinuxInputMethodBootstrap {
 		pb.inheritIO();
 
 		try {
+			closeNativeSplashIfPresent();
 			Process child = pb.start();
 			int exitCode = child.waitFor();
 			System.exit(exitCode);
@@ -135,5 +137,16 @@ public final class LinuxInputMethodBootstrap {
 
 		int spaceIdx = trimmed.indexOf(' ');
 		return spaceIdx < 0 ? trimmed : trimmed.substring(0, spaceIdx);
+	}
+
+	private static void closeNativeSplashIfPresent() {
+		try {
+			SplashScreen splash = SplashScreen.getSplashScreen();
+			if (splash != null) {
+				splash.close();
+			}
+		} catch (UnsupportedOperationException _) {
+			// No native splash active.
+		}
 	}
 }
