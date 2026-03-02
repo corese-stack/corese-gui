@@ -399,6 +399,15 @@ tasks.register<Exec>("jpackageCurrentPlatform") {
     description = "Builds an unsigned jpackage bundle for $hostTarget."
     dependsOn(tasks.named("prepareJpackageInput"))
 
+    inputs.property("jpackageType", jpackageType)
+    inputs.property("jpackageAppName", jpackageAppName)
+    inputs.property("jpackageAppVersion", jpackageAppVersion)
+    inputs.property("jpackageIconPath", jpackageIcon.absolutePath)
+    inputs.property("startupSplashEnabled", startupSplashEnabled)
+    if (startupSplashEnabled) {
+        inputs.file(startupSplashImage)
+        inputs.property("startupSplashPackagedJvmOption", startupSplashPackagedJvmOption)
+    }
     inputs.dir(jpackageInputDir)
     outputs.dir(jpackageOutputDir)
 
@@ -460,6 +469,14 @@ if (hostOs == "windows") {
         description = "Builds a portable app-image for $hostTarget."
         dependsOn(tasks.named("prepareJpackageInput"))
 
+        inputs.property("jpackageAppName", jpackageAppName)
+        inputs.property("jpackageAppVersion", jpackageAppVersion)
+        inputs.property("jpackageIconPath", jpackageIcon.absolutePath)
+        inputs.property("startupSplashEnabled", startupSplashEnabled)
+        if (startupSplashEnabled) {
+            inputs.file(startupSplashImage)
+            inputs.property("startupSplashPackagedJvmOption", startupSplashPackagedJvmOption)
+        }
         inputs.dir(jpackageInputDir)
         outputs.dir(windowsPortableImageDir)
 
