@@ -4,6 +4,9 @@ import java.awt.SplashScreen;
 import java.io.File;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -26,8 +29,11 @@ import org.slf4j.LoggerFactory;
  *
  * <ul>
  * <li>No-op on non-Linux systems.
+ * <li>Enabled by default on Linux to preserve dead-key composition in
+ * JavaFX/WebView editors.
+ * <li>No-op if explicitly disabled with {@code CORESE_IM_BOOTSTRAP_MODE=off} or
+ * {@code CORESE_IM_BOOTSTRAP_DISABLE=1}.
  * <li>No-op if already bootstrapped.
- * <li>No-op if {@code CORESE_IM_BOOTSTRAP_DISABLE=1} is set.
  * <li>Relaunches with {@code XMODIFIERS=@im=none}, {@code GTK_IM_MODULE=xim},
  * {@code QT_IM_MODULE=xim}.
  * </ul>
@@ -37,6 +43,14 @@ public final class LinuxInputMethodBootstrap {
 
 	private static final String MARKER_ENV = "CORESE_IM_BOOTSTRAPPED";
 	private static final String DISABLE_ENV = "CORESE_IM_BOOTSTRAP_DISABLE";
+	private static final String MODE_ENV = "CORESE_IM_BOOTSTRAP_MODE";
+	private static final String MODE_OFF = "off";
+	private static final String MODE_XIM = "xim";
+	private static final String XMODIFIERS_ENV = "XMODIFIERS";
+	private static final String XMODIFIERS_XIM_VALUE = "@im=none";
+	private static final String GTK_IM_MODULE_ENV = "GTK_IM_MODULE";
+	private static final String QT_IM_MODULE_ENV = "QT_IM_MODULE";
+	private static final String SPLASH_OPTION_PREFIX = "-splash:";
 
 	private LinuxInputMethodBootstrap() {
 		throw new AssertionError("Utility class - do not instantiate");
@@ -56,7 +70,7 @@ public final class LinuxInputMethodBootstrap {
 		if ("1".equals(System.getenv(MARKER_ENV))) {
 			return;
 		}
-		if ("1".equals(System.getenv(DISABLE_ENV))) {
+		if (isBootstrapDisabledByConfig()) {
 			return;
 		}
 		if (alreadyConfiguredForXim()) {
@@ -67,14 +81,14 @@ public final class LinuxInputMethodBootstrap {
 		ProcessBuilder pb = new ProcessBuilder(command);
 		Map<String, String> env = pb.environment();
 		env.put(MARKER_ENV, "1");
-		env.put("XMODIFIERS", "@im=none");
-		env.put("GTK_IM_MODULE", "xim");
-		env.put("QT_IM_MODULE", "xim");
+		env.put(XMODIFIERS_ENV, XMODIFIERS_XIM_VALUE);
+		env.put(GTK_IM_MODULE_ENV, MODE_XIM);
+		env.put(QT_IM_MODULE_ENV, MODE_XIM);
 		pb.inheritIO();
 
 		try {
-			closeNativeSplashIfPresent();
 			Process child = pb.start();
+			closeNativeSplashIfPresent();
 			int exitCode = child.waitFor();
 			System.exit(exitCode);
 		} catch (IOException e) {
@@ -90,14 +104,36 @@ public final class LinuxInputMethodBootstrap {
 	}
 
 	private static boolean alreadyConfiguredForXim() {
-		return "xim".equalsIgnoreCase(System.getenv("GTK_IM_MODULE")) && "@im=none".equals(System.getenv("XMODIFIERS"));
+		return MODE_XIM.equalsIgnoreCase(System.getenv(GTK_IM_MODULE_ENV))
+				&& XMODIFIERS_XIM_VALUE.equals(System.getenv(XMODIFIERS_ENV));
+	}
+
+	private static boolean isBootstrapDisabledByConfig() {
+		if ("1".equals(System.getenv(DISABLE_ENV))) {
+			return true;
+		}
+		String mode = System.getenv(MODE_ENV);
+		if (mode == null || mode.isBlank()) {
+			return false;
+		}
+		if (MODE_OFF.equalsIgnoreCase(mode)) {
+			return true;
+		}
+		if (MODE_XIM.equalsIgnoreCase(mode)) {
+			return false;
+		}
+		LOGGER.warn("Unknown {}='{}'; expected '{}' or '{}'. Falling back to default '{}'.", MODE_ENV, mode, MODE_OFF,
+				MODE_XIM, MODE_XIM);
+		return false;
 	}
 
 	private static List<String> buildRelaunchCommand(String[] args) {
 		List<String> command = new ArrayList<>();
 		String javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
 		command.add(javaBin);
-		command.addAll(ManagementFactory.getRuntimeMXBean().getInputArguments());
+		List<String> inputArguments = new ArrayList<>(ManagementFactory.getRuntimeMXBean().getInputArguments());
+		command.addAll(inputArguments);
+		appendSplashOptionIfMissing(command, inputArguments);
 
 		String entry = extractEntryPointFromSunCommand();
 		if (entry != null && entry.toLowerCase(Locale.ROOT).endsWith(".jar")) {
@@ -115,6 +151,57 @@ public final class LinuxInputMethodBootstrap {
 			Collections.addAll(command, args);
 		}
 		return command;
+	}
+
+	private static void appendSplashOptionIfMissing(List<String> command, List<String> inputArguments) {
+		boolean splashAlreadyProvided = inputArguments.stream().anyMatch(arg -> arg.startsWith(SPLASH_OPTION_PREFIX));
+		if (splashAlreadyProvided) {
+			return;
+		}
+
+		String splashOption = resolveSplashOptionFromProcCmdline();
+		if (splashOption == null) {
+			splashOption = resolveCurrentSplashOption();
+		}
+		if (splashOption != null) {
+			command.add(splashOption);
+		}
+	}
+
+	private static String resolveSplashOptionFromProcCmdline() {
+		try {
+			byte[] cmdline = Files.readAllBytes(Path.of("/proc/self/cmdline"));
+			int start = 0;
+			for (int i = 0; i <= cmdline.length; i++) {
+				boolean isSeparator = i == cmdline.length || cmdline[i] == 0;
+				if (!isSeparator) {
+					continue;
+				}
+				if (i > start) {
+					String arg = new String(cmdline, start, i - start, StandardCharsets.UTF_8);
+					if (arg.startsWith(SPLASH_OPTION_PREFIX)) {
+						return arg;
+					}
+				}
+				start = i + 1;
+			}
+		} catch (IOException _) {
+			// Best effort only; fallback to SplashScreen API.
+		}
+		return null;
+	}
+
+	private static String resolveCurrentSplashOption() {
+		try {
+			SplashScreen splash = SplashScreen.getSplashScreen();
+			if (splash == null || splash.getImageURL() == null) {
+				return null;
+			}
+			return SPLASH_OPTION_PREFIX + splash.getImageURL().toExternalForm();
+		} catch (UnsupportedOperationException _) {
+			// No native splash active.
+			return null;
+		}
 	}
 
 	private static String extractEntryPointFromSunCommand() {
