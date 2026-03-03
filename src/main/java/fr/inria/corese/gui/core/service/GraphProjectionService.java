@@ -177,18 +177,26 @@ public final class GraphProjectionService {
 		int index = startIndex;
 		while (index < jsonLd.length()) {
 			char current = jsonLd.charAt(index);
-			if (current <= 0x1F) {
+			if (escaping) {
+				if (isValidJsonEscapeCharacter(current)) {
+					sanitized.append(current);
+				} else {
+					/*
+					 * Preserve the literal content while restoring valid JSON escaping.
+					 * Example: malformed "\'" becomes valid "\\'".
+					 */
+					sanitized.append('\\').append(current);
+					replacementCount++;
+				}
+				escaping = false;
+			} else if (current <= 0x1F) {
 				sanitized.append(escapeJsonControlCharacter(current));
 				replacementCount++;
-			} else if (escaping) {
-				sanitized.append(current);
-				escaping = false;
 			} else if (current == '\\') {
 				sanitized.append(current);
 				escaping = true;
 			} else if (current == '"') {
-				int nextToken = skipWhitespace(jsonLd, index + 1);
-				if (nextToken >= jsonLd.length() || isJsonLiteralValueTerminator(jsonLd.charAt(nextToken))) {
+				if (isLikelyLiteralValueClosingQuote(jsonLd, index + 1)) {
 					sanitized.append(current);
 					return new LiteralQuotedValueContentParseResult(index + 1, replacementCount, true);
 				}
@@ -200,6 +208,11 @@ public final class GraphProjectionService {
 			index++;
 		}
 		return new LiteralQuotedValueContentParseResult(index, replacementCount, false);
+	}
+
+	private static boolean isValidJsonEscapeCharacter(char value) {
+		return value == '"' || value == '\\' || value == '/' || value == 'b' || value == 'f' || value == 'n'
+				|| value == 'r' || value == 't' || value == 'u';
 	}
 
 	private static String escapeJsonControlCharacter(char value) {
@@ -295,7 +308,8 @@ public final class GraphProjectionService {
 
 	private static int findMalformedQuotedValueStart(String jsonLd, int fromIndex) {
 		for (int i = Math.max(0, fromIndex); i < jsonLd.length() - 1; i++) {
-			if (jsonLd.charAt(i) == '"' && jsonLd.charAt(i + 1) == '"' && hasMalformedValuePrefix(jsonLd, i - 1)) {
+			if (jsonLd.charAt(i) == '"' && jsonLd.charAt(i + 1) == '"' && hasMalformedValuePrefix(jsonLd, i - 1)
+					&& !hasMalformedValueSuffix(jsonLd, i + 2)) {
 				return i;
 			}
 		}
@@ -334,8 +348,34 @@ public final class GraphProjectionService {
 		return suffix == ',' || suffix == '}' || suffix == ']';
 	}
 
-	private static boolean isJsonLiteralValueTerminator(char candidate) {
-		return candidate == ',' || candidate == '}' || candidate == ']';
+	private static boolean isLikelyLiteralValueClosingQuote(String jsonLd, int fromIndex) {
+		int nextToken = skipWhitespace(jsonLd, fromIndex);
+		if (nextToken >= jsonLd.length()) {
+			return true;
+		}
+		char candidate = jsonLd.charAt(nextToken);
+		if (candidate == '}') {
+			return true;
+		}
+		if (candidate != ',') {
+			return false;
+		}
+
+		/*
+		 * Consider comma as string terminator only when the following token looks like
+		 * a JSON object field (`"key": ...`). This avoids false positives for literal
+		 * text fragments like `"term", sometimes ...`.
+		 */
+		int afterComma = skipWhitespace(jsonLd, nextToken + 1);
+		if (afterComma >= jsonLd.length() || jsonLd.charAt(afterComma) != '"') {
+			return false;
+		}
+		int keyEnd = findStringEnd(jsonLd, afterComma + 1);
+		if (keyEnd < 0) {
+			return false;
+		}
+		int colon = skipWhitespace(jsonLd, keyEnd + 1);
+		return colon < jsonLd.length() && jsonLd.charAt(colon) == ':';
 	}
 
 	private TopLevelJsonLdParts extractTopLevelContextAndGraph(String jsonLd) {
