@@ -105,6 +105,10 @@ public final class DataFileSelectionSupport {
 		if (evaluation == null || origin == null) {
 			return;
 		}
+		// No file provided (e.g., file chooser cancelled): do not warn.
+		if (!evaluation.hasAcceptedFiles() && evaluation.ignoredFiles() == 0) {
+			return;
+		}
 		if (!evaluation.hasAcceptedFiles()) {
 			NotificationWidget.getInstance().showWarning(
 					String.format(WARNING_NONE_ACCEPTED_TEMPLATE, origin.noneAcceptedVerb(), expectedExtensionsHint));
