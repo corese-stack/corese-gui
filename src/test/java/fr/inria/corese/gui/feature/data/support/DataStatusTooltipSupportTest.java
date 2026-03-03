@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderMode;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderStatus;
+import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport.RenderStatusBadge;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -40,13 +41,20 @@ class DataStatusTooltipSupportTest {
 	@Test
 	void compactTooltipLines_normalizesAndLimitsLines() {
 		List<String> lines = DataStatusTooltipSupport
-				.compactTooltipLines(List.of("  First line  ", "Second line", "Second line", "Third line"), 3);
+				.compactTooltipLines(List.of("  First line  ", "Second line", "Third line", "Fourth line"), 3);
 
 		assertEquals(3, lines.size());
 		assertEquals("First line", lines.get(0));
 		assertEquals("Second line", lines.get(1));
-		assertEquals("Third line", lines.get(2));
+		assertEquals("+ 2 more", lines.get(2));
 		assertTrue(lines.stream().noneMatch(String::isBlank));
+	}
+
+	@Test
+	void compactTooltipLines_singleLineLimitUsesMoreIndicator() {
+		List<String> lines = DataStatusTooltipSupport.compactTooltipLines(List.of("A", "B", "C"), 1);
+
+		assertEquals(List.of("+ 3 more"), lines);
 	}
 
 	@Test
@@ -65,5 +73,54 @@ class DataStatusTooltipSupportTest {
 		assertEquals("Action: adjust preview limit in Settings > Appearance > Graph Preview.", lines.get(2));
 		assertEquals("Action: use \"Display anyway\" to force rendering now.", lines.get(3));
 		assertEquals("Warning: manual rendering may freeze the interface on very large graphs.", lines.get(4));
+	}
+
+	@Test
+	void resolveRenderStatusBadge_returnsLockedWhenInteractionsAreDisabled() {
+		GraphRenderStatus status = new GraphRenderStatus(GraphRenderMode.NORMAL, "Standard rendering",
+				List.of("Graph interactions disabled for very large graph."));
+
+		RenderStatusBadge badge = DataStatusTooltipSupport.resolveRenderStatusBadge(status);
+
+		assertEquals(RenderStatusBadge.LOCKED, badge);
+	}
+
+	@Test
+	void resolveRenderStatusBadge_returnsAdaptiveForIntermediateNormalModeDetails() {
+		GraphRenderStatus status = new GraphRenderStatus(GraphRenderMode.NORMAL, "Adaptive detail mode",
+				List.of("Node labels hidden at current zoom level."));
+
+		RenderStatusBadge badge = DataStatusTooltipSupport.resolveRenderStatusBadge(status);
+
+		assertEquals(RenderStatusBadge.ADAPTIVE, badge);
+	}
+
+	@Test
+	void resolveRenderStatusBadge_returnsAdaptiveForSummarySignalWithoutDetails() {
+		GraphRenderStatus status = new GraphRenderStatus(GraphRenderMode.NORMAL, "Adaptive detail mode", List.of());
+
+		RenderStatusBadge badge = DataStatusTooltipSupport.resolveRenderStatusBadge(status);
+
+		assertEquals(RenderStatusBadge.ADAPTIVE, badge);
+	}
+
+	@Test
+	void resolveRenderStatusBadge_returnsLockedForSummarySignalWithoutDetails() {
+		GraphRenderStatus status = new GraphRenderStatus(GraphRenderMode.NORMAL,
+				"Interactions disabled for very large graph", List.of());
+
+		RenderStatusBadge badge = DataStatusTooltipSupport.resolveRenderStatusBadge(status);
+
+		assertEquals(RenderStatusBadge.LOCKED, badge);
+	}
+
+	@Test
+	void resolveRenderStatusBadge_returnsFailedForRenderingErrors() {
+		GraphRenderStatus status = new GraphRenderStatus(GraphRenderMode.PAUSED, "Rendering failed",
+				List.of("JSON parse error"));
+
+		RenderStatusBadge badge = DataStatusTooltipSupport.resolveRenderStatusBadge(status);
+
+		assertEquals(RenderStatusBadge.FAILED, badge);
 	}
 }

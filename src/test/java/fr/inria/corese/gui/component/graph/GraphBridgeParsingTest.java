@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class GraphBridgeParsingTest {
@@ -35,5 +36,19 @@ class GraphBridgeParsingTest {
 		assertFalse(GraphBridgeParsing.isCurrentRenderRequest("", 42L));
 		assertFalse(GraphBridgeParsing.isCurrentRenderRequest("abc", 42L));
 		assertFalse(GraphBridgeParsing.isCurrentRenderRequest(null, 42L));
+	}
+
+	@Test
+	void parseStringList_supportsMultilinePayload() {
+		List<String> lines = GraphBridgeParsing.parseStringList("first line\nsecond line\r\n third line ");
+
+		assertEquals(List.of("first line", "second line", "third line"), lines);
+	}
+
+	@Test
+	void parseStringList_keepsSingleLinePayload() {
+		List<String> lines = GraphBridgeParsing.parseStringList("single line");
+
+		assertEquals(List.of("single line"), lines);
 	}
 }

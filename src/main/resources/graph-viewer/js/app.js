@@ -80,6 +80,17 @@ function setupBridge() {
         oldError.apply(console, arguments);
     };
 
+    // Ensure the current graph render profile is re-emitted once the bridge is ready.
+    try {
+        const graphElement = getGraphElement(DEFAULT_GRAPH_ELEMENT_ID);
+        if (graphElement && typeof graphElement.notifyEffectiveRenderProfile === "function") {
+            graphElement.lastEffectiveRenderProfileKey = "";
+            graphElement.notifyEffectiveRenderProfile();
+        }
+    } catch (e) {
+        // Non-blocking: rendering should continue even if status replay fails.
+    }
+
     console.log("Bridge setup complete.");
 }
 

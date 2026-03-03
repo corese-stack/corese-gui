@@ -4,7 +4,6 @@ import atlantafx.base.controls.ToggleSwitch;
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
-import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderMode;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderStatus;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.io.ExportHelper;
@@ -28,6 +27,8 @@ import fr.inria.corese.gui.feature.data.support.DataFileSelectionSupport;
 import fr.inria.corese.gui.feature.data.support.DataFileSelectionSupport.InputOrigin;
 import fr.inria.corese.gui.feature.data.support.DataLoadingSupport;
 import fr.inria.corese.gui.feature.data.support.DataLoadingSupport.OperationIssue;
+import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport;
+import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport.RenderStatusBadge;
 import fr.inria.corese.gui.feature.data.support.DataUiMessageUtils;
 import fr.inria.corese.gui.utils.AppExecutors;
 import java.io.File;
@@ -73,7 +74,6 @@ public class DataViewController implements AutoCloseable {
 
 	private static final long GRAPH_REFRESH_DEBOUNCE_MS = 120L;
 	private static final long REASONING_REFRESH_DEBOUNCE_MS = 260L;
-	private static final String RENDER_DETAIL_INTERACTION_LOCKED = "Graph interactions disabled for very large graph.";
 	private static final List<String> RDF_FILE_EXTENSIONS = FileTypeSupport.rdfExtensions();
 	private volatile boolean graphInteractionsLocked = false;
 
@@ -251,10 +251,9 @@ public class DataViewController implements AutoCloseable {
 
 	private static boolean isGraphInteractionLocked(GraphRenderStatus status) {
 		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
-		if (safeStatus.mode() == GraphRenderMode.PAUSED) {
-			return true;
-		}
-		return safeStatus.details().stream().anyMatch(RENDER_DETAIL_INTERACTION_LOCKED::equals);
+		RenderStatusBadge badge = DataStatusTooltipSupport.resolveRenderStatusBadge(safeStatus);
+		return badge == RenderStatusBadge.LOCKED || badge == RenderStatusBadge.PAUSED
+				|| badge == RenderStatusBadge.FAILED;
 	}
 
 	private int resolveGraphPreviewLimit() {

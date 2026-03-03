@@ -10,6 +10,7 @@ import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport;
+import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport.RenderStatusBadge;
 import fr.inria.corese.gui.feature.result.graph.support.GraphResultStatusTooltipSupport;
 import java.util.List;
 import javafx.scene.control.Label;
@@ -119,14 +120,11 @@ public class GraphResultView extends AbstractView {
 
 	public void updateGraphRenderStatus(GraphRenderStatus status) {
 		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
-		String summary = switch (safeStatus.mode()) {
-			case NORMAL -> "Standard";
-			case DEGRADED -> "Adaptive";
-			case PAUSED -> "Paused";
-		};
+		RenderStatusBadge badge = DataStatusTooltipSupport.resolveRenderStatusBadge(safeStatus);
 		List<String> tooltipLines = DataStatusTooltipSupport.buildRenderTooltipLines(safeStatus);
-		DataStatusTooltipSupport.updateStatusTextMetric(renderModeLabel, TOOLTIP_TITLE_RENDER, summary, tooltipLines);
-		applyRenderStatusStyle(safeStatus.mode());
+		DataStatusTooltipSupport.updateStatusTextMetric(renderModeLabel, TOOLTIP_TITLE_RENDER, badge.label(),
+				tooltipLines);
+		applyRenderStatusStyle(badge.styleMode());
 	}
 
 	private void applyRenderStatusStyle(GraphRenderMode mode) {

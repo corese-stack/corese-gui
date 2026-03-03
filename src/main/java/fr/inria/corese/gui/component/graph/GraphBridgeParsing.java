@@ -127,7 +127,13 @@ final class GraphBridgeParsing {
 			return lines;
 		}
 		String singleLine = parseTrimmedString(value);
-		return singleLine.isBlank() ? List.of() : List.of(singleLine);
+		if (singleLine.isBlank()) {
+			return List.of();
+		}
+		if (singleLine.indexOf('\n') >= 0 || singleLine.indexOf('\r') >= 0) {
+			return singleLine.lines().map(String::trim).filter(line -> !line.isBlank()).toList();
+		}
+		return List.of(singleLine);
 	}
 
 	private static int parseArrayLength(JSObject arrayObject) {

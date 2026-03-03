@@ -30,6 +30,28 @@ public final class DataStatusTooltipSupport {
 		throw new AssertionError("Utility class");
 	}
 
+	public enum RenderStatusBadge {
+		STANDARD("Standard", GraphRenderMode.NORMAL), ADAPTIVE("Adaptive", GraphRenderMode.DEGRADED),
+		LOCKED("Locked", GraphRenderMode.DEGRADED), PAUSED("Paused", GraphRenderMode.PAUSED),
+		FAILED("Failed", GraphRenderMode.PAUSED);
+
+		private final String label;
+		private final GraphRenderMode styleMode;
+
+		RenderStatusBadge(String label, GraphRenderMode styleMode) {
+			this.label = label;
+			this.styleMode = styleMode;
+		}
+
+		public String label() {
+			return label;
+		}
+
+		public GraphRenderMode styleMode() {
+			return styleMode;
+		}
+	}
+
 	public static void updateStatusMetric(Label label, String title, int value, List<String> tooltipLines) {
 		label.setText(title + ": " + formatCount(value));
 		applyTooltip(label, tooltipLines, title);
@@ -85,10 +107,11 @@ public final class DataStatusTooltipSupport {
 	public static List<String> buildRenderTooltipLines(GraphRenderStatus status) {
 		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
 		List<String> lines = new ArrayList<>();
-		lines.add(simplifyRenderSummary(safeStatus.summary(), safeStatus.mode()));
+		String normalizedSummary = simplifyRenderSummary(safeStatus.summary(), safeStatus.mode());
+		lines.add(normalizedSummary);
 
 		List<String> rawDetails = safeStatus.details().isEmpty()
-				? List.of(defaultRenderDetail(safeStatus.mode()))
+				? List.of(defaultRenderDetail(safeStatus.mode(), normalizedSummary))
 				: safeStatus.details();
 		List<String> normalizedDetails = rawDetails.stream().map(DataStatusTooltipSupport::simplifyRenderDetail)
 				.filter(line -> !line.isBlank()).distinct().toList();
@@ -97,9 +120,36 @@ public final class DataStatusTooltipSupport {
 		return compactTooltipLines(lines, RENDER_TOOLTIP_MAX_LINES);
 	}
 
+	public static RenderStatusBadge resolveRenderStatusBadge(GraphRenderStatus status) {
+		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
+		String summary = normalizeTooltipLine(safeStatus.summary()).toLowerCase(Locale.ROOT);
+		boolean hasLockSignal = summaryIndicatesLocked(summary) || safeStatus.details().stream()
+				.map(DataStatusTooltipSupport::normalizeTooltipLine)
+				.map(line -> line.toLowerCase(Locale.ROOT))
+				.anyMatch(DataStatusTooltipSupport::detailIndicatesLocked);
+		boolean hasFailureSignal = summaryIndicatesFailure(summary) || safeStatus.details().stream()
+				.map(DataStatusTooltipSupport::normalizeTooltipLine).map(line -> line.toLowerCase(Locale.ROOT))
+				.anyMatch(DataStatusTooltipSupport::detailIndicatesFailure);
+		boolean hasAdaptiveSignal = summaryIndicatesAdaptive(summary);
+
+		if (hasFailureSignal) {
+			return RenderStatusBadge.FAILED;
+		}
+		if (safeStatus.mode() == GraphRenderMode.PAUSED) {
+			return RenderStatusBadge.PAUSED;
+		}
+		if (hasLockSignal) {
+			return RenderStatusBadge.LOCKED;
+		}
+		if (safeStatus.mode() == GraphRenderMode.DEGRADED || hasAdaptiveSignal || !safeStatus.details().isEmpty()) {
+			return RenderStatusBadge.ADAPTIVE;
+		}
+		return RenderStatusBadge.STANDARD;
+	}
+
 	private static List<String> prioritizeRenderDetails(GraphRenderMode mode, List<String> normalizedDetails) {
 		if (normalizedDetails.isEmpty()) {
-			return List.of(defaultRenderDetail(mode));
+			return List.of(defaultRenderDetail(mode, ""));
 		}
 		if (mode == GraphRenderMode.PAUSED) {
 			return buildPausedDetailPreview(normalizedDetails);
@@ -158,11 +208,12 @@ public final class DataStatusTooltipSupport {
 		if (normalizedLines.size() <= safeLimit) {
 			return normalizedLines;
 		}
+		int hiddenCount = Math.max(1, normalizedLines.size() - Math.max(0, safeLimit - 1));
 		if (safeLimit == 1) {
-			return List.of("...");
+			return List.of("+ " + formatCount(hiddenCount) + " more");
 		}
 		List<String> compactLines = new ArrayList<>(normalizedLines.subList(0, safeLimit - 1));
-		compactLines.add("...");
+		compactLines.add("+ " + formatCount(hiddenCount) + " more");
 		return compactLines;
 	}
 
@@ -178,12 +229,53 @@ public final class DataStatusTooltipSupport {
 		};
 	}
 
-	private static String defaultRenderDetail(GraphRenderMode mode) {
+	private static String defaultRenderDetail(GraphRenderMode mode, String summary) {
+		String normalizedSummary = normalizeTooltipLine(summary).toLowerCase(Locale.ROOT);
 		return switch (mode) {
-			case NORMAL -> "All graph interactions and labels are available.";
+			case NORMAL -> summaryIndicatesLocked(normalizedSummary)
+					? "Interactions: zoom/pan/drag/reset disabled for this graph size."
+					: summaryIndicatesAdaptive(normalizedSummary)
+							? "Rendering detail is currently adapted to keep the interface responsive."
+							: "All graph interactions and labels are available.";
 			case DEGRADED -> "Rendering detail is reduced to keep the interface responsive.";
 			case PAUSED -> "Preview is paused until manual rendering is requested.";
 		};
+	}
+
+	private static boolean summaryIndicatesLocked(String summary) {
+		if (summary == null || summary.isBlank()) {
+			return false;
+		}
+		return summary.contains("interaction") && (summary.contains("disabled") || summary.contains("locked"));
+	}
+
+	private static boolean summaryIndicatesFailure(String summary) {
+		if (summary == null || summary.isBlank()) {
+			return false;
+		}
+		return summary.contains("failed") || summary.contains("error") || summary.contains("exception");
+	}
+
+	private static boolean summaryIndicatesAdaptive(String summary) {
+		if (summary == null || summary.isBlank()) {
+			return false;
+		}
+		return summary.contains("adaptive") || summary.contains("performance")
+				|| summary.contains("optimization") || summary.contains("pressure");
+	}
+
+	private static boolean detailIndicatesLocked(String detail) {
+		if (detail == null || detail.isBlank()) {
+			return false;
+		}
+		return detail.contains("interaction") && (detail.contains("disabled") || detail.contains("locked"));
+	}
+
+	private static boolean detailIndicatesFailure(String detail) {
+		if (detail == null || detail.isBlank()) {
+			return false;
+		}
+		return detail.contains("failed") || detail.contains("error") || detail.contains("exception");
 	}
 
 	private static String simplifyRenderDetail(String detail) {

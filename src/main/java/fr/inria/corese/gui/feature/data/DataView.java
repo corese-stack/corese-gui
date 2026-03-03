@@ -17,6 +17,7 @@ import fr.inria.corese.gui.core.view.AbstractView;
 import fr.inria.corese.gui.feature.data.model.DataRuleFileItem;
 import fr.inria.corese.gui.feature.data.support.DataRuleFileRowFactory;
 import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport;
+import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport.RenderStatusBadge;
 import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import java.io.File;
 import java.util.List;
@@ -720,15 +721,11 @@ public class DataView extends AbstractView {
 
 	public void updateGraphRenderStatus(GraphRenderStatus status) {
 		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
-		String summaryLabel = switch (safeStatus.mode()) {
-			case NORMAL -> "Standard";
-			case DEGRADED -> "Adaptive";
-			case PAUSED -> "Paused";
-		};
+		RenderStatusBadge badge = DataStatusTooltipSupport.resolveRenderStatusBadge(safeStatus);
 		List<String> tooltipLines = DataStatusTooltipSupport.buildRenderTooltipLines(safeStatus);
-		DataStatusTooltipSupport.updateStatusTextMetric(renderModeLabel, TOOLTIP_TITLE_RENDER, summaryLabel,
+		DataStatusTooltipSupport.updateStatusTextMetric(renderModeLabel, TOOLTIP_TITLE_RENDER, badge.label(),
 				tooltipLines);
-		applyRenderStatusStyle(safeStatus.mode());
+		applyRenderStatusStyle(badge.styleMode());
 	}
 
 	private void applyRenderStatusStyle(GraphRenderMode mode) {

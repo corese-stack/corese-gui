@@ -240,6 +240,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		overlay.getStyleClass().add(STYLE_CLASS_LOADING_OVERLAY);
 		overlay.setVisible(true);
 		overlay.setManaged(true);
+		overlay.setMouseTransparent(false);
 		overlay.setOpacity(1);
 		return overlay;
 	}
@@ -778,6 +779,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 
 	private void showLoadingOverlay() {
 		hideLagSuggestion();
+		loadingOverlay.setMouseTransparent(false);
 		loadingOverlay.setOpacity(1);
 		loadingOverlay.setVisible(true);
 		loadingOverlay.setManaged(true);
@@ -787,6 +789,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		if (!loadingOverlay.isVisible()) {
 			return;
 		}
+		loadingOverlay.setMouseTransparent(true);
 		FadeTransition fade = new FadeTransition(Duration.millis(MASK_FADE_MS), loadingOverlay);
 		fade.setFromValue(loadingOverlay.getOpacity());
 		fade.setToValue(0);
@@ -864,6 +867,11 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		}
 		String script = GraphDisplayScripts.buildGraphCommandScript(GRAPH_ELEMENT_ID, commandScript);
 		executeScriptSafe(script);
+	}
+
+	private void requestRenderProfileReplay() {
+		executeGraphCommand(
+				"if (typeof el.notifyEffectiveRenderProfile === 'function') { el.lastEffectiveRenderProfileKey=''; el.notifyEffectiveRenderProfile(); }");
 	}
 
 	private void updateTheme() {
@@ -1129,6 +1137,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 				manualRenderOverrideActive = false;
 				hasRenderedGraph = true;
 				hideLoadingOverlay();
+				requestRenderProfileReplay();
 			});
 		}
 
@@ -1161,6 +1170,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			int tripleCount = GraphBridgeParsing.parseNonNegativeInt(tripleCountValue);
 			int namedGraphCount = GraphBridgeParsing.parseNonNegativeInt(namedGraphCountValue);
 			notifyGraphStatsChanged(tripleCount, namedGraphCount);
+			Platform.runLater(GraphDisplayWidget.this::requestRenderProfileReplay);
 		}
 
 		public void onGraphStatsUpdated(String tripleCountValue, String namedGraphCountValue,
@@ -1173,6 +1183,7 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			List<GraphStats.NamedGraphStat> namedGraphStats = GraphBridgeParsing
 					.parseNamedGraphStats(namedGraphStatsValue);
 			notifyGraphStatsChanged(tripleCount, namedGraphCount, namedGraphStats);
+			Platform.runLater(GraphDisplayWidget.this::requestRenderProfileReplay);
 		}
 
 		public void onGraphRenderProfileUpdated(String modeValue, String summaryValue) {
@@ -1186,6 +1197,16 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			GraphRenderMode mode = parseRenderMode(modeValue);
 			String summary = GraphBridgeParsing.parseTrimmedString(summaryValue);
 			List<String> details = GraphBridgeParsing.parseStringList(detailsValue);
+			notifyRenderStatusChanged(new GraphRenderStatus(mode, summary, details));
+		}
+
+		public void onGraphRenderProfileSnapshot(String modeValue, String summaryValue, String detailsPayload) {
+			if (disposed) {
+				return;
+			}
+			GraphRenderMode mode = parseRenderMode(modeValue);
+			String summary = GraphBridgeParsing.parseTrimmedString(summaryValue);
+			List<String> details = GraphBridgeParsing.parseStringList(detailsPayload);
 			notifyRenderStatusChanged(new GraphRenderStatus(mode, summary, details));
 		}
 

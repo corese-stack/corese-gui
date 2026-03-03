@@ -2912,21 +2912,41 @@ class KGGraphVis extends HTMLElement {
     }
 
     notifyRenderProfile(profile = {}) {
-        if (!window.bridge || typeof window.bridge.onGraphRenderProfileUpdated !== "function") {
-            return;
+        const hasLegacyProfileCallback = window.bridge
+            && typeof window.bridge.onGraphRenderProfileUpdated === "function";
+        const hasSnapshotProfileCallback = window.bridge
+            && typeof window.bridge.onGraphRenderProfileSnapshot === "function";
+        if (!hasLegacyProfileCallback && !hasSnapshotProfileCallback) {
+            return false;
         }
         const mode = String(profile.mode || "normal").toLowerCase();
         const summary = String(profile.summary || "");
         const details = Array.isArray(profile.details)
             ? profile.details.map(line => String(line || "").trim()).filter(line => line.length > 0)
             : [];
+        const detailsPayload = details.join("\n");
+        if (hasSnapshotProfileCallback) {
+            try {
+                window.bridge.onGraphRenderProfileSnapshot(mode, summary, detailsPayload);
+                return true;
+            } catch (snapshotError) {
+                // Fall through to legacy callbacks.
+            }
+        }
+        if (!hasLegacyProfileCallback) {
+            return false;
+        }
         try {
-            window.bridge.onGraphRenderProfileUpdated(mode, summary, details);
+            window.bridge.onGraphRenderProfileUpdated(mode, summary, detailsPayload);
+            return true;
         } catch (error) {
             try {
-                window.bridge.onGraphRenderProfileUpdated(mode, summary);
+                const fallbackMode = mode === "normal" && details.length > 0 ? "degraded" : mode;
+                window.bridge.onGraphRenderProfileUpdated(fallbackMode, summary);
+                return true;
             } catch (legacyError) {
                 // Ignore bridge callback failures to keep rendering resilient.
+                return false;
             }
         }
     }
@@ -3023,8 +3043,9 @@ class KGGraphVis extends HTMLElement {
         if (key === this.lastEffectiveRenderProfileKey) {
             return;
         }
-        this.lastEffectiveRenderProfileKey = key;
-        this.notifyRenderProfile(effectiveProfile);
+        if (this.notifyRenderProfile(effectiveProfile)) {
+            this.lastEffectiveRenderProfileKey = key;
+        }
     }
 
     renderGlobalLegend(componentCounts) {
@@ -4162,7 +4183,7 @@ class KGGraphVis extends HTMLElement {
             parseDurationMs = performance.now() - parseStartedAt;
         } catch (e) {
             console.error("Graph drawing error:", e);
-            return;
+            throw e;
         }
         if (isStaleDraw()) {
             return;
@@ -4284,6 +4305,7 @@ class KGGraphVis extends HTMLElement {
             }
         } catch (e) {
             console.error("Graph drawing error:", e);
+            throw e;
         }
     }
 
