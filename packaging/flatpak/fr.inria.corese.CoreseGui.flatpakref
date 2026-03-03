@@ -1,0 +1,10 @@
+[Flatpak Ref]
+Version=1
+Name=fr.inria.corese.CoreseGui
+Branch=stable
+Title=Corese GUI
+Url=https://dl.flathub.org/repo/
+RuntimeRepo=https://dl.flathub.org/repo/flathub.flatpakrepo
+IsRuntime=false
+SuggestRemoteName=flathub
+Homepage=https://flathub.org/fr/apps/fr.inria.corese.CoreseGui

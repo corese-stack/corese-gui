@@ -61,6 +61,24 @@ jobs:
                       exit 1
                   fi
 
+            - name: Add Flathub flatpakref asset
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  flatpakref_path="build/release-assets/fr.inria.corese.CoreseGui.flatpakref"
+                  cp packaging/flatpak/fr.inria.corese.CoreseGui.flatpakref "$flatpakref_path"
+
+                  # Best effort: enrich the flatpakref with Flathub GPG key when available.
+                  gpg_key="$(
+                      curl -fsSL https://dl.flathub.org/repo/flathub.flatpakrepo \
+                          | awk -F= '/^GPGKey=/{print substr($0,8); exit}' \
+                          || true
+                  )"
+                  if [[ -n "$gpg_key" ]]; then
+                      printf 'GPGKey=%s\n' "$gpg_key" >> "$flatpakref_path"
+                  fi
+
             - name: Generate checksums
               run: |
                   cd build/release-assets
