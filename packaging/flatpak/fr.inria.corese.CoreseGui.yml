@@ -9,9 +9,12 @@ command: corese-gui
 finish-args:
   # Needed for remote URI loading, federated queries and update checks.
   - --share=network
-  # JavaFX on Linux currently runs through X11/XWayland.
+  # Allow talking to IBus for input method handling (dead keys / composition).
+  - --talk-name=org.freedesktop.IBus
+  - --talk-name=org.freedesktop.IBus.*
+  # JavaFX currently needs X11/XWayland for reliable startup in Flatpak.
   - --socket=x11
-  # Improves X11 compatibility/performance for JavaFX.
+  # Improves compatibility/performance for JavaFX rendering.
   - --share=ipc
   # Hardware acceleration for JavaFX rendering (reduces visual glitches).
   - --device=dri

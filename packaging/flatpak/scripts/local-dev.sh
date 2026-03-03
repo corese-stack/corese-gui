@@ -114,7 +114,10 @@ sdk-extensions:
 command: corese-gui
 
 finish-args:
+  # Keep in sync with packaging/flatpak/fr.inria.corese.CoreseGui.yml.
   - --share=network
+  - --talk-name=org.freedesktop.IBus
+  - --talk-name=org.freedesktop.IBus.*
   - --socket=x11
   - --share=ipc
   - --device=dri
