@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.feature.data.support;
 
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderMode;
+import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderCapabilities;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderStatus;
 import fr.inria.corese.gui.core.service.data.DataWorkspaceStatus;
 import java.text.NumberFormat;
@@ -110,8 +111,10 @@ public final class DataStatusTooltipSupport {
 		String normalizedSummary = simplifyRenderSummary(safeStatus.summary(), safeStatus.mode());
 		lines.add(normalizedSummary);
 
+		List<String> capabilityDetails = buildCapabilityDetails(safeStatus.capabilities());
 		List<String> rawDetails = safeStatus.details().isEmpty()
-				? List.of(defaultRenderDetail(safeStatus.mode(), normalizedSummary))
+				? capabilityDetails.isEmpty() ? List.of(defaultRenderDetail(safeStatus.mode(), normalizedSummary))
+						: capabilityDetails
 				: safeStatus.details();
 		List<String> normalizedDetails = rawDetails.stream().map(DataStatusTooltipSupport::simplifyRenderDetail)
 				.filter(line -> !line.isBlank()).distinct().toList();
@@ -123,14 +126,17 @@ public final class DataStatusTooltipSupport {
 	public static RenderStatusBadge resolveRenderStatusBadge(GraphRenderStatus status) {
 		GraphRenderStatus safeStatus = status == null ? GraphRenderStatus.normal() : status;
 		String summary = normalizeTooltipLine(safeStatus.summary()).toLowerCase(Locale.ROOT);
+		GraphRenderCapabilities capabilities = safeStatus.capabilities();
 		boolean hasLockSignal = summaryIndicatesLocked(summary) || safeStatus.details().stream()
 				.map(DataStatusTooltipSupport::normalizeTooltipLine)
 				.map(line -> line.toLowerCase(Locale.ROOT))
 				.anyMatch(DataStatusTooltipSupport::detailIndicatesLocked);
+		boolean capabilityLockSignal = capabilities != null && !capabilities.interactionsEnabled();
 		boolean hasFailureSignal = summaryIndicatesFailure(summary) || safeStatus.details().stream()
 				.map(DataStatusTooltipSupport::normalizeTooltipLine).map(line -> line.toLowerCase(Locale.ROOT))
 				.anyMatch(DataStatusTooltipSupport::detailIndicatesFailure);
 		boolean hasAdaptiveSignal = summaryIndicatesAdaptive(summary);
+		boolean capabilityAdaptiveSignal = capabilities != null && capabilities.hasAnyRestriction();
 
 		if (hasFailureSignal) {
 			return RenderStatusBadge.FAILED;
@@ -138,13 +144,40 @@ public final class DataStatusTooltipSupport {
 		if (safeStatus.mode() == GraphRenderMode.PAUSED) {
 			return RenderStatusBadge.PAUSED;
 		}
-		if (hasLockSignal) {
+		if (hasLockSignal || capabilityLockSignal) {
 			return RenderStatusBadge.LOCKED;
 		}
-		if (safeStatus.mode() == GraphRenderMode.DEGRADED || hasAdaptiveSignal || !safeStatus.details().isEmpty()) {
+		if (safeStatus.mode() == GraphRenderMode.DEGRADED || hasAdaptiveSignal || capabilityAdaptiveSignal
+				|| !safeStatus.details().isEmpty()) {
 			return RenderStatusBadge.ADAPTIVE;
 		}
 		return RenderStatusBadge.STANDARD;
+	}
+
+	private static List<String> buildCapabilityDetails(GraphRenderCapabilities capabilities) {
+		if (capabilities == null) {
+			return List.of();
+		}
+		List<String> lines = new ArrayList<>();
+		if (!capabilities.interactionsEnabled()) {
+			lines.add("Graph interactions disabled for very large graph.");
+		}
+		if (!capabilities.nodeLabelsVisible()) {
+			lines.add("Node labels hidden at current zoom level.");
+		}
+		if (!capabilities.edgeLabelsVisible()) {
+			lines.add("Edge labels hidden at current zoom level.");
+		}
+		if (!capabilities.tooltipsEnabled()) {
+			lines.add("Node tooltips disabled for very large graph.");
+		}
+		if (!capabilities.hoverFocusEnabled()) {
+			lines.add("Node hover focus disabled for very large graph.");
+		}
+		if (!capabilities.arrowsVisible()) {
+			lines.add("Arrow heads hidden at low zoom for readability.");
+		}
+		return lines;
 	}
 
 	private static List<String> prioritizeRenderDetails(GraphRenderMode mode, List<String> normalizedDetails) {

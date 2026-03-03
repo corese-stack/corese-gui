@@ -97,6 +97,18 @@ final class GraphBridgeParsing {
 		}
 	}
 
+	static boolean parseBoolean(Object value) {
+		if (value == null) {
+			return false;
+		}
+		if (value instanceof Boolean booleanValue) {
+			return booleanValue;
+		}
+		String normalized = String.valueOf(value).trim().toLowerCase();
+		return normalized.equals("true") || normalized.equals("1") || normalized.equals("yes")
+				|| normalized.equals("on");
+	}
+
 	static String parseTrimmedString(Object value) {
 		if (value == null) {
 			return "";

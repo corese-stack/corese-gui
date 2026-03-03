@@ -39,6 +39,19 @@ class GraphBridgeParsingTest {
 	}
 
 	@Test
+	void parseBoolean_supportsCommonTruthyValues() {
+		assertTrue(GraphBridgeParsing.parseBoolean(Boolean.TRUE));
+		assertTrue(GraphBridgeParsing.parseBoolean("true"));
+		assertTrue(GraphBridgeParsing.parseBoolean("1"));
+		assertTrue(GraphBridgeParsing.parseBoolean("yes"));
+		assertTrue(GraphBridgeParsing.parseBoolean("on"));
+		assertFalse(GraphBridgeParsing.parseBoolean(Boolean.FALSE));
+		assertFalse(GraphBridgeParsing.parseBoolean("0"));
+		assertFalse(GraphBridgeParsing.parseBoolean("off"));
+		assertFalse(GraphBridgeParsing.parseBoolean(null));
+	}
+
+	@Test
 	void parseStringList_supportsMultilinePayload() {
 		List<String> lines = GraphBridgeParsing.parseStringList("first line\nsecond line\r\n third line ");
 

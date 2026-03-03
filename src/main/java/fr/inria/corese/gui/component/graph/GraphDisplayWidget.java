@@ -391,24 +391,55 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		NORMAL, DEGRADED, PAUSED
 	}
 
-	public record GraphRenderStatus(GraphRenderMode mode, String summary, List<String> details) {
+	public record GraphRenderCapabilities(boolean interactionsEnabled, boolean zoomEnabled, boolean panEnabled,
+			boolean nodeDragEnabled, boolean nodeLabelsVisible, boolean edgeLabelsVisible, boolean tooltipsEnabled,
+			boolean hoverFocusEnabled, boolean arrowsVisible) {
+
+		public static GraphRenderCapabilities fullyEnabled() {
+			return new GraphRenderCapabilities(true, true, true, true, true, true, true, true, true);
+		}
+
+		public static GraphRenderCapabilities fromMode(GraphRenderMode mode) {
+			GraphRenderMode safeMode = mode == null ? GraphRenderMode.NORMAL : mode;
+			if (safeMode == GraphRenderMode.PAUSED) {
+				return new GraphRenderCapabilities(false, false, false, false, false, false, false, false, false);
+			}
+			return fullyEnabled();
+		}
+
+		public boolean hasAnyRestriction() {
+			return !interactionsEnabled || !zoomEnabled || !panEnabled || !nodeDragEnabled || !nodeLabelsVisible
+					|| !edgeLabelsVisible || !tooltipsEnabled || !hoverFocusEnabled || !arrowsVisible;
+		}
+	}
+
+	public record GraphRenderStatus(GraphRenderMode mode, String summary, List<String> details,
+			GraphRenderCapabilities capabilities) {
 
 		public GraphRenderStatus {
 			mode = mode == null ? GraphRenderMode.NORMAL : mode;
 			summary = normalizeSummary(mode, summary);
 			details = normalizeDetails(details);
+			capabilities = capabilities == null ? GraphRenderCapabilities.fromMode(mode) : capabilities;
+		}
+
+		public GraphRenderStatus(GraphRenderMode mode, String summary, List<String> details) {
+			this(mode, summary, details, GraphRenderCapabilities.fromMode(mode));
 		}
 
 		public static GraphRenderStatus normal() {
-			return new GraphRenderStatus(GraphRenderMode.NORMAL, "Standard rendering", List.of());
+			return new GraphRenderStatus(GraphRenderMode.NORMAL, "Standard rendering", List.of(),
+					GraphRenderCapabilities.fullyEnabled());
 		}
 
 		public static GraphRenderStatus degraded(String summary, List<String> details) {
-			return new GraphRenderStatus(GraphRenderMode.DEGRADED, summary, details);
+			return new GraphRenderStatus(GraphRenderMode.DEGRADED, summary, details,
+					GraphRenderCapabilities.fromMode(GraphRenderMode.DEGRADED));
 		}
 
 		public static GraphRenderStatus paused(String summary, List<String> details) {
-			return new GraphRenderStatus(GraphRenderMode.PAUSED, summary, details);
+			return new GraphRenderStatus(GraphRenderMode.PAUSED, summary, details,
+					GraphRenderCapabilities.fromMode(GraphRenderMode.PAUSED));
 		}
 
 		private static String normalizeSummary(GraphRenderMode mode, String summary) {
@@ -923,6 +954,10 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 		if (safeStatus.equals(currentRenderStatus)) {
 			return;
 		}
+		if (LOGGER.isDebugEnabled()) {
+			LOGGER.debug("Graph render status transition: mode={} summary='{}' -> mode={} summary='{}'",
+					currentRenderStatus.mode(), currentRenderStatus.summary(), safeStatus.mode(), safeStatus.summary());
+		}
 		currentRenderStatus = safeStatus;
 		if (Platform.isFxApplicationThread()) {
 			onRenderStatusChanged.accept(safeStatus);
@@ -941,6 +976,71 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			case "paused" -> GraphRenderMode.PAUSED;
 			default -> GraphRenderMode.NORMAL;
 		};
+	}
+
+	private static GraphRenderCapabilities inferCapabilities(GraphRenderMode mode, String summary, List<String> details) {
+		GraphRenderMode safeMode = mode == null ? GraphRenderMode.NORMAL : mode;
+		boolean interactionsEnabled = safeMode != GraphRenderMode.PAUSED;
+		boolean zoomEnabled = safeMode != GraphRenderMode.PAUSED;
+		boolean panEnabled = safeMode != GraphRenderMode.PAUSED;
+		boolean nodeDragEnabled = safeMode != GraphRenderMode.PAUSED;
+		boolean nodeLabelsVisible = safeMode != GraphRenderMode.PAUSED;
+		boolean edgeLabelsVisible = safeMode != GraphRenderMode.PAUSED;
+		boolean tooltipsEnabled = safeMode != GraphRenderMode.PAUSED;
+		boolean hoverFocusEnabled = safeMode != GraphRenderMode.PAUSED;
+		boolean arrowsVisible = safeMode != GraphRenderMode.PAUSED;
+
+		List<String> safeDetails = details == null ? List.of() : details;
+		for (String line : safeDetails) {
+			String lowered = line == null ? "" : line.trim().toLowerCase(Locale.ROOT);
+			if (lowered.isBlank()) {
+				continue;
+			}
+			if (isInteractionDisabledSignal(lowered)) {
+				interactionsEnabled = false;
+				zoomEnabled = false;
+				panEnabled = false;
+				nodeDragEnabled = false;
+			}
+			if (lowered.contains("node labels") && (lowered.contains("disabled") || lowered.contains("hidden"))) {
+				nodeLabelsVisible = false;
+			}
+			if (lowered.contains("edge labels") && (lowered.contains("disabled") || lowered.contains("hidden"))) {
+				edgeLabelsVisible = false;
+			}
+			if (lowered.contains("tooltips") && lowered.contains("disabled")) {
+				tooltipsEnabled = false;
+			}
+			if (lowered.contains("hover focus") && lowered.contains("disabled")) {
+				hoverFocusEnabled = false;
+			}
+			if (lowered.contains("arrow") && lowered.contains("hidden")) {
+				arrowsVisible = false;
+			}
+		}
+
+		String loweredSummary = summary == null ? "" : summary.trim().toLowerCase(Locale.ROOT);
+		if (isInteractionDisabledSignal(loweredSummary)) {
+			interactionsEnabled = false;
+			zoomEnabled = false;
+			panEnabled = false;
+			nodeDragEnabled = false;
+		}
+		if (loweredSummary.contains("failed") || loweredSummary.contains("error")) {
+			interactionsEnabled = false;
+			zoomEnabled = false;
+			panEnabled = false;
+			nodeDragEnabled = false;
+		}
+		return new GraphRenderCapabilities(interactionsEnabled, zoomEnabled, panEnabled, nodeDragEnabled,
+				nodeLabelsVisible, edgeLabelsVisible, tooltipsEnabled, hoverFocusEnabled, arrowsVisible);
+	}
+
+	private static boolean isInteractionDisabledSignal(String line) {
+		if (line == null || line.isBlank()) {
+			return false;
+		}
+		return line.contains("interaction") && (line.contains("disabled") || line.contains("locked"));
 	}
 
 	public void clear() {
@@ -1197,7 +1297,8 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			GraphRenderMode mode = parseRenderMode(modeValue);
 			String summary = GraphBridgeParsing.parseTrimmedString(summaryValue);
 			List<String> details = GraphBridgeParsing.parseStringList(detailsValue);
-			notifyRenderStatusChanged(new GraphRenderStatus(mode, summary, details));
+			GraphRenderCapabilities capabilities = inferCapabilities(mode, summary, details);
+			notifyRenderStatusChanged(new GraphRenderStatus(mode, summary, details, capabilities));
 		}
 
 		public void onGraphRenderProfileSnapshot(String modeValue, String summaryValue, String detailsPayload) {
@@ -1207,7 +1308,31 @@ public class GraphDisplayWidget extends VBox implements AutoCloseable {
 			GraphRenderMode mode = parseRenderMode(modeValue);
 			String summary = GraphBridgeParsing.parseTrimmedString(summaryValue);
 			List<String> details = GraphBridgeParsing.parseStringList(detailsPayload);
-			notifyRenderStatusChanged(new GraphRenderStatus(mode, summary, details));
+			GraphRenderCapabilities capabilities = inferCapabilities(mode, summary, details);
+			notifyRenderStatusChanged(new GraphRenderStatus(mode, summary, details, capabilities));
+		}
+
+		public void onGraphRenderStateSnapshot(String modeValue, String summaryValue, String detailsPayload,
+				String interactionsEnabledValue, String zoomEnabledValue, String panEnabledValue,
+				String nodeDragEnabledValue, String nodeLabelsVisibleValue, String edgeLabelsVisibleValue,
+				String tooltipsEnabledValue, String hoverFocusEnabledValue, String arrowsVisibleValue) {
+			if (disposed) {
+				return;
+			}
+			GraphRenderMode mode = parseRenderMode(modeValue);
+			String summary = GraphBridgeParsing.parseTrimmedString(summaryValue);
+			List<String> details = GraphBridgeParsing.parseStringList(detailsPayload);
+			GraphRenderCapabilities capabilities = new GraphRenderCapabilities(
+					GraphBridgeParsing.parseBoolean(interactionsEnabledValue),
+					GraphBridgeParsing.parseBoolean(zoomEnabledValue),
+					GraphBridgeParsing.parseBoolean(panEnabledValue),
+					GraphBridgeParsing.parseBoolean(nodeDragEnabledValue),
+					GraphBridgeParsing.parseBoolean(nodeLabelsVisibleValue),
+					GraphBridgeParsing.parseBoolean(edgeLabelsVisibleValue),
+					GraphBridgeParsing.parseBoolean(tooltipsEnabledValue),
+					GraphBridgeParsing.parseBoolean(hoverFocusEnabledValue),
+					GraphBridgeParsing.parseBoolean(arrowsVisibleValue));
+			notifyRenderStatusChanged(new GraphRenderStatus(mode, summary, details, capabilities));
 		}
 
 		public void onGraphLagDetected(String averageFpsValue, String nodeCountValue, String tripleCountValue) {

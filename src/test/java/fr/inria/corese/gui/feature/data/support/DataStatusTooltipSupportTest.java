@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderMode;
+import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderCapabilities;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderStatus;
 import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport.RenderStatusBadge;
 import java.util.List;
@@ -122,5 +123,27 @@ class DataStatusTooltipSupportTest {
 		RenderStatusBadge badge = DataStatusTooltipSupport.resolveRenderStatusBadge(status);
 
 		assertEquals(RenderStatusBadge.FAILED, badge);
+	}
+
+	@Test
+	void resolveRenderStatusBadge_usesCapabilitiesToDetectLockedState() {
+		GraphRenderStatus status = new GraphRenderStatus(GraphRenderMode.NORMAL, "Standard rendering", List.of(),
+				new GraphRenderCapabilities(false, false, false, false, true, true, true, true, true));
+
+		RenderStatusBadge badge = DataStatusTooltipSupport.resolveRenderStatusBadge(status);
+
+		assertEquals(RenderStatusBadge.LOCKED, badge);
+	}
+
+	@Test
+	void buildRenderTooltipLines_usesCapabilitiesWhenDetailsAreMissing() {
+		GraphRenderStatus status = new GraphRenderStatus(GraphRenderMode.NORMAL, "Standard rendering", List.of(),
+				new GraphRenderCapabilities(true, true, true, true, false, false, true, true, true));
+
+		List<String> lines = DataStatusTooltipSupport.buildRenderTooltipLines(status);
+
+		assertEquals("Standard rendering", lines.get(0));
+		assertTrue(lines.stream().anyMatch(line -> line.contains("Node labels")));
+		assertTrue(lines.stream().anyMatch(line -> line.contains("Edge labels")));
 	}
 }

@@ -2916,7 +2916,9 @@ class KGGraphVis extends HTMLElement {
             && typeof window.bridge.onGraphRenderProfileUpdated === "function";
         const hasSnapshotProfileCallback = window.bridge
             && typeof window.bridge.onGraphRenderProfileSnapshot === "function";
-        if (!hasLegacyProfileCallback && !hasSnapshotProfileCallback) {
+        const hasStateSnapshotCallback = window.bridge
+            && typeof window.bridge.onGraphRenderStateSnapshot === "function";
+        if (!hasLegacyProfileCallback && !hasSnapshotProfileCallback && !hasStateSnapshotCallback) {
             return false;
         }
         const mode = String(profile.mode || "normal").toLowerCase();
@@ -2924,7 +2926,42 @@ class KGGraphVis extends HTMLElement {
         const details = Array.isArray(profile.details)
             ? profile.details.map(line => String(line || "").trim()).filter(line => line.length > 0)
             : [];
+        const rawCapabilities = profile.capabilities && typeof profile.capabilities === "object"
+            ? profile.capabilities
+            : {};
+        const capabilities = {
+            interactionsEnabled: rawCapabilities.interactionsEnabled !== false,
+            zoomEnabled: rawCapabilities.zoomEnabled !== false,
+            panEnabled: rawCapabilities.panEnabled !== false,
+            nodeDragEnabled: rawCapabilities.nodeDragEnabled !== false,
+            nodeLabelsVisible: rawCapabilities.nodeLabelsVisible !== false,
+            edgeLabelsVisible: rawCapabilities.edgeLabelsVisible !== false,
+            tooltipsEnabled: rawCapabilities.tooltipsEnabled !== false,
+            hoverFocusEnabled: rawCapabilities.hoverFocusEnabled !== false,
+            arrowsVisible: rawCapabilities.arrowsVisible !== false
+        };
         const detailsPayload = details.join("\n");
+        if (hasStateSnapshotCallback) {
+            try {
+                window.bridge.onGraphRenderStateSnapshot(
+                    mode,
+                    summary,
+                    detailsPayload,
+                    String(capabilities.interactionsEnabled),
+                    String(capabilities.zoomEnabled),
+                    String(capabilities.panEnabled),
+                    String(capabilities.nodeDragEnabled),
+                    String(capabilities.nodeLabelsVisible),
+                    String(capabilities.edgeLabelsVisible),
+                    String(capabilities.tooltipsEnabled),
+                    String(capabilities.hoverFocusEnabled),
+                    String(capabilities.arrowsVisible)
+                );
+                return true;
+            } catch (stateSnapshotError) {
+                // Fall through to other callbacks.
+            }
+        }
         if (hasSnapshotProfileCallback) {
             try {
                 window.bridge.onGraphRenderProfileSnapshot(mode, summary, detailsPayload);
@@ -3036,7 +3073,18 @@ class KGGraphVis extends HTMLElement {
         const effectiveProfile = {
             mode: isDegraded ? "degraded" : "normal",
             summary: effectiveSummary,
-            details: uniqueDetails
+            details: uniqueDetails,
+            capabilities: {
+                interactionsEnabled: !this.interactionsLocked,
+                zoomEnabled: !this.interactionsLocked,
+                panEnabled: !this.interactionsLocked,
+                nodeDragEnabled: !this.interactionsLocked,
+                nodeLabelsVisible: effectiveNodeLabelsVisible,
+                edgeLabelsVisible: effectiveEdgeLabelsVisible,
+                tooltipsEnabled: this.tooltipsEnabled,
+                hoverFocusEnabled: this.hoverFocusEnabled,
+                arrowsVisible: this.arrowheadsVisible
+            }
         };
 
         const key = JSON.stringify(effectiveProfile);
