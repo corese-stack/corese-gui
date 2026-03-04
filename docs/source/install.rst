@@ -42,3 +42,29 @@ Linux
 .. note::
 
    Standalone JAR files require Java 25 to be installed manually.
+
+Runtime Files
+-------------
+
+Corese GUI stores logs and preferences in user-writable OS locations.
+
+Windows
+~~~~~~~
+
+* Logs: ``%LOCALAPPDATA%\\Corese GUI\\logs\\``
+* Preferences file: ``%APPDATA%\\Corese GUI\\preferences\\preferences.properties``
+
+macOS
+~~~~~
+
+* Logs: ``~/Library/Logs/Corese GUI/``
+* Preferences file: ``~/Library/Application Support/Corese GUI/preferences/preferences.properties``
+
+Linux
+~~~~~
+
+* Logs: ``$XDG_STATE_HOME/corese-gui/logs/`` (fallback: ``~/.local/state/corese-gui/logs/``)
+* Preferences file: ``$XDG_CONFIG_HOME/corese-gui/preferences/preferences.properties``
+  (fallback: ``~/.config/corese-gui/preferences/preferences.properties``)
+* ``$XDG_STATE_HOME`` / ``$XDG_CONFIG_HOME`` are environment variables, not literal folder names.
+* On Linux, Corese GUI does not use ``~/.corese-gui``.

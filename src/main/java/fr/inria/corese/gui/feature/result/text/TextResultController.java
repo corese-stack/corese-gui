@@ -4,10 +4,10 @@ import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.io.ExportHelper;
+import fr.inria.corese.gui.core.io.AppPreferences;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.prefs.Preferences;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.input.Clipboard;
@@ -28,7 +28,7 @@ public class TextResultController implements AutoCloseable {
 
 	private final TextResultView view;
 	private Consumer<SerializationFormat> onFormatChanged;
-	private static final Preferences PREFS = Preferences.userNodeForPackage(TextResultController.class);
+	private static final AppPreferences.Node PREFS = AppPreferences.nodeForClass(TextResultController.class);
 	private static final String PREF_LAST_SPARQL_FORMAT = "results.lastSparqlFormat";
 	private static final String PREF_LAST_RDF_FORMAT = "results.lastRdfFormat";
 	private static SerializationFormat lastSparqlFormat;

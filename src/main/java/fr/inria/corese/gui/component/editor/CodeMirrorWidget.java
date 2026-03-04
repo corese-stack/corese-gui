@@ -2,9 +2,9 @@ package fr.inria.corese.gui.component.editor;
 
 import atlantafx.base.theme.Theme;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.core.io.AppPreferences;
 import fr.inria.corese.gui.core.theme.ThemeManager;
 import java.net.URL;
-import java.util.prefs.Preferences;
 import javafx.application.Platform;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
@@ -50,7 +50,7 @@ public class CodeMirrorWidget extends VBox implements AutoCloseable {
 	private static final double ZOOM_STEP = 0.1;
 	private static final double DEFAULT_ZOOM = 1.0;
 	private static final String PREF_EDITOR_ZOOM = "editor.zoom";
-	private static final Preferences PREFS = Preferences.userNodeForPackage(CodeMirrorWidget.class);
+	private static final AppPreferences.Node PREFS = AppPreferences.nodeForClass(CodeMirrorWidget.class);
 
 	// Components
 	private final WebView webView;

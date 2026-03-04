@@ -1,13 +1,13 @@
 package fr.inria.corese.gui.feature.result.table.support;
 
-import java.util.prefs.Preferences;
+import fr.inria.corese.gui.core.io.AppPreferences;
 
 /**
  * Preference helpers for table result settings.
  */
 public final class TableResultPreferenceSupport {
 
-	private static final Preferences PREFS = Preferences.userNodeForPackage(TableResultPreferenceSupport.class);
+	private static final AppPreferences.Node PREFS = AppPreferences.nodeForClass(TableResultPreferenceSupport.class);
 	private static final String PREF_TABLE_ROWS_PER_PAGE = "results.table.rowsPerPage";
 
 	private static final int DEFAULT_ROWS_PER_PAGE = 50;

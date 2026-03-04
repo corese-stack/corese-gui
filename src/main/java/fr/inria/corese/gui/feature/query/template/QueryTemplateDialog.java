@@ -4,12 +4,12 @@ import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.component.editor.CodeMirrorWidget;
 import fr.inria.corese.gui.core.dialog.DialogLayout;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.core.io.AppPreferences;
 import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.theme.CssUtils;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.prefs.Preferences;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.binding.Bindings;
@@ -62,7 +62,7 @@ public final class QueryTemplateDialog {
 	private static final double FALLBACK_ROW_HEIGHT = 34.0;
 	private static final double FALLBACK_MESSAGE_HEIGHT = 18.0;
 
-	private static final Preferences PREFS = Preferences.userNodeForPackage(QueryTemplateDialog.class);
+	private static final AppPreferences.Node PREFS = AppPreferences.nodeForClass(QueryTemplateDialog.class);
 	private static final String PREF_TYPE = "queryTemplate.type";
 	private static final String PREF_USE_GRAPH = "queryTemplate.useGraphPattern";
 	private static final String PREF_USE_DISTINCT = "queryTemplate.useDistinct";

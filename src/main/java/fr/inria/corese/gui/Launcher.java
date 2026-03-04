@@ -1,5 +1,7 @@
 package fr.inria.corese.gui;
 
+import fr.inria.corese.gui.core.bootstrap.RuntimeStorageBootstrap;
+
 /**
  * Plain Java entrypoint used by fat JAR execution (java -jar).
  *
@@ -16,6 +18,7 @@ public final class Launcher {
 	}
 
 	public static void main(String[] args) {
+		RuntimeStorageBootstrap.initialize();
 		App.main(args);
 	}
 }

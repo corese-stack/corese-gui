@@ -2,6 +2,7 @@ package fr.inria.corese.gui.feature.query.support;
 
 import fr.inria.corese.gui.core.config.ResultViewConfig;
 import fr.inria.corese.gui.core.enums.QueryType;
+import fr.inria.corese.gui.core.io.AppPreferences;
 import java.util.prefs.Preferences;
 
 /**
@@ -9,7 +10,7 @@ import java.util.prefs.Preferences;
  */
 public final class QueryResultTabPreferenceSupport {
 
-	private static final Preferences PREFS = Preferences.userNodeForPackage(QueryResultTabPreferenceSupport.class);
+	private static final AppPreferences.Node PREFS = AppPreferences.nodeForClass(QueryResultTabPreferenceSupport.class);
 	private static final Preferences LEGACY_PREFS = Preferences.userRoot().node("/fr/inria/corese/gui/feature/query");
 	private static final String PREF_LAST_TABLE_TAB = "results.lastTab.table";
 	private static final String PREF_LAST_GRAPH_TAB = "results.lastTab.graph";
@@ -37,7 +38,6 @@ public final class QueryResultTabPreferenceSupport {
 			}
 			lastTableTab = tabType;
 			PREFS.put(PREF_LAST_TABLE_TAB, tabType.name());
-			LEGACY_PREFS.put(PREF_LAST_TABLE_TAB, tabType.name());
 			return;
 		}
 		if (queryType == QueryType.CONSTRUCT || queryType == QueryType.DESCRIBE) {
@@ -46,7 +46,6 @@ public final class QueryResultTabPreferenceSupport {
 			}
 			lastGraphTab = tabType;
 			PREFS.put(PREF_LAST_GRAPH_TAB, tabType.name());
-			LEGACY_PREFS.put(PREF_LAST_GRAPH_TAB, tabType.name());
 		}
 	}
 

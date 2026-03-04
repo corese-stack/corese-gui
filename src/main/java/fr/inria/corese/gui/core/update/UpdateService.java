@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.core.update;
 
 import fr.inria.corese.gui.AppConstants;
+import fr.inria.corese.gui.core.io.AppPreferences;
 import fr.inria.corese.gui.utils.AppExecutors;
 import fr.inria.corese.gui.utils.BrowserUtils;
 import java.io.IOException;
@@ -24,7 +25,6 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import java.util.prefs.Preferences;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javafx.application.Platform;
@@ -59,7 +59,7 @@ public final class UpdateService {
 	private final HttpClient httpClient;
 	private final AtomicBoolean checkInProgress = new AtomicBoolean(false);
 	private final AtomicReference<CheckResult> lastResult = new AtomicReference<>(CheckResult.notChecked());
-	private final Preferences preferences = Preferences.userNodeForPackage(UpdateService.class);
+	private final AppPreferences.Node preferences = AppPreferences.nodeForClass(UpdateService.class);
 	private final AtomicBoolean startupUpdateNotificationEnabled = new AtomicBoolean(
 			loadStartupUpdateNotificationPreference());
 

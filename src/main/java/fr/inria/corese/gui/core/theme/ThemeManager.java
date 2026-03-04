@@ -2,11 +2,11 @@ package fr.inria.corese.gui.core.theme;
 
 import atlantafx.base.theme.Theme;
 import fr.inria.corese.gui.component.layout.GlobalZoomPane;
+import fr.inria.corese.gui.core.io.AppPreferences;
 import fr.inria.corese.gui.utils.AppExecutors;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.prefs.Preferences;
 import javafx.application.Application;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
@@ -66,7 +66,7 @@ public final class ThemeManager {
 	private final DoubleProperty uiScale = new SimpleDoubleProperty(DEFAULT_UI_SCALE);
 	private final IntegerProperty graphAutoRenderTriplesLimit = new SimpleIntegerProperty(
 			DEFAULT_GRAPH_AUTO_RENDER_TRIPLES);
-	private final Preferences preferences = Preferences.userNodeForPackage(ThemeManager.class);
+	private final AppPreferences.Node preferences = AppPreferences.nodeForClass(ThemeManager.class);
 	private boolean loadingPreferences = false;
 
 	// ===== Fields =====
