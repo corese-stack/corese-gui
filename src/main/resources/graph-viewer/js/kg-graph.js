@@ -112,6 +112,8 @@ class KGGraphVis extends HTMLElement {
         this.HOVER_FOCUS_MAX_LINK_LABELS = 1600;
         this.tooltipShowTimerHandle = null;
         this.tooltipMoveTimerHandle = null;
+        this.pinnedTooltipNodeId = null;
+        this.tooltipEventNamespace = `.kg-tooltip-${Math.random().toString(36).slice(2)}`;
         this.arrowheadsVisible = true;
         this.arrowheadZoomThreshold = 0.08;
         this.arrowheadHideNodeThreshold = 1200;
@@ -600,6 +602,7 @@ class KGGraphVis extends HTMLElement {
     disconnectedCallback() {
         this.layoutTaskToken += 1;
         this.lastDrawPromise = Promise.resolve();
+        d3.select(window).on(`keydown${this.tooltipEventNamespace}`, null);
         if (this.resizeObserver) this.resizeObserver.disconnect();
         if (this.simulation) this.simulation.stop();
         this.stopPerformanceMonitoring();
@@ -1291,7 +1294,11 @@ class KGGraphVis extends HTMLElement {
             clearTimeout(this.tooltipMoveTimerHandle);
             this.tooltipMoveTimerHandle = null;
         }
-        d3.select("#global-tooltip").style("opacity", 0);
+        this.pinnedTooltipNodeId = null;
+        d3.select("#global-tooltip")
+            .classed("kg-tooltip-pinned", false)
+            .attr("tabindex", null)
+            .style("opacity", 0);
     }
 
     buildNodeTooltipContent(node) {
@@ -1359,6 +1366,7 @@ class KGGraphVis extends HTMLElement {
         let tooltipShowTimer = null;
         let tooltipVisible = false;
         let lastMouseEvent = null;
+        const resolveNodeId = node => this.getLinkEndpointId(node?.id ?? node);
 
         const clearTooltipTimers = () => {
             if (tooltipShowTimer) {
@@ -1422,7 +1430,50 @@ class KGGraphVis extends HTMLElement {
         const hideTooltip = () => {
             clearTooltipTimers();
             tooltipVisible = false;
-            tooltip.style("opacity", 0);
+            this.pinnedTooltipNodeId = null;
+            tooltip
+                .classed("kg-tooltip-pinned", false)
+                .attr("tabindex", null)
+                .style("opacity", 0);
+        };
+
+        const showPinnedTooltipForNode = (node, event, focusTooltip = false) => {
+            if (!this.tooltipsEnabled) {
+                hideTooltip();
+                return false;
+            }
+            const content = this.buildNodeTooltipContent(node);
+            const nodeId = resolveNodeId(node);
+            if (!content || !nodeId) {
+                hideTooltip();
+                return false;
+            }
+            clearTooltipTimers();
+            tooltip.html(content);
+            if (event?.pageX != null && event?.pageY != null) {
+                lastMouseEvent = event;
+                positionTooltip(event);
+            } else if (lastMouseEvent) {
+                positionTooltip(lastMouseEvent);
+            }
+            this.pinnedTooltipNodeId = nodeId;
+            tooltipVisible = true;
+            tooltip
+                .classed("kg-tooltip-pinned", true)
+                .attr("tabindex", 0)
+                .style("opacity", 1);
+            this.applyHoverFocus(node);
+            if (focusTooltip) {
+                const tooltipNode = tooltip.node();
+                if (tooltipNode && typeof tooltipNode.focus === "function") {
+                    try {
+                        tooltipNode.focus({ preventScroll: true });
+                    } catch (_) {
+                        tooltipNode.focus();
+                    }
+                }
+            }
+            return true;
         };
 
         const throttleTooltip = (callback, delay = TOOLTIP_MOVE_THROTTLE_MS) => {
@@ -1441,6 +1492,13 @@ class KGGraphVis extends HTMLElement {
 
         this.nodeSelection
             .on("mouseover", node => {
+                if (this.pinnedTooltipNodeId) {
+                    const hoveredNodeId = resolveNodeId(node);
+                    if (hoveredNodeId && hoveredNodeId !== this.pinnedTooltipNodeId) {
+                        showPinnedTooltipForNode(node, d3.event, false);
+                    }
+                    return;
+                }
                 this.scheduleHoverFocus(node);
                 if (!this.tooltipsEnabled) {
                     hideTooltip();
@@ -1485,14 +1543,59 @@ class KGGraphVis extends HTMLElement {
                 }
             })
             .on("mouseout", () => {
-                this.clearHoverFocusTimer();
-                this.clearHoverFocus(true);
-                hideTooltip();
                 const target = d3.event?.currentTarget;
                 if (target) {
                     d3.select(target).on("mousemove", null);
                 }
+                if (this.pinnedTooltipNodeId) {
+                    return;
+                }
+                this.clearHoverFocusTimer();
+                this.clearHoverFocus(true);
+                hideTooltip();
+            })
+            .on("click", node => {
+                if (this.interactionsLocked || !this.tooltipsEnabled) {
+                    return;
+                }
+                const nodeId = resolveNodeId(node);
+                if (!nodeId) {
+                    return;
+                }
+                if (this.pinnedTooltipNodeId === nodeId) {
+                    hideTooltip();
+                    this.clearHoverFocus(true);
+                    if (d3.event && typeof d3.event.stopPropagation === "function") {
+                        d3.event.stopPropagation();
+                    }
+                    return;
+                }
+                const pinned = showPinnedTooltipForNode(node, d3.event, true);
+                if (pinned && d3.event && typeof d3.event.stopPropagation === "function") {
+                    d3.event.stopPropagation();
+                }
             });
+
+        if (this.svg) {
+            this.svg.on(`click${this.tooltipEventNamespace}`, () => {
+                if (!this.pinnedTooltipNodeId) {
+                    return;
+                }
+                hideTooltip();
+                this.clearHoverFocus(true);
+            });
+        }
+        d3.select(window).on(`keydown${this.tooltipEventNamespace}`, () => {
+            const event = d3.event;
+            if (event?.key !== "Escape" || !this.pinnedTooltipNodeId) {
+                return;
+            }
+            hideTooltip();
+            this.clearHoverFocus(true);
+            if (typeof event.preventDefault === "function") {
+                event.preventDefault();
+            }
+        });
 
         if (!this.tooltipsEnabled) {
             tooltip.style("opacity", 0);
@@ -4249,6 +4352,7 @@ class KGGraphVis extends HTMLElement {
 
         this.svg.selectAll("*").remove();
         this.stopPerformanceMonitoring();
+        this.hideGlobalTooltip();
         this.isInteracting = false;
         this.labelsHiddenForInteraction = false;
         this.lastLabelVisibilityUpdate = 0;
