@@ -8,6 +8,7 @@ import fr.inria.corese.gui.component.tabstrip.TabStripController;
 import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.theme.ThemeManager;
 import fr.inria.corese.gui.core.view.AbstractView;
+import fr.inria.corese.gui.utils.fx.FileDragDropSupport;
 import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import java.io.File;
 import java.util.HashMap;
@@ -35,7 +36,6 @@ import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.input.DragEvent;
-import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
@@ -284,29 +284,18 @@ public class TabEditorView extends AbstractView {
 		}
 		rootStack.addEventFilter(DragEvent.DRAG_OVER, this::handleRootDragOver);
 		rootStack.addEventFilter(DragEvent.DRAG_EXITED_TARGET, event -> setFileDropActive(false));
+		rootStack.addEventFilter(DragEvent.DRAG_DONE, event -> setFileDropActive(false));
 		rootStack.addEventFilter(DragEvent.DRAG_DROPPED, event -> setFileDropActive(false));
 	}
 
 	private void handleRootDragOver(DragEvent event) {
-		if (!hasFilesInDragboard(event)) {
+		if (!FileDragDropSupport.hasFilesInDragboard(event)) {
 			setFileDropActive(false);
 			return;
 		}
-		if (!isTargetWithin(event.getTarget(), contentContainer)) {
+		if (!FileDragDropSupport.isTargetWithin(event.getTarget(), contentContainer)) {
 			setFileDropActive(false);
 		}
-	}
-
-	private static boolean isTargetWithin(Object target, Node container) {
-		if (!(target instanceof Node node) || container == null) {
-			return false;
-		}
-		for (Node current = node; current != null; current = current.getParent()) {
-			if (current == container) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	private void requestCloseTab(Tab tab) {
@@ -701,7 +690,7 @@ public class TabEditorView extends AbstractView {
 			setFileDropActive(false);
 			return;
 		}
-		boolean hasFiles = hasFilesInDragboard(event);
+		boolean hasFiles = FileDragDropSupport.hasFilesInDragboard(event);
 		setFileDropActive(hasFiles);
 		if (hasFiles) {
 			event.acceptTransferModes(TransferMode.COPY);
@@ -714,7 +703,7 @@ public class TabEditorView extends AbstractView {
 			setFileDropActive(false);
 			return;
 		}
-		setFileDropActive(hasFilesInDragboard(event));
+		setFileDropActive(FileDragDropSupport.hasFilesInDragboard(event));
 	}
 
 	private void handleFileDragExited(DragEvent event) {
@@ -722,61 +711,25 @@ public class TabEditorView extends AbstractView {
 	}
 
 	private void handleFileDropped(DragEvent event) {
-		if (!isFileDropEnabled()) {
-			setFileDropActive(false);
-			return;
-		}
 		boolean completed = false;
-		List<File> draggedFiles = extractDraggedFiles(event);
-		if (!draggedFiles.isEmpty()) {
-			onFilesDropped.accept(draggedFiles);
-			completed = true;
+		try {
+			if (isFileDropEnabled()) {
+				completed = FileDragDropSupport.dispatchDroppedFiles(event, onFilesDropped);
+			}
+		} finally {
+			setFileDropActive(false);
+			if (event != null) {
+				event.setDropCompleted(completed);
+				event.consume();
+			}
 		}
-		setFileDropActive(false);
-		event.setDropCompleted(completed);
-		event.consume();
 	}
 
 	private boolean isFileDropEnabled() {
 		return onFilesDropped != null;
 	}
 
-	private boolean hasFilesInDragboard(DragEvent event) {
-		return !extractDraggedFiles(event).isEmpty();
-	}
-
-	private static List<File> extractDraggedFiles(DragEvent event) {
-		if (event == null) {
-			return List.of();
-		}
-		try {
-			Dragboard dragboard = event.getDragboard();
-			if (dragboard == null) {
-				return List.of();
-			}
-			List<File> files = dragboard.getFiles();
-			if (files == null || files.isEmpty()) {
-				return List.of();
-			}
-			return List.copyOf(files);
-		} catch (RuntimeException _) {
-			// JavaFX/GTK can throw runtime exceptions while probing clipboard mime types
-			// during DnD.
-			return List.of();
-		}
-	}
-
 	private void setFileDropActive(boolean active) {
-		if (active) {
-			if (!fileDropOverlay.getStyleClass().contains(STYLE_CLASS_FILE_DROP_OVERLAY_ACTIVE)) {
-				fileDropOverlay.getStyleClass().add(STYLE_CLASS_FILE_DROP_OVERLAY_ACTIVE);
-			}
-			fileDropOverlay.setManaged(true);
-			fileDropOverlay.setVisible(true);
-			return;
-		}
-		fileDropOverlay.getStyleClass().remove(STYLE_CLASS_FILE_DROP_OVERLAY_ACTIVE);
-		fileDropOverlay.setManaged(false);
-		fileDropOverlay.setVisible(false);
+		FileDragDropSupport.setOverlayActive(fileDropOverlay, STYLE_CLASS_FILE_DROP_OVERLAY_ACTIVE, active);
 	}
 }

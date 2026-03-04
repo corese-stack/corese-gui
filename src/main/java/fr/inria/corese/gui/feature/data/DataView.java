@@ -18,19 +18,18 @@ import fr.inria.corese.gui.feature.data.model.DataRuleFileItem;
 import fr.inria.corese.gui.feature.data.support.DataRuleFileRowFactory;
 import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport;
 import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport.RenderStatusBadge;
+import fr.inria.corese.gui.utils.fx.FileDragDropSupport;
 import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import java.io.File;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.DragEvent;
-import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -152,19 +151,20 @@ public class DataView extends AbstractView {
 		}
 		root.addEventFilter(DragEvent.DRAG_OVER, this::handleRootDragOver);
 		root.addEventFilter(DragEvent.DRAG_EXITED_TARGET, event -> clearDropOverlays());
+		root.addEventFilter(DragEvent.DRAG_DONE, event -> clearDropOverlays());
 		root.addEventFilter(DragEvent.DRAG_DROPPED, event -> clearDropOverlays());
 	}
 
 	private void handleRootDragOver(DragEvent event) {
-		if (!hasFilesInDragboard(event)) {
+		if (!FileDragDropSupport.hasFilesInDragboard(event)) {
 			clearDropOverlays();
 			return;
 		}
 		Object target = event.getTarget();
-		if (!isTargetWithin(target, graphContainer)) {
+		if (!FileDragDropSupport.isTargetWithin(target, graphContainer)) {
 			setGraphDropActive(false);
 		}
-		if (!isTargetWithin(target, ruleFilesContent)) {
+		if (!FileDragDropSupport.isTargetWithin(target, ruleFilesContent)) {
 			setRuleFilesDropActive(false);
 		}
 	}
@@ -172,18 +172,6 @@ public class DataView extends AbstractView {
 	private void clearDropOverlays() {
 		setGraphDropActive(false);
 		setRuleFilesDropActive(false);
-	}
-
-	private static boolean isTargetWithin(Object target, Node container) {
-		if (!(target instanceof Node node) || container == null) {
-			return false;
-		}
-		for (Node current = node; current != null; current = current.getParent()) {
-			if (current == container) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	private VBox createReasoningPane() {
@@ -407,37 +395,12 @@ public class DataView extends AbstractView {
 		handleDropped(event, onRuleFilesDropped, this::setRuleFilesDropActive);
 	}
 
-	private boolean hasFilesInDragboard(DragEvent event) {
-		return !extractDraggedFiles(event).isEmpty();
-	}
-
-	private static List<File> extractDraggedFiles(DragEvent event) {
-		if (event == null) {
-			return List.of();
-		}
-		try {
-			Dragboard dragboard = event.getDragboard();
-			if (dragboard == null) {
-				return List.of();
-			}
-			List<File> files = dragboard.getFiles();
-			if (files == null || files.isEmpty()) {
-				return List.of();
-			}
-			return List.copyOf(files);
-		} catch (RuntimeException _) {
-			// JavaFX/GTK can throw runtime exceptions while probing clipboard mime types
-			// during DnD.
-			return List.of();
-		}
-	}
-
 	private void handleDragEntered(DragEvent event, Consumer<List<File>> dropHandler, Consumer<Boolean> overlayToggle) {
 		if (!isDropEnabled(dropHandler)) {
 			handleDragExited(overlayToggle);
 			return;
 		}
-		overlayToggle.accept(hasFilesInDragboard(event));
+		overlayToggle.accept(FileDragDropSupport.hasFilesInDragboard(event));
 	}
 
 	private void handleDragOver(DragEvent event, Consumer<List<File>> dropHandler, Consumer<Boolean> overlayToggle) {
@@ -445,7 +408,7 @@ public class DataView extends AbstractView {
 			handleDragExited(overlayToggle);
 			return;
 		}
-		boolean hasFiles = hasFilesInDragboard(event);
+		boolean hasFiles = FileDragDropSupport.hasFilesInDragboard(event);
 		overlayToggle.accept(hasFiles);
 		if (hasFiles) {
 			event.acceptTransferModes(TransferMode.COPY);
@@ -460,19 +423,18 @@ public class DataView extends AbstractView {
 	}
 
 	private void handleDropped(DragEvent event, Consumer<List<File>> dropHandler, Consumer<Boolean> overlayToggle) {
-		if (!isDropEnabled(dropHandler)) {
-			handleDragExited(overlayToggle);
-			return;
-		}
 		boolean completed = false;
-		List<File> draggedFiles = extractDraggedFiles(event);
-		if (!draggedFiles.isEmpty()) {
-			dropHandler.accept(draggedFiles);
-			completed = true;
+		try {
+			if (isDropEnabled(dropHandler)) {
+				completed = FileDragDropSupport.dispatchDroppedFiles(event, dropHandler);
+			}
+		} finally {
+			handleDragExited(overlayToggle);
+			if (event != null) {
+				event.setDropCompleted(completed);
+				event.consume();
+			}
 		}
-		handleDragExited(overlayToggle);
-		event.setDropCompleted(completed);
-		event.consume();
 	}
 
 	private static boolean isDropEnabled(Consumer<List<File>> dropHandler) {
@@ -480,25 +442,11 @@ public class DataView extends AbstractView {
 	}
 
 	private void setGraphDropActive(boolean active) {
-		setDropOverlayActive(graphDropOverlay, STYLE_CLASS_GRAPH_DROP_OVERLAY_ACTIVE, active);
+		FileDragDropSupport.setOverlayActive(graphDropOverlay, STYLE_CLASS_GRAPH_DROP_OVERLAY_ACTIVE, active);
 	}
 
 	private void setRuleFilesDropActive(boolean active) {
-		setDropOverlayActive(ruleFilesDropOverlay, STYLE_CLASS_CUSTOM_RULES_DROP_OVERLAY_ACTIVE, active);
-	}
-
-	private static void setDropOverlayActive(Region overlay, String activeStyleClass, boolean active) {
-		if (active) {
-			if (!overlay.getStyleClass().contains(activeStyleClass)) {
-				overlay.getStyleClass().add(activeStyleClass);
-			}
-			overlay.setManaged(true);
-			overlay.setVisible(true);
-			return;
-		}
-		overlay.getStyleClass().remove(activeStyleClass);
-		overlay.setManaged(false);
-		overlay.setVisible(false);
+		FileDragDropSupport.setOverlayActive(ruleFilesDropOverlay, STYLE_CLASS_CUSTOM_RULES_DROP_OVERLAY_ACTIVE, active);
 	}
 
 	/**
