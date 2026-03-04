@@ -2195,15 +2195,25 @@ class KGGraphVis extends HTMLElement {
                     width: 100%; 
                     height: 100%; 
                     display: block; 
-                    cursor: grab; 
+                    cursor: move; 
                     user-select: none; 
                     background: var(--bg-color, #ffffff);
                 }
                 svg:active { 
-                    cursor: grabbing; 
+                    cursor: move; 
                 }
                 svg.graph-interactions-locked,
                 svg.graph-interactions-locked:active {
+                    cursor: default;
+                }
+                .nodes-layer > g {
+                    cursor: grab;
+                }
+                .nodes-layer > g:active {
+                    cursor: grabbing;
+                }
+                svg.graph-interactions-locked .nodes-layer > g,
+                svg.graph-interactions-locked .nodes-layer > g:active {
                     cursor: default;
                 }
                 svg.labels-hidden .node-label,
