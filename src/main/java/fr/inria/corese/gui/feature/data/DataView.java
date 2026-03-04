@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -142,6 +143,47 @@ public class DataView extends AbstractView {
 		HBox.setHgrow(graphPane, Priority.ALWAYS);
 
 		root.setCenter(layout);
+		setupGlobalDropOverlayGuards(root);
+	}
+
+	private void setupGlobalDropOverlayGuards(BorderPane root) {
+		if (root == null) {
+			return;
+		}
+		root.addEventFilter(DragEvent.DRAG_OVER, this::handleRootDragOver);
+		root.addEventFilter(DragEvent.DRAG_EXITED_TARGET, event -> clearDropOverlays());
+		root.addEventFilter(DragEvent.DRAG_DROPPED, event -> clearDropOverlays());
+	}
+
+	private void handleRootDragOver(DragEvent event) {
+		if (!hasFilesInDragboard(event)) {
+			clearDropOverlays();
+			return;
+		}
+		Object target = event.getTarget();
+		if (!isTargetWithin(target, graphContainer)) {
+			setGraphDropActive(false);
+		}
+		if (!isTargetWithin(target, ruleFilesContent)) {
+			setRuleFilesDropActive(false);
+		}
+	}
+
+	private void clearDropOverlays() {
+		setGraphDropActive(false);
+		setRuleFilesDropActive(false);
+	}
+
+	private static boolean isTargetWithin(Object target, Node container) {
+		if (!(target instanceof Node node) || container == null) {
+			return false;
+		}
+		for (Node current = node; current != null; current = current.getParent()) {
+			if (current == container) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private VBox createReasoningPane() {

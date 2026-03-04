@@ -183,12 +183,14 @@ public class TabEditorView extends AbstractView {
 		contentContainer.setId(TAB_CONTENT_WRAPPER_ID);
 		contentContainer.getChildren().add(fileDropOverlay);
 		refreshEditorPlaceholderBackgrounds();
+		setupGlobalFileDropOverlayGuards(rootStack);
 	}
 
 	private Region createFileDropOverlay() {
 		Region overlay = new Region();
 		overlay.getStyleClass().add(STYLE_CLASS_FILE_DROP_OVERLAY);
 		overlay.setMouseTransparent(true);
+		overlay.setManaged(false);
 		overlay.setVisible(false);
 		overlay.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		overlay.setViewOrder(-1);
@@ -274,6 +276,37 @@ public class TabEditorView extends AbstractView {
 		contentContainer.addEventFilter(DragEvent.DRAG_EXITED, this::handleFileDragExited);
 		contentContainer.addEventFilter(DragEvent.DRAG_OVER, this::handleFileDragOver);
 		contentContainer.addEventFilter(DragEvent.DRAG_DROPPED, this::handleFileDropped);
+	}
+
+	private void setupGlobalFileDropOverlayGuards(StackPane rootStack) {
+		if (rootStack == null) {
+			return;
+		}
+		rootStack.addEventFilter(DragEvent.DRAG_OVER, this::handleRootDragOver);
+		rootStack.addEventFilter(DragEvent.DRAG_EXITED_TARGET, event -> setFileDropActive(false));
+		rootStack.addEventFilter(DragEvent.DRAG_DROPPED, event -> setFileDropActive(false));
+	}
+
+	private void handleRootDragOver(DragEvent event) {
+		if (!hasFilesInDragboard(event)) {
+			setFileDropActive(false);
+			return;
+		}
+		if (!isTargetWithin(event.getTarget(), contentContainer)) {
+			setFileDropActive(false);
+		}
+	}
+
+	private static boolean isTargetWithin(Object target, Node container) {
+		if (!(target instanceof Node node) || container == null) {
+			return false;
+		}
+		for (Node current = node; current != null; current = current.getParent()) {
+			if (current == container) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private void requestCloseTab(Tab tab) {
@@ -738,10 +771,12 @@ public class TabEditorView extends AbstractView {
 			if (!fileDropOverlay.getStyleClass().contains(STYLE_CLASS_FILE_DROP_OVERLAY_ACTIVE)) {
 				fileDropOverlay.getStyleClass().add(STYLE_CLASS_FILE_DROP_OVERLAY_ACTIVE);
 			}
+			fileDropOverlay.setManaged(true);
 			fileDropOverlay.setVisible(true);
 			return;
 		}
 		fileDropOverlay.getStyleClass().remove(STYLE_CLASS_FILE_DROP_OVERLAY_ACTIVE);
+		fileDropOverlay.setManaged(false);
 		fileDropOverlay.setVisible(false);
 	}
 }
