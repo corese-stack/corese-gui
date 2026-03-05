@@ -1,6 +1,8 @@
 package fr.inria.corese.gui.core.service.data;
 
 import fr.inria.corese.core.Graph;
+import fr.inria.corese.core.kgram.api.core.Edge;
+import fr.inria.corese.core.sparql.api.IDatatype;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.service.DataWorkspaceStatusSupport;
 import fr.inria.corese.gui.core.service.DefaultReasoningService;
@@ -84,32 +86,83 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 	@Override
 	public int reloadSources(List<DataSource> selectedSources) {
 		int beforeCount = rdfDataService.getTripleCount();
+		List<DataSource> previousSources = sourceRegistryService.snapshot();
+		Graph previousGraphSnapshot = GraphStoreService.getInstance().getGraph().copy();
 		List<DataSource> normalizedSelection = selectedSources == null ? List.of() : List.copyOf(selectedSources);
-		sourceRegistryService.replaceAll(normalizedSelection);
-		rdfDataService.clearData();
+		try {
+			sourceRegistryService.replaceAll(normalizedSelection);
+			rdfDataService.clearData();
 
-		if (normalizedSelection.isEmpty()) {
-			mutationBus.publish(GraphMutationEvent.clearAll(GraphMutationEvent.Source.DATA_WORKSPACE));
-			activityLogService.log(GraphActivityLogEntry.Source.DATA_WORKSPACE,
-					"Reloaded data sources (empty selection)", "No source selected. Graph cleared.", 0, beforeCount);
-			return 0;
-		}
-
-		int loadedCount = 0;
-		for (DataSource source : normalizedSelection) {
-			if (source.type() == SourceType.FILE) {
-				rdfDataService.loadFile(new File(source.location()));
-				loadedCount++;
-			} else if (source.type() == SourceType.URI) {
-				rdfDataService.loadUri(source.location());
-				loadedCount++;
+			if (normalizedSelection.isEmpty()) {
+				mutationBus.publish(GraphMutationEvent.clearAll(GraphMutationEvent.Source.DATA_WORKSPACE));
+				activityLogService.log(GraphActivityLogEntry.Source.DATA_WORKSPACE,
+						"Reloaded data sources (empty selection)", "No source selected. Graph cleared.", 0,
+						beforeCount);
+				return 0;
 			}
+
+			int loadedCount = 0;
+			for (DataSource source : normalizedSelection) {
+				if (source.type() == SourceType.FILE) {
+					rdfDataService.loadFile(new File(source.location()));
+					loadedCount++;
+				} else if (source.type() == SourceType.URI) {
+					rdfDataService.loadUri(source.location());
+					loadedCount++;
+				}
+			}
+			mutationBus.publish(GraphMutationEvent.bulkRefreshRequired(GraphMutationEvent.Source.DATA_WORKSPACE));
+			int afterCount = rdfDataService.getTripleCount();
+			int insertedCount = Math.max(0, afterCount - beforeCount);
+			int deletedCount = Math.max(0, beforeCount - afterCount);
+			activityLogService.log(GraphActivityLogEntry.Source.DATA_WORKSPACE, "Reloaded data sources",
+					"Reloaded " + loadedCount + " source(s).", insertedCount, deletedCount);
+			return loadedCount;
+		} catch (RuntimeException failure) {
+			try {
+				restoreWorkspaceState(previousSources, previousGraphSnapshot);
+			} catch (RuntimeException rollbackFailure) {
+				rollbackFailure.addSuppressed(failure);
+				throw rollbackFailure;
+			}
+			LOGGER.warn("Reload sources failed. Previous graph and source registry state were restored.", failure);
+			throw failure;
 		}
+	}
+
+	private void restoreWorkspaceState(List<DataSource> previousSources, Graph previousGraphSnapshot) {
+		sourceRegistryService.replaceAll(previousSources);
+		restoreGraph(GraphStoreService.getInstance().getGraph(), previousGraphSnapshot);
 		mutationBus.publish(GraphMutationEvent.bulkRefreshRequired(GraphMutationEvent.Source.DATA_WORKSPACE));
-		int afterCount = rdfDataService.getTripleCount();
-		activityLogService.log(GraphActivityLogEntry.Source.DATA_WORKSPACE, "Reloaded data sources",
-				"Reloaded " + loadedCount + " source(s).", afterCount, beforeCount);
-		return loadedCount;
+	}
+
+	private static void restoreGraph(Graph targetGraph, Graph sourceSnapshot) {
+		if (targetGraph == null) {
+			return;
+		}
+		targetGraph.clear();
+		if (sourceSnapshot == null) {
+			return;
+		}
+		for (Edge edge : sourceSnapshot.getEdges()) {
+			copyEdge(targetGraph, edge);
+		}
+		targetGraph.clean();
+	}
+
+	private static void copyEdge(Graph targetGraph, Edge edge) {
+		if (edge == null || edge.getGraph() == null || edge.getEdgeNode() == null || edge.getNode(0) == null
+				|| edge.getNode(1) == null) {
+			return;
+		}
+		IDatatype graphName = edge.getGraph().getDatatypeValue();
+		IDatatype subject = edge.getNode(0).getDatatypeValue();
+		IDatatype predicate = edge.getEdgeNode().getDatatypeValue();
+		IDatatype object = edge.getNode(1).getDatatypeValue();
+		if (graphName == null || subject == null || predicate == null || object == null) {
+			return;
+		}
+		targetGraph.insert(graphName, subject, predicate, object);
 	}
 
 	@Override
