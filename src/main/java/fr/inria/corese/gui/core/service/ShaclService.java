@@ -160,8 +160,14 @@ public class ShaclService {
 	}
 
 	private String buildShaclShaclReportDetails(Graph reportGraph) {
-		String turtleReport = ResultFormatter.getInstance().formatGraph(reportGraph, SerializationFormat.TURTLE);
-		if (turtleReport == null || turtleReport.isBlank() || turtleReport.startsWith("Error formatting graph:")) {
+		String turtleReport;
+		try {
+			turtleReport = ResultFormatter.getInstance().formatGraphOrThrow(reportGraph, SerializationFormat.TURTLE);
+		} catch (ResultFormatter.ResultFormattingException e) {
+			LOGGER.debug("Unable to format SHACL-SHACL report for details panel.", e);
+			return "";
+		}
+		if (turtleReport.isBlank()) {
 			return "";
 		}
 		String details = "SHACL-SHACL report (Turtle)\n\n" + turtleReport.strip();

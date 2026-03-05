@@ -3,9 +3,9 @@ package fr.inria.corese.gui.core.service;
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.kgram.core.Mappings;
 import fr.inria.corese.core.print.ResultFormat;
-import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.core.sparql.api.ResultFormatDef;
 import fr.inria.corese.core.sparql.api.ResultFormatDef.format;
+import fr.inria.corese.gui.core.enums.SerializationFormat;
 
 /**
  * Utility service for formatting Corese results into various serialization
@@ -78,19 +78,39 @@ public class ResultFormatter {
 	 *         fails.
 	 */
 	public String formatGraph(Graph graph, SerializationFormat format) {
-		if (graph == null) {
-			return "Error: No graph data available.";
+		try {
+			return formatGraphOrThrow(graph, format);
+		} catch (ResultFormattingException e) {
+			return "Error: " + e.getMessage();
 		}
+	}
 
+	/**
+	 * Formats a graph and throws on invalid input/formatting failures.
+	 *
+	 * <p>
+	 * Services should prefer this method to avoid string-based error protocols.
+	 *
+	 * @param graph
+	 *            graph to serialize
+	 * @param format
+	 *            output format
+	 * @return serialized graph
+	 * @throws ResultFormattingException
+	 *             when serialization cannot be performed
+	 */
+	public String formatGraphOrThrow(Graph graph, SerializationFormat format) {
+		if (graph == null) {
+			throw new ResultFormattingException("No graph data available.");
+		}
 		format coreseFormat = toCoreseFormat(format);
 		if (coreseFormat == null) {
-			return "Error: Unsupported format for Graph serialization: " + format;
+			throw new ResultFormattingException("Unsupported format for Graph serialization: " + format);
 		}
-
 		try {
 			return ResultFormat.create(graph, coreseFormat).toString();
 		} catch (Exception e) {
-			return "Error formatting graph: " + e.getMessage();
+			throw new ResultFormattingException("Failed to format graph: " + safeMessage(e), e);
 		}
 	}
 
@@ -105,19 +125,36 @@ public class ResultFormatter {
 	 *         fails.
 	 */
 	public String formatMappings(Mappings mappings, SerializationFormat format) {
-		if (mappings == null) {
-			return "Error: No query results available.";
+		try {
+			return formatMappingsOrThrow(mappings, format);
+		} catch (ResultFormattingException e) {
+			return "Error: " + e.getMessage();
 		}
+	}
 
+	/**
+	 * Formats mappings and throws on invalid input/formatting failures.
+	 *
+	 * @param mappings
+	 *            mappings to serialize
+	 * @param format
+	 *            output format
+	 * @return serialized mappings
+	 * @throws ResultFormattingException
+	 *             when serialization cannot be performed
+	 */
+	public String formatMappingsOrThrow(Mappings mappings, SerializationFormat format) {
+		if (mappings == null) {
+			throw new ResultFormattingException("No query results available.");
+		}
 		format coreseFormat = toCoreseFormat(format);
 		if (coreseFormat == null) {
-			return "Error: Unsupported format for Mappings serialization: " + format;
+			throw new ResultFormattingException("Unsupported format for Mappings serialization: " + format);
 		}
-
 		try {
 			return ResultFormat.create(mappings, coreseFormat).toString();
 		} catch (Exception e) {
-			return "Error formatting results: " + e.getMessage();
+			throw new ResultFormattingException("Failed to format results: " + safeMessage(e), e);
 		}
 	}
 
@@ -152,5 +189,29 @@ public class ResultFormatter {
 			// These formats are for code editing, not result serialization
 			case SPARQL_QUERY, TEXT -> null;
 		};
+	}
+
+	private static String safeMessage(Throwable throwable) {
+		if (throwable == null) {
+			return "Unknown error.";
+		}
+		String message = throwable.getMessage();
+		if (message == null || message.isBlank()) {
+			return throwable.getClass().getSimpleName();
+		}
+		return message;
+	}
+
+	/**
+	 * Raised when graph/result formatting cannot be completed.
+	 */
+	public static class ResultFormattingException extends RuntimeException {
+		public ResultFormattingException(String message) {
+			super(message);
+		}
+
+		public ResultFormattingException(String message, Throwable cause) {
+			super(message, cause);
+		}
 	}
 }

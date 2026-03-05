@@ -65,12 +65,11 @@ public final class GraphProjectionService {
 			 */
 			serializationGraph = graph.copy();
 		}
-		String serialized = ResultFormatter.getInstance().formatGraph(serializationGraph, format);
-		if (serialized == null) {
-			throw new IllegalStateException("Graph serialization returned null.");
-		}
-		if (serialized.startsWith("Error:")) {
-			throw new IllegalStateException(serialized);
+		String serialized;
+		try {
+			serialized = ResultFormatter.getInstance().formatGraphOrThrow(serializationGraph, format);
+		} catch (ResultFormatter.ResultFormattingException e) {
+			throw new IllegalStateException(e.getMessage(), e);
 		}
 		if (format == SerializationFormat.JSON_LD) {
 			String sanitized = sanitizeMalformedJsonLd(serialized);
@@ -182,8 +181,8 @@ public final class GraphProjectionService {
 					sanitized.append(current);
 				} else {
 					/*
-					 * Preserve the literal content while restoring valid JSON escaping.
-					 * Example: malformed "\'" becomes valid "\\'".
+					 * Preserve the literal content while restoring valid JSON escaping. Example:
+					 * malformed "\'" becomes valid "\\'".
 					 */
 					sanitized.append('\\').append(current);
 					replacementCount++;
