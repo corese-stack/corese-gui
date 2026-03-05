@@ -1,6 +1,8 @@
 package fr.inria.corese.gui.core.service;
 
 import java.util.Map;
+import java.util.List;
+import java.util.StringJoiner;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -132,6 +134,7 @@ public class QueryService {
 		int graphSizeBefore = graph.size();
 		QueryProcess exec = QueryProcess.create(graph);
 		Mappings mappings = executeWithLoadFallback(exec, queryString);
+		failOnCompilationErrors(mappings);
 		QueryType type = detectType(mappings.getAST());
 		Graph resultGraph = resolveResultGraph(type, mappings);
 		Boolean askResult = type == QueryType.ASK ? resolveAskResult(mappings) : null;
@@ -261,6 +264,34 @@ public class QueryService {
 		}
 		Object graphValue = mappings.getGraph();
 		return graphValue instanceof Graph constructedGraph ? constructedGraph : null;
+	}
+
+	private static void failOnCompilationErrors(Mappings mappings) throws EngineException {
+		if (mappings == null || mappings.getQuery() == null) {
+			return;
+		}
+		ASTQuery ast = mappings.getQuery().getAST();
+		String astErrors = joinErrors(ast == null ? null : ast.getErrors());
+		if (!astErrors.isEmpty()) {
+			throw new EngineException(astErrors);
+		}
+		String queryErrors = joinErrors(mappings.getQuery().getErrors());
+		if (!queryErrors.isEmpty()) {
+			throw new EngineException(queryErrors);
+		}
+	}
+
+	private static String joinErrors(List<String> errors) {
+		if (errors == null || errors.isEmpty()) {
+			return "";
+		}
+		StringJoiner joiner = new StringJoiner(System.lineSeparator());
+		for (String error : errors) {
+			if (error != null && !error.isBlank()) {
+				joiner.add(error);
+			}
+		}
+		return joiner.toString();
 	}
 
 	private Mappings executeWithLoadFallback(QueryProcess exec, String queryString) throws EngineException {
