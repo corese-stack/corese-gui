@@ -47,10 +47,10 @@ public final class QueryResultRenderSupport {
 		}
 		AppExecutors.execute(() -> {
 			try {
-				String csvResult = queryService.formatResult(resultId, SerializationFormat.CSV);
+				String tsvResult = queryService.formatResult(resultId, SerializationFormat.TSV);
 				String textResult = queryService.formatResult(resultId, textFormat);
 				Platform.runLater(() -> {
-					controller.updateTableView(csvResult);
+					controller.updateTableView(tsvResult);
 					controller.updateText(textResult);
 				});
 			} finally {

@@ -63,6 +63,31 @@ class QueryServiceTest {
 	}
 
 	@Test
+	void formatResult_tsvPreservesLiteralMetadataWhileCsvFlattensValue() {
+		QueryResultRef updateRef = queryService.executeQuery("""
+				PREFIX ex: <http://example.org/>
+				INSERT DATA { ex:s ex:p "Bla bla bla"@fr }
+				""");
+		QueryResultRef selectRef = queryService.executeQuery("""
+				PREFIX ex: <http://example.org/>
+				SELECT ?o WHERE { ex:s ex:p ?o }
+				""");
+		try {
+			String csv = queryService.formatResult(selectRef.getId(), SerializationFormat.CSV);
+			String tsv = queryService.formatResult(selectRef.getId(), SerializationFormat.TSV);
+
+			assertTrue(csv.contains("Bla bla bla"), "CSV should include the literal lexical value.");
+			assertFalse(csv.contains("@fr"), "CSV should not preserve RDF term language metadata.");
+
+			assertTrue(tsv.contains("\"Bla bla bla\"@fr"),
+					"TSV should preserve RDF term metadata for language-tagged literals.");
+		} finally {
+			queryService.releaseResult(selectRef.getId());
+			queryService.releaseResult(updateRef.getId());
+		}
+	}
+
+	@Test
 	void executeQuery_cacheBound_evictsOldestResult() {
 		int previousMaxEntries = queryService.setMaxCachedResultsForTesting(2);
 		queryService.clearCachedResultsForTesting();

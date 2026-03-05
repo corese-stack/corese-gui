@@ -5,8 +5,8 @@ import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.io.ExportHelper;
-import fr.inria.corese.gui.feature.result.table.support.CsvTableParser;
 import fr.inria.corese.gui.feature.result.table.support.TableResultPreferenceSupport;
+import fr.inria.corese.gui.feature.result.table.support.TsvTableParser;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Collections;
@@ -37,9 +37,9 @@ import javafx.scene.input.MouseEvent;
  *
  * <p>
  * This class manages the interaction between the data model (SPARQL results in
- * CSV format) and the {@link TableResultView}. It handles:
+ * TSV format) and the {@link TableResultView}. It handles:
  * <ul>
- * <li>Parsing raw result data (CSV) into a structured format.
+ * <li>Parsing raw result data (TSV) into a structured format.
  * <li>Pagination logic (calculating pages and slicing data).
  * <li>Handling user actions like "Copy" and "Export" via a provided format
  * service.
@@ -116,38 +116,54 @@ public class TableResultController {
 	// ==============================================================================================
 
 	/**
-	 * Updates the table with new SPARQL CSV results. Can be called from any thread.
+	 * Updates the table with new SPARQL TSV results. Can be called from any thread.
 	 *
-	 * @param csvResult
-	 *            The raw CSV string result from the SPARQL query.
+	 * @param tsvResult
+	 *            The raw TSV string result from the SPARQL query.
 	 */
-	public void updateTable(String csvResult) {
-		Platform.runLater(() -> parseAndPopulate(csvResult));
+	public void updateTable(String tsvResult) {
+		Platform.runLater(() -> parseAndPopulate(tsvResult));
 	}
 
-	private void parseAndPopulate(String csvResult) {
+	private void parseAndPopulate(String tsvResult) {
 		allRows.clear();
 		view.clearTable();
 		headers = new String[0];
 
-		if (csvResult == null || csvResult.isEmpty()) {
+		if (tsvResult == null || tsvResult.isEmpty()) {
 			updatePagination();
 			return;
 		}
 
-		List<String[]> rows = CsvTableParser.parse(csvResult);
+		List<String[]> rows = TsvTableParser.parse(tsvResult);
 		if (rows.isEmpty()) {
 			updatePagination();
 			return;
 		}
 
 		// First row is headers, remaining rows are data.
-		headers = rows.get(0);
+		headers = normalizeHeaderRow(rows.get(0));
 		view.setColumns(headers);
 
 		allRows.addAll(rows.subList(1, rows.size()));
 
 		updatePagination();
+	}
+
+	private static String[] normalizeHeaderRow(String[] rawHeaders) {
+		if (rawHeaders == null || rawHeaders.length == 0) {
+			return new String[0];
+		}
+		String[] normalized = new String[rawHeaders.length];
+		for (int i = 0; i < rawHeaders.length; i++) {
+			String header = rawHeaders[i];
+			if (header != null && header.length() > 1 && (header.charAt(0) == '?' || header.charAt(0) == '$')) {
+				normalized[i] = header.substring(1);
+			} else {
+				normalized[i] = header == null ? "" : header;
+			}
+		}
+		return normalized;
 	}
 
 	// ==============================================================================================

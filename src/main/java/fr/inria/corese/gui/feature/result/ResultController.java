@@ -327,9 +327,9 @@ public class ResultController implements AutoCloseable {
 	// Facade API - Table Controller Delegation
 	// ==============================================================================================
 
-	public void updateTableView(String csvData) {
+	public void updateTableView(String tableData) {
 		if (tableController != null) {
-			tableController.updateTable(csvData);
+			tableController.updateTable(tableData);
 		}
 	}
 
