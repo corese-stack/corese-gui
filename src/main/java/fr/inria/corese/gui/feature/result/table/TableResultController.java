@@ -5,6 +5,7 @@ import fr.inria.corese.gui.component.button.factory.ButtonFactory;
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.io.ExportHelper;
+import fr.inria.corese.gui.feature.result.table.support.CsvTableParser;
 import fr.inria.corese.gui.feature.result.table.support.TableResultPreferenceSupport;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -134,21 +135,17 @@ public class TableResultController {
 			return;
 		}
 
-		// Split by line (handling both \r\n and \n)
-		String[] lines = csvResult.split("\\r?\\n");
-		if (lines.length == 0) {
+		List<String[]> rows = CsvTableParser.parse(csvResult);
+		if (rows.isEmpty()) {
 			updatePagination();
 			return;
 		}
 
-		// First line is headers
-		headers = lines[0].split(",", -1);
+		// First row is headers, remaining rows are data.
+		headers = rows.get(0);
 		view.setColumns(headers);
 
-		// Subsequent lines are data
-		for (int i = 1; i < lines.length; i++) {
-			allRows.add(lines[i].split(",", -1));
-		}
+		allRows.addAll(rows.subList(1, rows.size()));
 
 		updatePagination();
 	}
