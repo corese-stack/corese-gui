@@ -4,8 +4,10 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Deque;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -59,8 +61,11 @@ public class ShaclService {
 	private static final ShaclService INSTANCE = new ShaclService();
 	private static final String SHACL_SHACL_RESOURCE_PATH = "data/shaclshacl.ttl";
 	private static final int SHACL_SHACL_REPORT_MAX_CHARS = 40_000;
+	private static final int DEFAULT_MAX_CACHED_REPORTS = 120;
 
 	private final Map<String, Graph> reportCache;
+	private final Deque<String> reportOrder;
+	private volatile int maxCachedReports = DEFAULT_MAX_CACHED_REPORTS;
 
 	// ==============================================================================================
 	// Constructor
@@ -68,6 +73,7 @@ public class ShaclService {
 
 	private ShaclService() {
 		this.reportCache = new ConcurrentHashMap<>();
+		this.reportOrder = new ConcurrentLinkedDeque<>();
 	}
 
 	// ==============================================================================================
@@ -119,6 +125,8 @@ public class ShaclService {
 			// 5. Cache Report
 			String reportId = UUID.randomUUID().toString();
 			reportCache.put(reportId, reportGraph);
+			reportOrder.addLast(reportId);
+			enforceReportCacheBound();
 
 			LOGGER.info("SHACL validation done. Conforms: {}, ReportID: {}", conforms, reportId);
 			return new ValidationResult(conforms, reportId, null);
@@ -201,7 +209,33 @@ public class ShaclService {
 	public void releaseReport(String reportId) {
 		if (reportId != null) {
 			reportCache.remove(reportId);
+			reportOrder.remove(reportId);
 		}
+	}
+
+	private void enforceReportCacheBound() {
+		while (reportCache.size() > maxCachedReports) {
+			String oldestReportId = reportOrder.pollFirst();
+			if (oldestReportId == null) {
+				return;
+			}
+			Graph removed = reportCache.remove(oldestReportId);
+			if (removed != null) {
+				LOGGER.debug("Evicted cached SHACL report ID: {}", oldestReportId);
+			}
+		}
+	}
+
+	int setMaxCachedReportsForTesting(int maxEntries) {
+		int previous = this.maxCachedReports;
+		this.maxCachedReports = Math.max(1, maxEntries);
+		enforceReportCacheBound();
+		return previous;
+	}
+
+	void clearCachedReportsForTesting() {
+		reportCache.clear();
+		reportOrder.clear();
 	}
 
 	private static String buildValidationErrorMessage(Throwable throwable) {

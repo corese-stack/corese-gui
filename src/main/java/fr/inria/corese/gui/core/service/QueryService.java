@@ -2,8 +2,10 @@ package fr.inria.corese.gui.core.service;
 
 import java.util.Map;
 import java.util.List;
+import java.util.Deque;
 import java.util.StringJoiner;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -63,9 +65,12 @@ public class QueryService {
 	private static final Logger LOGGER = LoggerFactory.getLogger(QueryService.class);
 	private static final QueryService INSTANCE = new QueryService();
 	private static final int QUERY_PREVIEW_MAX_CHARS = 180;
+	private static final int DEFAULT_MAX_CACHED_RESULTS = 300;
 
 	private final Map<String, CacheEntry> resultCache;
+	private final Deque<String> resultOrder;
 	private final GraphActivityLogService activityLogService;
+	private volatile int maxCachedResults = DEFAULT_MAX_CACHED_RESULTS;
 
 	// ==============================================================================================
 	// Constructor
@@ -73,6 +78,7 @@ public class QueryService {
 
 	private QueryService() {
 		this.resultCache = new ConcurrentHashMap<>();
+		this.resultOrder = new ConcurrentLinkedDeque<>();
 		this.activityLogService = GraphActivityLogService.getInstance();
 	}
 
@@ -145,8 +151,11 @@ public class QueryService {
 	}
 
 	private void cacheQueryResult(QueryExecutionSnapshot snapshot) {
+		String resultId = snapshot.id();
 		CacheEntry entry = new CacheEntry(snapshot.type(), snapshot.mappings(), snapshot.resultGraph());
-		resultCache.put(snapshot.id(), entry);
+		resultCache.put(resultId, entry);
+		resultOrder.addLast(resultId);
+		enforceResultCacheBound();
 	}
 
 	private void logQueryExecutionSuccess(QueryExecutionSnapshot snapshot) {
@@ -191,8 +200,34 @@ public class QueryService {
 	public void releaseResult(String resultId) {
 		if (resultId != null) {
 			resultCache.remove(resultId);
+			resultOrder.remove(resultId);
 			LOGGER.debug("Released result ID: {}", resultId);
 		}
+	}
+
+	private void enforceResultCacheBound() {
+		while (resultCache.size() > maxCachedResults) {
+			String oldestResultId = resultOrder.pollFirst();
+			if (oldestResultId == null) {
+				return;
+			}
+			CacheEntry removed = resultCache.remove(oldestResultId);
+			if (removed != null) {
+				LOGGER.debug("Evicted cached query result ID: {}", oldestResultId);
+			}
+		}
+	}
+
+	int setMaxCachedResultsForTesting(int maxEntries) {
+		int previous = this.maxCachedResults;
+		this.maxCachedResults = Math.max(1, maxEntries);
+		enforceResultCacheBound();
+		return previous;
+	}
+
+	void clearCachedResultsForTesting() {
+		resultCache.clear();
+		resultOrder.clear();
 	}
 
 	// ==============================================================================================

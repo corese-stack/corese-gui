@@ -1,6 +1,7 @@
 package fr.inria.corese.gui.core.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import fr.inria.corese.core.sparql.triple.parser.ASTQuery;
+import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.enums.QueryType;
 import fr.inria.corese.gui.core.model.QueryResultRef;
 
@@ -58,6 +60,31 @@ class QueryServiceTest {
 		assertEquals(0, resultRef.getResultCount(),
 				"With an empty graph, a valid SELECT query should return zero bindings.");
 		queryService.releaseResult(resultRef.getId());
+	}
+
+	@Test
+	void executeQuery_cacheBound_evictsOldestResult() {
+		int previousMaxEntries = queryService.setMaxCachedResultsForTesting(2);
+		queryService.clearCachedResultsForTesting();
+		try {
+			QueryResultRef first = queryService.executeQuery("SELECT * WHERE { ?s ?p ?o }");
+			QueryResultRef second = queryService.executeQuery("SELECT * WHERE { ?s ?p ?o }");
+			QueryResultRef third = queryService.executeQuery("SELECT * WHERE { ?s ?p ?o }");
+
+			String firstFormatted = queryService.formatResult(first.getId(), SerializationFormat.JSON);
+			String secondFormatted = queryService.formatResult(second.getId(), SerializationFormat.JSON);
+			String thirdFormatted = queryService.formatResult(third.getId(), SerializationFormat.JSON);
+
+			assertTrue(firstFormatted.startsWith("Error: Result expired or not found"),
+					"Oldest cached query result should be evicted once cache limit is exceeded.");
+			assertFalse(secondFormatted.startsWith("Error: Result expired or not found"),
+					"Second cached query result should still be available.");
+			assertFalse(thirdFormatted.startsWith("Error: Result expired or not found"),
+					"Most recent cached query result should still be available.");
+		} finally {
+			queryService.clearCachedResultsForTesting();
+			queryService.setMaxCachedResultsForTesting(previousMaxEntries);
+		}
 	}
 
 }
