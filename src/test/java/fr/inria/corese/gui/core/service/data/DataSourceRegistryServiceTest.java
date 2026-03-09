@@ -1,15 +1,15 @@
 package fr.inria.corese.gui.core.service.data;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DataSourceRegistryServiceTest {
 
@@ -68,8 +68,8 @@ class DataSourceRegistryServiceTest {
 	void snapshot_isImmutable() {
 		registry.registerUri("https://example.org/data.ttl");
 		List<DataSource> snapshot = registry.snapshot();
+		DataSource additionalSource = new DataSource(SourceType.URI, "https://example.org/other.ttl");
 
-		assertThrows(UnsupportedOperationException.class,
-				() -> snapshot.add(new DataSource(SourceType.URI, "https://example.org/other.ttl")));
+		assertThrows(UnsupportedOperationException.class, () -> snapshot.add(additionalSource));
 	}
 }

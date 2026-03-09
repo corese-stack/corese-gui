@@ -1,10 +1,11 @@
 package fr.inria.corese.gui.core.service.data;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
+import fr.inria.corese.gui.core.service.DefaultReasoningService;
+import fr.inria.corese.gui.core.service.GraphProjectionService;
+import fr.inria.corese.gui.core.service.RdfDataService;
+import fr.inria.corese.gui.core.service.ReasoningService;
+import fr.inria.corese.gui.core.service.activity.GraphActivityLogEntry;
+import fr.inria.corese.gui.core.service.activity.GraphActivityLogService;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -16,12 +17,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import fr.inria.corese.gui.core.service.DefaultReasoningService;
-import fr.inria.corese.gui.core.service.GraphProjectionService;
-import fr.inria.corese.gui.core.service.RdfDataService;
-import fr.inria.corese.gui.core.service.ReasoningService;
-import fr.inria.corese.gui.core.service.activity.GraphActivityLogEntry;
-import fr.inria.corese.gui.core.service.activity.GraphActivityLogService;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DefaultDataWorkspaceServiceTest {
 
@@ -37,15 +36,15 @@ class DefaultDataWorkspaceServiceTest {
 
 	@BeforeEach
 	void clearStateBeforeEach() {
-		reasoningService.resetAllProfiles();
-		reasoningService.removeAllRuleFiles();
-		rdfDataService.clearData();
-		sourceRegistryService.clear();
-		activityLogService.clear();
+		clearWorkspaceState();
 	}
 
 	@AfterEach
 	void clearStateAfterEach() {
+		clearWorkspaceState();
+	}
+
+	private void clearWorkspaceState() {
 		reasoningService.resetAllProfiles();
 		reasoningService.removeAllRuleFiles();
 		rdfDataService.clearData();
@@ -98,10 +97,11 @@ class DefaultDataWorkspaceServiceTest {
 		activityLogService.clear();
 
 		Path missingFile = tempDir.resolve("missing.ttl");
+		DataSource candidateSource = new DataSource(SourceType.FILE, candidate.getAbsolutePath());
+		DataSource missingSource = new DataSource(SourceType.FILE, missingFile.toString());
+		List<DataSource> selectedSources = List.of(candidateSource, missingSource);
 		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-				() -> workspaceService
-						.reloadSources(List.of(new DataSource(SourceType.FILE, candidate.getAbsolutePath()),
-								new DataSource(SourceType.FILE, missingFile.toString()))));
+				() -> workspaceService.reloadSources(selectedSources));
 		assertTrue(exception.getMessage().contains("does not exist"),
 				"Failure should expose the missing-source cause.");
 

@@ -1,24 +1,24 @@
 package fr.inria.corese.gui.core.service.mutation;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
+import fr.inria.corese.gui.core.service.RdfDataService;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import fr.inria.corese.gui.core.service.RdfDataService;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class GraphMutationBusTest {
 
@@ -47,7 +47,7 @@ class GraphMutationBusTest {
 
 	@Test
 	void collectorPublishesDeltaEvent_afterGraphMutation() throws Exception {
-		List<GraphMutationEvent> events = new CopyOnWriteArrayList<>();
+		BlockingQueue<GraphMutationEvent> events = new LinkedBlockingQueue<>();
 		AutoCloseable subscription = mutationBus.subscribe(events::add);
 		try {
 			File file = writeTempTurtle("delta.ttl", """
@@ -70,7 +70,7 @@ class GraphMutationBusTest {
 
 	@Test
 	void suspendPublishing_blocksCollectorEventsWithinScope() throws Exception {
-		List<GraphMutationEvent> events = new CopyOnWriteArrayList<>();
+		BlockingQueue<GraphMutationEvent> events = new LinkedBlockingQueue<>();
 		AutoCloseable subscription = mutationBus.subscribe(events::add);
 		try {
 			File firstFile = writeTempTurtle("suppressed.ttl", """
@@ -82,9 +82,8 @@ class GraphMutationBusTest {
 					ex:published ex:p ex:o .
 					""");
 
-			try (GraphMutationBus.PublishingSuspension _ = mutationBus.suspendPublishing()) {
+			try (var _ = mutationBus.suspendPublishing()) {
 				rdfDataService.loadFile(firstFile);
-				Thread.sleep(350L);
 			}
 
 			GraphMutationEvent suppressedEvent = awaitEvent(events,
@@ -111,17 +110,21 @@ class GraphMutationBusTest {
 		return filePath.toFile();
 	}
 
-	private static GraphMutationEvent awaitEvent(List<GraphMutationEvent> events,
-			java.util.function.Predicate<GraphMutationEvent> predicate, Duration timeout) throws InterruptedException {
+	private static GraphMutationEvent awaitEvent(BlockingQueue<GraphMutationEvent> events,
+			Predicate<GraphMutationEvent> predicate, Duration timeout) throws InterruptedException {
 		long deadline = System.nanoTime() + timeout.toNanos();
-		while (System.nanoTime() < deadline) {
-			for (GraphMutationEvent event : events) {
-				if (predicate.test(event)) {
-					return event;
-				}
+		while (true) {
+			long remainingNanos = deadline - System.nanoTime();
+			if (remainingNanos <= 0L) {
+				return null;
 			}
-			Thread.sleep(40L);
+			GraphMutationEvent event = events.poll(remainingNanos, TimeUnit.NANOSECONDS);
+			if (event == null) {
+				return null;
+			}
+			if (predicate.test(event)) {
+				return event;
+			}
 		}
-		return null;
 	}
 }

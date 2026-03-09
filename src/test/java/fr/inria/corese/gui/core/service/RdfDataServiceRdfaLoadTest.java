@@ -1,8 +1,5 @@
 package fr.inria.corese.gui.core.service;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -12,6 +9,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RdfDataServiceRdfaLoadTest {
 
@@ -60,9 +60,10 @@ class RdfDataServiceRdfaLoadTest {
 				@prefix ex: <http://example.org/ns#> .
 				ex:Alice ex:friend ? .
 				""", StandardCharsets.UTF_8);
+		File invalidFile = filePath.toFile();
 
 		RdfDataService.RdfLoadException exception = assertThrows(RdfDataService.RdfLoadException.class,
-				() -> rdfDataService.loadFile(filePath.toFile()));
+				() -> rdfDataService.loadFile(invalidFile));
 		assertTrue(exception.getMessage().contains("Failed to load RDF file"),
 				"Invalid Turtle should surface as a user-facing RDF load error.");
 	}

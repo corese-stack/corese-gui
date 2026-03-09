@@ -1,11 +1,11 @@
 package fr.inria.corese.gui.core.service;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
+import fr.inria.corese.core.Graph;
+import fr.inria.corese.gui.core.enums.SerializationFormat;
 import org.junit.jupiter.api.Test;
 
-import fr.inria.corese.gui.core.enums.SerializationFormat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ResultFormatterTest {
 
@@ -23,9 +23,10 @@ class ResultFormatterTest {
 
 	@Test
 	void formatGraphOrThrow_withUnsupportedFormat_throwsResultFormattingException() {
+		Graph graph = Graph.create();
 		ResultFormatter.ResultFormattingException exception = assertThrows(
-				ResultFormatter.ResultFormattingException.class, () -> formatter
-						.formatGraphOrThrow(fr.inria.corese.core.Graph.create(), SerializationFormat.SPARQL_QUERY));
+				ResultFormatter.ResultFormattingException.class,
+				() -> formatter.formatGraphOrThrow(graph, SerializationFormat.SPARQL_QUERY));
 
 		assertTrue(exception.getMessage().contains("Unsupported format"),
 				"Unsupported graph format should fail with an explicit formatting exception.");

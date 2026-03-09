@@ -1,14 +1,13 @@
 package fr.inria.corese.gui.core.service;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
+import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.core.model.ValidationResult;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import fr.inria.corese.gui.core.enums.SerializationFormat;
-import fr.inria.corese.gui.core.model.ValidationResult;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaclServiceCacheTest {
 
@@ -32,12 +31,15 @@ class ShaclServiceCacheTest {
 
 	@BeforeEach
 	void setUp() {
-		rdfDataService.clearData();
-		shaclService.clearCachedReportsForTesting();
+		resetState();
 	}
 
 	@AfterEach
 	void tearDown() {
+		resetState();
+	}
+
+	private void resetState() {
 		rdfDataService.clearData();
 		shaclService.clearCachedReportsForTesting();
 	}
