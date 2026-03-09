@@ -35,7 +35,7 @@ public final class DataReloadSourcesDialog {
 	private static final String DIALOG_SUBTITLE = "Select tracked sources to rebuild the graph.";
 	private static final String WARNING_TITLE = "Warning";
 	private static final List<String> WARNING_ITEMS = List.of("SPARQL UPDATE modifications are discarded.",
-			"Reasoning profiles are reset to OFF.", "Unchecked sources are excluded from future reloads.");
+			"Unchecked sources are excluded from future reloads.");
 	private static final String EMPTY_SELECTION_MESSAGE = "Select at least one source to reload.";
 	private static final int SOURCE_VIEWPORT_HEIGHT = 240;
 	private static final int SOURCE_MIN_VIEWPORT_HEIGHT = 120;

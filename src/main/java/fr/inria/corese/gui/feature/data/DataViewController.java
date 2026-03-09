@@ -492,8 +492,10 @@ public class DataViewController implements AutoCloseable {
 	private void executeReloadSources(List<DataSource> selectedSources) {
 		runAsyncDataOperation("Data Reload", "Reloading selected data sources...", () -> {
 			try {
-				reasoningService.resetAllProfiles();
 				int reloaded = workspaceService.reloadSources(selectedSources);
+				if (reloaded > 0 && reasoningService.hasAnyEnabledProfile()) {
+					reasoningService.recomputeEnabledProfiles();
+				}
 				int tripleCount = workspaceService.getTripleCount();
 				if (reloaded > 0) {
 					return () -> NotificationWidget.getInstance()

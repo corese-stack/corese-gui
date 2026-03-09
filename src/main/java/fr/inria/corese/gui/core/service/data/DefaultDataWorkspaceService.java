@@ -112,11 +112,20 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 				}
 			}
 			mutationBus.publish(GraphMutationEvent.bulkRefreshRequired(GraphMutationEvent.Source.DATA_WORKSPACE));
+			if (beforeCount > 0) {
+				activityLogService.log(GraphActivityLogEntry.now(GraphActivityLogEntry.Source.DATA_WORKSPACE,
+						"Cleared data graph before reload", "Temporary clean state before reloading selected sources.", 0,
+						beforeCount, 0, 0));
+			}
 			int afterCount = rdfDataService.getTripleCount();
-			int insertedCount = Math.max(0, afterCount - beforeCount);
-			int deletedCount = Math.max(0, beforeCount - afterCount);
+			int insertedCount = afterCount;
+			int deletedCount = 0;
+			String reloadDetails = "Reloaded " + loadedCount + " source(s).";
+			if (reasoningService.hasAnyEnabledProfile()) {
+				reloadDetails += " Inference graphs are temporarily cleared and will be recomputed.";
+			}
 			activityLogService.log(GraphActivityLogEntry.Source.DATA_WORKSPACE, "Reloaded data sources",
-					"Reloaded " + loadedCount + " source(s).", insertedCount, deletedCount);
+					reloadDetails, insertedCount, deletedCount);
 			return loadedCount;
 		} catch (RuntimeException failure) {
 			try {
