@@ -42,6 +42,21 @@ public final class GraphProjectionService {
 	}
 
 	/**
+	 * Sanitizes a JSON-LD payload for safe UI rendering.
+	 *
+	 * <p>
+	 * Useful for JSON-LD payloads not produced through {@link #serializeGraph}, for
+	 * example SHACL validation reports and cached query graph results.
+	 *
+	 * @param jsonLd
+	 *            input JSON-LD payload
+	 * @return sanitized payload
+	 */
+	public String sanitizeJsonLdForDisplay(String jsonLd) {
+		return sanitizeMalformedJsonLd(jsonLd);
+	}
+
+	/**
 	 * Serializes the current shared graph with the requested RDF format.
 	 *
 	 * @param format

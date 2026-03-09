@@ -93,6 +93,7 @@ object Versions {
     const val batik = "1.19"
     const val fop = "2.11"
     const val junitBom = "6.0.3"
+    const val orgJson = "20250517"
 }
 
 group = Meta.groupId
@@ -245,6 +246,7 @@ dependencies {
     // Testing
     testImplementation(platform("org.junit:junit-bom:${Versions.junitBom}"))
     testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.json:json:${Versions.orgJson}")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -76,5 +77,19 @@ class ShaclServiceShaclShaclPreValidationTest {
 		assertNull(result.getErrorMessage(), "Valid SHACL shapes should pass pre-validation.");
 		assertNull(result.getErrorDetails(), "No technical error details should be provided on success.");
 		assertNotNull(reportId, "Data validation should still produce a report.");
+	}
+
+	@Test
+	void getReportTripleCount_returnsCountForCachedReportAndZeroAfterRelease() {
+		ValidationResult result = shaclService.validate(VALID_SHAPES);
+		String reportId = result.getReportId();
+		assertNotNull(reportId, "Validation should produce a cached report.");
+
+		int tripleCount = shaclService.getReportTripleCount(reportId);
+		assertTrue(tripleCount > 0, "Cached SHACL report should contain at least one triple.");
+
+		shaclService.releaseReport(reportId);
+		assertEquals(0, shaclService.getReportTripleCount(reportId),
+				"Released report must not expose stale triple count.");
 	}
 }

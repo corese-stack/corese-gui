@@ -18,9 +18,12 @@ import fr.inria.corese.gui.core.model.ValidationResult;
 import fr.inria.corese.gui.core.shortcut.KeyboardShortcutRegistry;
 import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
+import fr.inria.corese.gui.feature.editor.tab.TabContext;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
 import fr.inria.corese.gui.feature.result.ResultController;
+import fr.inria.corese.gui.feature.validation.support.ValidationResultRenderSupport;
+import fr.inria.corese.gui.feature.validation.support.ValidationResultTabPreferenceSupport;
 import fr.inria.corese.gui.utils.AppExecutors;
 import fr.inria.corese.gui.core.io.FileDialogState;
 import javafx.application.Platform;
@@ -72,6 +75,7 @@ public class ValidationController {
 
 	private final ValidationView view;
 	private final Map<Tab, ValidationModel> tabModels = new HashMap<>();
+	private final ValidationResultTabPreferenceSupport tabPreferenceSupport = new ValidationResultTabPreferenceSupport();
 	private TabEditorController tabEditorController;
 
 	// ==============================================================================================
@@ -104,7 +108,8 @@ public class ValidationController {
 						ButtonFactory.redo()))
 				.withExecution(ButtonFactory.custom(ButtonIcon.PLAY, view.getRunValidationLabel(),
 						KeyboardShortcutRegistry.Action.EXECUTE_PRIMARY_ACTION), this::executeValidation)
-				.withResultView(view.getResultToolbarButtons(), ResultViewConfig.builder().withTextTab().build())
+				.withResultView(view.getResultToolbarButtons(),
+						ResultViewConfig.builder().withTextTab().withGraphTab().build())
 				.withEmptyState(emptyState).withAllowedExtensions(FileTypeSupport.rdfExtensions())
 				.withOpenFileAction(this::onOpenFileButtonClick).withTemplateAction(this::onTemplateButtonClick)
 				.build();
@@ -117,8 +122,11 @@ public class ValidationController {
 		// Embed the editor's view into the main ValidationView
 		view.setMainContent(tabEditorController.getViewRoot());
 
-		// Manage memory: Remove the model when a tab is closed
+		// Manage model lifecycle and result tab preference listeners for opened tabs.
 		tabEditorController.addTabListener(this::onTabsChanged);
+		for (Tab tab : tabEditorController.getTabs()) {
+			registerResultTabPreference(tab);
+		}
 	}
 
 	// ==============================================================================================
@@ -225,14 +233,11 @@ public class ValidationController {
 
 		tabEditorController.showResultPane();
 
-		// Configure tabs: Validation results have text only
-		resultController.configureTabsForResult(true, // text: enabled (TURTLE/RDF/XML report)
+		// Configure tabs: validation report can be rendered as text and graph.
+		resultController.configureTabsForResult(true, // text: enabled
 				false, // table: disabled
-				false // graph: disabled (not used for validation)
-		);
-
-		// Ensure the text tab is visible to show the report
-		resultController.selectTextTab();
+				true, // graph: enabled (RDF validation report)
+				tabPreferenceSupport.preferredTab());
 
 		// Ensure text formats are configured for RDF outputs
 		SerializationFormat[] formats = SerializationFormat.rdfFormats();
@@ -240,33 +245,14 @@ public class ValidationController {
 		SerializationFormat preferredFormat = resultController.getPreferredTextFormat(formats,
 				SerializationFormat.TURTLE);
 
-		// Display initial report using the preferred format
+		// Display initial report using the preferred text format + JSON-LD graph.
 		NotificationWidget.LoadingHandle renderLoading = NotificationWidget.getInstance().showLoading("Validation",
 				"Rendering validation report...");
-		AppExecutors.execute(() -> {
-			try {
-				String initialReport = model.formatLastReport(preferredFormat.getLabel());
-				if (initialReport != null) {
-					Platform.runLater(() -> resultController.updateText(initialReport));
-				}
-			} finally {
-				renderLoading.close();
-			}
-		});
+		ValidationResultRenderSupport.loadGraphAndTextAsync(resultController, model, preferredFormat,
+				renderLoading::close);
 
-		// Configure callback for format changes
-		resultController.setOnFormatChanged(format -> AppExecutors.execute(() -> {
-			NotificationWidget.LoadingHandle formatLoading = NotificationWidget.getInstance().showLoading("Validation",
-					"Formatting validation report...");
-			try {
-				String formattedReport = model.formatLastReport(format.getLabel());
-				if (formattedReport != null) {
-					Platform.runLater(() -> resultController.updateText(formattedReport));
-				}
-			} finally {
-				formatLoading.close();
-			}
-		}));
+		// Configure callback for text-format changes.
+		ValidationResultRenderSupport.bindOnFormatChanged(resultController, model);
 	}
 
 	private static String buildValidationErrorMessage(Throwable throwable) {
@@ -291,6 +277,11 @@ public class ValidationController {
 
 	private void onTabsChanged(ListChangeListener.Change<? extends Tab> change) {
 		while (change.next()) {
+			if (change.wasAdded()) {
+				for (Tab tab : change.getAddedSubList()) {
+					registerResultTabPreference(tab);
+				}
+			}
 			if (change.wasRemoved()) {
 				for (Tab tab : change.getRemoved()) {
 					ValidationModel model = tabModels.remove(tab);
@@ -300,6 +291,18 @@ public class ValidationController {
 				}
 			}
 		}
+	}
+
+	private void registerResultTabPreference(Tab tab) {
+		TabContext context = TabContext.get(tab);
+		if (context == null) {
+			return;
+		}
+		ResultController resultController = context.getResultController();
+		if (resultController == null) {
+			return;
+		}
+		resultController.setOnTabSelected(tabPreferenceSupport::rememberPreferredTab);
 	}
 
 	private void onNewTabButtonClick() {

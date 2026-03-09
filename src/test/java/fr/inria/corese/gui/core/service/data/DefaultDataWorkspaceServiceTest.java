@@ -20,6 +20,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -105,10 +106,14 @@ class DefaultDataWorkspaceServiceTest {
 		DataSource candidateSource = new DataSource(SourceType.FILE, candidate.getAbsolutePath());
 		DataSource missingSource = new DataSource(SourceType.FILE, missingFile.toString());
 		List<DataSource> selectedSources = List.of(candidateSource, missingSource);
-		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+		IllegalStateException exception = assertThrows(IllegalStateException.class,
 				() -> workspaceService.reloadSources(selectedSources));
-		assertTrue(exception.getMessage().contains("does not exist"),
-				"Failure should expose the missing-source cause.");
+		assertTrue(exception.getMessage().contains("Reload sources failed"),
+				"Failure should expose reload context in the top-level error.");
+		Throwable rootCause = exception.getCause();
+		assertNotNull(rootCause, "Top-level contextual exception should keep the underlying cause.");
+		assertTrue(rootCause.getMessage().contains("does not exist"),
+				"Failure cause should still expose the missing-source reason.");
 
 		assertEquals(previousSources, workspaceService.getTrackedSources(),
 				"Tracked sources must be restored when reload fails.");
@@ -156,7 +161,8 @@ class DefaultDataWorkspaceServiceTest {
 		assertTrue(reasoningTripleCount(ReasoningProfile.RDFS) > 0,
 				"RDFS inferred triples should be recomputed after reload.");
 		assertTrue(
-				activityLogService.snapshot().stream().anyMatch(entry -> "Reloaded data sources".equals(entry.action())),
+				activityLogService.snapshot().stream()
+						.anyMatch(entry -> "Reloaded data sources".equals(entry.action())),
 				"Reload should still emit the data workspace log entry.");
 		GraphActivityLogEntry reloadEntry = activityLogService.snapshot().stream()
 				.filter(entry -> "Reloaded data sources".equals(entry.action())).findFirst().orElseThrow();
@@ -166,11 +172,13 @@ class DefaultDataWorkspaceServiceTest {
 				.filter(entry -> "Cleared data graph before reload".equals(entry.action())).findFirst().orElseThrow();
 		assertEquals(0, cleanEntry.totalTripleCount(),
 				"Clean log should expose the temporary zero-triple state before reasoning recompute.");
-		assertTrue(activityLogService.snapshot().stream()
-				.anyMatch(entry -> "Recomputed reasoning inferences".equals(entry.action())),
+		assertTrue(
+				activityLogService.snapshot().stream()
+						.anyMatch(entry -> "Recomputed reasoning inferences".equals(entry.action())),
 				"Reload with active reasoning should emit a reasoning recompute log entry.");
 		assertTrue(
-				activityLogService.snapshot().stream().noneMatch(entry -> "Reset reasoning profiles".equals(entry.action())),
+				activityLogService.snapshot().stream()
+						.noneMatch(entry -> "Reset reasoning profiles".equals(entry.action())),
 				"Reload must not reset reasoning profiles anymore.");
 	}
 
@@ -193,14 +201,17 @@ class DefaultDataWorkspaceServiceTest {
 		assertTrue(reasoningService.isEnabled(ReasoningProfile.RDFS),
 				"RDFS should stay enabled even when reload selection is empty.");
 		assertEquals(0, workspaceService.getTripleCount(), "Empty selection reload should clear graph triples.");
-		assertTrue(activityLogService.snapshot().stream()
-				.anyMatch(entry -> "Reloaded data sources (empty selection)".equals(entry.action())),
+		assertTrue(
+				activityLogService.snapshot().stream()
+						.anyMatch(entry -> "Reloaded data sources (empty selection)".equals(entry.action())),
 				"Empty selection reload should keep its dedicated data log entry.");
-		assertTrue(activityLogService.snapshot().stream()
-				.noneMatch(entry -> "Recomputed reasoning inferences".equals(entry.action())),
+		assertTrue(
+				activityLogService.snapshot().stream()
+						.noneMatch(entry -> "Recomputed reasoning inferences".equals(entry.action())),
 				"No reasoning recompute should run when no source is reloaded.");
 		assertTrue(
-				activityLogService.snapshot().stream().noneMatch(entry -> "Reset reasoning profiles".equals(entry.action())),
+				activityLogService.snapshot().stream()
+						.noneMatch(entry -> "Reset reasoning profiles".equals(entry.action())),
 				"Empty selection reload must not reset reasoning profiles.");
 	}
 

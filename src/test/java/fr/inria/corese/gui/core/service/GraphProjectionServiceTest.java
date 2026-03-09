@@ -1,22 +1,128 @@
 package fr.inria.corese.gui.core.service;
 
+import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.core.model.ValidationResult;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.regex.Pattern;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GraphProjectionServiceTest {
+
+	private static final String BEATLES_INVALID_DATA = """
+			PREFIX : <http://example.com/tutorial/>
+			PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+			PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+			:The_Beatles      rdf:type  :Band .
+			:The_Beatles      :name     "The Beatles" .
+			:The_Beatles      :member   :John_Lennon .
+			:The_Beatles      :member   :Paul_McCartney .
+			:The_Beatles      :member   :Ringo_Starr .
+			:The_Beatles      :member   :George_Harrison .
+			:John_Lennon      rdf:type  :SoloArtist .
+			:Paul_McCartney   rdf:type  :SoloArtist .
+			:Ringo_Starr      rdf:type  :SoloArtist .
+			:George_Harrison  rdf:type  :SoloArtist .
+			:Please_Please_Me rdf:type  :Album .
+			:Please_Please_Me :name     "Please Please Me" .
+			:Please_Please_Me :name     "Banana" .
+			:Please_Please_Me :date     "1963-03-22"^^xsd:date .
+			:Please_Please_Me :artist   :The_Beatles .
+			:Please_Please_Me :track    :Love_Me_Do .
+			:Love_Me_Do       rdf:type  :Song .
+			:Love_Me_Do       :name     "Love Me Do" .
+			:Love_Me_Do       :length   125 .
+			:Love_Me_Do       :writer   :John_Lennon .
+			:Love_Me_Do       :writer   :Paul_McCartney .
+
+			:McCartney        rdf:type  :Album .
+			:McCartney        :name     "McCartney" .
+			:McCartney        :date     "1970-04-17"^^xsd:date .
+			:McCartney        :artist   :Paul_McCartney .
+
+			:Imagine          rdf:type  :Album .
+			:Imagine          :name     "Imagine" .
+			:Imagine          :date     "1971-10-11"^^xsd:date .
+			:Imagine          :artist   :John_Lennon .
+			""";
+
+	private static final String BEATLES_VALIDATOR_SHAPES = """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+			PREFIX : <http://example.com/tutorial/>
+
+			:BandShape a sh:NodeShape ;
+			    sh:targetClass :Band ;
+			    sh:property [
+			        sh:path :name ;
+			        sh:datatype xsd:string ;
+			        sh:minCount 1 ;
+			        sh:maxCount 1 ;
+			    ] ;
+			    sh:property [
+			        sh:path :member ;
+			        sh:class :SoloArtist ;
+			        sh:minCount 1 ;
+			    ] .
+
+			:SoloArtistShape a sh:NodeShape ;
+			    sh:targetClass :SoloArtist .
+
+			:AlbumShape a sh:NodeShape ;
+			    sh:targetClass :Album ;
+			    sh:property [
+			        sh:path :name ;
+			        sh:datatype xsd:string ;
+			        sh:minCount 1 ;
+			        sh:maxCount 1 ;
+			    ] ;
+			    sh:property [
+			        sh:path :date ;
+			        sh:datatype xsd:date ;
+			        sh:minCount 1 ;
+			        sh:maxCount 1 ;
+			    ] ;
+			    sh:property [
+			        sh:path :artist ;
+			        sh:nodeKind sh:IRI ;
+			        sh:minCount 1 ;
+			        sh:maxCount 1 ;
+			    ] .
+
+			:SongShape a sh:NodeShape ;
+			    sh:targetClass :Song ;
+			    sh:property [
+			        sh:path :name ;
+			        sh:datatype xsd:string ;
+			        sh:minCount 1 ;
+			        sh:maxCount 1 ;
+			    ] ;
+			    sh:property [
+			        sh:path :length ;
+			        sh:datatype xsd:integer ;
+			        sh:minCount 1 ;
+			        sh:maxCount 1 ;
+			    ] ;
+			    sh:property [
+			        sh:path :writer ;
+			        sh:nodeKind sh:IRI ;
+			        sh:minCount 1 ;
+			    ] .
+			""";
 
 	private static final Pattern BROKEN_QUOTE_IN_VALUE_PATTERN = Pattern
 			.compile("\\\"@value\\\"\\s*:\\s*\\\"(?:[^\\\"\\\\]|\\\\.)*\\\"(?=\\s*[A-Za-z0-9_<])", Pattern.MULTILINE);
@@ -29,15 +135,13 @@ class GraphProjectionServiceTest {
 
 	private final RdfDataService rdfDataService = RdfDataService.getInstance();
 	private final GraphProjectionService projectionService = GraphProjectionService.getInstance();
+	private final ShaclService shaclService = ShaclService.getInstance();
 
 	@BeforeEach
-	void clearGraphBeforeEach() {
-		rdfDataService.clearData();
-	}
-
 	@AfterEach
-	void clearGraphAfterEach() {
+	void resetServicesState() {
 		rdfDataService.clearData();
+		shaclService.clearCachedReportsForTesting();
 	}
 
 	@Test
@@ -141,7 +245,7 @@ class GraphProjectionServiceTest {
 	}
 
 	@Test
-	void sanitizeMalformedJsonLd_keepsInnerQuotesFollowedByCommaInsideLiteral() throws Exception {
+	void sanitizeMalformedJsonLd_keepsInnerQuotesFollowedByCommaInsideLiteral() {
 		String malformedJsonLd = """
 				{
 				  "@context": {},
@@ -159,7 +263,7 @@ class GraphProjectionServiceTest {
 				}
 				""";
 
-		String sanitized = invokeSanitizeMalformedJsonLd(malformedJsonLd);
+		String sanitized = sanitizeJsonLd(malformedJsonLd);
 
 		assertTrue(sanitized.contains("\\\"knowledge engineering\\\", sometimes refers to \\\"expert systems\\\"."),
 				"Sanitizer should escape inner quoted fragments even when followed by commas.");
@@ -171,7 +275,7 @@ class GraphProjectionServiceTest {
 	}
 
 	@Test
-	void sanitizeMalformedJsonLd_keepsValidEmptyLiteralValuesUntouched() throws Exception {
+	void sanitizeMalformedJsonLd_keepsValidEmptyLiteralValuesUntouched() {
 		String validJsonLd = """
 				{
 				  "@graph": [
@@ -193,7 +297,7 @@ class GraphProjectionServiceTest {
 				}
 				""";
 
-		String sanitized = invokeSanitizeMalformedJsonLd(validJsonLd);
+		String sanitized = sanitizeJsonLd(validJsonLd);
 
 		assertTrue(sanitized.contains("\"@value\": \"\""), "Valid empty literal values should be preserved.");
 		assertTrue(sanitized.contains("\"@id\": \"http://example.org/b\""),
@@ -201,7 +305,7 @@ class GraphProjectionServiceTest {
 	}
 
 	@Test
-	void sanitizeMalformedJsonLd_keepsQuotesBeforeClosingBracketInsideLiteral() throws Exception {
+	void sanitizeMalformedJsonLd_keepsQuotesBeforeClosingBracketInsideLiteral() {
 		String malformedJsonLd = """
 				{
 				  "@graph": [
@@ -218,10 +322,29 @@ class GraphProjectionServiceTest {
 				}
 				""";
 
-		String sanitized = invokeSanitizeMalformedJsonLd(malformedJsonLd);
+		String sanitized = sanitizeJsonLd(malformedJsonLd);
 
 		assertTrue(sanitized.contains("\\\"fact\\\"]"),
 				"Quote followed by closing bracket inside literal should be escaped, not treated as value terminator.");
+	}
+
+	@Test
+	void sanitizeJsonLdForDisplay_producesValidJsonForBeatlesShaclReport() throws IOException {
+		File dataFile = writeTempRdf("beatles-invalid.ttl", BEATLES_INVALID_DATA);
+		rdfDataService.loadFile(dataFile);
+
+		ValidationResult validationResult = shaclService.validate(BEATLES_VALIDATOR_SHAPES);
+		String reportId = validationResult.getReportId();
+		String rawJsonLd = shaclService.formatReport(reportId, SerializationFormat.JSON_LD);
+		String sanitized = projectionService.sanitizeJsonLdForDisplay(rawJsonLd);
+
+		assertTrue(sanitized != null && !sanitized.isBlank(),
+				"Sanitized SHACL report should produce a non-empty JSON-LD payload.");
+		assertDoesNotThrow(() -> assertValidJson(sanitized),
+				"Sanitized SHACL JSON-LD should be strict-JSON parseable.");
+		assertEquals(-1, findInvalidJsonEscapeIndex(sanitized),
+				"Sanitized SHACL JSON-LD should not contain invalid escapes: "
+						+ excerptAround(sanitized, findInvalidJsonEscapeIndex(sanitized)));
 	}
 
 	private File writeTempRdf(String fileName, String content) throws IOException {
@@ -230,10 +353,8 @@ class GraphProjectionServiceTest {
 		return filePath.toFile();
 	}
 
-	private String invokeSanitizeMalformedJsonLd(String jsonLd) throws Exception {
-		Method method = GraphProjectionService.class.getDeclaredMethod("sanitizeMalformedJsonLd", String.class);
-		method.setAccessible(true);
-		Object result = method.invoke(projectionService, jsonLd);
+	private String sanitizeJsonLd(String jsonLd) {
+		Object result = projectionService.sanitizeJsonLdForDisplay(jsonLd);
 		return result == null ? "" : result.toString();
 	}
 
@@ -294,5 +415,21 @@ class GraphProjectionServiceTest {
 		int start = Math.max(0, index - 24);
 		int end = Math.min(value.length(), index + 24);
 		return value.substring(start, end).replace('\n', ' ').replace('\r', ' ');
+	}
+
+	private static void assertValidJson(String json) {
+		String trimmed = json == null ? "" : json.trim();
+		if (trimmed.isEmpty()) {
+			throw new IllegalArgumentException("JSON-LD payload is empty.");
+		}
+		if (trimmed.startsWith("{")) {
+			new JSONObject(trimmed);
+			return;
+		}
+		if (trimmed.startsWith("[")) {
+			new JSONArray(trimmed);
+			return;
+		}
+		throw new IllegalArgumentException("JSON-LD payload must start with '{' or '['.");
 	}
 }

@@ -2,6 +2,7 @@ package fr.inria.corese.gui.feature.query.support;
 
 import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
+import fr.inria.corese.gui.core.service.GraphProjectionService;
 import fr.inria.corese.gui.core.service.QueryService;
 import fr.inria.corese.gui.feature.result.ResultController;
 import fr.inria.corese.gui.utils.AppExecutors;
@@ -82,9 +83,11 @@ public final class QueryResultRenderSupport {
 		AppExecutors.execute(() -> {
 			try {
 				String jsonLdResult = queryService.formatResult(resultId, SerializationFormat.JSON_LD);
+				String sanitizedJsonLdResult = GraphProjectionService.getInstance()
+						.sanitizeJsonLdForDisplay(jsonLdResult);
 				String textResult = queryService.formatResult(resultId, textFormat);
 				Platform.runLater(() -> {
-					controller.displayGraph(jsonLdResult, graphTripleCountHint);
+					controller.displayGraph(sanitizedJsonLdResult, graphTripleCountHint);
 					controller.updateText(textResult);
 				});
 			} finally {

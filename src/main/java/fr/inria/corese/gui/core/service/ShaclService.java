@@ -204,6 +204,21 @@ public class ShaclService {
 	}
 
 	/**
+	 * Returns the number of triples in a cached report graph.
+	 *
+	 * @param reportId
+	 *            The ID of the report.
+	 * @return triple count, or 0 when report is missing.
+	 */
+	public int getReportTripleCount(String reportId) {
+		Graph reportGraph = reportCache.get(reportId);
+		if (reportGraph == null) {
+			return 0;
+		}
+		return Math.max(0, reportGraph.size());
+	}
+
+	/**
 	 * Releases a cached report.
 	 */
 	public void releaseReport(String reportId) {

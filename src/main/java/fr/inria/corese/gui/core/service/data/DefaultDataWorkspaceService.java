@@ -114,8 +114,8 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 			mutationBus.publish(GraphMutationEvent.bulkRefreshRequired(GraphMutationEvent.Source.DATA_WORKSPACE));
 			if (beforeCount > 0) {
 				activityLogService.log(GraphActivityLogEntry.now(GraphActivityLogEntry.Source.DATA_WORKSPACE,
-						"Cleared data graph before reload", "Temporary clean state before reloading selected sources.", 0,
-						beforeCount, 0, 0));
+						"Cleared data graph before reload", "Temporary clean state before reloading selected sources.",
+						0, beforeCount, 0, 0));
 			}
 			int afterCount = rdfDataService.getTripleCount();
 			int insertedCount = afterCount;
@@ -124,18 +124,20 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 			if (reasoningService.hasAnyEnabledProfile()) {
 				reloadDetails += " Inference graphs are temporarily cleared and will be recomputed.";
 			}
-			activityLogService.log(GraphActivityLogEntry.Source.DATA_WORKSPACE, "Reloaded data sources",
-					reloadDetails, insertedCount, deletedCount);
+			activityLogService.log(GraphActivityLogEntry.Source.DATA_WORKSPACE, "Reloaded data sources", reloadDetails,
+					insertedCount, deletedCount);
 			return loadedCount;
 		} catch (RuntimeException failure) {
 			try {
 				restoreWorkspaceState(previousSources, previousGraphSnapshot);
 			} catch (RuntimeException rollbackFailure) {
 				rollbackFailure.addSuppressed(failure);
-				throw rollbackFailure;
+				throw new IllegalStateException(
+						"Reload sources failed and rollback to the previous workspace state also failed.",
+						rollbackFailure);
 			}
-			LOGGER.warn("Reload sources failed. Previous graph and source registry state were restored.", failure);
-			throw failure;
+			throw new IllegalStateException(
+					"Reload sources failed. Previous graph and source registry state were restored.", failure);
 		}
 	}
 
