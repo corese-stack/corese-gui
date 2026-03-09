@@ -1,13 +1,13 @@
 package fr.inria.corese.gui.core.shortcut;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class KeyboardShortcutRegistryTest {
 
@@ -19,9 +19,8 @@ class KeyboardShortcutRegistryTest {
 		Set<String> seenCombinations = new HashSet<>();
 		for (KeyboardShortcutRegistry.Shortcut shortcut : shortcuts) {
 			String combinationKey = shortcut.combination().toString();
-			assertTrue(seenCombinations.add(combinationKey),
-					() -> "Duplicate key combination detected: " + shortcut.category() + " / "
-							+ shortcut.description());
+			assertTrue(seenCombinations.add(combinationKey), () -> "Duplicate key combination detected: "
+					+ shortcut.category() + " / " + shortcut.description());
 		}
 	}
 

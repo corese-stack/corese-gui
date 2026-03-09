@@ -1,21 +1,20 @@
 package fr.inria.corese.gui.core.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-
-import java.util.List;
-import java.util.Map;
-import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.query.QueryProcess;
 import fr.inria.corese.core.sparql.exceptions.EngineException;
 import fr.inria.corese.gui.core.service.data.DataSource;
 import fr.inria.corese.gui.core.service.data.DataWorkspaceStatus;
 import fr.inria.corese.gui.core.service.data.SourceType;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 class DataWorkspaceStatusSupportTest {
 

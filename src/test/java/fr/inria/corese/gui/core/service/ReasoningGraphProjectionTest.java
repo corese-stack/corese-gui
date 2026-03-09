@@ -1,7 +1,5 @@
 package fr.inria.corese.gui.core.service;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import fr.inria.corese.gui.core.service.data.DataWorkspaceService;
 import fr.inria.corese.gui.core.service.data.DataWorkspaceStatus;
 import fr.inria.corese.gui.core.service.data.DefaultDataWorkspaceService;
@@ -11,6 +9,8 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReasoningGraphProjectionTest {
 

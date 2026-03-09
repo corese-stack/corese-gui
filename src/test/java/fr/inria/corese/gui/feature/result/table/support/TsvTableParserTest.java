@@ -1,11 +1,11 @@
 package fr.inria.corese.gui.feature.result.table.support;
 
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.util.List;
-import org.junit.jupiter.api.Test;
 
 class TsvTableParserTest {
 

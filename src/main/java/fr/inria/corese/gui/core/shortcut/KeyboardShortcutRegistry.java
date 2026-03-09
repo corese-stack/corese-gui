@@ -1,16 +1,16 @@
 package fr.inria.corese.gui.core.shortcut;
 
-import static javafx.scene.input.KeyCombination.SHIFT_DOWN;
-import static javafx.scene.input.KeyCombination.SHORTCUT_DOWN;
-
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCharacterCombination;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+
+import static javafx.scene.input.KeyCombination.SHIFT_DOWN;
+import static javafx.scene.input.KeyCombination.SHORTCUT_DOWN;
 
 /**
  * Central registry for keyboard shortcuts used by the application.

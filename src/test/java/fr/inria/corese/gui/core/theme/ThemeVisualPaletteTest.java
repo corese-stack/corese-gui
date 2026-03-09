@@ -1,8 +1,8 @@
 package fr.inria.corese.gui.core.theme;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ThemeVisualPaletteTest {
 

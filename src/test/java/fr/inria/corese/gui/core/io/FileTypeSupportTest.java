@@ -1,9 +1,9 @@
 package fr.inria.corese.gui.core.io;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.List;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FileTypeSupportTest {
 

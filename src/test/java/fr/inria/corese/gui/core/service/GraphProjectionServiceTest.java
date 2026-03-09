@@ -1,9 +1,5 @@
 package fr.inria.corese.gui.core.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -16,11 +12,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 class GraphProjectionServiceTest {
 
-	private static final Pattern BROKEN_QUOTE_IN_VALUE_PATTERN = Pattern.compile(
-			"\\\"@value\\\"\\s*:\\s*\\\"(?:[^\\\"\\\\]|\\\\.)*\\\"(?=\\s*[A-Za-z0-9_<])",
-			Pattern.MULTILINE);
+	private static final Pattern BROKEN_QUOTE_IN_VALUE_PATTERN = Pattern
+			.compile("\\\"@value\\\"\\s*:\\s*\\\"(?:[^\\\"\\\\]|\\\\.)*\\\"(?=\\s*[A-Za-z0-9_<])", Pattern.MULTILINE);
 	private static final Pattern BROKEN_CONTROL_CHAR_IN_VALUE_PATTERN = Pattern.compile(
 			"\\\"@value\\\"\\s*:\\s*\\\"(?:[^\\\"\\\\]|\\\\.)*[\\n\\r\\t](?:[^\\\"\\\\]|\\\\.)*\\\"",
 			Pattern.MULTILINE);
@@ -51,8 +50,7 @@ class GraphProjectionServiceTest {
 		rdfDataService.loadFile(file);
 		String jsonLd = projectionService.snapshotJsonLd();
 
-		assertTrue(jsonLd.contains("Person"),
-				"JSON-LD projection should contain the rdf:type object value label.");
+		assertTrue(jsonLd.contains("Person"), "JSON-LD projection should contain the rdf:type object value label.");
 		assertTrue(jsonLd.contains("\"@type\"") || jsonLd.contains("22-rdf-syntax-ns#type"),
 				"JSON-LD projection should preserve rdf:type information for graph rendering.");
 	}
@@ -70,8 +68,7 @@ class GraphProjectionServiceTest {
 		rdfDataService.loadFile(file);
 		String jsonLd = projectionService.snapshotJsonLd();
 
-		assertTrue(jsonLd.contains("graphOne"),
-				"Named graph identifier should be present in the JSON-LD snapshot.");
+		assertTrue(jsonLd.contains("graphOne"), "Named graph identifier should be present in the JSON-LD snapshot.");
 		assertTrue(jsonLd.contains("\"@graph\""),
 				"JSON-LD snapshot should contain @graph containers for named graphs.");
 	}
@@ -119,8 +116,7 @@ class GraphProjectionServiceTest {
 		rdfDataService.loadFile(file);
 		String jsonLd = projectionService.snapshotJsonLd();
 
-		assertTrue(jsonLd.contains("\"@value\""),
-				"JSON-LD snapshot should include literal values.");
+		assertTrue(jsonLd.contains("\"@value\""), "JSON-LD snapshot should include literal values.");
 		assertTrue(jsonLd.contains("\\\"answer\\\""),
 				"Inner quotes in literal values should be escaped in JSON-LD output.");
 		assertFalse(BROKEN_QUOTE_IN_VALUE_PATTERN.matcher(jsonLd).find(),
@@ -140,9 +136,8 @@ class GraphProjectionServiceTest {
 		String jsonLd = projectionService.snapshotJsonLd();
 
 		int invalidEscapeIndex = findInvalidJsonEscapeIndex(jsonLd);
-		assertEquals(-1, invalidEscapeIndex,
-				"JSON-LD snapshot should not contain invalid string escapes: "
-						+ excerptAround(jsonLd, invalidEscapeIndex));
+		assertEquals(-1, invalidEscapeIndex, "JSON-LD snapshot should not contain invalid string escapes: "
+				+ excerptAround(jsonLd, invalidEscapeIndex));
 	}
 
 	@Test
@@ -172,8 +167,7 @@ class GraphProjectionServiceTest {
 				"Inner quotes should not prematurely terminate @value string.");
 		int invalidEscapeIndex = findInvalidJsonEscapeIndex(sanitized);
 		assertEquals(-1, invalidEscapeIndex,
-				"Sanitized JSON-LD should keep valid escapes only: "
-						+ excerptAround(sanitized, invalidEscapeIndex));
+				"Sanitized JSON-LD should keep valid escapes only: " + excerptAround(sanitized, invalidEscapeIndex));
 	}
 
 	@Test
@@ -201,8 +195,7 @@ class GraphProjectionServiceTest {
 
 		String sanitized = invokeSanitizeMalformedJsonLd(validJsonLd);
 
-		assertTrue(sanitized.contains("\"@value\": \"\""),
-				"Valid empty literal values should be preserved.");
+		assertTrue(sanitized.contains("\"@value\": \"\""), "Valid empty literal values should be preserved.");
 		assertTrue(sanitized.contains("\"@id\": \"http://example.org/b\""),
 				"Sanitizer should not swallow following objects after empty literals.");
 	}

@@ -1,10 +1,10 @@
 package fr.inria.corese.gui.core.bootstrap;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.nio.file.Path;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class RuntimeStorageBootstrapTest {
 

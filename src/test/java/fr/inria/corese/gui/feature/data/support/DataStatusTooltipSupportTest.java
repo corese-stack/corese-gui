@@ -1,14 +1,14 @@
 package fr.inria.corese.gui.feature.data.support;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderMode;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderCapabilities;
+import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderMode;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderStatus;
 import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport.RenderStatusBadge;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DataStatusTooltipSupportTest {
 
@@ -35,8 +35,8 @@ class DataStatusTooltipSupportTest {
 
 		List<String> lines = DataStatusTooltipSupport.buildRenderTooltipLines(status);
 
-		assertEquals(List.of("Performance mode enabled", "Runtime: recent draw phase was heavy; conservative detail enabled."),
-				lines);
+		assertEquals(List.of("Performance mode enabled",
+				"Runtime: recent draw phase was heavy; conservative detail enabled."), lines);
 	}
 
 	@Test

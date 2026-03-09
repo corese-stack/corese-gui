@@ -1,8 +1,5 @@
 package fr.inria.corese.gui.core.service;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import fr.inria.corese.gui.core.service.data.DataWorkspaceService;
 import fr.inria.corese.gui.core.service.data.DefaultDataWorkspaceService;
 import java.io.File;
@@ -14,6 +11,9 @@ import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReasoningBeatlesSnapshotStabilityTest {
 

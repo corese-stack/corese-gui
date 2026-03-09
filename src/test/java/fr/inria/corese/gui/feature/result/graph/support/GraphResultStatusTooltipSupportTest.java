@@ -1,11 +1,11 @@
 package fr.inria.corese.gui.feature.result.graph.support;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphStats;
 import java.util.List;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class GraphResultStatusTooltipSupportTest {
 
