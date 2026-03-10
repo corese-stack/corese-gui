@@ -14,6 +14,7 @@ import fr.inria.corese.gui.core.service.ShaclService;
 public class ValidationModel {
 
 	private ValidationResult lastResult;
+	private String lastRenderedReportId;
 
 	/**
 	 * Checks if there is data loaded in the graph to validate.
@@ -32,11 +33,42 @@ public class ValidationModel {
 	 * @return validation result
 	 */
 	public ValidationResult validate(String shapesContent) {
-		if (this.lastResult != null) {
-			ShaclService.getInstance().releaseReport(this.lastResult.getReportId());
-		}
+		releaseLastReport();
+		this.lastRenderedReportId = null;
 		this.lastResult = ShaclService.getInstance().validate(shapesContent);
 		return this.lastResult;
+	}
+
+	public boolean isResultRendered(ValidationResult result) {
+		if (result == null || result.getReportId() == null) {
+			return false;
+		}
+		return result.getReportId().equals(lastRenderedReportId);
+	}
+
+	public void markResultRendered(ValidationResult result) {
+		if (result == null || result.getReportId() == null) {
+			return;
+		}
+		lastRenderedReportId = result.getReportId();
+	}
+
+	public void discardResult(ValidationResult result) {
+		if (result == null) {
+			return;
+		}
+		String reportId = result.getReportId();
+		if (reportId != null) {
+			ShaclService.getInstance().releaseReport(reportId);
+		}
+		boolean matchesLastResult = lastResult == result
+				|| (lastResult != null && reportId != null && reportId.equals(lastResult.getReportId()));
+		if (matchesLastResult) {
+			lastResult = null;
+		}
+		if (reportId != null && reportId.equals(lastRenderedReportId)) {
+			lastRenderedReportId = null;
+		}
 	}
 
 	/**
@@ -87,9 +119,15 @@ public class ValidationModel {
 
 	/** Releases cached validation report resources. */
 	public void dispose() {
-		if (lastResult != null) {
-			ShaclService.getInstance().releaseReport(lastResult.getReportId());
-			lastResult = null;
+		releaseLastReport();
+		lastRenderedReportId = null;
+	}
+
+	private void releaseLastReport() {
+		if (lastResult == null) {
+			return;
 		}
+		ShaclService.getInstance().releaseReport(lastResult.getReportId());
+		lastResult = null;
 	}
 }

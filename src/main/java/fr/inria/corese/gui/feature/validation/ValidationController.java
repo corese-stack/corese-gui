@@ -4,6 +4,9 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +24,7 @@ import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.editor.tab.TabContext;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
+import fr.inria.corese.gui.feature.query.support.QueryExecutionCancellationSupport;
 import fr.inria.corese.gui.feature.result.ResultController;
 import fr.inria.corese.gui.feature.validation.support.ValidationResultRenderSupport;
 import fr.inria.corese.gui.feature.validation.support.ValidationResultTabPreferenceSupport;
@@ -54,6 +58,13 @@ import javafx.stage.FileChooser;
 public class ValidationController {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ValidationController.class);
+	private static final String VALIDATION_NOTIFICATION_TITLE = "Validation";
+	private static final String VALIDATION_EXECUTING_MESSAGE = "Running SHACL validation...";
+	private static final String VALIDATION_RENDERING_MESSAGE = "Rendering validation report...";
+	private static final String VALIDATION_STOP_ACTION_LABEL = "Stop";
+	private static final String MSG_VALIDATION_ALREADY_RUNNING = "A validation is already running in this tab.";
+	private static final String MSG_VALIDATION_CANCELLED = "Validation cancelled.";
+	private static final String MSG_NO_VALIDATION_RESULT = "Validation failed: no result was returned.";
 	private static final String DEFAULT_SHACL_TEMPLATE = """
 			@prefix sh: <http://www.w3.org/ns/shacl#> .
 			@prefix ex: <http://example.com/ns#> .
@@ -122,6 +133,9 @@ public class ValidationController {
 		// Embed the editor's view into the main ValidationView
 		view.setMainContent(tabEditorController.getViewRoot());
 
+		tabEditorController
+				.addSelectionListener((obs, oldTab, newTab) -> updateResultsForSelectedValidationTab(newTab, false));
+
 		// Manage model lifecycle and result tab preference listeners for opened tabs.
 		tabEditorController.addTabListener(this::onTabsChanged);
 		for (Tab tab : tabEditorController.getTabs()) {
@@ -135,12 +149,23 @@ public class ValidationController {
 
 	public void executeValidation() {
 		Tab selectedTab = tabEditorController.getSelectedTab();
-		if (selectedTab == null)
+		if (selectedTab == null) {
 			return;
+		}
 
-		ResultController resultController = tabEditorController.getCurrentResultController();
-		if (resultController == null)
+		TabContext context = TabContext.get(selectedTab);
+		if (context == null) {
 			return;
+		}
+		if (context.isExecutionRunning()) {
+			NotificationWidget.getInstance().showInfo(VALIDATION_NOTIFICATION_TITLE, MSG_VALIDATION_ALREADY_RUNNING);
+			return;
+		}
+
+		ResultController resultController = context.getResultController();
+		if (resultController == null) {
+			return;
+		}
 
 		// Clear previous results
 		resultController.clearResults();
@@ -166,93 +191,174 @@ public class ValidationController {
 		}
 
 		// UI: Indicate execution start
-		tabEditorController.setExecutionState(true);
-		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading("Validation",
-				"Running SHACL validation...");
+		setExecutionState(context, true);
+		AtomicBoolean cancellationRequested = new AtomicBoolean(false);
+		AtomicBoolean completionSignaled = new AtomicBoolean(false);
+		AtomicReference<Future<?>> futureReference = new AtomicReference<>();
+		AtomicReference<NotificationWidget.LoadingHandle> loadingHandleReference = new AtomicReference<>();
+
+		Runnable stopAction = () -> onValidationCancellationRequested(context, cancellationRequested,
+				completionSignaled, futureReference, loadingHandleReference.get());
+		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading(
+				VALIDATION_NOTIFICATION_TITLE, VALIDATION_EXECUTING_MESSAGE, VALIDATION_STOP_ACTION_LABEL, stopAction);
+		loadingHandleReference.set(loadingHandle);
 
 		// Execute validation asynchronously
-		AppExecutors.execute(() -> runValidationTask(model, shapesContent, resultController, loadingHandle));
+		Future<?> executionFuture = AppExecutors.submit(() -> runValidationTask(selectedTab, context, model,
+				shapesContent, loadingHandle, cancellationRequested, completionSignaled));
+		QueryExecutionCancellationSupport.bindFuture(cancellationRequested, futureReference, executionFuture);
 	}
 
 	// ==============================================================================================
 	// Background Task & Callbacks
 	// ==============================================================================================
 
-	private void runValidationTask(ValidationModel model, String shapesContent, ResultController resultController,
-			NotificationWidget.LoadingHandle loadingHandle) {
+	private void runValidationTask(Tab sourceTab, TabContext context, ValidationModel model, String shapesContent,
+			NotificationWidget.LoadingHandle loadingHandle, AtomicBoolean cancellationRequested,
+			AtomicBoolean completionSignaled) {
 		try {
-			// Perform validation logic
 			ValidationResult result = model.validate(shapesContent);
-
-			// Update UI on JavaFX Application Thread
-			Platform.runLater(() -> handleValidationResult(result, resultController));
+			Platform.runLater(() -> onValidationCompleted(sourceTab, context, model, result, loadingHandle,
+					cancellationRequested, completionSignaled));
 		} catch (Exception e) {
-			LOGGER.error("Error during validation", e);
-			Platform.runLater(() -> {
-				tabEditorController.setExecutionState(false);
-				tabEditorController.hideResultPane();
-				ModalService.getInstance().showException("Validation Error", buildValidationErrorMessage(e), e);
-			});
-		} finally {
-			if (loadingHandle != null) {
-				loadingHandle.close();
-			}
+			handleValidationFailure(context, loadingHandle, cancellationRequested, completionSignaled, e);
 		}
 	}
 
-	private void handleValidationResult(ValidationResult result, ResultController resultController) {
-		tabEditorController.setExecutionState(false);
-
-		if (result == null) {
-			tabEditorController.hideResultPane();
-			ModalService.getInstance().showError("Validation Error", "Validation failed: no result was returned.");
+	private void onValidationCompleted(Tab sourceTab, TabContext context, ValidationModel model,
+			ValidationResult result, NotificationWidget.LoadingHandle loadingHandle,
+			AtomicBoolean cancellationRequested, AtomicBoolean completionSignaled) {
+		if (cancellationRequested.get()) {
+			model.discardResult(result);
+			completeExecution(context, loadingHandle, completionSignaled, null);
 			return;
 		}
 
-		if (result.getErrorMessage() != null && !result.getErrorMessage().isBlank()) {
-			// Handle validation errors (e.g., syntax errors in shapes) with query-like
-			// modal
-			tabEditorController.hideResultPane();
-			if (result.getErrorDetails() != null && !result.getErrorDetails().isBlank()) {
-				ModalService.getInstance().showError("Validation Error", result.getErrorMessage(),
-						result.getErrorDetails());
-			} else {
-				ModalService.getInstance().showError("Validation Error", result.getErrorMessage());
+		completeExecution(context, loadingHandle, completionSignaled, () -> {
+			if (result == null) {
+				if (isTabSelected(sourceTab)) {
+					tabEditorController.hideResultPane();
+				}
+				ModalService.getInstance().showError("Validation Error", MSG_NO_VALIDATION_RESULT);
+				return;
 			}
+
+			if (!isTabOpen(sourceTab)) {
+				model.discardResult(result);
+				return;
+			}
+
+			if (result.getErrorMessage() != null && !result.getErrorMessage().isBlank()) {
+				if (isTabSelected(sourceTab)) {
+					tabEditorController.hideResultPane();
+				}
+				if (result.getErrorDetails() != null && !result.getErrorDetails().isBlank()) {
+					ModalService.getInstance().showError("Validation Error", result.getErrorMessage(),
+							result.getErrorDetails());
+				} else {
+					ModalService.getInstance().showError("Validation Error", result.getErrorMessage());
+				}
+				return;
+			}
+
+			if (isTabSelected(sourceTab)) {
+				updateResultsForSelectedValidationTab(sourceTab, true);
+			}
+		});
+	}
+
+	private void handleValidationFailure(TabContext context, NotificationWidget.LoadingHandle loadingHandle,
+			AtomicBoolean cancellationRequested, AtomicBoolean completionSignaled, Exception error) {
+		boolean cancellationLike = QueryExecutionCancellationSupport.shouldTreatAsCancellation(cancellationRequested,
+				error);
+		Platform.runLater(() -> {
+			if (cancellationLike) {
+				completeExecution(context, loadingHandle, completionSignaled, () -> NotificationWidget.getInstance()
+						.showInfo(VALIDATION_NOTIFICATION_TITLE, MSG_VALIDATION_CANCELLED));
+				return;
+			}
+			completeExecution(context, loadingHandle, completionSignaled, () -> ModalService.getInstance()
+					.showException("Validation Error", buildValidationErrorMessage(error), error));
+		});
+		if (cancellationLike) {
+			LOGGER.debug("SHACL validation cancelled");
+			return;
+		}
+		LOGGER.error("Error during validation", error);
+	}
+
+	private void onValidationCancellationRequested(TabContext context, AtomicBoolean cancellationRequested,
+			AtomicBoolean completionSignaled, AtomicReference<Future<?>> futureReference,
+			NotificationWidget.LoadingHandle loadingHandle) {
+		boolean cancelRequested = QueryExecutionCancellationSupport.requestCancellation(cancellationRequested,
+				futureReference);
+		if (!cancelRequested) {
+			return;
+		}
+		completeExecution(context, loadingHandle, completionSignaled, () -> NotificationWidget.getInstance()
+				.showInfo(VALIDATION_NOTIFICATION_TITLE, MSG_VALIDATION_CANCELLED));
+	}
+
+	private void completeExecution(TabContext context, NotificationWidget.LoadingHandle loadingHandle,
+			AtomicBoolean completionSignaled, Runnable followUp) {
+		if (!completionSignaled.compareAndSet(false, true)) {
+			return;
+		}
+		Runnable completion = () -> {
+			setExecutionState(context, false);
+			if (followUp != null) {
+				followUp.run();
+			}
+		};
+		if (loadingHandle == null) {
+			completion.run();
+			return;
+		}
+		loadingHandle.closeThen(completion);
+	}
+
+	private void updateResultsForSelectedValidationTab(Tab selectedValidationTab, boolean forceRefresh) {
+		if (selectedValidationTab == null) {
 			return;
 		}
 
-		// Success: Display the report
-		Tab selectedTab = tabEditorController.getSelectedTab();
-		ValidationModel model = selectedTab != null ? tabModels.get(selectedTab) : null;
+		TabContext context = TabContext.get(selectedValidationTab);
+		if (context == null) {
+			return;
+		}
+		ResultController resultController = context.getResultController();
+		if (resultController == null) {
+			return;
+		}
+
+		ValidationModel model = tabModels.get(selectedValidationTab);
 		if (model == null) {
-			tabEditorController.hideResultPane();
-			ModalService.getInstance().showError("Validation Error", "Validation context is no longer available.");
+			return;
+		}
+		ValidationResult result = model.getLastResult();
+		if (result == null || (result.getErrorMessage() != null && !result.getErrorMessage().isBlank())) {
+			return;
+		}
+		if (!forceRefresh && model.isResultRendered(result)) {
 			return;
 		}
 
+		resultController.clearResults();
 		tabEditorController.showResultPane();
 
-		// Configure tabs: validation report can be rendered as text and graph.
-		resultController.configureTabsForResult(true, // text: enabled
-				false, // table: disabled
-				true, // graph: enabled (RDF validation report)
-				tabPreferenceSupport.preferredTab());
+		resultController.configureTabsForResult(true, false, true, tabPreferenceSupport.preferredTab());
 
-		// Ensure text formats are configured for RDF outputs
 		SerializationFormat[] formats = SerializationFormat.rdfFormats();
 		resultController.configureTextFormats(formats, SerializationFormat.TURTLE);
 		SerializationFormat preferredFormat = resultController.getPreferredTextFormat(formats,
 				SerializationFormat.TURTLE);
 
-		// Display initial report using the preferred text format + JSON-LD graph.
-		NotificationWidget.LoadingHandle renderLoading = NotificationWidget.getInstance().showLoading("Validation",
-				"Rendering validation report...");
+		NotificationWidget.LoadingHandle renderLoading = NotificationWidget.getInstance()
+				.showLoading(VALIDATION_NOTIFICATION_TITLE, VALIDATION_RENDERING_MESSAGE);
 		ValidationResultRenderSupport.loadGraphAndTextAsync(resultController, model, preferredFormat,
 				renderLoading::close);
-
-		// Configure callback for text-format changes.
 		ValidationResultRenderSupport.bindOnFormatChanged(resultController, model);
+		model.markResultRendered(result);
 	}
 
 	private static String buildValidationErrorMessage(Throwable throwable) {
@@ -303,6 +409,25 @@ public class ValidationController {
 			return;
 		}
 		resultController.setOnTabSelected(tabPreferenceSupport::rememberPreferredTab);
+	}
+
+	private boolean isTabOpen(Tab tab) {
+		return tab != null && tabEditorController.getTabs().contains(tab);
+	}
+
+	private boolean isTabSelected(Tab tab) {
+		return tab != null && tab.equals(tabEditorController.getSelectedTab());
+	}
+
+	private static void setExecutionState(TabContext context, boolean running) {
+		if (context == null) {
+			return;
+		}
+		if (Platform.isFxApplicationThread()) {
+			context.executionRunningProperty().set(running);
+			return;
+		}
+		Platform.runLater(() -> context.executionRunningProperty().set(running));
 	}
 
 	private void onNewTabButtonClick() {

@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Deque;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -62,6 +63,7 @@ public class ShaclService {
 	private static final String SHACL_SHACL_RESOURCE_PATH = "data/shaclshacl.ttl";
 	private static final int SHACL_SHACL_REPORT_MAX_CHARS = 40_000;
 	private static final int DEFAULT_MAX_CACHED_REPORTS = 120;
+	private static final String CANCELLATION_MESSAGE = "SHACL validation cancelled.";
 
 	private final Map<String, Graph> reportCache;
 	private final Deque<String> reportOrder;
@@ -103,6 +105,8 @@ public class ShaclService {
 		}
 
 		try {
+			throwIfCancelled();
+
 			// 1. Prepare Data Graph (from Store)
 			Graph dataGraph = GraphStoreService.getInstance().getGraph();
 
@@ -110,16 +114,19 @@ public class ShaclService {
 			Graph shapesGraph = Graph.create();
 			Load.create(shapesGraph).parse(new ByteArrayInputStream(shapesContent.getBytes(StandardCharsets.UTF_8)),
 					Loader.format.TURTLE_FORMAT);
+			throwIfCancelled();
 
 			// 3. Validate shapes graph itself (SHACL-SHACL) before validating data
 			ValidationResult metaValidation = validateShapesGraph(shapesGraph);
 			if (metaValidation != null) {
 				return metaValidation;
 			}
+			throwIfCancelled();
 
 			// 4. Run Validation
 			Shacl shacl = new Shacl(dataGraph, shapesGraph);
 			Graph reportGraph = shacl.eval();
+			throwIfCancelled();
 			boolean conforms = shacl.conform(reportGraph);
 
 			// 5. Cache Report
@@ -132,15 +139,21 @@ public class ShaclService {
 			return new ValidationResult(conforms, reportId, null);
 
 		} catch (LoadException | EngineException | RuntimeException e) {
+			if (shouldTreatAsCancellation(e)) {
+				LOGGER.debug("SHACL validation cancelled");
+				throw cancellationException(e);
+			}
 			LOGGER.error("SHACL validation exception", e);
 			return new ValidationResult(false, null, buildValidationErrorMessage(e));
 		}
 	}
 
 	private ValidationResult validateShapesGraph(Graph shapesGraph) throws LoadException, EngineException {
+		throwIfCancelled();
 		Graph shaclShaclGraph = loadShaclShaclGraph();
 		Shacl shaclShacl = new Shacl(shapesGraph, shaclShaclGraph);
 		Graph shaclShaclReport = shaclShacl.eval();
+		throwIfCancelled();
 		if (shaclShacl.conform(shaclShaclReport)) {
 			return null;
 		}
@@ -154,6 +167,7 @@ public class ShaclService {
 	}
 
 	private Graph loadShaclShaclGraph() throws LoadException {
+		throwIfCancelled();
 		Graph shaclShaclGraph = Graph.create();
 		ClassLoader classLoader = ShaclService.class.getClassLoader();
 		try (InputStream stream = classLoader.getResourceAsStream(SHACL_SHACL_RESOURCE_PATH)) {
@@ -161,10 +175,40 @@ public class ShaclService {
 				throw new IOException("Missing SHACL-SHACL profile resource: " + SHACL_SHACL_RESOURCE_PATH);
 			}
 			Load.create(shaclShaclGraph).parse(stream, Loader.format.TURTLE_FORMAT);
+			throwIfCancelled();
 			return shaclShaclGraph;
 		} catch (IOException e) {
 			throw LoadException.create(e, SHACL_SHACL_RESOURCE_PATH);
 		}
+	}
+
+	private static void throwIfCancelled() {
+		if (Thread.currentThread().isInterrupted()) {
+			throw cancellationException(null);
+		}
+	}
+
+	private static boolean shouldTreatAsCancellation(Throwable error) {
+		if (error instanceof CancellationException) {
+			return true;
+		}
+
+		Throwable current = error;
+		while (current != null) {
+			if (current instanceof InterruptedException) {
+				return true;
+			}
+			current = current.getCause();
+		}
+		return Thread.currentThread().isInterrupted();
+	}
+
+	private static CancellationException cancellationException(Throwable cause) {
+		CancellationException cancellation = new CancellationException(CANCELLATION_MESSAGE);
+		if (cause != null) {
+			cancellation.initCause(cause);
+		}
+		return cancellation;
 	}
 
 	private String buildShaclShaclReportDetails(Graph reportGraph) {
