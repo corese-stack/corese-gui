@@ -26,6 +26,7 @@ import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.editor.tab.TabContext;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
+import fr.inria.corese.gui.feature.editor.tab.support.ExecutionUiSupport;
 import fr.inria.corese.gui.feature.query.support.QueryExecutionSupport;
 import fr.inria.corese.gui.feature.query.support.QueryExecutionCancellationSupport;
 import fr.inria.corese.gui.feature.query.support.QueryResultTabPreferenceSupport;
@@ -158,15 +159,15 @@ public class QueryViewController {
 
 		// Prepare UI
 		resultController.clearResults();
-		setExecutionState(context, true);
+		ExecutionUiSupport.setExecutionState(context, true);
 
 		AtomicBoolean cancellationRequested = new AtomicBoolean(false);
 		AtomicBoolean completionSignaled = new AtomicBoolean(false);
 		AtomicReference<Future<?>> futureReference = new AtomicReference<>();
 		AtomicReference<NotificationWidget.LoadingHandle> loadingHandleReference = new AtomicReference<>();
 
-		Runnable stopAction = () -> onQueryCancellationRequested(context, cancellationRequested, completionSignaled,
-				futureReference, loadingHandleReference.get());
+		Runnable stopAction = () -> onQueryCancellationRequested(selectedTab, context, cancellationRequested,
+				completionSignaled, futureReference, loadingHandleReference.get());
 		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance()
 				.showLoading(QUERY_NOTIFICATION_TITLE, QUERY_EXECUTING_MESSAGE, QUERY_STOP_ACTION_LABEL, stopAction);
 		loadingHandleReference.set(loadingHandle);
@@ -185,7 +186,8 @@ public class QueryViewController {
 			Platform.runLater(() -> onQueryExecutionCompleted(sourceTab, context, resultRef, loadingHandle,
 					cancellationRequested, completionSignaled));
 		} catch (Exception e) {
-			handleQueryExecutionFailure(context, loadingHandle, cancellationRequested, completionSignaled, e);
+			handleQueryExecutionFailure(sourceTab, context, loadingHandle, cancellationRequested, completionSignaled,
+					e);
 		}
 	}
 
@@ -194,11 +196,12 @@ public class QueryViewController {
 			AtomicBoolean completionSignaled) {
 		if (cancellationRequested.get()) {
 			releaseResultIfPresent(resultRef);
-			completeExecution(context, loadingHandle, completionSignaled, null);
+			ExecutionUiSupport.completeExecution(context, loadingHandle, completionSignaled,
+					() -> ExecutionUiSupport.hideResultPaneIfSelected(tabEditorController, sourceTab));
 			return;
 		}
 
-		completeExecution(context, loadingHandle, completionSignaled, () -> {
+		ExecutionUiSupport.completeExecution(context, loadingHandle, completionSignaled, () -> {
 			if (resultRef == null) {
 				return;
 			}
@@ -212,17 +215,20 @@ public class QueryViewController {
 		});
 	}
 
-	private void handleQueryExecutionFailure(TabContext context, NotificationWidget.LoadingHandle loadingHandle,
-			AtomicBoolean cancellationRequested, AtomicBoolean completionSignaled, Exception error) {
+	private void handleQueryExecutionFailure(Tab sourceTab, TabContext context,
+			NotificationWidget.LoadingHandle loadingHandle, AtomicBoolean cancellationRequested,
+			AtomicBoolean completionSignaled, Exception error) {
 		boolean cancellationLike = QueryExecutionCancellationSupport.shouldTreatAsCancellation(cancellationRequested,
 				error);
 		Platform.runLater(() -> {
 			if (cancellationLike) {
-				completeExecution(context, loadingHandle, completionSignaled,
-						() -> NotificationWidget.getInstance().showInfo(QUERY_NOTIFICATION_TITLE, MSG_QUERY_CANCELLED));
+				ExecutionUiSupport.completeExecution(context, loadingHandle, completionSignaled, () -> {
+					ExecutionUiSupport.hideResultPaneIfSelected(tabEditorController, sourceTab);
+					NotificationWidget.getInstance().showInfo(QUERY_NOTIFICATION_TITLE, MSG_QUERY_CANCELLED);
+				});
 				return;
 			}
-			completeExecution(context, loadingHandle, completionSignaled,
+			ExecutionUiSupport.completeExecution(context, loadingHandle, completionSignaled,
 					() -> ModalService.getInstance().showException("Query Execution Error", error.getMessage(), error));
 		});
 		if (cancellationLike) {
@@ -232,7 +238,7 @@ public class QueryViewController {
 		LOGGER.error("Error executing query", error);
 	}
 
-	private void onQueryCancellationRequested(TabContext context, AtomicBoolean cancellationRequested,
+	private void onQueryCancellationRequested(Tab sourceTab, TabContext context, AtomicBoolean cancellationRequested,
 			AtomicBoolean completionSignaled, AtomicReference<Future<?>> futureReference,
 			NotificationWidget.LoadingHandle loadingHandle) {
 		boolean cancelRequested = QueryExecutionCancellationSupport.requestCancellation(cancellationRequested,
@@ -240,26 +246,10 @@ public class QueryViewController {
 		if (!cancelRequested) {
 			return;
 		}
-		completeExecution(context, loadingHandle, completionSignaled,
-				() -> NotificationWidget.getInstance().showInfo(QUERY_NOTIFICATION_TITLE, MSG_QUERY_CANCELLED));
-	}
-
-	private void completeExecution(TabContext context, NotificationWidget.LoadingHandle loadingHandle,
-			AtomicBoolean completionSignaled, Runnable followUp) {
-		if (!completionSignaled.compareAndSet(false, true)) {
-			return;
-		}
-		Runnable completion = () -> {
-			setExecutionState(context, false);
-			if (followUp != null) {
-				followUp.run();
-			}
-		};
-		if (loadingHandle == null) {
-			completion.run();
-			return;
-		}
-		loadingHandle.closeThen(completion);
+		ExecutionUiSupport.completeExecution(context, loadingHandle, completionSignaled, () -> {
+			ExecutionUiSupport.hideResultPaneIfSelected(tabEditorController, sourceTab);
+			NotificationWidget.getInstance().showInfo(QUERY_NOTIFICATION_TITLE, MSG_QUERY_CANCELLED);
+		});
 	}
 
 	private void releasePreviousResult(TabContext context) {
@@ -278,17 +268,6 @@ public class QueryViewController {
 		if (resultRef != null && resultRef.getId() != null) {
 			queryService.releaseResult(resultRef.getId());
 		}
-	}
-
-	private static void setExecutionState(TabContext context, boolean running) {
-		if (context == null) {
-			return;
-		}
-		if (Platform.isFxApplicationThread()) {
-			context.executionRunningProperty().set(running);
-			return;
-		}
-		Platform.runLater(() -> context.executionRunningProperty().set(running));
 	}
 
 	private void updateResultsForSelectedQueryTab(Tab selectedQueryTab, boolean forceRefresh) {

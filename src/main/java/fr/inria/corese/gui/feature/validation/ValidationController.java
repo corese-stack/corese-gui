@@ -24,6 +24,7 @@ import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.editor.tab.TabContext;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorConfig;
 import fr.inria.corese.gui.feature.editor.tab.TabEditorController;
+import fr.inria.corese.gui.feature.editor.tab.support.ExecutionUiSupport;
 import fr.inria.corese.gui.feature.query.support.QueryExecutionCancellationSupport;
 import fr.inria.corese.gui.feature.result.ResultController;
 import fr.inria.corese.gui.feature.validation.support.ValidationResultRenderSupport;
@@ -191,13 +192,13 @@ public class ValidationController {
 		}
 
 		// UI: Indicate execution start
-		setExecutionState(context, true);
+		ExecutionUiSupport.setExecutionState(context, true);
 		AtomicBoolean cancellationRequested = new AtomicBoolean(false);
 		AtomicBoolean completionSignaled = new AtomicBoolean(false);
 		AtomicReference<Future<?>> futureReference = new AtomicReference<>();
 		AtomicReference<NotificationWidget.LoadingHandle> loadingHandleReference = new AtomicReference<>();
 
-		Runnable stopAction = () -> onValidationCancellationRequested(context, cancellationRequested,
+		Runnable stopAction = () -> onValidationCancellationRequested(selectedTab, context, cancellationRequested,
 				completionSignaled, futureReference, loadingHandleReference.get());
 		NotificationWidget.LoadingHandle loadingHandle = NotificationWidget.getInstance().showLoading(
 				VALIDATION_NOTIFICATION_TITLE, VALIDATION_EXECUTING_MESSAGE, VALIDATION_STOP_ACTION_LABEL, stopAction);
@@ -221,7 +222,7 @@ public class ValidationController {
 			Platform.runLater(() -> onValidationCompleted(sourceTab, context, model, result, loadingHandle,
 					cancellationRequested, completionSignaled));
 		} catch (Exception e) {
-			handleValidationFailure(context, loadingHandle, cancellationRequested, completionSignaled, e);
+			handleValidationFailure(sourceTab, context, loadingHandle, cancellationRequested, completionSignaled, e);
 		}
 	}
 
@@ -230,15 +231,14 @@ public class ValidationController {
 			AtomicBoolean cancellationRequested, AtomicBoolean completionSignaled) {
 		if (cancellationRequested.get()) {
 			model.discardResult(result);
-			completeExecution(context, loadingHandle, completionSignaled, null);
+			ExecutionUiSupport.completeExecution(context, loadingHandle, completionSignaled,
+					() -> ExecutionUiSupport.hideResultPaneIfSelected(tabEditorController, sourceTab));
 			return;
 		}
 
-		completeExecution(context, loadingHandle, completionSignaled, () -> {
+		ExecutionUiSupport.completeExecution(context, loadingHandle, completionSignaled, () -> {
 			if (result == null) {
-				if (isTabSelected(sourceTab)) {
-					tabEditorController.hideResultPane();
-				}
+				ExecutionUiSupport.hideResultPaneIfSelected(tabEditorController, sourceTab);
 				ModalService.getInstance().showError("Validation Error", MSG_NO_VALIDATION_RESULT);
 				return;
 			}
@@ -249,9 +249,7 @@ public class ValidationController {
 			}
 
 			if (result.getErrorMessage() != null && !result.getErrorMessage().isBlank()) {
-				if (isTabSelected(sourceTab)) {
-					tabEditorController.hideResultPane();
-				}
+				ExecutionUiSupport.hideResultPaneIfSelected(tabEditorController, sourceTab);
 				if (result.getErrorDetails() != null && !result.getErrorDetails().isBlank()) {
 					ModalService.getInstance().showError("Validation Error", result.getErrorMessage(),
 							result.getErrorDetails());
@@ -267,18 +265,21 @@ public class ValidationController {
 		});
 	}
 
-	private void handleValidationFailure(TabContext context, NotificationWidget.LoadingHandle loadingHandle,
-			AtomicBoolean cancellationRequested, AtomicBoolean completionSignaled, Exception error) {
+	private void handleValidationFailure(Tab sourceTab, TabContext context,
+			NotificationWidget.LoadingHandle loadingHandle, AtomicBoolean cancellationRequested,
+			AtomicBoolean completionSignaled, Exception error) {
 		boolean cancellationLike = QueryExecutionCancellationSupport.shouldTreatAsCancellation(cancellationRequested,
 				error);
 		Platform.runLater(() -> {
 			if (cancellationLike) {
-				completeExecution(context, loadingHandle, completionSignaled, () -> NotificationWidget.getInstance()
-						.showInfo(VALIDATION_NOTIFICATION_TITLE, MSG_VALIDATION_CANCELLED));
+				ExecutionUiSupport.completeExecution(context, loadingHandle, completionSignaled, () -> {
+					ExecutionUiSupport.hideResultPaneIfSelected(tabEditorController, sourceTab);
+					NotificationWidget.getInstance().showInfo(VALIDATION_NOTIFICATION_TITLE, MSG_VALIDATION_CANCELLED);
+				});
 				return;
 			}
-			completeExecution(context, loadingHandle, completionSignaled, () -> ModalService.getInstance()
-					.showException("Validation Error", buildValidationErrorMessage(error), error));
+			ExecutionUiSupport.completeExecution(context, loadingHandle, completionSignaled, () -> ModalService
+					.getInstance().showException("Validation Error", buildValidationErrorMessage(error), error));
 		});
 		if (cancellationLike) {
 			LOGGER.debug("SHACL validation cancelled");
@@ -287,34 +288,18 @@ public class ValidationController {
 		LOGGER.error("Error during validation", error);
 	}
 
-	private void onValidationCancellationRequested(TabContext context, AtomicBoolean cancellationRequested,
-			AtomicBoolean completionSignaled, AtomicReference<Future<?>> futureReference,
-			NotificationWidget.LoadingHandle loadingHandle) {
+	private void onValidationCancellationRequested(Tab sourceTab, TabContext context,
+			AtomicBoolean cancellationRequested, AtomicBoolean completionSignaled,
+			AtomicReference<Future<?>> futureReference, NotificationWidget.LoadingHandle loadingHandle) {
 		boolean cancelRequested = QueryExecutionCancellationSupport.requestCancellation(cancellationRequested,
 				futureReference);
 		if (!cancelRequested) {
 			return;
 		}
-		completeExecution(context, loadingHandle, completionSignaled, () -> NotificationWidget.getInstance()
-				.showInfo(VALIDATION_NOTIFICATION_TITLE, MSG_VALIDATION_CANCELLED));
-	}
-
-	private void completeExecution(TabContext context, NotificationWidget.LoadingHandle loadingHandle,
-			AtomicBoolean completionSignaled, Runnable followUp) {
-		if (!completionSignaled.compareAndSet(false, true)) {
-			return;
-		}
-		Runnable completion = () -> {
-			setExecutionState(context, false);
-			if (followUp != null) {
-				followUp.run();
-			}
-		};
-		if (loadingHandle == null) {
-			completion.run();
-			return;
-		}
-		loadingHandle.closeThen(completion);
+		ExecutionUiSupport.completeExecution(context, loadingHandle, completionSignaled, () -> {
+			ExecutionUiSupport.hideResultPaneIfSelected(tabEditorController, sourceTab);
+			NotificationWidget.getInstance().showInfo(VALIDATION_NOTIFICATION_TITLE, MSG_VALIDATION_CANCELLED);
+		});
 	}
 
 	private void updateResultsForSelectedValidationTab(Tab selectedValidationTab, boolean forceRefresh) {
@@ -417,17 +402,6 @@ public class ValidationController {
 
 	private boolean isTabSelected(Tab tab) {
 		return tab != null && tab.equals(tabEditorController.getSelectedTab());
-	}
-
-	private static void setExecutionState(TabContext context, boolean running) {
-		if (context == null) {
-			return;
-		}
-		if (Platform.isFxApplicationThread()) {
-			context.executionRunningProperty().set(running);
-			return;
-		}
-		Platform.runLater(() -> context.executionRunningProperty().set(running));
 	}
 
 	private void onNewTabButtonClick() {
