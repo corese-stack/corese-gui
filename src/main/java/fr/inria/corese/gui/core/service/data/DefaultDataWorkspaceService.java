@@ -240,7 +240,7 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 
 		return new DataWorkspaceStatus(totalTripleCount, explicitTripleCount, reasoningStats.inferredTripleCount(),
 				defaultGraphTripleCount, sourceStats.total(), sourceStats.fileCount(), sourceStats.uriCount(),
-				namedGraphStats.size(), namedGraphStats, reasoningStats.details());
+				namedGraphStats.size(), namedGraphStats, reasoningStats.details(), reasoningService.isRdfsSubsetEnabled());
 	}
 
 	private ReasoningStats computeReasoningStats(Map<String, Integer> graphTripleCounts) {

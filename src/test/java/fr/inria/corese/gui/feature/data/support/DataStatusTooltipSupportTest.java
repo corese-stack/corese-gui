@@ -3,6 +3,7 @@ package fr.inria.corese.gui.feature.data.support;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderCapabilities;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderMode;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderStatus;
+import fr.inria.corese.gui.core.service.data.DataWorkspaceStatus;
 import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport.RenderStatusBadge;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -145,5 +146,16 @@ class DataStatusTooltipSupportTest {
 		assertEquals("Standard rendering", lines.get(0));
 		assertTrue(lines.stream().anyMatch(line -> line.contains("Node labels")));
 		assertTrue(lines.stream().anyMatch(line -> line.contains("Edge labels")));
+	}
+
+	@Test
+	void buildReasoningTooltipLines_mentionsNativeRdfsSubsetWhenEnabled() {
+		DataWorkspaceStatus status = new DataWorkspaceStatus(2, 2, 0, 2, 1, 1, 0, 0, List.of(), List.of(), true);
+
+		List<String> lines = DataStatusTooltipSupport.buildReasoningTooltipLines(status);
+
+		assertEquals(1, lines.size(), "Tooltip should stay concise when only native RDFS subset is active.");
+		assertTrue(lines.get(0).contains("RDFS Subset"));
+		assertTrue(lines.get(0).contains("managed inference graphs"));
 	}
 }

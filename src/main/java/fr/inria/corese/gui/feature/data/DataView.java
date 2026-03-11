@@ -82,11 +82,12 @@ public class DataView extends AbstractView {
 	private final StackPane graphContainer = new StackPane();
 	private final Region graphDropOverlay = new Region();
 
+	private final ToggleSwitch rdfsSubsetToggle = new ToggleSwitch();
 	private final ToggleSwitch rdfsToggle = new ToggleSwitch();
 	private final ToggleSwitch owlRlToggle = new ToggleSwitch();
 	private final ToggleSwitch owlRlLiteToggle = new ToggleSwitch();
 	private final ToggleSwitch owlRlExtToggle = new ToggleSwitch();
-	private final Button rdfsViewButton = createBuiltInRuleViewButton("View RDFS profile rule file");
+	private final Button rdfsViewButton = createBuiltInRuleViewButton("View RDFS RL profile rule file");
 	private final Button owlRlViewButton = createBuiltInRuleViewButton("View OWL RL profile rule file");
 	private final Button owlRlLiteViewButton = createBuiltInRuleViewButton("View OWL RL Lite profile rule file");
 	private final Button owlRlExtViewButton = createBuiltInRuleViewButton("View OWL RL Ext profile rule file");
@@ -184,7 +185,11 @@ public class DataView extends AbstractView {
 
 		Label builtInTitle = new Label("Built-in Profiles");
 		builtInTitle.getStyleClass().add("data-section-title");
-		VBox builtInRules = new VBox(8, createBuiltInRuleRow("RDFS", rdfsToggle, rdfsViewButton),
+		VBox builtInRules = new VBox(8,
+				createNativeReasoningRow("RDFS Subset", rdfsSubsetToggle,
+						"Native Corese entailment mode. Query-time reasoning is enabled on the shared graph, "
+								+ "without materializing inferred triples into a named graph."),
+				createBuiltInRuleRow("RDFS RL", rdfsToggle, rdfsViewButton),
 				createBuiltInRuleRow("OWL RL", owlRlToggle, owlRlViewButton),
 				createBuiltInRuleRow("OWL RL Lite", owlRlLiteToggle, owlRlLiteViewButton),
 				createBuiltInRuleRow("OWL RL Ext", owlRlExtToggle, owlRlExtViewButton));
@@ -245,6 +250,31 @@ public class DataView extends AbstractView {
 		HBox row = new HBox(8, label, spacer, viewButton, toggle);
 		row.getStyleClass().addAll("data-rule-row", "app-card-row");
 		row.setAlignment(Pos.CENTER_LEFT);
+		return row;
+	}
+
+	private HBox createNativeReasoningRow(String labelText, ToggleSwitch toggle, String tooltipText) {
+		Label label = new Label(labelText);
+		label.getStyleClass().add("data-rule-toggle-label");
+		if (tooltipText != null && !tooltipText.isBlank()) {
+			label.setTooltip(new Tooltip(tooltipText));
+		}
+
+		toggle.getStyleClass().add("data-rule-toggle-switch");
+		toggle.setFocusTraversable(false);
+		if (tooltipText != null && !tooltipText.isBlank()) {
+			toggle.setTooltip(new Tooltip(tooltipText));
+		}
+
+		Region spacer = new Region();
+		HBox.setHgrow(spacer, Priority.ALWAYS);
+
+		HBox row = new HBox(8, label, spacer, toggle);
+		row.getStyleClass().addAll("data-rule-row", "app-card-row");
+		row.setAlignment(Pos.CENTER_LEFT);
+		if (tooltipText != null && !tooltipText.isBlank()) {
+			Tooltip.install(row, new Tooltip(tooltipText));
+		}
 		return row;
 	}
 
@@ -657,6 +687,10 @@ public class DataView extends AbstractView {
 		return List.of(rdfsToggle, owlRlToggle, owlRlLiteToggle, owlRlExtToggle);
 	}
 
+	public ToggleSwitch getRdfsSubsetToggle() {
+		return rdfsSubsetToggle;
+	}
+
 	/**
 	 * Sets the view action for one built-in profile source.
 	 *
@@ -685,6 +719,7 @@ public class DataView extends AbstractView {
 	 * Resets all built-in reasoning toggles to OFF.
 	 */
 	public void resetBuiltInRuleToggles() {
+		rdfsSubsetToggle.setSelected(false);
 		for (ToggleSwitch toggle : getBuiltInRuleToggles()) {
 			toggle.setSelected(false);
 		}

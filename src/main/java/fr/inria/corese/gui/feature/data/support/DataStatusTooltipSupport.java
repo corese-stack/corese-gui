@@ -95,10 +95,16 @@ public final class DataStatusTooltipSupport {
 	}
 
 	public static List<String> buildReasoningTooltipLines(DataWorkspaceStatus status) {
-		if (status.reasoningStats().isEmpty()) {
-			return List.of("No inferred triples.");
-		}
 		List<String> lines = new ArrayList<>();
+		if (status != null && status.nativeRdfsSubsetEnabled()) {
+			lines.add("RDFS Subset: active (native Corese entailment; not tracked in managed inference graphs).");
+		}
+		if (status == null || status.reasoningStats().isEmpty()) {
+			if (lines.isEmpty()) {
+				return List.of("No inferred triples.");
+			}
+			return lines;
+		}
 		for (DataWorkspaceStatus.ReasoningStat stat : status.reasoningStats()) {
 			lines.add(stat.profileLabel() + ": " + formatCount(stat.tripleCount()));
 		}

@@ -215,6 +215,28 @@ class DefaultDataWorkspaceServiceTest {
 				"Empty selection reload must not reset reasoning profiles.");
 	}
 
+	@Test
+	void nativeRdfsSubset_isExposedInStatusWithoutMaterializedInferenceTriples() throws IOException {
+		File baseline = writeTempTurtle("baseline-rdfs-subset.ttl", """
+				@prefix ex: <http://example.org/> .
+				@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+				ex:Dog rdfs:subClassOf ex:Animal .
+				ex:fido a ex:Dog .
+				""");
+
+		workspaceService.loadFile(baseline);
+		reasoningService.setRdfsSubsetEnabled(true);
+
+		DataWorkspaceStatus status = workspaceService.getStatus();
+		assertTrue(status.nativeRdfsSubsetEnabled(), "Workspace status should expose native RDFS subset state.");
+		assertEquals(0, status.inferredTripleCount(),
+				"Native RDFS subset should not be counted as materialized inferred triples.");
+
+		reasoningService.resetAllProfiles();
+		assertFalse(workspaceService.getStatus().nativeRdfsSubsetEnabled(),
+				"Reset should disable native RDFS subset in workspace status.");
+	}
+
 	private int reloadLikeDataViewController(List<DataSource> selectedSources) {
 		int reloaded = workspaceService.reloadSources(selectedSources);
 		if (reloaded > 0 && reasoningService.hasAnyEnabledProfile()) {

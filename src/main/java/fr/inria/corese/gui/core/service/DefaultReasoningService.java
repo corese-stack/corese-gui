@@ -34,7 +34,9 @@ import org.slf4j.LoggerFactory;
  * Default implementation of {@link ReasoningService}.
  *
  * <p>
- * Inferred triples are isolated in one named graph per reasoning profile.
+ * Rule-based inferred triples are isolated in one named graph per reasoning
+ * profile, while native RDFS subset entailment is managed directly on the
+ * shared graph.
  */
 @SuppressWarnings("java:S6548") // Singleton is intentional for shared graph reasoning state
 public final class DefaultReasoningService implements ReasoningService {
@@ -48,6 +50,7 @@ public final class DefaultReasoningService implements ReasoningService {
 	private final LinkedHashMap<String, RuleFileDefinition> ruleFiles = new LinkedHashMap<>();
 	private final GraphMutationBus mutationBus = GraphMutationBus.getInstance();
 	private final GraphActivityLogService activityLogService = GraphActivityLogService.getInstance();
+	private boolean rdfsSubsetEnabled = false;
 
 	private DefaultReasoningService() {
 		for (ReasoningProfile profile : ReasoningProfile.values()) {
@@ -105,6 +108,44 @@ public final class DefaultReasoningService implements ReasoningService {
 		}
 		String sourceContent = readBuiltInSource(sourcePath);
 		return new BuiltInProfileSource(profile.label(), sourcePath, sourceContent);
+	}
+
+	@Override
+	public synchronized void setRdfsSubsetEnabled(boolean enabled) {
+		if (rdfsSubsetEnabled == enabled) {
+			return;
+		}
+		Graph mainGraph = GraphStoreService.getInstance().getGraph();
+		int tripleCountBefore = Math.max(0, mainGraph.size());
+		boolean previous = rdfsSubsetEnabled;
+		rdfsSubsetEnabled = enabled;
+		try {
+			if (enabled || previous) {
+				mainGraph.setRDFSEntailment(enabled);
+			}
+			mainGraph.clean();
+		} catch (RuntimeException e) {
+			rdfsSubsetEnabled = previous;
+			try {
+				if (enabled || previous) {
+					mainGraph.setRDFSEntailment(previous);
+				}
+				mainGraph.clean();
+			} catch (RuntimeException rollbackError) {
+				e.addSuppressed(rollbackError);
+			}
+			throw new ReasoningException("Failed to update native RDFS subset entailment.", e);
+		}
+		mutationBus.publish(GraphMutationEvent.bulkRefreshRequired(GraphMutationEvent.Source.REASONING));
+		int tripleCountAfter = Math.max(0, mainGraph.size());
+		String action = enabled ? "Enabled native RDFS subset" : "Disabled native RDFS subset";
+		logActivityDelta(GraphActivityLogEntry.Source.REASONING_SERVICE, action,
+				"Native Corese entailment on the shared graph.", tripleCountBefore, tripleCountAfter);
+	}
+
+	@Override
+	public synchronized boolean isRdfsSubsetEnabled() {
+		return rdfsSubsetEnabled;
 	}
 
 	@Override
@@ -307,6 +348,7 @@ public final class DefaultReasoningService implements ReasoningService {
 	@Override
 	public synchronized void resetAllProfiles() {
 		int tripleCountBefore = graphSizeSnapshot();
+		boolean previousRdfsSubsetState = rdfsSubsetEnabled;
 		for (ReasoningProfile profile : ReasoningProfile.values()) {
 			profileStates.put(profile, false);
 		}
@@ -319,6 +361,10 @@ public final class DefaultReasoningService implements ReasoningService {
 
 		Graph mainGraph = GraphStoreService.getInstance().getGraph();
 		try (var _ = mutationBus.suspendPublishing()) {
+			if (previousRdfsSubsetState) {
+				mainGraph.setRDFSEntailment(false);
+			}
+			rdfsSubsetEnabled = false;
 			Graph assertedSnapshot = createAssertedSnapshot(mainGraph);
 			replaceGraphContent(mainGraph, assertedSnapshot);
 			mainGraph.clean();
@@ -328,14 +374,15 @@ public final class DefaultReasoningService implements ReasoningService {
 		mutationBus.publish(GraphMutationEvent.bulkRefreshRequired(GraphMutationEvent.Source.REASONING));
 		int tripleCountAfter = graphSizeSnapshot();
 		logActivityDelta(GraphActivityLogEntry.Source.REASONING_SERVICE, "Reset reasoning profiles",
-				"All built-in profiles and rule files were disabled.", tripleCountBefore, tripleCountAfter);
+				"All built-in profiles, native RDFS subset, and rule files were disabled.", tripleCountBefore,
+				tripleCountAfter);
 	}
 
 	private void applyProfileInference(Graph assertedSnapshot, Graph targetGraph, ReasoningProfile profile) {
 		try {
 			Graph workingGraph = assertedSnapshot.copy();
 			RuleEngine engine = RuleEngine.create(workingGraph);
-			engine.setSpeedUp(true);
+			configureRuleEngine(engine);
 			engine.setProfile(toCoreseProfile(profile));
 			engine.processWithoutWorkflow();
 
@@ -351,7 +398,7 @@ public final class DefaultReasoningService implements ReasoningService {
 		try {
 			Graph workingGraph = assertedSnapshot.copy();
 			RuleEngine engine = RuleEngine.create(workingGraph);
-			engine.setSpeedUp(true);
+			configureRuleEngine(engine);
 
 			Load ruleLoad = Load.create(workingGraph);
 			ruleLoad.setEngine(engine);
@@ -364,6 +411,15 @@ public final class DefaultReasoningService implements ReasoningService {
 		} catch (LoadException | EngineException e) {
 			throw new ReasoningException("Failed to apply rule file " + ruleFile.label() + ".", e);
 		}
+	}
+
+	private void configureRuleEngine(RuleEngine engine) {
+		if (engine == null) {
+			return;
+		}
+		// Native RDFS subset entailment changes predicate reachability semantics, so
+		// keep the rule engine on the safe path when both modes coexist.
+		engine.setSpeedUp(!rdfsSubsetEnabled);
 	}
 
 	private String resolveRuleFileLoadSource(String sourcePath) {

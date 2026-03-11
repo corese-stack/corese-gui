@@ -12,7 +12,7 @@ public final class DataClearGraphDialog {
 	private static final String DIALOG_TITLE = "Clear Graph";
 	private static final String DANGER_TITLE = "Danger";
 	private static final List<String> DANGER_ITEMS = List.of("All graph data and tracked sources will be removed.",
-			"Reasoning profiles will be reset to OFF.", "This action cannot be undone.");
+			"Reasoning profiles and native entailment modes will be reset to OFF.", "This action cannot be undone.");
 
 	private DataClearGraphDialog() {
 		throw new AssertionError("Utility class");

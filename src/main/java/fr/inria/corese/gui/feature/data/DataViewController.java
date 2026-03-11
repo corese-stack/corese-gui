@@ -122,7 +122,15 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void configureReasoningControls() {
+		ToggleSwitch rdfsSubsetToggle = view.getRdfsSubsetToggle();
 		List<ToggleSwitch> builtInToggles = view.getBuiltInRuleToggles();
+		rdfsSubsetToggle.setSelected(reasoningService.isRdfsSubsetEnabled());
+		rdfsSubsetToggle.selectedProperty().addListener((observable, previous, selected) -> {
+			if (syncingReasoningUi.get()) {
+				return;
+			}
+			handleRdfsSubsetToggle(Boolean.TRUE.equals(selected));
+		});
 		reasoningToggles.put(ReasoningProfile.RDFS, builtInToggles.get(0));
 		reasoningToggles.put(ReasoningProfile.OWL_RL, builtInToggles.get(1));
 		reasoningToggles.put(ReasoningProfile.OWL_RL_LITE, builtInToggles.get(2));
@@ -644,6 +652,7 @@ public class DataViewController implements AutoCloseable {
 	private void syncReasoningToggleStates() {
 		syncingReasoningUi.set(true);
 		try {
+			view.getRdfsSubsetToggle().setSelected(reasoningService.isRdfsSubsetEnabled());
 			for (Map.Entry<ReasoningProfile, ToggleSwitch> entry : reasoningToggles.entrySet()) {
 				entry.getValue().setSelected(reasoningService.isEnabled(entry.getKey()));
 			}
@@ -667,6 +676,24 @@ public class DataViewController implements AutoCloseable {
 			} catch (Exception e) {
 				return () -> NotificationWidget.getInstance().showErrorWithDetails("Reasoning Error",
 						"Reasoning update failed for " + profile.label() + ": " + e.getMessage(), e);
+			}
+		});
+	}
+
+	private void handleRdfsSubsetToggle(boolean enabled) {
+		runAsyncUiRefreshOperation("Reasoning", buildReasoningToggleLoadingMessage("RDFS Subset", enabled), () -> {
+			try {
+				DataWorkspaceStatus beforeStatus = workspaceService.getStatus();
+				reasoningService.setRdfsSubsetEnabled(enabled);
+				DataWorkspaceStatus afterStatus = workspaceService.getStatus();
+				String stateLabel = enabled ? "enabled" : "disabled";
+				String deltaMessage = DataUiMessageUtils.buildTripleDeltaMessage(beforeStatus.tripleCount(),
+						afterStatus.tripleCount());
+				String message = "RDFS Subset " + stateLabel + ". " + deltaMessage;
+				return () -> NotificationWidget.getInstance().showSuccess("Reasoning Profile", message);
+			} catch (Exception e) {
+				return () -> NotificationWidget.getInstance().showErrorWithDetails("Reasoning Error",
+						"Reasoning update failed for RDFS Subset: " + e.getMessage(), e);
 			}
 		});
 	}
@@ -729,7 +756,12 @@ public class DataViewController implements AutoCloseable {
 
 	private String buildReasoningToggleLoadingMessage(ReasoningProfile profile, boolean enabled) {
 		String profileLabel = profile == null ? "profile" : profile.label();
-		return enabled ? "Enabling " + profileLabel + "..." : "Disabling " + profileLabel + "...";
+		return buildReasoningToggleLoadingMessage(profileLabel, enabled);
+	}
+
+	private String buildReasoningToggleLoadingMessage(String profileLabel, boolean enabled) {
+		String safeLabel = profileLabel == null || profileLabel.isBlank() ? "profile" : profileLabel;
+		return enabled ? "Enabling " + safeLabel + "..." : "Disabling " + safeLabel + "...";
 	}
 
 	private void notifyLoadOutcome(String sourceLabel, int loadedCount, int tripleCount,
