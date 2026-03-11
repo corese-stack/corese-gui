@@ -97,7 +97,9 @@ public final class DataStatusTooltipSupport {
 	public static List<String> buildReasoningTooltipLines(DataWorkspaceStatus status) {
 		List<String> lines = new ArrayList<>();
 		if (status != null && status.nativeRdfsSubsetEnabled()) {
-			lines.add("RDFS Subset: active (native Corese entailment; not tracked in managed inference graphs).");
+			lines.add("RDFS Subset: active");
+			lines.add("Some inferred triples are added to kg:entailment.");
+			lines.add("Subclass-based rdf:type results may also be resolved at query time.");
 		}
 		if (status == null || status.reasoningStats().isEmpty()) {
 			if (lines.isEmpty()) {

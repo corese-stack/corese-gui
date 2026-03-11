@@ -154,8 +154,9 @@ class DataStatusTooltipSupportTest {
 
 		List<String> lines = DataStatusTooltipSupport.buildReasoningTooltipLines(status);
 
-		assertEquals(1, lines.size(), "Tooltip should stay concise when only native RDFS subset is active.");
-		assertTrue(lines.get(0).contains("RDFS Subset"));
-		assertTrue(lines.get(0).contains("managed inference graphs"));
+		assertEquals(3, lines.size(), "Tooltip should explain materialized and query-time effects.");
+		assertEquals("RDFS Subset: active", lines.get(0));
+		assertTrue(lines.get(1).contains("kg:entailment"));
+		assertTrue(lines.get(2).contains("query time"));
 	}
 }

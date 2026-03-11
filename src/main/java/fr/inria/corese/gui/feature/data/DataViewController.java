@@ -20,6 +20,7 @@ import fr.inria.corese.gui.core.service.ReasoningProfile;
 import fr.inria.corese.gui.core.service.ReasoningService;
 import fr.inria.corese.gui.core.theme.ThemeManager;
 import fr.inria.corese.gui.feature.data.dialog.DataClearGraphDialog;
+import fr.inria.corese.gui.feature.data.dialog.DataReasoningInfoDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataReloadSourcesDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataRulePreviewDialog;
 import fr.inria.corese.gui.feature.data.dialog.DataUriLoadDialog;
@@ -147,6 +148,7 @@ public class DataViewController implements AutoCloseable {
 				handleReasoningToggle(profile, Boolean.TRUE.equals(selected));
 			});
 		}
+		view.setRdfsSubsetViewAction(DataReasoningInfoDialog::showRdfsSubsetInfo);
 		for (ReasoningProfile profile : ReasoningProfile.values()) {
 			view.setBuiltInRuleViewAction(profile, () -> handleBuiltInRuleViewRequested(profile));
 		}

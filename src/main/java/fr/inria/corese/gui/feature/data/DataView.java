@@ -87,6 +87,7 @@ public class DataView extends AbstractView {
 	private final ToggleSwitch owlRlToggle = new ToggleSwitch();
 	private final ToggleSwitch owlRlLiteToggle = new ToggleSwitch();
 	private final ToggleSwitch owlRlExtToggle = new ToggleSwitch();
+	private final Button rdfsSubsetViewButton = createBuiltInRuleViewButton("Explain what RDFS Subset enables");
 	private final Button rdfsViewButton = createBuiltInRuleViewButton("View RDFS RL profile rule file");
 	private final Button owlRlViewButton = createBuiltInRuleViewButton("View OWL RL profile rule file");
 	private final Button owlRlLiteViewButton = createBuiltInRuleViewButton("View OWL RL Lite profile rule file");
@@ -186,9 +187,9 @@ public class DataView extends AbstractView {
 		Label builtInTitle = new Label("Built-in Profiles");
 		builtInTitle.getStyleClass().add("data-section-title");
 		VBox builtInRules = new VBox(8,
-				createNativeReasoningRow("RDFS Subset", rdfsSubsetToggle,
-						"Native Corese entailment mode. Query-time reasoning is enabled on the shared graph, "
-								+ "without materializing inferred triples into a named graph."),
+				createNativeReasoningRow("RDFS Subset", rdfsSubsetToggle, rdfsSubsetViewButton,
+						"Native lightweight RDFS inference. Some inferred triples are added to kg:entailment; "
+								+ "subclass-based rdf:type results may also be resolved at query time."),
 				createBuiltInRuleRow("RDFS RL", rdfsToggle, rdfsViewButton),
 				createBuiltInRuleRow("OWL RL", owlRlToggle, owlRlViewButton),
 				createBuiltInRuleRow("OWL RL Lite", owlRlLiteToggle, owlRlLiteViewButton),
@@ -253,7 +254,8 @@ public class DataView extends AbstractView {
 		return row;
 	}
 
-	private HBox createNativeReasoningRow(String labelText, ToggleSwitch toggle, String tooltipText) {
+	private HBox createNativeReasoningRow(String labelText, ToggleSwitch toggle, Button viewButton,
+			String tooltipText) {
 		Label label = new Label(labelText);
 		label.getStyleClass().add("data-rule-toggle-label");
 		if (tooltipText != null && !tooltipText.isBlank()) {
@@ -269,7 +271,7 @@ public class DataView extends AbstractView {
 		Region spacer = new Region();
 		HBox.setHgrow(spacer, Priority.ALWAYS);
 
-		HBox row = new HBox(8, label, spacer, toggle);
+		HBox row = new HBox(8, label, spacer, viewButton, toggle);
 		row.getStyleClass().addAll("data-rule-row", "app-card-row");
 		row.setAlignment(Pos.CENTER_LEFT);
 		if (tooltipText != null && !tooltipText.isBlank()) {
@@ -689,6 +691,16 @@ public class DataView extends AbstractView {
 
 	public ToggleSwitch getRdfsSubsetToggle() {
 		return rdfsSubsetToggle;
+	}
+
+	public void setRdfsSubsetViewAction(Runnable action) {
+		if (action == null) {
+			rdfsSubsetViewButton.setOnAction(null);
+			rdfsSubsetViewButton.setDisable(true);
+			return;
+		}
+		rdfsSubsetViewButton.setOnAction(event -> action.run());
+		rdfsSubsetViewButton.setDisable(false);
 	}
 
 	/**
