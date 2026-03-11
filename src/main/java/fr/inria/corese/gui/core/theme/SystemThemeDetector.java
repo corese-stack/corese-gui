@@ -12,6 +12,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javafx.scene.paint.Color;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +35,12 @@ public final class SystemThemeDetector {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(SystemThemeDetector.class);
 	private static final long COMMAND_TIMEOUT_SECONDS = 2;
+	private static final String XDG_PORTAL_DESTINATION = "org.freedesktop.portal.Desktop";
+	@SuppressWarnings("java:S1075") // Well-known D-Bus object path defined by the XDG desktop portal spec
+	private static final String XDG_PORTAL_PATH = "/org/freedesktop/portal/desktop";
+	private static final String XDG_PORTAL_APPEARANCE_NAMESPACE = "org.freedesktop.appearance";
+	private static final Pattern XDG_PORTAL_ACCENT_PATTERN = Pattern
+			.compile("([01](?:\\.\\d+)?)\\s*,\\s*([01](?:\\.\\d+)?)\\s*,\\s*([01](?:\\.\\d+)?)");
 
 	// ===== OS Detection =====
 	private static final String OS = System.getProperty("os.name").toLowerCase();
@@ -190,12 +198,17 @@ public final class SystemThemeDetector {
 	}
 
 	private static Color getLinuxAccentColor() {
-		// 1. Try KDE Plasma (kdeglobals) - often has precise RGB
+		// 1. Try XDG Desktop Portal (Universal for Flatpak/Snap/Modern DEs)
+		Color portalColor = getXdgPortalAccentColor();
+		if (portalColor != null)
+			return portalColor;
+
+		// 2. Try KDE Plasma (kdeglobals) - often has precise RGB
 		Color kdeColor = getKdeAccentColor();
 		if (kdeColor != null)
 			return kdeColor;
 
-		// 2. Try GNOME (gsettings)
+		// 3. Try GNOME (gsettings)
 		Color gnomeColor = getGnomeAccentColor();
 		if (gnomeColor != null)
 			return gnomeColor;
@@ -212,6 +225,21 @@ public final class SystemThemeDetector {
 
 		// 1 = Dark, 2 = Light, 0 = No preference
 		return result != null && result.contains("uint32 1");
+	}
+
+	private static Color getXdgPortalAccentColor() {
+		Color readOneColor = parsePortalAccentColor(readXdgPortalAppearanceSetting(true, "accent-color"));
+		if (readOneColor != null) {
+			return readOneColor;
+		}
+		return parsePortalAccentColor(readXdgPortalAppearanceSetting(false, "accent-color"));
+	}
+
+	private static String readXdgPortalAppearanceSetting(boolean readOne, String key) {
+		String method = readOne ? "org.freedesktop.portal.Settings.ReadOne"
+				: "org.freedesktop.portal.Settings.Read";
+		return executeCommand("gdbus", "call", "--session", "--dest=" + XDG_PORTAL_DESTINATION,
+				"--object-path=" + XDG_PORTAL_PATH, "--method=" + method, XDG_PORTAL_APPEARANCE_NAMESPACE, key);
 	}
 
 	private static boolean isGnomeDark() {
@@ -258,6 +286,31 @@ public final class SystemThemeDetector {
 			};
 		}
 		return null;
+	}
+
+	static Color parsePortalAccentColor(String result) {
+		if (result == null || result.isBlank()) {
+			return null;
+		}
+		Matcher matcher = XDG_PORTAL_ACCENT_PATTERN.matcher(result);
+		if (!matcher.find()) {
+			return null;
+		}
+		try {
+			double red = Double.parseDouble(matcher.group(1));
+			double green = Double.parseDouble(matcher.group(2));
+			double blue = Double.parseDouble(matcher.group(3));
+			if (!isNormalizedChannel(red) || !isNormalizedChannel(green) || !isNormalizedChannel(blue)) {
+				return null;
+			}
+			return Color.color(red, green, blue);
+		} catch (NumberFormatException _) {
+			return null;
+		}
+	}
+
+	private static boolean isNormalizedChannel(double value) {
+		return value >= 0.0 && value <= 1.0;
 	}
 
 	private static Color getKdeAccentColor() {
