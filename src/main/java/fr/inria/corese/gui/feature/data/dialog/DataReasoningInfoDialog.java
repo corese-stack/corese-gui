@@ -17,7 +17,7 @@ public final class DataReasoningInfoDialog {
 	private static final String DIALOG_TITLE = "Reasoning Mode - RDFS Subset";
 	private static final String DIALOG_SUBTITLE = "Lightweight native RDFS entailment in Corese.";
 	private static final String INTRO_TEXT = """
-			RDFS Subset enables Corese's native lightweight RDFS entailment on the current graph.
+			RDFS Subset enables Corese's lightweight native RDFS entailment on the current graph.
 			""";
 	private static final String WHAT_IT_DOES_TEXT = """
 			- infer rdf:type from rdfs:domain and rdfs:range

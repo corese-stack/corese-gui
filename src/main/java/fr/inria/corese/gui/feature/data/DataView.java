@@ -91,7 +91,7 @@ public class DataView extends AbstractView {
 	private final Button rdfsViewButton = createBuiltInRuleViewButton("View RDFS RL profile rule file");
 	private final Button owlRlViewButton = createBuiltInRuleViewButton("View OWL RL profile rule file");
 	private final Button owlRlLiteViewButton = createBuiltInRuleViewButton("View OWL RL Lite profile rule file");
-	private final Button owlRlExtViewButton = createBuiltInRuleViewButton("View OWL RL Ext profile rule file");
+	private final Button owlRlExtViewButton = createBuiltInRuleViewButton("View OWL RL Extended profile rule file");
 	private final VBox ruleFilesList = new VBox(8);
 	private final ScrollPane ruleFilesScrollPane = new ScrollPane(ruleFilesList);
 	private final StackPane ruleFilesContent = new StackPane();
@@ -184,7 +184,7 @@ public class DataView extends AbstractView {
 		Label titleLabel = new Label("Reasoning");
 		titleLabel.getStyleClass().add("data-pane-title");
 
-		Label builtInTitle = new Label("Built-in Profiles");
+		Label builtInTitle = new Label("Built-in Reasoning");
 		builtInTitle.getStyleClass().add("data-section-title");
 		VBox builtInRules = new VBox(8,
 				createNativeReasoningRow("RDFS Subset", rdfsSubsetToggle, rdfsSubsetViewButton,
@@ -193,7 +193,7 @@ public class DataView extends AbstractView {
 				createBuiltInRuleRow("RDFS RL", rdfsToggle, rdfsViewButton),
 				createBuiltInRuleRow("OWL RL", owlRlToggle, owlRlViewButton),
 				createBuiltInRuleRow("OWL RL Lite", owlRlLiteToggle, owlRlLiteViewButton),
-				createBuiltInRuleRow("OWL RL Ext", owlRlExtToggle, owlRlExtViewButton));
+				createBuiltInRuleRow("OWL RL Extended", owlRlExtToggle, owlRlExtViewButton));
 		builtInRules.getStyleClass().addAll("data-rule-list", "app-card", "app-card-default");
 		RoundedClipSupport.applyRoundedClip(builtInRules, CARD_RADIUS);
 

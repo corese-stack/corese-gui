@@ -51,4 +51,28 @@ class ReasoningGraphProjectionTest {
 		assertTrue(jsonLd.contains("\"@graph\""),
 				"JSON-LD snapshot should keep named graph containers after reasoning.");
 	}
+
+	@Test
+	void rdfsRlInference_usesDedicatedRdfsRlNamedGraphUriInJsonLdSnapshot() throws IOException {
+		Path dataset = tempDir.resolve("rdfsrl-subclass.ttl");
+		Files.writeString(dataset, """
+				@prefix ex: <http://example.org/> .
+				@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+				ex:Dog rdfs:subClassOf ex:Animal .
+				ex:fido a ex:Dog .
+				""");
+
+		rdfDataService.loadFile(dataset.toFile());
+		reasoningService.setEnabled(ReasoningProfile.RDFS, true);
+
+		DataWorkspaceStatus status = workspaceService.getStatus();
+		assertTrue(status.inferredTripleCount() > 0,
+				"Expected inferred triples after enabling RDFS RL for the subclass dataset.");
+
+		String jsonLd = projectionService.snapshotJsonLd();
+		assertTrue(jsonLd.contains("urn:corese:inference:rdfsrl"),
+				"JSON-LD snapshot should expose the RDFS RL named graph URI for inferred triples.");
+		assertTrue(jsonLd.contains("\"@graph\""),
+				"JSON-LD snapshot should keep named graph containers after reasoning.");
+	}
 }

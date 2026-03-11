@@ -55,6 +55,7 @@ public class DataViewController implements AutoCloseable {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DataViewController.class);
 	private static final String MSG_NO_DATA_TO_CLEAR = "No RDF data to clear.";
+	private static final String RDFS_SUBSET_LABEL = "RDFS Subset";
 
 	private final DataView view;
 	private final DataWorkspaceService workspaceService;
@@ -683,7 +684,8 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void handleRdfsSubsetToggle(boolean enabled) {
-		runAsyncUiRefreshOperation("Reasoning", buildReasoningToggleLoadingMessage("RDFS Subset", enabled), () -> {
+		runAsyncUiRefreshOperation("Reasoning", buildReasoningToggleLoadingMessage(RDFS_SUBSET_LABEL, enabled),
+				() -> {
 			try {
 				DataWorkspaceStatus beforeStatus = workspaceService.getStatus();
 				reasoningService.setRdfsSubsetEnabled(enabled);
@@ -691,11 +693,11 @@ public class DataViewController implements AutoCloseable {
 				String stateLabel = enabled ? "enabled" : "disabled";
 				String deltaMessage = DataUiMessageUtils.buildTripleDeltaMessage(beforeStatus.tripleCount(),
 						afterStatus.tripleCount());
-				String message = "RDFS Subset " + stateLabel + ". " + deltaMessage;
+				String message = RDFS_SUBSET_LABEL + " " + stateLabel + ". " + deltaMessage;
 				return () -> NotificationWidget.getInstance().showSuccess("Reasoning Profile", message);
 			} catch (Exception e) {
 				return () -> NotificationWidget.getInstance().showErrorWithDetails("Reasoning Error",
-						"Reasoning update failed for RDFS Subset: " + e.getMessage(), e);
+						"Reasoning update failed for " + RDFS_SUBSET_LABEL + ": " + e.getMessage(), e);
 			}
 		});
 	}
