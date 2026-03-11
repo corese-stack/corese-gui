@@ -257,10 +257,10 @@ public class TabEditorView extends AbstractView {
 		if (!change.wasAdded()) {
 			return;
 		}
-		Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
-		if (selectedTab != null && change.getAddedSubList().contains(selectedTab)) {
-			Platform.runLater(() -> showContentForTab(selectedTab, false));
-		}
+		// Defer to the next pulse, but always use the current selection at execution
+		// time. Capturing the selection here can re-show the first added tab when
+		// several tabs are opened in quick succession.
+		Platform.runLater(() -> showContentForTab(tabPane.getSelectionModel().getSelectedItem(), false));
 	}
 
 	private void setupThemeListener() {
