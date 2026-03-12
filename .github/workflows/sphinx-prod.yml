@@ -26,12 +26,20 @@ jobs:
       github.event_name != 'workflow_run' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: [self-hosted, corese-stack-ubuntu-24]
+    env:
+      DOCS_SOURCE_REF: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.ref_name }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ env.DOCS_SOURCE_REF }}
+
+      - name: Show documentation source ref
+        run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "docs_source_ref=${DOCS_SOURCE_REF}"
+          git rev-parse HEAD
 
       - name: Check existing tags before fetch
         run: git tag --sort=-v:refname || echo "No tags found"
