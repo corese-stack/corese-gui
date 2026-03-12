@@ -152,9 +152,7 @@ public class DataView extends AbstractView {
 			return;
 		}
 		root.addEventFilter(DragEvent.DRAG_OVER, this::handleRootDragOver);
-		root.addEventFilter(DragEvent.DRAG_EXITED_TARGET, event -> clearDropOverlays());
-		root.addEventFilter(DragEvent.DRAG_DONE, event -> clearDropOverlays());
-		root.addEventFilter(DragEvent.DRAG_DROPPED, event -> clearDropOverlays());
+		FileDragDropSupport.installOverlayResetGuards(root, this::clearDropOverlays);
 	}
 
 	private void handleRootDragOver(DragEvent event) {

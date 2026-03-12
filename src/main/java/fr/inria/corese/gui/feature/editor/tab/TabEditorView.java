@@ -283,9 +283,7 @@ public class TabEditorView extends AbstractView {
 			return;
 		}
 		rootStack.addEventFilter(DragEvent.DRAG_OVER, this::handleRootDragOver);
-		rootStack.addEventFilter(DragEvent.DRAG_EXITED_TARGET, event -> setFileDropActive(false));
-		rootStack.addEventFilter(DragEvent.DRAG_DONE, event -> setFileDropActive(false));
-		rootStack.addEventFilter(DragEvent.DRAG_DROPPED, event -> setFileDropActive(false));
+		FileDragDropSupport.installOverlayResetGuards(rootStack, () -> setFileDropActive(false));
 	}
 
 	private void handleRootDragOver(DragEvent event) {
