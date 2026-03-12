@@ -67,6 +67,7 @@
 .notification-close-button {
     -fx-font-size: 12px;
     -fx-font-weight: 600;
+    -fx-underline: false;
     -fx-padding: 0 5px;
     -fx-min-width: 20px;
     -fx-min-height: 20px;
@@ -74,4 +75,9 @@
     -fx-pref-height: 20px;
     -fx-background-radius: 999px;
     -fx-cursor: hand;
+}
+
+.notification-close-button:hover,
+.notification-close-button:focused:hover {
+    -fx-underline: false;
 }
