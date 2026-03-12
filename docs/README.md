@@ -18,6 +18,12 @@ From the repository root:
 sphinx-multiversion docs/source build/html
 ```
 
+To rebuild only the `main/` docs locally, use:
+
+```shell
+sphinx-build docs/source build/html/main
+```
+
 ## Build switcher and landing page
 
 Generate both:
@@ -57,6 +63,9 @@ Optional environment variables:
   - `vX.Y.Z` docs: tag `vX.Y.Z`, no `SNAPSHOT` suffix.
   - `dev-prerelease` docs: tag `dev-prerelease`, `SNAPSHOT` suffix on every downloadable artifact.
   - any other ref (for example `main`): latest supported stable tag (`vX.Y.Z >= v5.0.0`) when available, otherwise `dev-prerelease`, otherwise `v${DOCS_DEFAULT_APP_VERSION:-5.0.0}`.
+- Production workflow policy:
+  - push to `main`: rebuild only `main/`, so existing tagged docs are not overwritten before a pre-release or stable release updates the tag set.
+  - successful `Publish Development Pre-release` or `Publish GitHub Release`: rebuild the full multiversion site so `dev-prerelease` and stable tag docs follow the published tags.
 - Links intentionally point to deterministic CI artifact names:
   - Windows installer: `corese-gui-<version>[-SNAPSHOT]-windows-x64.exe`
   - Windows portable: `corese-gui-<version>[-SNAPSHOT]-windows-x64-portable.zip`
