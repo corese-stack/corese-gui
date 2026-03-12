@@ -36,7 +36,7 @@ Optional environment variables:
 - `MINIMAL_VERSION` (default: `5.0.0`)
 - `LEGACY_MINIMAL_VERSION` (default: `4.6.0`, lower legacy tags are excluded from switcher)
 - `DEV_PRERELEASE_REF` (default: `dev-prerelease`)
-- `DOCS_DEFAULT_APP_VERSION` (default: `5.0.0`, used on non-tag refs like `main`)
+- `DOCS_DEFAULT_APP_VERSION` (default: `5.0.0`, final fallback only when no supported stable tag and no `dev-prerelease` tag exist locally)
 - `DEV_PRERELEASE_APP_VERSION` (default: `5.0.0`, used to build `-SNAPSHOT` filenames)
 
 ## Versioning rules
@@ -56,7 +56,7 @@ Optional environment variables:
 - The resolved links depend on `smv_current_version`:
   - `vX.Y.Z` docs: tag `vX.Y.Z`, no `SNAPSHOT` suffix.
   - `dev-prerelease` docs: tag `dev-prerelease`, `SNAPSHOT` suffix on every downloadable artifact.
-  - any other ref (for example `main`): fallback to `v${DOCS_DEFAULT_APP_VERSION:-5.0.0}`.
+  - any other ref (for example `main`): latest supported stable tag (`vX.Y.Z >= v5.0.0`) when available, otherwise `dev-prerelease`, otherwise `v${DOCS_DEFAULT_APP_VERSION:-5.0.0}`.
 - Links intentionally point to deterministic CI artifact names:
   - Windows installer: `corese-gui-<version>[-SNAPSHOT]-windows-x64.exe`
   - Windows portable: `corese-gui-<version>[-SNAPSHOT]-windows-x64-portable.zip`

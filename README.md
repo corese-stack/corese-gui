@@ -40,30 +40,13 @@ It provides a visual workspace to load RDF data, execute SPARQL queries, inspect
 
 ## Downloads
 
-### Windows
+- [Latest stable release page](https://github.com/corese-stack/corese-gui/releases/latest)
+- [Development pre-release page (`dev-prerelease`)](https://github.com/corese-stack/corese-gui/releases/tag/dev-prerelease)
+- [Full installation matrix in the documentation site](https://corese-stack.github.io/corese-gui/)
 
-- [Installer (recommended, x64, .exe)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-windows-x64.exe)
-- [Portable archive (x64, .zip)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-windows-x64-portable.zip)
-- [Standalone JAR (x64)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-standalone-windows-x64.jar)
-
-### macOS
-
-- [Installer for Apple Silicon (arm64, .dmg)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-macos-arm64.dmg)
-- [Installer for Intel (x64, .dmg)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-macos-x64.dmg)
-- [Standalone JAR for Apple Silicon (arm64)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-standalone-macos-arm64.jar)
-- [Standalone JAR for Intel (x64)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-standalone-macos-x64.jar)
-
-### Linux
-
-- [Flatpak (recommended)](https://flathub.org/apps/fr.inria.corese.CoreseGui)
-- [App archive (x64, .tar.gz)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-linux-x64.tar.gz)
-- [App archive (arm64, .tar.gz)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-linux-arm64.tar.gz)
-- [Standalone JAR (x64)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-standalone-linux-x64.jar)
-- [Standalone JAR (arm64)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-standalone-linux-arm64.jar)
+Stable releases publish Windows installers and portable archives, macOS `.dmg` bundles, Linux archives, and standalone JARs. The rolling `dev-prerelease` channel publishes the same platform matrix, but every downloadable artifact keeps the `-SNAPSHOT` suffix in its filename.
 
 > Standalone JAR files require Java 25 to be installed manually.
-
-Development pre-releases are published on [the `dev-prerelease` page](https://github.com/corese-stack/corese-gui/releases/tag/dev-prerelease). On that rolling channel, every downloadable artifact keeps the full `-SNAPSHOT` suffix in its filename.
 
 ## Build and Run (local)
 

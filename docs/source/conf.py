@@ -3,6 +3,7 @@
 import os
 import pathlib
 import re
+import subprocess
 import sys
 
 sys.path.insert(0, pathlib.Path(__file__).parents[1].resolve().as_posix())
@@ -16,6 +17,51 @@ release = ""
 
 DEFAULT_APP_VERSION = "5.0.0"
 DEV_PRERELEASE_REF = "dev-prerelease"
+MINIMAL_STABLE_VERSION = os.environ.get("MINIMAL_VERSION", DEFAULT_APP_VERSION).lstrip("v")
+
+
+def _parse_semver_tag(tag: str) -> tuple[int, int, int] | None:
+    match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)", tag)
+    if not match:
+        return None
+    return tuple(int(part) for part in match.groups())
+
+
+def _git_tag_exists(tag: str) -> bool:
+    try:
+        result = subprocess.run(
+            ["git", "show-ref", "--verify", "--quiet", f"refs/tags/{tag}"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return False
+    return result.returncode == 0
+
+
+def _latest_supported_stable_tag() -> str | None:
+    minimum = _parse_semver_tag(f"v{MINIMAL_STABLE_VERSION}")
+    if minimum is None:
+        return None
+    try:
+        result = subprocess.run(
+            ["git", "tag", "--sort=-v:refname"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+
+    for raw_tag in result.stdout.splitlines():
+        tag = raw_tag.strip()
+        parsed = _parse_semver_tag(tag)
+        if parsed is not None and parsed >= minimum:
+            return tag
+    return None
 
 
 def _compute_download_context(current_version: str) -> tuple[str, str, str, str]:
@@ -35,6 +81,17 @@ def _compute_download_context(current_version: str) -> tuple[str, str, str, str]
         artifact_version = f"{app_version}-SNAPSHOT"
         channel_label = "Development pre-release (dev-prerelease)"
         return download_tag, app_version, artifact_version, channel_label
+
+    latest_stable_tag = _latest_supported_stable_tag()
+    if latest_stable_tag is not None:
+        app_version = latest_stable_tag.lstrip("v")
+        return latest_stable_tag, app_version, app_version, f"Stable release ({latest_stable_tag})"
+
+    if _git_tag_exists(DEV_PRERELEASE_REF):
+        app_version = os.environ.get("DEV_PRERELEASE_APP_VERSION", DEFAULT_APP_VERSION)
+        app_version = app_version.lstrip("v")
+        artifact_version = f"{app_version}-SNAPSHOT"
+        return DEV_PRERELEASE_REF, app_version, artifact_version, "Development pre-release (dev-prerelease)"
 
     app_version = os.environ.get("DOCS_DEFAULT_APP_VERSION", DEFAULT_APP_VERSION)
     app_version = app_version.lstrip("v")

@@ -9,6 +9,7 @@ on:
   workflow_run:
     workflows:
       - "Publish Development Pre-release"
+      - "Publish GitHub Release"
     types:
       - completed
 
