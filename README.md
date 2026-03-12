@@ -63,6 +63,8 @@ It provides a visual workspace to load RDF data, execute SPARQL queries, inspect
 
 > Standalone JAR files require Java 25 to be installed manually.
 
+Development pre-releases are published on [the `dev-prerelease` page](https://github.com/corese-stack/corese-gui/releases/tag/dev-prerelease). On that rolling channel, every downloadable artifact keeps the full `-SNAPSHOT` suffix in its filename.
+
 ## Build and Run (local)
 
 ```bash

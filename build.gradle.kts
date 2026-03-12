@@ -21,6 +21,8 @@ import org.gradle.jvm.tasks.Jar
  *
  * Distribution model:
  * - Standalone JAR (fat jar): `corese-gui-<version>-standalone-<os>-<arch>.jar`
+ * - Published native artifacts: `corese-gui-<version>-<os>-<arch>.<ext>`
+ * - Windows portable archive: `corese-gui-<version>-windows-x64-portable.zip`
  * - Native bundle (jpackage): per host target in `build/jpackage/output/<os>-<arch>/`
  * - No `installDist` / `distZip` / `distTar` tasks on purpose.
  *
@@ -52,31 +54,53 @@ plugins {
     id("com.diffplug.spotless") version "8.2.1"
 }
 
+fun normalizeProjectVersion(rawValue: String?): String {
+    val candidate = rawValue?.trim().orEmpty()
+    if (candidate.isBlank()) {
+        return "5.0.0-SNAPSHOT"
+    }
+    return candidate.removePrefix("refs/tags/").removePrefix("v").trim()
+}
+
+val resolvedProjectVersion = normalizeProjectVersion(findProperty("projectVersion") as String?)
+
 /*
  * Centralized metadata to avoid hard-coded string duplication.
  * Keep coordinates and app identity stable across artifacts and CI.
  */
-object Meta {
-    const val groupId = "fr.inria.corese"
-    const val artifactId = "corese-gui"
-    const val appName = "Corese GUI"
-    const val appTechnicalName = "corese-gui"
-    const val appVendor = "Inria"
-    const val appId = "fr.inria.corese.gui"
-    const val version = "5.0.0-SNAPSHOT"
-    const val javaVersion = 25
+data class MetaInfo(
+    val groupId: String,
+    val artifactId: String,
+    val appName: String,
+    val appTechnicalName: String,
+    val appVendor: String,
+    val appId: String,
+    val version: String,
+    val javaVersion: Int,
+    val description: String,
+    val githubRepo: String,
+    val licenseName: String,
+    val licenseUrl: String,
+    val mainClass: String,
+    val nativeAccessOption: String,
+)
 
-    const val description = "A graphical desktop application for exploring, querying, and visualizing RDF data using SPARQL and SHACL with the Corese engine."
-    const val githubRepo = "corese-stack/corese-gui"
-
-    const val licenseName = "CeCILL-C License"
-    const val licenseUrl = "https://cecill.info/licences/Licence_CeCILL-C_V1-en.html"
-
-    // Plain Java launcher for classpath-friendly startup (fat JAR + jpackage).
-    const val mainClass = "fr.inria.corese.gui.Launcher"
-    // JDK 25+ warns for restricted native access in JavaFX internals unless modules are explicit.
-    const val nativeAccessOption = "--enable-native-access=ALL-UNNAMED,javafx.graphics,javafx.web"
-}
+val Meta = MetaInfo(
+    groupId = "fr.inria.corese",
+    artifactId = "corese-gui",
+    appName = "Corese GUI",
+    appTechnicalName = "corese-gui",
+    appVendor = "Inria",
+    appId = "fr.inria.corese.gui",
+    version = resolvedProjectVersion,
+    javaVersion = 25,
+    description = "A graphical desktop application for exploring, querying, and visualizing RDF data using SPARQL and SHACL with the Corese engine.",
+    githubRepo = "corese-stack/corese-gui",
+    licenseName = "CeCILL-C License",
+    licenseUrl = "https://cecill.info/licences/Licence_CeCILL-C_V1-en.html",
+    mainClass = "fr.inria.corese.gui.Launcher",
+    nativeAccessOption = "--enable-native-access=ALL-UNNAMED,javafx.graphics,javafx.web",
+)
 
 /*
  * Dependency versions grouped by concern.

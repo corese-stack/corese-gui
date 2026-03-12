@@ -54,23 +54,23 @@ def _build_download_urls(
         "release_page": (
             f"https://github.com/corese-stack/corese-gui/releases/tag/{download_tag}"
         ),
-        "windows_installer": f"{release_base}/corese-gui-{app_version}-windows-x64.exe",
+        "windows_installer": f"{release_base}/corese-gui-{artifact_version}-windows-x64.exe",
         "windows_portable": (
             f"{release_base}/corese-gui-{artifact_version}-windows-x64-portable.zip"
         ),
         "windows_standalone": (
             f"{release_base}/corese-gui-{artifact_version}-standalone-windows-x64.jar"
         ),
-        "macos_installer_arm64": f"{release_base}/corese-gui-{app_version}-macos-arm64.dmg",
-        "macos_installer_x64": f"{release_base}/corese-gui-{app_version}-macos-x64.dmg",
+        "macos_installer_arm64": f"{release_base}/corese-gui-{artifact_version}-macos-arm64.dmg",
+        "macos_installer_x64": f"{release_base}/corese-gui-{artifact_version}-macos-x64.dmg",
         "macos_standalone_arm64": (
             f"{release_base}/corese-gui-{artifact_version}-standalone-macos-arm64.jar"
         ),
         "macos_standalone_x64": (
             f"{release_base}/corese-gui-{artifact_version}-standalone-macos-x64.jar"
         ),
-        "linux_archive_x64": f"{release_base}/corese-gui-linux-x64.tar.gz",
-        "linux_archive_arm64": f"{release_base}/corese-gui-linux-arm64.tar.gz",
+        "linux_archive_x64": f"{release_base}/corese-gui-{artifact_version}-linux-x64.tar.gz",
+        "linux_archive_arm64": f"{release_base}/corese-gui-{artifact_version}-linux-arm64.tar.gz",
         "linux_standalone_x64": (
             f"{release_base}/corese-gui-{artifact_version}-standalone-linux-x64.jar"
         ),

@@ -45,7 +45,13 @@ jobs:
                   ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_PASSWORD }}
                   ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_SIGNING_KEY }}
                   ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_SIGNING_PASSPHRASE }}
-              run: ./gradlew --no-daemon publishAllPublicationsToMavenCentralRepository
+                  PROJECT_REF: ${{ github.event.inputs.ref || github.ref }}
+              run: |
+                  version_arg=""
+                  if [[ "$PROJECT_REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ || "$PROJECT_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                      version_arg="-PprojectVersion=$PROJECT_REF"
+                  fi
+                  ./gradlew --no-daemon publishAllPublicationsToMavenCentralRepository ${version_arg}
 
             - name: Manual release reminder
               run: echo "Upload complete (no automatic release). Finalize deployment manually on https://central.sonatype.com/publishing/deployments"

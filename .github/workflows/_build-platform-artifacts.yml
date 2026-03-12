@@ -12,6 +12,11 @@ on:
                 description: "Prefix used for uploaded artifact names"
                 required: true
                 type: string
+            project_version:
+                description: "Optional Gradle project version override (for stable release tags)"
+                required: false
+                default: ""
+                type: string
 
 permissions:
     contents: read
@@ -62,7 +67,7 @@ jobs:
                   cache: gradle
 
             - name: Build artifacts for current platform
-              run: ${{ matrix.gradle_cmd }} --no-daemon clean shadowJar jpackageCurrentPlatform ${{ matrix.target == 'windows-x64' && 'windowsPortableZipCurrentPlatform' || '' }} -PjpackageType=${{ matrix.jpackage_type }}
+              run: ${{ matrix.gradle_cmd }} --no-daemon clean shadowJar jpackageCurrentPlatform ${{ matrix.target == 'windows-x64' && 'windowsPortableZipCurrentPlatform' || '' }} -PjpackageType=${{ matrix.jpackage_type }} ${{ inputs.project_version != '' && format('-PprojectVersion={0}', inputs.project_version) || '' }}
 
             - name: Collect publishable artifacts
               shell: bash

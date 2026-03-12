@@ -25,6 +25,7 @@ jobs:
         with:
             source_ref: ${{ github.event.inputs.ref || github.ref }}
             artifact_name_prefix: corese-gui
+            project_version: ${{ github.event.inputs.ref || github.ref }}
 
     release:
         needs: build-artifacts

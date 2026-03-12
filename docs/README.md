@@ -55,13 +55,13 @@ Optional environment variables:
 - `docs/source/install.rst` is written in English and renders a single download matrix per built docs version.
 - The resolved links depend on `smv_current_version`:
   - `vX.Y.Z` docs: tag `vX.Y.Z`, no `SNAPSHOT` suffix.
-  - `dev-prerelease` docs: tag `dev-prerelease`, `SNAPSHOT` suffix for portable/standalone artifacts.
+  - `dev-prerelease` docs: tag `dev-prerelease`, `SNAPSHOT` suffix on every downloadable artifact.
   - any other ref (for example `main`): fallback to `v${DOCS_DEFAULT_APP_VERSION:-5.0.0}`.
 - Links intentionally point to deterministic CI artifact names:
-  - Windows installer: `corese-gui-<version>-windows-x64.exe`
+  - Windows installer: `corese-gui-<version>[-SNAPSHOT]-windows-x64.exe`
   - Windows portable: `corese-gui-<version>[-SNAPSHOT]-windows-x64-portable.zip`
-  - macOS installers: `corese-gui-<version>-macos-<arch>.dmg`
-  - Linux archives: `corese-gui-linux-<arch>.tar.gz`
+  - macOS installers: `corese-gui-<version>[-SNAPSHOT]-macos-<arch>.dmg`
+  - Linux archives: `corese-gui-<version>[-SNAPSHOT]-linux-<arch>.tar.gz`
   - Standalone jars: `corese-gui-<version>[-SNAPSHOT]-standalone-<target>.jar`
 - If artifact naming changes in CI, update `install.rst` accordingly.
 

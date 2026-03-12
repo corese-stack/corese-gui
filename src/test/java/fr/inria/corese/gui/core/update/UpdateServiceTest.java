@@ -16,10 +16,10 @@ class UpdateServiceTest {
 		// Asset names copied from:
 		// gh release view dev-prerelease --repo corese-stack/corese-gui --json assets
 		return List.of(
-				new UpdateService.UpdateAsset("corese-gui-5.0.0-macos-arm64.dmg",
-						"https://example.test/corese-gui-5.0.0-macos-arm64.dmg"),
-				new UpdateService.UpdateAsset("corese-gui-5.0.0-macos-x64.dmg",
-						"https://example.test/corese-gui-5.0.0-macos-x64.dmg"),
+				new UpdateService.UpdateAsset("corese-gui-5.0.0-SNAPSHOT-macos-arm64.dmg",
+						"https://example.test/corese-gui-5.0.0-SNAPSHOT-macos-arm64.dmg"),
+				new UpdateService.UpdateAsset("corese-gui-5.0.0-SNAPSHOT-macos-x64.dmg",
+						"https://example.test/corese-gui-5.0.0-SNAPSHOT-macos-x64.dmg"),
 				new UpdateService.UpdateAsset("corese-gui-5.0.0-SNAPSHOT-standalone-linux-arm64.jar",
 						"https://example.test/corese-gui-5.0.0-SNAPSHOT-standalone-linux-arm64.jar"),
 				new UpdateService.UpdateAsset("corese-gui-5.0.0-SNAPSHOT-standalone-linux-x64.jar",
@@ -30,14 +30,14 @@ class UpdateServiceTest {
 						"https://example.test/corese-gui-5.0.0-SNAPSHOT-standalone-macos-x64.jar"),
 				new UpdateService.UpdateAsset("corese-gui-5.0.0-SNAPSHOT-standalone-windows-x64.jar",
 						"https://example.test/corese-gui-5.0.0-SNAPSHOT-standalone-windows-x64.jar"),
-				new UpdateService.UpdateAsset("corese-gui-5.0.0-windows-x64.exe",
-						"https://example.test/corese-gui-5.0.0-windows-x64.exe"),
-				new UpdateService.UpdateAsset("corese-gui-5.0.0-windows-x64-portable.zip",
-						"https://example.test/corese-gui-5.0.0-windows-x64-portable.zip"),
-				new UpdateService.UpdateAsset("corese-gui-linux-arm64.tar.gz",
-						"https://example.test/corese-gui-linux-arm64.tar.gz"),
-				new UpdateService.UpdateAsset("corese-gui-linux-x64.tar.gz",
-						"https://example.test/corese-gui-linux-x64.tar.gz"),
+				new UpdateService.UpdateAsset("corese-gui-5.0.0-SNAPSHOT-windows-x64.exe",
+						"https://example.test/corese-gui-5.0.0-SNAPSHOT-windows-x64.exe"),
+				new UpdateService.UpdateAsset("corese-gui-5.0.0-SNAPSHOT-windows-x64-portable.zip",
+						"https://example.test/corese-gui-5.0.0-SNAPSHOT-windows-x64-portable.zip"),
+				new UpdateService.UpdateAsset("corese-gui-5.0.0-SNAPSHOT-linux-arm64.tar.gz",
+						"https://example.test/corese-gui-5.0.0-SNAPSHOT-linux-arm64.tar.gz"),
+				new UpdateService.UpdateAsset("corese-gui-5.0.0-SNAPSHOT-linux-x64.tar.gz",
+						"https://example.test/corese-gui-5.0.0-SNAPSHOT-linux-x64.tar.gz"),
 				new UpdateService.UpdateAsset("SHA256SUMS.txt", "https://example.test/SHA256SUMS.txt"));
 	}
 
@@ -122,7 +122,7 @@ class UpdateServiceTest {
 		Optional<UpdateService.UpdateAsset> selected = UpdateService.selectPreferredAsset(devPrereleaseAssetsFixture(),
 				"linux", "x64");
 		assertTrue(selected.isPresent());
-		assertEquals("corese-gui-linux-x64.tar.gz", selected.get().name());
+		assertEquals("corese-gui-5.0.0-SNAPSHOT-linux-x64.tar.gz", selected.get().name());
 	}
 
 	@Test
@@ -130,7 +130,7 @@ class UpdateServiceTest {
 		Optional<UpdateService.UpdateAsset> selected = UpdateService.selectPreferredAsset(devPrereleaseAssetsFixture(),
 				"linux", "arm64");
 		assertTrue(selected.isPresent());
-		assertEquals("corese-gui-linux-arm64.tar.gz", selected.get().name());
+		assertEquals("corese-gui-5.0.0-SNAPSHOT-linux-arm64.tar.gz", selected.get().name());
 	}
 
 	@Test
@@ -138,7 +138,7 @@ class UpdateServiceTest {
 		Optional<UpdateService.UpdateAsset> selected = UpdateService.selectPreferredAsset(devPrereleaseAssetsFixture(),
 				"windows", "x64");
 		assertTrue(selected.isPresent());
-		assertEquals("corese-gui-5.0.0-windows-x64.exe", selected.get().name());
+		assertEquals("corese-gui-5.0.0-SNAPSHOT-windows-x64.exe", selected.get().name());
 	}
 
 	@Test
@@ -146,7 +146,7 @@ class UpdateServiceTest {
 		Optional<UpdateService.UpdateAsset> selected = UpdateService.selectPreferredAsset(devPrereleaseAssetsFixture(),
 				"windows", "x64", true);
 		assertTrue(selected.isPresent());
-		assertEquals("corese-gui-5.0.0-windows-x64-portable.zip", selected.get().name());
+		assertEquals("corese-gui-5.0.0-SNAPSHOT-windows-x64-portable.zip", selected.get().name());
 	}
 
 	@Test
@@ -154,7 +154,7 @@ class UpdateServiceTest {
 		Optional<UpdateService.UpdateAsset> selected = UpdateService.selectPreferredAsset(devPrereleaseAssetsFixture(),
 				"macos", "x64");
 		assertTrue(selected.isPresent());
-		assertEquals("corese-gui-5.0.0-macos-x64.dmg", selected.get().name());
+		assertEquals("corese-gui-5.0.0-SNAPSHOT-macos-x64.dmg", selected.get().name());
 	}
 
 	@Test
@@ -162,7 +162,7 @@ class UpdateServiceTest {
 		Optional<UpdateService.UpdateAsset> selected = UpdateService.selectPreferredAsset(devPrereleaseAssetsFixture(),
 				"macos", "arm64");
 		assertTrue(selected.isPresent());
-		assertEquals("corese-gui-5.0.0-macos-arm64.dmg", selected.get().name());
+		assertEquals("corese-gui-5.0.0-SNAPSHOT-macos-arm64.dmg", selected.get().name());
 	}
 
 	@Test
