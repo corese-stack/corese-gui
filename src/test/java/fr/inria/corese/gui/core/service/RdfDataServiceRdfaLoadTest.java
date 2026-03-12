@@ -68,6 +68,26 @@ class RdfDataServiceRdfaLoadTest {
 				"Invalid Turtle should surface as a user-facing RDF load error.");
 	}
 
+	@Test
+	void loadFile_invalidTurtleWithStrayToken_wrapsParserErrorAsRdfLoadException() throws IOException {
+		Path filePath = tempDir.resolve("invalid-stray-token.ttl");
+		Files.writeString(filePath, """
+				@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+				@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+				@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+				@prefix :     <http://ns.inria.fr/humans/schema#> .
+				dd
+				: a owl:Ontology ;
+				    rdfs:label "Toy Human Ontology" .
+				""", StandardCharsets.UTF_8);
+		File invalidFile = filePath.toFile();
+
+		RdfDataService.RdfLoadException exception = assertThrows(RdfDataService.RdfLoadException.class,
+				() -> rdfDataService.loadFile(invalidFile));
+		assertTrue(exception.getMessage().contains("Failed to load RDF file"),
+				"Invalid Turtle with a stray token should surface as a user-facing RDF load error.");
+	}
+
 	private File writeTempHtml(String fileName) throws IOException {
 		Path filePath = tempDir.resolve(fileName);
 		Files.writeString(filePath, """

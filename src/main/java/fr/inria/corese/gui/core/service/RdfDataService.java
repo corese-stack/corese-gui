@@ -121,11 +121,12 @@ public class RdfDataService {
 			String errorMsg = String.format("Failed to load RDF file '%s': %s", file.getName(), e.getMessage());
 			LOGGER.error(errorMsg, e);
 			throw new RdfLoadException(errorMsg, e);
-		} catch (Exception exception) {
-			String details = errorDetails(exception);
+		} catch (Throwable throwable) {
+			rethrowIfFatal(throwable);
+			String details = errorDetails(throwable);
 			String errorMsg = String.format("Failed to load RDF file '%s': %s", file.getName(), details);
-			LOGGER.error(errorMsg, exception);
-			throw new RdfLoadException(errorMsg, exception);
+			LOGGER.error(errorMsg, throwable);
+			throw new RdfLoadException(errorMsg, throwable);
 		}
 	}
 
@@ -175,15 +176,16 @@ public class RdfDataService {
 			String errorMsg = String.format("Failed to load RDF URI '%s': %s", normalizedUri, details);
 			LOGGER.error(errorMsg, e);
 			throw new RdfLoadException(errorMsg, e);
-		} catch (Exception exception) {
-			String details = DemoHttpFallbackSupport.isSslHandshakeFailure(exception)
+		} catch (Throwable throwable) {
+			rethrowIfFatal(throwable);
+			String details = DemoHttpFallbackSupport.isSslHandshakeFailure(throwable)
 					? "TLS certificate validation failed. The app retries HTTP only for known demo links under "
 							+ DemoHttpFallbackSupport.demoHost() + DemoHttpFallbackSupport.demoPathPrefix()
 							+ ". Otherwise, fix the JVM truststore or use http:// when available."
-					: errorDetails(exception);
+					: errorDetails(throwable);
 			String errorMsg = String.format("Failed to load RDF URI '%s': %s", normalizedUri, details);
-			LOGGER.error(errorMsg, exception);
-			throw new RdfLoadException(errorMsg, exception);
+			LOGGER.error(errorMsg, throwable);
+			throw new RdfLoadException(errorMsg, throwable);
 		}
 	}
 
@@ -299,6 +301,18 @@ public class RdfDataService {
 			return message;
 		}
 		return throwable.getClass().getSimpleName();
+	}
+
+	private void rethrowIfFatal(Throwable throwable) {
+		if (throwable instanceof VirtualMachineError virtualMachineError) {
+			throw virtualMachineError;
+		}
+		if (throwable instanceof ThreadDeath threadDeath) {
+			throw threadDeath;
+		}
+		if (throwable instanceof LinkageError linkageError) {
+			throw linkageError;
+		}
 	}
 
 	@FunctionalInterface
