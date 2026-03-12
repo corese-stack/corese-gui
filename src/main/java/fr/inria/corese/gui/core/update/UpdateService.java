@@ -263,10 +263,6 @@ public final class UpdateService {
 			openReleasePage(info);
 			return;
 		}
-		if (isSnapshotLikeVersion(resolveCurrentVersion())) {
-			BrowserUtils.openUrl(AppConstants.RELEASES_URL);
-			return;
-		}
 		openReleasePage(info);
 	}
 
@@ -324,10 +320,10 @@ public final class UpdateService {
 		}
 
 		String latestVersion = normalizeVersionForDisplay(parsedRelease.tagName());
-		String releaseName = parsedRelease.name().isBlank() ? latestVersion : parsedRelease.name();
 		RuntimeTarget target = resolveRuntimeTarget();
 		UpdateAsset preferredAsset = selectPreferredAsset(parsedRelease.assets(), target.osToken(), target.archToken(),
 				target.preferPortablePackage()).orElse(null);
+		String releaseName = parsedRelease.name().isBlank() ? latestVersion : parsedRelease.name();
 
 		UpdateInfo info = new UpdateInfo(currentVersion, latestVersion, parsedRelease.htmlUrl(), releaseName,
 				preferredAsset, parsedRelease.assets());
@@ -346,7 +342,7 @@ public final class UpdateService {
 		return AppConstants.APP_VERSION;
 	}
 
-	private static URI resolveLatestReleaseEndpoint() {
+	static URI resolveLatestReleaseEndpoint() {
 		String overrideEndpoint = normalizeText(System.getProperty(UPDATE_API_URL_SYSTEM_PROPERTY));
 		String endpoint = overrideEndpoint.isBlank() ? AppConstants.RELEASES_API_LATEST_URL : overrideEndpoint;
 		try {
@@ -1101,15 +1097,6 @@ public final class UpdateService {
 	private static String normalizeVersionForDisplay(String version) {
 		String normalized = normalizeVersionToken(version);
 		return normalized.isBlank() ? version : normalized;
-	}
-
-	private static boolean isSnapshotLikeVersion(String version) {
-		String normalized = normalizeVersionToken(version).toLowerCase(Locale.ROOT);
-		if (normalized.isBlank()) {
-			return false;
-		}
-		return normalized.contains("snapshot") || normalized.contains("dev") || normalized.contains("alpha")
-				|| normalized.contains("beta") || normalized.contains("rc");
 	}
 
 	private static String normalizeText(String value) {

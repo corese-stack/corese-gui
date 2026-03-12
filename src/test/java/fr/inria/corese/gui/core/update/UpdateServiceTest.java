@@ -1,7 +1,9 @@
 package fr.inria.corese.gui.core.update;
 
+import fr.inria.corese.gui.AppConstants;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -11,6 +13,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UpdateServiceTest {
+
+	@AfterEach
+	void clearEndpointOverride() {
+		System.clearProperty("corese.update.apiLatestUrl");
+	}
 
 	private static List<UpdateService.UpdateAsset> devPrereleaseAssetsFixture() {
 		// Asset names copied from:
@@ -170,5 +177,17 @@ class UpdateServiceTest {
 		Optional<UpdateService.UpdateAsset> selected = UpdateService.selectPreferredAsset(devPrereleaseAssetsFixture(),
 				"windows", "arm64");
 		assertTrue(selected.isEmpty());
+	}
+
+	@Test
+	void resolveLatestReleaseEndpoint_usesStableEndpointByDefault() {
+		assertEquals(AppConstants.RELEASES_API_LATEST_URL,
+				UpdateService.resolveLatestReleaseEndpoint().toString());
+	}
+
+	@Test
+	void resolveLatestReleaseEndpoint_prefersExplicitOverride() {
+		System.setProperty("corese.update.apiLatestUrl", "https://example.test/releases/custom");
+		assertEquals("https://example.test/releases/custom", UpdateService.resolveLatestReleaseEndpoint().toString());
 	}
 }
