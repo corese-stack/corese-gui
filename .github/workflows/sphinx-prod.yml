@@ -1,21 +1,20 @@
 name: "Sphinx: Render production docs"
-run-name: ${{ github.actor }} triggered production documentation build on ${{ github.ref_name }}
+run-name: ${{ github.actor }} refreshed production documentation via ${{ github.event_name }}
 
 on:
-  push:
-    branches:
-      - "main"
   workflow_dispatch:
   workflow_run:
     workflows:
       - "Publish Development Pre-release"
-      - "Publish GitHub Release"
     types:
       - completed
+  release:
+    types:
+      - published
 
 concurrency:
   group: sphinx-prod
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -26,19 +25,27 @@ jobs:
       github.event_name != 'workflow_run' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: [self-hosted, corese-stack-ubuntu-24]
-    env:
-      DOCS_SOURCE_REF: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.ref_name }}
 
     steps:
+      - name: Resolve documentation build context
+        id: docs-context
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MINIMAL_VERSION: 5.0.0
+          WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
+        run: python3 .github/scripts/resolve_docs_context.py >> "$GITHUB_OUTPUT"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.DOCS_SOURCE_REF }}
+          ref: ${{ steps.docs-context.outputs.source_ref }}
 
-      - name: Show documentation source ref
+      - name: Show documentation build context
         run: |
           echo "event_name=${{ github.event_name }}"
-          echo "docs_source_ref=${DOCS_SOURCE_REF}"
+          echo "docs_source_ref=${{ steps.docs-context.outputs.source_ref }}"
+          echo "published_stable_tags=${{ steps.docs-context.outputs.published_stable_tags }}"
           git rev-parse HEAD
 
       - name: Check existing tags before fetch
@@ -53,19 +60,18 @@ jobs:
       - name: Check tags after fetch
         run: git tag --sort=-v:refname || echo "No tags found after fetch"
 
-      - name: Build Sphinx documentation with multiversion
+      - name: Build Sphinx documentation
         env:
           DOCS_BASE_URL: https://corese-stack.github.io/corese-gui
           MINIMAL_VERSION: 5.0.0
+          PUBLISHED_STABLE_TAGS: ${{ steps.docs-context.outputs.published_stable_tags }}
         run: |
           source /builds/miniconda3/etc/profile.d/conda.sh
           conda activate corese-core-documentation
 
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            sphinx-build docs/source build/html/main
-          else
-            sphinx-multiversion docs/source build/html
-          fi
+          sphinx-multiversion \
+            -D smv_tag_whitelist="${{ steps.docs-context.outputs.smv_tag_whitelist }}" \
+            docs/source build/html
 
           chmod +x docs/switcher_generator.sh
           ./docs/switcher_generator.sh build/html/switcher.json build/html/index.html

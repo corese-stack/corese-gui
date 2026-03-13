@@ -40,7 +40,31 @@ def _git_tag_exists(tag: str) -> bool:
     return result.returncode == 0
 
 
+def _supported_stable_tags_from_env() -> list[str] | None:
+    raw_tags = os.environ.get("PUBLISHED_STABLE_TAGS")
+    if raw_tags is None:
+        return None
+
+    minimum = _parse_semver_tag(f"v{MINIMAL_STABLE_VERSION}")
+    if minimum is None:
+        return []
+
+    supported_tags: list[tuple[tuple[int, int, int], str]] = []
+    for raw_tag in raw_tags.split(","):
+        tag = raw_tag.strip()
+        parsed = _parse_semver_tag(tag)
+        if parsed is not None and parsed >= minimum:
+            supported_tags.append((parsed, tag))
+
+    supported_tags.sort(reverse=True)
+    return [tag for _, tag in supported_tags]
+
+
 def _latest_supported_stable_tag() -> str | None:
+    supported_tags = _supported_stable_tags_from_env()
+    if supported_tags is not None:
+        return supported_tags[0] if supported_tags else None
+
     minimum = _parse_semver_tag(f"v{MINIMAL_STABLE_VERSION}")
     if minimum is None:
         return None
@@ -140,7 +164,7 @@ def _build_download_urls(
 
 def setup(app):
     def set_version(app, config):
-        current_version = getattr(app.config, "smv_current_version", None) or "main"
+        current_version = getattr(app.config, "smv_current_version", None) or "local"
         config.version = current_version
         config.release = current_version
         html_theme_options["switcher"]["version_match"] = current_version
@@ -222,6 +246,6 @@ highlight_language = "java"
 
 todo_include_todos = True
 
-# Build only semver release tags and main branch in multiversion output.
-smv_tag_whitelist = r"^(v\d+\.\d+\.\d+|dev-prerelease)$"
-smv_branch_whitelist = r"^main$"
+# Build only published semver release tags plus the rolling dev prerelease.
+smv_tag_whitelist = os.environ.get("SMV_TAG_WHITELIST", r"^(v\d+\.\d+\.\d+|dev-prerelease)$")
+smv_branch_whitelist = os.environ.get("SMV_BRANCH_WHITELIST", r"^$")

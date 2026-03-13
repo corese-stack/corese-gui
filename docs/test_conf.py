@@ -1,6 +1,9 @@
 import importlib.util
+import json
 import os
 import re
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -103,6 +106,58 @@ class DocsDownloadUrlTests(unittest.TestCase):
         )
 
         self.assertEqual(generated_urls, readme_urls)
+
+    def test_non_versioned_build_prefers_published_stable_releases_from_environment(self):
+        with mock.patch.dict(
+            os.environ,
+            {"PUBLISHED_STABLE_TAGS": "v5.0.0,v5.1.0"},
+            clear=False,
+        ):
+            tag, app_version, artifact_version, _ = self.conf._compute_download_context("local")
+
+        self.assertEqual(tag, "v5.1.0")
+        self.assertEqual(app_version, "5.1.0")
+        self.assertEqual(artifact_version, "5.1.0")
+
+    def test_empty_published_stable_tags_skips_git_tag_lookup(self):
+        with mock.patch.dict(os.environ, {"PUBLISHED_STABLE_TAGS": ""}, clear=False):
+            with mock.patch.object(self.conf.subprocess, "run") as subprocess_run:
+                latest_tag = self.conf._latest_supported_stable_tag()
+
+        self.assertIsNone(latest_tag)
+        subprocess_run.assert_not_called()
+
+    def test_switcher_generator_prefers_published_stable_releases_from_environment(self):
+        repo_root = Path(__file__).resolve().parents[1]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            json_output = Path(tmpdir) / "switcher.json"
+            html_output = Path(tmpdir) / "index.html"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DOCS_BASE_URL": "https://corese-stack.github.io/corese-gui",
+                    "MINIMAL_VERSION": "5.0.0",
+                    "PUBLISHED_STABLE_TAGS": "v5.0.0",
+                }
+            )
+
+            subprocess.run(
+                ["bash", "docs/switcher_generator.sh", str(json_output), str(html_output)],
+                check=True,
+                cwd=repo_root,
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            switcher_entries = json.loads(json_output.read_text(encoding="utf-8"))
+            html_output_text = html_output.read_text(encoding="utf-8")
+
+        self.assertEqual(switcher_entries[0]["version"], "v5.0.0")
+        self.assertEqual(switcher_entries[0]["name"], "v5.0.0 (latest)")
+        self.assertTrue(switcher_entries[0]["preferred"])
+        self.assertIn("https://corese-stack.github.io/corese-gui/v5.0.0/", html_output_text)
 
 
 if __name__ == "__main__":
