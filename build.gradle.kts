@@ -1,5 +1,6 @@
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.SourcesJar
+import com.github.jengelman.gradle.plugins.shadow.ShadowExtension
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import java.util.Locale
 import org.gradle.api.file.DuplicatesStrategy
@@ -54,6 +55,12 @@ plugins {
 
     // Formatting/linting.
     id("com.diffplug.spotless") version "8.2.1"
+}
+
+// Keep shadow packaging for GitHub releases, but do not expose host-specific
+// standalone artifacts in the Maven Central publication.
+extensions.configure<ShadowExtension>("shadow") {
+    addShadowVariantIntoJavaComponent.set(false)
 }
 
 fun normalizeProjectVersion(rawValue: String?): String {
