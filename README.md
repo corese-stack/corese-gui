@@ -83,7 +83,7 @@ It provides a visual workspace to load RDF data, execute SPARQL queries, inspect
 - [Standalone JAR (x64)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-standalone-linux-x64.jar)
 - [Standalone JAR (arm64)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-standalone-linux-arm64.jar)
 
-Stable release assets are published on [the `v5.0.0` page](https://github.com/corese-stack/corese-gui/releases/tag/v5.0.0). Development snapshots remain available on [the `dev-prerelease` page](https://github.com/corese-stack/corese-gui/releases/tag/dev-prerelease), where artifact filenames keep the `-SNAPSHOT` suffix.
+See the [latest stable release](https://github.com/corese-stack/corese-gui/releases/latest) and the [development pre-release](https://github.com/corese-stack/corese-gui/releases/tag/dev-prerelease).
 
 > Standalone JAR files require Java 25 to be installed manually.
 
