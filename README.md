@@ -30,38 +30,60 @@ It provides a visual workspace to load RDF data, execute SPARQL queries, inspect
 - Manage data, query, validation, logs, and settings from dedicated views
 
 <p align="center">
-  <img src="packaging/flatpak/screenshots/data-graph-exploration.png" width="49%" alt="Data graph exploration view">
-  <img src="packaging/flatpak/screenshots/query-select-table-results.png" width="49%" alt="SPARQL SELECT table results">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="packaging/flatpak/screenshots/data-graph-exploration-dark.png">
+    <img src="packaging/flatpak/screenshots/data-graph-exploration.png" width="49%" alt="Data graph exploration view">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="packaging/flatpak/screenshots/data-reasoning-custom-rules-dark.png">
+    <img src="packaging/flatpak/screenshots/data-reasoning-custom-rules.png" width="49%" alt="Reasoning workspace with custom rules">
+  </picture>
 </p>
 <p align="center">
-  <img src="packaging/flatpak/screenshots/validation-shacl-results.png" width="49%" alt="SHACL validation results">
-  <img src="packaging/flatpak/screenshots/data-reasoning-custom-rules.png" width="49%" alt="Reasoning with custom rules">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="packaging/flatpak/screenshots/query-template-dialog-dark.png">
+    <img src="packaging/flatpak/screenshots/query-template-dialog.png" width="49%" alt="SPARQL query template dialog">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="packaging/flatpak/screenshots/query-select-table-results-dark.png">
+    <img src="packaging/flatpak/screenshots/query-select-table-results.png" width="49%" alt="SPARQL SELECT table results">
+  </picture>
+</p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="packaging/flatpak/screenshots/query-construct-graph-zoomed-dark.png">
+    <img src="packaging/flatpak/screenshots/query-construct-graph-zoomed.png" width="49%" alt="SPARQL CONSTRUCT graph result">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="packaging/flatpak/screenshots/validation-shacl-editor-dark.png">
+    <img src="packaging/flatpak/screenshots/validation-shacl-editor.png" width="49%" alt="SHACL shapes editor">
+  </picture>
 </p>
 
 ## Downloads
 
 ### Windows
 
-- [Installer (recommended, x64, .exe)](https://github.com/corese-stack/corese-gui/releases/download/dev-prerelease/corese-gui-5.0.0-SNAPSHOT-windows-x64.exe)
-- [Portable archive (x64, .zip)](https://github.com/corese-stack/corese-gui/releases/download/dev-prerelease/corese-gui-5.0.0-SNAPSHOT-windows-x64-portable.zip)
-- [Standalone JAR (x64)](https://github.com/corese-stack/corese-gui/releases/download/dev-prerelease/corese-gui-5.0.0-SNAPSHOT-standalone-windows-x64.jar)
+- [Installer (recommended, x64, .exe)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-windows-x64.exe)
+- [Portable archive (x64, .zip)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-windows-x64-portable.zip)
+- [Standalone JAR (x64)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-standalone-windows-x64.jar)
 
 ### macOS
 
-- [Installer for Apple Silicon (arm64, .dmg)](https://github.com/corese-stack/corese-gui/releases/download/dev-prerelease/corese-gui-5.0.0-SNAPSHOT-macos-arm64.dmg)
-- [Installer for Intel (x64, .dmg)](https://github.com/corese-stack/corese-gui/releases/download/dev-prerelease/corese-gui-5.0.0-SNAPSHOT-macos-x64.dmg)
-- [Standalone JAR for Apple Silicon (arm64)](https://github.com/corese-stack/corese-gui/releases/download/dev-prerelease/corese-gui-5.0.0-SNAPSHOT-standalone-macos-arm64.jar)
-- [Standalone JAR for Intel (x64)](https://github.com/corese-stack/corese-gui/releases/download/dev-prerelease/corese-gui-5.0.0-SNAPSHOT-standalone-macos-x64.jar)
+- [Installer for Apple Silicon (arm64, .dmg)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-macos-arm64.dmg)
+- [Installer for Intel (x64, .dmg)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-macos-x64.dmg)
+- [Standalone JAR for Apple Silicon (arm64)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-standalone-macos-arm64.jar)
+- [Standalone JAR for Intel (x64)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-standalone-macos-x64.jar)
 
 ### Linux
 
 - [Flatpak (recommended)](https://flathub.org/apps/fr.inria.corese.CoreseGui)
-- [App archive (x64, .tar.gz)](https://github.com/corese-stack/corese-gui/releases/download/dev-prerelease/corese-gui-5.0.0-SNAPSHOT-linux-x64.tar.gz)
-- [App archive (arm64, .tar.gz)](https://github.com/corese-stack/corese-gui/releases/download/dev-prerelease/corese-gui-5.0.0-SNAPSHOT-linux-arm64.tar.gz)
-- [Standalone JAR (x64)](https://github.com/corese-stack/corese-gui/releases/download/dev-prerelease/corese-gui-5.0.0-SNAPSHOT-standalone-linux-x64.jar)
-- [Standalone JAR (arm64)](https://github.com/corese-stack/corese-gui/releases/download/dev-prerelease/corese-gui-5.0.0-SNAPSHOT-standalone-linux-arm64.jar)
+- [App archive (x64, .tar.gz)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-linux-x64.tar.gz)
+- [App archive (arm64, .tar.gz)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-linux-arm64.tar.gz)
+- [Standalone JAR (x64)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-standalone-linux-x64.jar)
+- [Standalone JAR (arm64)](https://github.com/corese-stack/corese-gui/releases/download/v5.0.0/corese-gui-5.0.0-standalone-linux-arm64.jar)
 
-Development pre-releases are published on [the `dev-prerelease` page](https://github.com/corese-stack/corese-gui/releases/tag/dev-prerelease). On that rolling channel, every downloadable artifact keeps the full `-SNAPSHOT` suffix in its filename.
+See the [latest stable release](https://github.com/corese-stack/corese-gui/releases/latest) and the [development pre-release](https://github.com/corese-stack/corese-gui/releases/tag/dev-prerelease).
 
 > Standalone JAR files require Java 25 to be installed manually.
 

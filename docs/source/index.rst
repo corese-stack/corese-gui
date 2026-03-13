@@ -18,27 +18,57 @@ The interface is organized around dedicated Data, Query, Validation, Logs, and S
 
    .. grid-item::
 
-      .. image:: _static/screenshots/query-select-table-results.png
-         :alt: SPARQL SELECT results displayed in the table view
-         :width: 100%
+      .. raw:: html
+
+         <div class="theme-screenshot">
+           <img class="theme-screenshot-light" src="_static/screenshots/data-graph-exploration.png" alt="Inspect named graphs and graph components in the data workspace.">
+           <img class="theme-screenshot-dark" src="_static/screenshots/data-graph-exploration-dark.png" alt="Inspect named graphs and graph components in the data workspace.">
+         </div>
 
    .. grid-item::
 
-      .. image:: _static/screenshots/query-construct-graph-zoomed.png
-         :alt: Graph exploration after a SPARQL CONSTRUCT query
-         :width: 100%
+      .. raw:: html
+
+         <div class="theme-screenshot">
+           <img class="theme-screenshot-light" src="_static/screenshots/data-reasoning-custom-rules.png" alt="Reasoning workspace with built-in profiles and custom rule files.">
+           <img class="theme-screenshot-dark" src="_static/screenshots/data-reasoning-custom-rules-dark.png" alt="Reasoning workspace with built-in profiles and custom rule files.">
+         </div>
 
    .. grid-item::
 
-      .. image:: _static/screenshots/validation-shacl-results.png
-         :alt: SHACL validation results view
-         :width: 100%
+      .. raw:: html
+
+         <div class="theme-screenshot">
+           <img class="theme-screenshot-light" src="_static/screenshots/query-template-dialog.png" alt="SPARQL query template dialog.">
+           <img class="theme-screenshot-dark" src="_static/screenshots/query-template-dialog-dark.png" alt="SPARQL query template dialog.">
+         </div>
 
    .. grid-item::
 
-      .. image:: _static/screenshots/data-reasoning-custom-rules.png
-         :alt: Reasoning workflow with custom rules
-         :width: 100%
+      .. raw:: html
+
+         <div class="theme-screenshot">
+           <img class="theme-screenshot-light" src="_static/screenshots/query-select-table-results.png" alt="SPARQL SELECT results displayed in the table view.">
+           <img class="theme-screenshot-dark" src="_static/screenshots/query-select-table-results-dark.png" alt="SPARQL SELECT results displayed in the table view.">
+         </div>
+
+   .. grid-item::
+
+      .. raw:: html
+
+         <div class="theme-screenshot">
+           <img class="theme-screenshot-light" src="_static/screenshots/query-construct-graph-zoomed.png" alt="Graph exploration after a SPARQL CONSTRUCT query.">
+           <img class="theme-screenshot-dark" src="_static/screenshots/query-construct-graph-zoomed-dark.png" alt="Graph exploration after a SPARQL CONSTRUCT query.">
+         </div>
+
+   .. grid-item::
+
+      .. raw:: html
+
+         <div class="theme-screenshot">
+           <img class="theme-screenshot-light" src="_static/screenshots/validation-shacl-editor.png" alt="SHACL shapes editor in the validation workspace.">
+           <img class="theme-screenshot-dark" src="_static/screenshots/validation-shacl-editor-dark.png" alt="SHACL shapes editor in the validation workspace.">
+         </div>
 
 .. raw:: html
 

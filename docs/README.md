@@ -18,10 +18,10 @@ From the repository root:
 sphinx-multiversion docs/source build/html
 ```
 
-To rebuild only the `main/` docs locally, use:
+To preview the current checkout as a single-version local build, use:
 
 ```shell
-sphinx-build docs/source build/html/main
+sphinx-build docs/source build/html/local
 ```
 
 ## Build switcher and landing page
@@ -42,19 +42,20 @@ Optional environment variables:
 - `MINIMAL_VERSION` (default: `5.0.0`)
 - `LEGACY_MINIMAL_VERSION` (default: `4.6.0`, lower legacy tags are excluded from switcher)
 - `DEV_PRERELEASE_REF` (default: `dev-prerelease`)
+- `PUBLISHED_STABLE_TAGS` (optional comma-separated `vX.Y.Z` list, used by CI to restrict stable docs/switcher to published GitHub releases)
 - `DOCS_DEFAULT_APP_VERSION` (default: `5.0.0`, final fallback only when no supported stable tag and no `dev-prerelease` tag exist locally)
 - `DEV_PRERELEASE_APP_VERSION` (default: `5.0.0`, used to build `-SNAPSHOT` filenames)
 
 ## Versioning rules
 
-- Stable tags in the form `vX.Y.Z` are published on this documentation site when `X.Y.Z >= 5.0.0`.
+- Published GitHub releases in the form `vX.Y.Z` are published on this documentation site when `X.Y.Z >= 5.0.0`.
 - `dev-prerelease` is included in the switcher as a preview entry when the tag exists.
 - Legacy semver tags are listed only for `4.6.0 <= vX.Y.Z < 5.0.0` and point to `corese-gui-swing`.
 - Landing-page redirect priority is:
   1. latest stable `vX.Y.Z >= v5.0.0`
   2. `dev-prerelease`
   3. latest legacy `vX.Y.Z < v5.0.0`
-  4. `main` (only if no entry exists)
+  4. no redirect when no published version exists yet
 
 ## Download page policy
 
@@ -62,11 +63,12 @@ Optional environment variables:
 - The resolved links depend on `smv_current_version`:
   - `vX.Y.Z` docs: tag `vX.Y.Z`, no `SNAPSHOT` suffix.
   - `dev-prerelease` docs: tag `dev-prerelease`, `SNAPSHOT` suffix on every downloadable artifact.
-  - any other ref (for example `main`): latest supported stable tag (`vX.Y.Z >= v5.0.0`) when available, otherwise `dev-prerelease`, otherwise `v${DOCS_DEFAULT_APP_VERSION:-5.0.0}`.
+  - any other ref (for example a local single-version preview): latest supported published stable release (`vX.Y.Z >= v5.0.0`) when available, otherwise `dev-prerelease`, otherwise `v${DOCS_DEFAULT_APP_VERSION:-5.0.0}`.
 - Production workflow policy:
-  - push to `main`: rebuild only `main/`, so existing tagged docs are not overwritten before a pre-release or stable release updates the tag set.
-  - manual dispatch: rebuild from the selected ref (`gh workflow run ... --ref <ref>`).
-  - successful `Publish Development Pre-release` or `Publish GitHub Release`: rebuild the full multiversion site from the triggering workflow commit, so `dev-prerelease` and stable tag docs use the same docs logic as the published source ref.
+  - push to `main` or `develop`: no public docs rebuild.
+  - manual dispatch: rebuild the versioned site from the selected workflow ref.
+  - successful `Publish Development Pre-release`: rebuild the versioned site from the source commit, but expose only published stable releases plus `dev-prerelease`.
+  - published GitHub Release: rebuild the versioned site from the released tag and refresh the switcher/landing page only after the release becomes public.
 - Links intentionally point to deterministic CI artifact names:
   - Windows installer: `corese-gui-<version>[-SNAPSHOT]-windows-x64.exe`
   - Windows portable: `corese-gui-<version>[-SNAPSHOT]-windows-x64-portable.zip`
@@ -82,11 +84,13 @@ Optional environment variables:
 - `build.gradle.kts` normalizes `projectVersion` by stripping `refs/tags/` and leading `v`.
 - Maven Central workflow applies the same override only when the ref is a semantic version tag (`vX.Y.Z`).
 
-For local testing before the first official `v5.0.0` tag:
+For local testing before the first official `v5.0.0` published release:
 
 ```shell
 git tag v5.0.0
+PUBLISHED_STABLE_TAGS=v5.0.0 \
 sphinx-multiversion docs/source build/html
+PUBLISHED_STABLE_TAGS=v5.0.0 \
 ./docs/switcher_generator.sh build/html/switcher.json build/html/index.html
 git tag -d v5.0.0
 ```

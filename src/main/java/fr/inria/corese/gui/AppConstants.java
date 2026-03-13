@@ -11,7 +11,7 @@ import fr.inria.corese.core.util.CoreseInfo;
  */
 public final class AppConstants {
 
-	private static final String DEFAULT_APP_VERSION = "5.0.0-SNAPSHOT";
+	private static final String DEFAULT_APP_VERSION = "5.0.0";
 	private static final String APP_VERSION_OVERRIDE_PROPERTY = "corese.app.version";
 
 	// ===== Prevent instantiation =====
