@@ -29,14 +29,25 @@ stable_tags=()
 legacy_tags=()
 latest_stable=""
 
-for tag in $tags; do
+if [[ -v PUBLISHED_STABLE_TAGS ]]; then
+    stable_candidates="$(tr ',' '\n' <<< "${PUBLISHED_STABLE_TAGS}" | grep -E "$semver_pattern" | sort -Vr | uniq || true)"
+else
+    stable_candidates="$tags"
+fi
+
+for tag in $stable_candidates; do
     version="${tag#v}"
     if version_greater_equal "$version" "$minimal_version"; then
         stable_tags+=("$tag")
         if [[ -z "$latest_stable" ]]; then
             latest_stable="$tag"
         fi
-    elif version_greater_equal "$version" "$legacy_minimal_version"; then
+    fi
+done
+
+for tag in $tags; do
+    version="${tag#v}"
+    if version_greater_equal "$version" "$legacy_minimal_version" && ! version_greater_equal "$version" "$minimal_version"; then
         legacy_tags+=("$tag")
     fi
 done
@@ -118,17 +129,14 @@ done
 } > "$json_output_file"
 
 if [[ ${#json_entries[@]} -eq 0 ]]; then
-    landing_target_url="${docs_base_url%/}/main/"
     cat > "$html_output_file" <<EOF
 <html>
 <head>
-  <meta http-equiv="refresh" content="0; url=${landing_target_url}">
   <title>Corese-GUI Documentation Versions</title>
 </head>
 <body>
   <h1>Corese-GUI Documentation Versions</h1>
-  <p>No documentation version was found.</p>
-  <p>You are redirected to <a href="${landing_target_url}">main</a>.</p>
+  <p>No published documentation version was found yet.</p>
 </body>
 </html>
 EOF
@@ -139,8 +147,6 @@ else
         landing_target_url="${docs_base_url%/}/${dev_prerelease_ref}/"
     elif [[ "$preferred_target" == "legacy" ]]; then
         landing_target_url="${legacy_docs_base_url%/}/${legacy_tags[0]}/"
-    else
-        landing_target_url="${docs_base_url%/}/main/"
     fi
 
     {

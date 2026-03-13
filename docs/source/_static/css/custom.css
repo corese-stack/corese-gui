@@ -24,3 +24,28 @@ h1.homepage-brand-title {
 .bd-main .bd-content .bd-article-container {
     max-width: 100%;
 }
+
+.theme-screenshot {
+    display: block;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+}
+
+.theme-screenshot img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.theme-screenshot .theme-screenshot-dark {
+    display: none;
+}
+
+html[data-theme="dark"] .theme-screenshot .theme-screenshot-light {
+    display: none;
+}
+
+html[data-theme="dark"] .theme-screenshot .theme-screenshot-dark {
+    display: block;
+}
