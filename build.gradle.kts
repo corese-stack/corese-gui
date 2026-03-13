@@ -333,7 +333,7 @@ mavenPublishing {
 }
 
 tasks.matching { it.name == "generateMetadataFileForMavenPublication" }.configureEach {
-    dependsOn(tasks.named("plainJavadocJar"))
+    dependsOn("plainJavadocJar")
 }
 
 /*

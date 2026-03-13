@@ -67,7 +67,7 @@ jobs:
                   cache: gradle
 
             - name: Build artifacts for current platform
-              run: ${{ matrix.gradle_cmd }} --no-daemon clean shadowJar jpackageCurrentPlatform ${{ matrix.target == 'windows-x64' && 'windowsPortableZipCurrentPlatform' || '' }} -PjpackageType=${{ matrix.jpackage_type }} ${{ inputs.project_version != '' && format('-PprojectVersion={0}', inputs.project_version) || '' }}
+              run: ${{ matrix.gradle_cmd }} --no-daemon clean shadowJar jpackageCurrentPlatform ${{ matrix.target == 'windows-x64' && 'windowsPortableZipCurrentPlatform' || '' }} -PjpackageType=${{ matrix.jpackage_type }} ${{ inputs.project_version != '' && format('''-PprojectVersion={0}''', inputs.project_version) || '' }}
 
             - name: Collect publishable artifacts
               shell: bash
