@@ -30,12 +30,34 @@ It provides a visual workspace to load RDF data, execute SPARQL queries, inspect
 - Manage data, query, validation, logs, and settings from dedicated views
 
 <p align="center">
-  <img src="packaging/flatpak/screenshots/data-graph-exploration.png" width="49%" alt="Data graph exploration view">
-  <img src="packaging/flatpak/screenshots/query-select-table-results.png" width="49%" alt="SPARQL SELECT table results">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="packaging/flatpak/screenshots/data-graph-exploration-dark.png">
+    <img src="packaging/flatpak/screenshots/data-graph-exploration.png" width="49%" alt="Data graph exploration view">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="packaging/flatpak/screenshots/data-reasoning-custom-rules-dark.png">
+    <img src="packaging/flatpak/screenshots/data-reasoning-custom-rules.png" width="49%" alt="Reasoning workspace with custom rules">
+  </picture>
 </p>
 <p align="center">
-  <img src="packaging/flatpak/screenshots/validation-shacl-results.png" width="49%" alt="SHACL validation results">
-  <img src="packaging/flatpak/screenshots/data-reasoning-custom-rules.png" width="49%" alt="Reasoning with custom rules">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="packaging/flatpak/screenshots/query-template-dialog-dark.png">
+    <img src="packaging/flatpak/screenshots/query-template-dialog.png" width="49%" alt="SPARQL query template dialog">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="packaging/flatpak/screenshots/query-select-table-results-dark.png">
+    <img src="packaging/flatpak/screenshots/query-select-table-results.png" width="49%" alt="SPARQL SELECT table results">
+  </picture>
+</p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="packaging/flatpak/screenshots/query-construct-graph-zoomed-dark.png">
+    <img src="packaging/flatpak/screenshots/query-construct-graph-zoomed.png" width="49%" alt="SPARQL CONSTRUCT graph result">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="packaging/flatpak/screenshots/validation-shacl-editor-dark.png">
+    <img src="packaging/flatpak/screenshots/validation-shacl-editor.png" width="49%" alt="SHACL shapes editor">
+  </picture>
 </p>
 
 ## Downloads

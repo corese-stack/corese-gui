@@ -61,6 +61,18 @@
 
     <screenshots>
         <screenshot>
+            <caption>Inspect named graphs and graph components in the data view.</caption>
+            <image type="source">https://raw.githubusercontent.com/corese-stack/corese-gui/main/packaging/flatpak/screenshots/data-graph-exploration.png</image>
+        </screenshot>
+        <screenshot>
+            <caption>Reasoning workspace with built-in profiles and custom rule files.</caption>
+            <image type="source">https://raw.githubusercontent.com/corese-stack/corese-gui/main/packaging/flatpak/screenshots/data-reasoning-custom-rules.png</image>
+        </screenshot>
+        <screenshot>
+            <caption>Generate SPARQL templates for common query patterns.</caption>
+            <image type="source">https://raw.githubusercontent.com/corese-stack/corese-gui/main/packaging/flatpak/screenshots/query-template-dialog.png</image>
+        </screenshot>
+        <screenshot type="default">
             <caption>Run SPARQL queries and inspect tabular results.</caption>
             <image type="source">https://raw.githubusercontent.com/corese-stack/corese-gui/main/packaging/flatpak/screenshots/query-select-table-results.png</image>
         </screenshot>
@@ -69,16 +81,8 @@
             <image type="source">https://raw.githubusercontent.com/corese-stack/corese-gui/main/packaging/flatpak/screenshots/query-construct-graph-zoomed.png</image>
         </screenshot>
         <screenshot>
-            <caption>Reasoning workspace with built-in profiles and custom rule files.</caption>
-            <image type="source">https://raw.githubusercontent.com/corese-stack/corese-gui/main/packaging/flatpak/screenshots/data-reasoning-custom-rules.png</image>
-        </screenshot>
-        <screenshot type="default">
-            <caption>Inspect named graphs and graph components in the data view.</caption>
-            <image type="source">https://raw.githubusercontent.com/corese-stack/corese-gui/main/packaging/flatpak/screenshots/data-graph-exploration.png</image>
-        </screenshot>
-        <screenshot>
-            <caption>Validate SHACL shapes and inspect validation reports.</caption>
-            <image type="source">https://raw.githubusercontent.com/corese-stack/corese-gui/main/packaging/flatpak/screenshots/validation-shacl-results.png</image>
+            <caption>Edit SHACL shapes in the validation workspace.</caption>
+            <image type="source">https://raw.githubusercontent.com/corese-stack/corese-gui/main/packaging/flatpak/screenshots/validation-shacl-editor.png</image>
         </screenshot>
     </screenshots>
 
