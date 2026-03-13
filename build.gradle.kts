@@ -591,15 +591,19 @@ spotless {
     }
 
     format("misc") {
-        target(
-            ".editorconfig",
-            "**/*.md",
-            "**/*.yml",
-            "**/*.yaml",
-            "**/*.gradle.kts",
-            "**/*.css",
-            "**/*.xml"
-        )
+        val miscTargets = fileTree(".") {
+            include(".editorconfig")
+            include("**/*.md")
+            include("**/*.yml")
+            include("**/*.yaml")
+            include("**/*.gradle.kts")
+            include("**/*.css")
+            include("**/*.xml")
+            exclude(".gradle/**")
+            exclude("build/**")
+            exclude("packaging/flatpak/.flatpak-builder/**")
+        }
+        target(miscTargets)
         trimTrailingWhitespace()
         endWithNewline()
         ratchetFrom("HEAD")
