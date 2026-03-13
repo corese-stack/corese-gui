@@ -23,9 +23,9 @@ jobs:
     build-artifacts:
         uses: ./.github/workflows/_build-platform-artifacts.yml
         with:
-            source_ref: ${{ github.event.inputs.ref || github.ref }}
+            source_ref: ${{ github.event.inputs.ref || github.ref_name }}
             artifact_name_prefix: corese-gui
-            project_version: ${{ github.event.inputs.ref || github.ref }}
+            project_version: ${{ github.event.inputs.ref || github.ref_name }}
 
     release:
         needs: build-artifacts
