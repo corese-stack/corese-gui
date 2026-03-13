@@ -1,9 +1,15 @@
 [
   {
+    "name": "v5.0.0 (latest)",
+    "version": "v5.0.0",
+    "url": "https://corese-stack.github.io/corese-gui/v5.0.0/",
+    "preferred": true
+  },
+  {
     "name": "dev-prerelease (preview)",
     "version": "dev-prerelease",
     "url": "https://corese-stack.github.io/corese-gui/dev-prerelease/",
-    "preferred": true
+    "preferred": false
   },
   {
     "name": "v4.6.1 (legacy)",
