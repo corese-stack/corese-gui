@@ -136,7 +136,7 @@
 
     <releases>
 
-        <release version="5.0.0" date="2026-02-24">
+        <release version="5.0.0" date="2026-03-13">
             <description>
                 <ul>
                     <li>Complete rewrite of Corese GUI in JavaFX, rebuilt from scratch.</li>
