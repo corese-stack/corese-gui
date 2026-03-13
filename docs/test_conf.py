@@ -1,5 +1,6 @@
 import importlib.util
 import os
+import re
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -77,6 +78,31 @@ class DocsDownloadUrlTests(unittest.TestCase):
             self.assertIn("5.0.0", urls[key], key)
             self.assertNotIn("SNAPSHOT", urls[key], key)
             self.assertIn("/releases/download/v5.0.0/", urls[key], key)
+
+        self.assertEqual(
+            urls["release_page"],
+            "https://github.com/corese-stack/corese-gui/releases/tag/v5.0.0",
+        )
+        self.assertEqual(urls["flathub_page"], "https://flathub.org/apps/fr.inria.corese.CoreseGui")
+
+    def test_readme_stable_download_links_match_generated_stable_urls(self):
+        readme = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
+        readme_urls = sorted(
+            re.findall(
+                r"https://github\.com/corese-stack/corese-gui/releases/download/[^)\s]+",
+                readme,
+            )
+        )
+
+        tag, app_version, artifact_version, _ = self.conf._compute_download_context("v5.0.0")
+        urls = self.conf._build_download_urls(tag, app_version, artifact_version)
+        generated_urls = sorted(
+            value
+            for key, value in urls.items()
+            if key not in {"release_page", "flathub_page"}
+        )
+
+        self.assertEqual(generated_urls, readme_urls)
 
 
 if __name__ == "__main__":
