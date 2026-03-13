@@ -1,3 +1,5 @@
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.SourcesJar
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import java.util.Locale
 import org.gradle.api.file.DuplicatesStrategy
@@ -231,10 +233,6 @@ val defaultJpackageIcon = when (hostOs) {
 val jpackageIcon = overriddenJpackageIcon ?: defaultJpackageIcon
 
 java {
-    // Required for Maven publication completeness.
-    withSourcesJar()
-    withJavadocJar()
-
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(Meta.javaVersion))
     }
@@ -289,6 +287,11 @@ application {
  * Signing is enabled only when signing keys are provided.
  */
 mavenPublishing {
+    configureBasedOnAppliedPlugins(
+        javadocJar = JavadocJar.Javadoc(),
+        sourcesJar = SourcesJar.Sources(),
+    )
+
     coordinates(Meta.groupId, Meta.artifactId, Meta.version)
 
     pom {
