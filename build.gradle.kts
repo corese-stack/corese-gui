@@ -57,7 +57,7 @@ plugins {
 fun normalizeProjectVersion(rawValue: String?): String {
     val candidate = rawValue?.trim().orEmpty()
     if (candidate.isBlank()) {
-        return "5.0.0-SNAPSHOT"
+        return "5.0.0"
     }
     return candidate.removePrefix("refs/tags/").removePrefix("v").trim()
 }
