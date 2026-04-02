@@ -44,7 +44,7 @@ Optional environment variables:
 - `DEV_PRERELEASE_REF` (default: `dev-prerelease`)
 - `PUBLISHED_STABLE_TAGS` (optional comma-separated `vX.Y.Z` list, used by CI to restrict stable docs/switcher to published GitHub releases)
 - `DOCS_DEFAULT_APP_VERSION` (default: `5.0.0`, final fallback only when no supported stable tag and no `dev-prerelease` tag exist locally)
-- `DEV_PRERELEASE_APP_VERSION` (default: `5.0.0`, used to build `-SNAPSHOT` filenames)
+- `DEV_PRERELEASE_APP_VERSION` (default: `5.0.1`, used to build `-SNAPSHOT` filenames)
 
 ## Versioning rules
 

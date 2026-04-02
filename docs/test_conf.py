@@ -30,8 +30,8 @@ class DocsDownloadUrlTests(unittest.TestCase):
             urls = self.conf._build_download_urls(tag, app_version, artifact_version)
 
         self.assertEqual(tag, "dev-prerelease")
-        self.assertEqual(app_version, "5.0.0")
-        self.assertEqual(artifact_version, "5.0.0-SNAPSHOT")
+        self.assertEqual(app_version, "5.0.1")
+        self.assertEqual(artifact_version, "5.0.1-SNAPSHOT")
 
         expected_snapshot_urls = (
             "windows_installer",
@@ -47,7 +47,7 @@ class DocsDownloadUrlTests(unittest.TestCase):
             "linux_standalone_arm64",
         )
         for key in expected_snapshot_urls:
-            self.assertIn("5.0.0-SNAPSHOT", urls[key], key)
+            self.assertIn("5.0.1-SNAPSHOT", urls[key], key)
             self.assertIn("/releases/download/dev-prerelease/", urls[key], key)
 
         self.assertEqual(
@@ -118,6 +118,17 @@ class DocsDownloadUrlTests(unittest.TestCase):
         self.assertEqual(tag, "v5.1.0")
         self.assertEqual(app_version, "5.1.0")
         self.assertEqual(artifact_version, "5.1.0")
+
+    def test_non_versioned_build_without_tags_falls_back_to_default_stable_version(self):
+        with mock.patch.object(self.conf, "_latest_supported_stable_tag", return_value=None):
+            with mock.patch.object(self.conf, "_git_tag_exists", return_value=False):
+                tag, app_version, artifact_version, _ = self.conf._compute_download_context(
+                    "local"
+                )
+
+        self.assertEqual(tag, "v5.0.0")
+        self.assertEqual(app_version, "5.0.0")
+        self.assertEqual(artifact_version, "5.0.0")
 
     def test_empty_published_stable_tags_skips_git_tag_lookup(self):
         with mock.patch.dict(os.environ, {"PUBLISHED_STABLE_TAGS": ""}, clear=False):
