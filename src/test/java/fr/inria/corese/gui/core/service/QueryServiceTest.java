@@ -65,6 +65,21 @@ class QueryServiceTest {
 	}
 
 	@Test
+	void executeQuery_withoutLocalData_canStillReturnBindings() {
+		QueryResultRef resultRef = queryService.executeQuery("""
+				SELECT ?value
+				WHERE {
+					VALUES ?value { 1 }
+				}
+				""");
+
+		assertEquals(QueryType.SELECT, resultRef.getQueryType());
+		assertEquals(1, resultRef.getResultCount(),
+				"Queries that do not depend on the local graph should still execute on an empty dataset.");
+		queryService.releaseResult(resultRef.getId());
+	}
+
+	@Test
 	void formatResult_tsvPreservesLiteralMetadataWhileCsvFlattensValue() {
 		QueryResultRef updateRef = queryService.executeQuery("""
 				PREFIX ex: <http://example.org/>

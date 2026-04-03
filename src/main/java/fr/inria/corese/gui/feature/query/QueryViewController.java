@@ -20,7 +20,6 @@ import fr.inria.corese.gui.core.model.QueryResultRef;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
 import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.service.QueryService;
-import fr.inria.corese.gui.core.service.RdfDataService;
 import fr.inria.corese.gui.core.io.FileDialogState;
 import fr.inria.corese.gui.feature.editor.code.CodeEditorController;
 import fr.inria.corese.gui.feature.editor.tab.TabContext;
@@ -147,13 +146,6 @@ public class QueryViewController {
 		}
 
 		final String queryContent = codeEditor.getContent();
-		if (!RdfDataService.getInstance().hasData() && QueryExecutionSupport.looksLikeReadQuery(queryContent)) {
-			resultController.clearResults();
-			tabEditorController.hideResultPane();
-			tabEditorController.showError("No Data Loaded", "Query execution requires an RDF graph to be loaded.\n"
-					+ "Please go to the 'Data' view and load an RDF file.");
-			return;
-		}
 
 		releasePreviousResult(context);
 
