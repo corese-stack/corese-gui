@@ -140,6 +140,21 @@
 
     <releases>
 
+        <release version="5.0.1" date="2026-04-03">
+            <description>
+                <ul>
+                    <li>SPARQL query templates now support <code>SERVICE</code> with an endpoint
+                        URL.</li>
+                    <li>Queries can now run without local data being loaded.</li>
+
+                    <li xml:lang="fr">Les modèles de requêtes SPARQL prennent désormais en charge
+                        <code>SERVICE</code> avec une URL d'endpoint.</li>
+                    <li xml:lang="fr">Les requêtes peuvent désormais être exécutées sans données
+                        locales chargées.</li>
+                </ul>
+            </description>
+        </release>
+
         <release version="5.0.0" date="2026-03-13">
             <description>
                 <ul>
