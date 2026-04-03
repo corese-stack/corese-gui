@@ -146,11 +146,15 @@
                     <li>SPARQL query templates now support <code>SERVICE</code> with an endpoint
                         URL.</li>
                     <li>Queries can now run without local data being loaded.</li>
+                    <li>Graph view layout no longer resets when enabling or disabling custom
+                        rules.</li>
 
                     <li xml:lang="fr">Les modèles de requêtes SPARQL prennent désormais en charge
                         <code>SERVICE</code> avec une URL d'endpoint.</li>
                     <li xml:lang="fr">Les requêtes peuvent désormais être exécutées sans données
                         locales chargées.</li>
+                    <li xml:lang="fr">La disposition de la vue graphe n'est plus réinitialisée
+                        lors de l'activation ou de la désactivation de règles personnalisées.</li>
                 </ul>
             </description>
         </release>
