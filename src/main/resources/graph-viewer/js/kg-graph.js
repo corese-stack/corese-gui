@@ -4434,7 +4434,9 @@ class KGGraphVis extends HTMLElement {
                     : (addedRatio <= 0.12 ? 0.18 : (addedRatio <= 0.35 ? 0.30 : 0.55));
 
             const shouldAutoFit = hadPendingAutoFit
-                || isMediumOrLargerGraph
+                // Keep the first render of medium/large graphs framed as an overview,
+                // but avoid forcing the same refit on every incremental refresh.
+                || (!hadExistingLayout && isMediumOrLargerGraph)
                 || this.shouldApplyAutoFit(hadExistingLayout, addedRatio);
             if (shouldAutoFit) {
                 const overviewTransform = this.resolveFitTransform(this.AUTO_OVERVIEW_PADDING,
