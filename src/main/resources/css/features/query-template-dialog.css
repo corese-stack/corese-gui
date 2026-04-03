@@ -12,6 +12,13 @@
 .query-template-options {
     -fx-min-width: 280px;
     -fx-pref-width: 300px;
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0 4px 0 0;
+}
+
+.query-template-options > .viewport {
+    -fx-background-color: transparent;
 }
 
 .query-template-section {

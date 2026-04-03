@@ -7,6 +7,7 @@ public final class QueryTemplateGenerator {
 
 	private static final String DEFAULT_GRAPH_URI = "http://example.org/graph";
 	private static final String LOAD_URI_PLACEHOLDER = "https://ns.inria.fr/humans/humans_data.ttl";
+	private static final String SERVICE_ENDPOINT_PLACEHOLDER = "https://dbpedia.org/sparql";
 	private static final String EXAMPLE_SUBJECT = "http://example.org/resource/s";
 	private static final String EXAMPLE_PREDICATE = "http://example.org/property/p";
 	private static final String EXAMPLE_LITERAL = "\"value\"";
@@ -16,9 +17,7 @@ public final class QueryTemplateGenerator {
 	}
 
 	public static String generate(QueryTemplateOptions options) {
-		QueryTemplateOptions safeOptions = options == null
-				? new QueryTemplateOptions(QueryTemplateType.SELECT, false, false, false, false, false, null, null)
-				: options;
+		QueryTemplateOptions safeOptions = options == null ? QueryTemplateOptions.defaults() : options;
 
 		return switch (safeOptions.type()) {
 			case SELECT -> buildSelect(safeOptions);
@@ -125,29 +124,25 @@ public final class QueryTemplateGenerator {
 
 	private static String buildDeleteInsertWhere(QueryTemplateOptions options) {
 		if (options.useGraphClause()) {
-			return """
+			return buildDeleteInsertWhere("""
 					DELETE {
 					  GRAPH ?g { ?s ?p ?o . }
 					}
+					""", """
 					INSERT {
 					  GRAPH ?g { ?s ?p "updated" . }
 					}
-					WHERE {
-					  GRAPH ?g { ?s ?p ?o . }
-					}
-					""";
+					""", buildWherePattern(options, 1));
 		}
-		return """
+		return buildDeleteInsertWhere("""
 				DELETE {
 				  ?s ?p ?o .
 				}
+				""", """
 				INSERT {
 				  ?s ?p "updated" .
 				}
-				WHERE {
-				  ?s ?p ?o .
-				}
-				""";
+				""", buildWherePattern(options, 1));
 	}
 
 	private static String buildLoadUri() {
@@ -174,6 +169,13 @@ public final class QueryTemplateGenerator {
 	}
 
 	private static String buildWherePattern(QueryTemplateOptions options, int indentLevel) {
+		if (options.useServiceClause()) {
+			return buildServicePattern(options, indentLevel);
+		}
+		return buildCoreWherePattern(options, indentLevel);
+	}
+
+	private static String buildCoreWherePattern(QueryTemplateOptions options, int indentLevel) {
 		String indent = "  ".repeat(Math.max(0, indentLevel));
 		StringBuilder pattern = new StringBuilder(
 				options.useUnionPattern() ? buildUnionPattern(options, indent) : buildBasicPattern(options, indent));
@@ -181,6 +183,29 @@ public final class QueryTemplateGenerator {
 			pattern.append('\n').append(buildOptionalPattern(options, indent));
 		}
 		return pattern.toString();
+	}
+
+	private static String buildServicePattern(QueryTemplateOptions options, int indentLevel) {
+		String indent = "  ".repeat(Math.max(0, indentLevel));
+		String endpoint = buildServiceEndpoint(options.serviceEndpointUrl());
+		String serviceBody = buildCoreWherePattern(options, indentLevel + 1);
+		return """
+				%sSERVICE <%s> {
+				%s
+				%s}
+				""".formatted(indent, endpoint, serviceBody, indent).stripTrailing();
+	}
+
+	private static String buildServiceEndpoint(String endpointUrl) {
+		return endpointUrl == null || endpointUrl.isBlank() ? SERVICE_ENDPOINT_PLACEHOLDER : endpointUrl.trim();
+	}
+
+	private static String buildDeleteInsertWhere(String deleteBlock, String insertBlock, String wherePattern) {
+		return """
+				%s%sWHERE {
+				%s
+				}
+				""".formatted(deleteBlock, insertBlock, wherePattern);
 	}
 
 	private static String buildBasicPattern(QueryTemplateOptions options, String indent) {
