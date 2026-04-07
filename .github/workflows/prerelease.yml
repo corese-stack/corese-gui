@@ -88,6 +88,40 @@ jobs:
               run: |
                   echo "timestamp=$(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> "$GITHUB_OUTPUT"
 
+            - name: Extract latest changelog section for prerelease
+              run: |
+                  set -euo pipefail
+
+                  awk '
+                      /^## Version / {
+                          if (capturing) {
+                              exit
+                          }
+                          capturing = 1
+                      }
+                      capturing { print }
+                  ' CHANGELOG.md > prerelease_changelog.raw.md
+
+                  sed '/./,$!d' prerelease_changelog.raw.md | tac | sed '/./,$!d' | tac > prerelease_changelog.md
+
+                  if [[ ! -s prerelease_changelog.md ]]; then
+                      echo "No changelog section found in CHANGELOG.md" >&2
+                      exit 1
+                  fi
+
+                  {
+                      printf '%s\n' 'Latest unsigned multi-platform build from the selected source ref.'
+                      printf '\n'
+                      printf 'Last updated: %s\n' '${{ steps.timestamp.outputs.timestamp }}'
+                      printf 'Source ref: `%s`\n' '${{ github.event.inputs.ref }}'
+                      printf 'Commit: `%s`\n' '${{ steps.source-sha.outputs.sha }}'
+                      printf '\n'
+                      printf '%s\n' '## Changelog'
+                      printf '\n'
+                  } > prerelease_notes.md
+
+                  cat prerelease_changelog.md >> prerelease_notes.md
+
             - name: Generate checksums
               run: |
                   cd build/prerelease-assets
@@ -133,12 +167,7 @@ jobs:
                   artifacts: "build/prerelease-assets/*"
                   tag: dev-prerelease
                   name: Development Pre-release
-                  body: |
-                      Latest unsigned multi-platform build from the selected source ref.
-
-                      Last updated: ${{ steps.timestamp.outputs.timestamp }}
-                      Source ref: `${{ github.event.inputs.ref }}`
-                      Commit: `${{ steps.source-sha.outputs.sha }}`
+                  bodyFile: prerelease_notes.md
                   commit: ${{ steps.source-sha.outputs.sha }}
                   prerelease: true
                   allowUpdates: true
