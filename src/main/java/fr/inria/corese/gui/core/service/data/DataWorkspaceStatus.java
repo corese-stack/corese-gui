@@ -9,7 +9,7 @@ import java.util.Objects;
  */
 public record DataWorkspaceStatus(int tripleCount, int explicitTripleCount, int inferredTripleCount,
 		int defaultGraphTripleCount, int sourceCount, int fileSourceCount, int uriSourceCount, int namedGraphCount,
-		List<NamedGraphStat> namedGraphStats, List<ReasoningStat> reasoningStats, boolean nativeRdfsSubsetEnabled) {
+		List<NamedGraphStat> namedGraphStats, List<ReasoningStat> reasoningStats, boolean rdfsSubsetEnabled) {
 
 	/**
 	 * Per named graph triple metric.

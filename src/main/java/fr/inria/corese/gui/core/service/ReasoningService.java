@@ -76,11 +76,8 @@ public interface ReasoningService {
 	BuiltInProfileSource getBuiltInProfileSource(ReasoningProfile profile);
 
 	/**
-	 * Enables/disables native Corese RDFS subset entailment on the shared graph.
-	 *
-	 * <p>
-	 * Unlike built-in rule profiles, this mode is not materialized into a managed
-	 * named graph.
+	 * Enables/disables the lightweight RDFS subset inference mode managed by the
+	 * GUI reasoning pipeline.
 	 *
 	 * @param enabled
 	 *            target state
@@ -88,9 +85,9 @@ public interface ReasoningService {
 	void setRdfsSubsetEnabled(boolean enabled);
 
 	/**
-	 * Returns whether native Corese RDFS subset entailment is enabled.
+	 * Returns whether the lightweight RDFS subset inference mode is enabled.
 	 *
-	 * @return true if the native entailment mode is active
+	 * @return true if the RDFS subset mode is active
 	 */
 	boolean isRdfsSubsetEnabled();
 
@@ -158,7 +155,7 @@ public interface ReasoningService {
 	void recomputeEnabledProfiles();
 
 	/**
-	 * Disables all built-in profiles, native entailment modes, and rule files, and
+	 * Disables all built-in profiles, RDFS subset mode, and rule files, and
 	 * removes managed inference graphs.
 	 */
 	void resetAllProfiles();

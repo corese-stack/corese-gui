@@ -15,9 +15,9 @@ import javafx.scene.layout.VBox;
 public final class DataReasoningInfoDialog {
 
 	private static final String DIALOG_TITLE = "Reasoning Mode - RDFS Subset";
-	private static final String DIALOG_SUBTITLE = "Lightweight native RDFS entailment in Corese.";
+	private static final String DIALOG_SUBTITLE = "Lightweight RDFS materialization managed by the GUI.";
 	private static final String INTRO_TEXT = """
-			RDFS Subset enables Corese's lightweight native RDFS entailment on the current graph.
+			RDFS Subset enables a lightweight RDFS-style inference mode on the current graph.
 			""";
 	private static final String WHAT_IT_DOES_TEXT = """
 			- infer rdf:type from rdfs:domain and rdfs:range
@@ -26,9 +26,9 @@ public final class DataReasoningInfoDialog {
 			- infer reverse or symmetric triples from owl:inverseOf and owl:SymmetricProperty
 			""";
 	private static final String RESULT_TEXT = """
-			- Some inferred triples are added to Corese's entailment graph (kg:entailment).
-			- Not all consequences are materialized there.
-			- Subclass-based rdf:type results may also be resolved at query time.
+			- Inferred triples are materialized into the managed RDFS inference graph.
+			- When RDFS RL is also enabled, both modes reuse the same managed RDFS inference graph.
+			- Shared consequences are stored once, so enabling both modes does not duplicate query answers.
 			""";
 	private static final String SCOPE_TEXT = """
 			This is an RDFS subset, not the full RDFS closure.

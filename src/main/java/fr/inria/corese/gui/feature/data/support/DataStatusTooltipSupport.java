@@ -96,10 +96,10 @@ public final class DataStatusTooltipSupport {
 
 	public static List<String> buildReasoningTooltipLines(DataWorkspaceStatus status) {
 		List<String> lines = new ArrayList<>();
-		if (status != null && status.nativeRdfsSubsetEnabled()) {
+		if (status != null && status.rdfsSubsetEnabled()) {
 			lines.add("RDFS Subset: active");
-			lines.add("Some inferred triples are added to kg:entailment.");
-			lines.add("Subclass-based rdf:type results may also be resolved at query time.");
+			lines.add("RDFS subset inferences are materialized in the managed RDFS graph.");
+			lines.add("When RDFS RL is also active, shared consequences are deduplicated before queries run.");
 		}
 		if (status == null || status.reasoningStats().isEmpty()) {
 			if (lines.isEmpty()) {

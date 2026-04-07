@@ -186,8 +186,8 @@ public class DataView extends AbstractView {
 		builtInTitle.getStyleClass().add("data-section-title");
 		VBox builtInRules = new VBox(8,
 				createNativeReasoningRow("RDFS Subset", rdfsSubsetToggle, rdfsSubsetViewButton,
-						"Native lightweight RDFS inference. Some inferred triples are added to kg:entailment; "
-								+ "subclass-based rdf:type results may also be resolved at query time."),
+						"Lightweight RDFS inference materialized into the managed RDFS graph. "
+								+ "When combined with RDFS RL, shared consequences are deduplicated for queries."),
 				createBuiltInRuleRow("RDFS RL", rdfsToggle, rdfsViewButton),
 				createBuiltInRuleRow("OWL RL", owlRlToggle, owlRlViewButton),
 				createBuiltInRuleRow("OWL RL Lite", owlRlLiteToggle, owlRlLiteViewButton),

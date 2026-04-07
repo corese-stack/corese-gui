@@ -216,7 +216,7 @@ class DefaultDataWorkspaceServiceTest {
 	}
 
 	@Test
-	void nativeRdfsSubset_isExposedInStatusWithoutMaterializedInferenceTriples() throws IOException {
+	void rdfsSubset_isExposedInStatusWithMaterializedInferenceTriples() throws IOException {
 		File baseline = writeTempTurtle("baseline-rdfs-subset.ttl", """
 				@prefix ex: <http://example.org/> .
 				@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -228,13 +228,13 @@ class DefaultDataWorkspaceServiceTest {
 		reasoningService.setRdfsSubsetEnabled(true);
 
 		DataWorkspaceStatus status = workspaceService.getStatus();
-		assertTrue(status.nativeRdfsSubsetEnabled(), "Workspace status should expose native RDFS subset state.");
-		assertEquals(0, status.inferredTripleCount(),
-				"Native RDFS subset should not be counted as materialized inferred triples.");
+		assertTrue(status.rdfsSubsetEnabled(), "Workspace status should expose RDFS subset state.");
+		assertTrue(status.inferredTripleCount() > 0,
+				"RDFS subset should now contribute materialized inferred triples.");
 
 		reasoningService.resetAllProfiles();
-		assertFalse(workspaceService.getStatus().nativeRdfsSubsetEnabled(),
-				"Reset should disable native RDFS subset in workspace status.");
+		assertFalse(workspaceService.getStatus().rdfsSubsetEnabled(),
+				"Reset should disable RDFS subset in workspace status.");
 	}
 
 	private int reloadLikeDataViewController(List<DataSource> selectedSources) {

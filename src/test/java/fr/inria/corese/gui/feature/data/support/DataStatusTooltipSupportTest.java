@@ -156,7 +156,7 @@ class DataStatusTooltipSupportTest {
 
 		assertEquals(3, lines.size(), "Tooltip should explain materialized and query-time effects.");
 		assertEquals("RDFS Subset: active", lines.get(0));
-		assertTrue(lines.get(1).contains("kg:entailment"));
-		assertTrue(lines.get(2).contains("query time"));
+		assertTrue(lines.get(1).contains("materialized"));
+		assertTrue(lines.get(2).contains("deduplicated"));
 	}
 }

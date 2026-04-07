@@ -146,18 +146,23 @@
                     <li>SPARQL query templates now support <code>SERVICE</code> with an endpoint
                         URL.</li>
                     <li>Queries can now run without local data being loaded.</li>
+                    <li>Fixed duplicate query results when using <code>RDFS Subset</code> with
+                        <code>RDFS RL</code> (issue #14).</li>
                     <li>Graph view layout no longer resets when enabling or disabling custom
                         rules.</li>
-                    <li>Improved named graph color distinction and stability.</li>
+                    <li>Improved named graph color distinction and stability (issue #13).</li>
 
                     <li xml:lang="fr">Les modèles de requêtes SPARQL prennent désormais en charge
                         <code>SERVICE</code> avec une URL d'endpoint.</li>
                     <li xml:lang="fr">Les requêtes peuvent désormais être exécutées sans données
                         locales chargées.</li>
+                    <li xml:lang="fr">Correction des doublons dans les résultats de requête lors
+                        de l'utilisation de <code>RDFS Subset</code> avec <code>RDFS RL</code>
+                        (issue #14).</li>
                     <li xml:lang="fr">La disposition de la vue graphe n'est plus réinitialisée
                         lors de l'activation ou de la désactivation de règles personnalisées.</li>
                     <li xml:lang="fr">Amélioration de la distinction et de la stabilité des
-                        couleurs des graphes nommés.</li>
+                        couleurs des graphes nommés (issue #13).</li>
                 </ul>
             </description>
         </release>

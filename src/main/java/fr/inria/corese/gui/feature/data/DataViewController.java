@@ -670,7 +670,7 @@ public class DataViewController implements AutoCloseable {
 				DataWorkspaceStatus beforeStatus = workspaceService.getStatus();
 				reasoningService.setEnabled(profile, enabled);
 				DataWorkspaceStatus afterStatus = workspaceService.getStatus();
-				String profileLabel = profile == null ? "Profile" : profile.label();
+				String profileLabel = displayLabelForProfile(profile);
 				String stateLabel = enabled ? "enabled" : "disabled";
 				String deltaMessage = DataUiMessageUtils.buildTripleDeltaMessage(beforeStatus.inferredTripleCount(),
 						afterStatus.inferredTripleCount());
@@ -678,7 +678,7 @@ public class DataViewController implements AutoCloseable {
 				return () -> NotificationWidget.getInstance().showSuccess("Reasoning Profile", message);
 			} catch (Exception e) {
 				return () -> NotificationWidget.getInstance().showErrorWithDetails("Reasoning Error",
-						"Reasoning update failed for " + profile.label() + ": " + e.getMessage(), e);
+						"Reasoning update failed for " + displayLabelForProfile(profile) + ": " + e.getMessage(), e);
 			}
 		});
 	}
@@ -710,10 +710,12 @@ public class DataViewController implements AutoCloseable {
 			try {
 				ReasoningService.BuiltInProfileSource source = reasoningService.getBuiltInProfileSource(profile);
 				Platform.runLater(
-						() -> DataRulePreviewDialog.show(source.label(), source.sourcePath(), source.sourceContent()));
+						() -> DataRulePreviewDialog.show(displayLabelForProfile(profile), source.sourcePath(),
+								source.sourceContent()));
 			} catch (Exception e) {
 				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Rule Source Error",
-						"Failed to open built-in profile source " + profile.label() + ": " + e.getMessage(), e));
+						"Failed to open built-in profile source " + displayLabelForProfile(profile) + ": "
+								+ e.getMessage(), e));
 			}
 		});
 	}
@@ -759,13 +761,25 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private String buildReasoningToggleLoadingMessage(ReasoningProfile profile, boolean enabled) {
-		String profileLabel = profile == null ? "profile" : profile.label();
+		String profileLabel = displayLabelForProfile(profile);
 		return buildReasoningToggleLoadingMessage(profileLabel, enabled);
 	}
 
 	private String buildReasoningToggleLoadingMessage(String profileLabel, boolean enabled) {
 		String safeLabel = profileLabel == null || profileLabel.isBlank() ? "profile" : profileLabel;
 		return enabled ? "Enabling " + safeLabel + "..." : "Disabling " + safeLabel + "...";
+	}
+
+	private String displayLabelForProfile(ReasoningProfile profile) {
+		if (profile == null) {
+			return "Profile";
+		}
+		return switch (profile) {
+			case RDFS -> "RDFS RL";
+			case OWL_RL -> "OWL RL";
+			case OWL_RL_LITE -> "OWL RL Lite";
+			case OWL_RL_EXT -> "OWL RL Extended";
+		};
 	}
 
 	private void notifyLoadOutcome(String sourceLabel, int loadedCount, int tripleCount,

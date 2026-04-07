@@ -10,8 +10,9 @@
 
 ### Fixed
 
+- Fixed duplicate query results when using `RDFS Subset` with `RDFS RL` (see [issue #14](https://github.com/corese-stack/corese-gui/issues/14)).
 - Graph view layout no longer resets when enabling or disabling custom rules.
-- Improved named graph color distinction and stability.
+- Improved named graph color distinction and stability (see [issue #13](https://github.com/corese-stack/corese-gui/issues/13)).
 
 ## Version 5.0.0 - 2026-03-13
 
