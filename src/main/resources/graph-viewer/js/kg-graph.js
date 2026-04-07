@@ -21,19 +21,58 @@ const GRAPH_DEFAULTS = Object.freeze({
 });
 
 const GRAPH_PRESET_COLORS = Object.freeze({
+    "kg:entailment": "#5C677D",
+    "http://ns.inria.fr/corese/kgram/entailment": "#5C677D",
     "urn:corese:inference:rdfs": "#7BC8A4",
     "urn:corese:inference:owlrl": "#F6B26B",
     "urn:corese:inference:owlrl-lite": "#9A86E8",
     "urn:corese:inference:owlrl-ext": "#F08CA0"
 });
 
-const GRAPH_COLOR_GENERATION = Object.freeze({
-    hueSlotCount: 30,
-    hueStride: 11,
-    hueRetryStep: 7,
-    minDistanceFromPresetHue: 18,
-    saturationLevels: [42, 48, 54],
-    lightnessLevels: [64, 69, 74]
+// Ordered palette for user named graphs.
+//
+// The first entries are deliberately spaced out for the common case where only
+// a few named graphs are visible. Preset system graphs do not consume this
+// palette, so user graph colors stay stable and predictable across reloads and
+// later rule activations.
+const GRAPH_NAMED_GRAPH_PALETTE = Object.freeze([
+    "#0077BB",
+    "#CC3311",
+    "#228833",
+    "#EE7733",
+    "#33BBEE",
+    "#6A3D9A",
+    "#999933",
+    "#8C564B",
+    "#AA3377",
+    "#332288",
+    "#009988",
+    "#B7791F",
+    "#0B63A5",
+    "#9E2A2B",
+    "#0F766E",
+    "#A61E4D",
+    "#3B5BDB",
+    "#15803D",
+    "#17BECF",
+    "#A16207",
+    "#9467BD",
+    "#CC6677",
+    "#4B5563",
+    "#44AA99",
+    "#7C3AED",
+    "#BCBD22",
+    "#117733",
+    "#882255"
+]);
+
+const GRAPH_COLOR_FALLBACK = Object.freeze({
+    fallbackHueSlotCount: 48,
+    fallbackHueStride: 17,
+    fallbackHueRetryStep: 11,
+    minDistanceFromPresetHue: 14,
+    saturationLevels: [70, 60, 82],
+    lightnessLevels: [50, 60, 44]
 });
 
 /**
@@ -143,7 +182,6 @@ class KGGraphVis extends HTMLElement {
         this.graphColorMap = new Map();
         this.graphContextPrefixes = new Map();
         this.defaultGraphColor = GRAPH_DEFAULTS.defaultGraphColor;
-        this.reservedGraphHues = [];
 
         // Performance optimization
         this.TICK_THROTTLE_SMALL = 16;
@@ -708,13 +746,6 @@ class KGGraphVis extends HTMLElement {
         return gid;
     }
 
-    resolveReservedGraphHues() {
-        return Object.values(GRAPH_PRESET_COLORS)
-            .map(color => this.hexToHsl(color))
-            .filter(hsl => Number.isFinite(hsl.h) && hsl.s > 0)
-            .map(hsl => hsl.h);
-    }
-
     stableHash(input) {
         const value = String(input ?? "");
         let hash = 2166136261;
@@ -730,11 +761,26 @@ class KGGraphVis extends HTMLElement {
         return raw > 180 ? 360 - raw : raw;
     }
 
-    isHueTooCloseToReserved(candidateHue, minDistance = GRAPH_COLOR_GENERATION.minDistanceFromPresetHue) {
-        if (!Array.isArray(this.reservedGraphHues) || this.reservedGraphHues.length === 0) {
-            return false;
+    isHueTooCloseToReserved(candidateHue, minDistance = GRAPH_COLOR_FALLBACK.minDistanceFromPresetHue) {
+        return Object.values(GRAPH_PRESET_COLORS).some(colorHex => {
+            const hsl = this.hexToHsl(colorHex);
+            return Number.isFinite(hsl.h)
+                && hsl.s > 0
+                && this.hueDistance(candidateHue, hsl.h) < minDistance;
+        });
+    }
+
+    pickPaletteGraphColor() {
+        const usedHexes = new Set(
+            Array.from(this.graphColorMap.values(), colorHex => String(colorHex ?? "").trim().toUpperCase())
+        );
+
+        for (const colorHex of GRAPH_NAMED_GRAPH_PALETTE) {
+            if (!usedHexes.has(colorHex)) {
+                return colorHex;
+            }
         }
-        return this.reservedGraphHues.some(reservedHue => this.hueDistance(candidateHue, reservedHue) < minDistance);
+        return null;
     }
 
     buildStableGraphColor(graphId) {
@@ -742,14 +788,14 @@ class KGGraphVis extends HTMLElement {
         const saturationHash = this.stableHash(`${graphId}|s`);
         const lightnessHash = this.stableHash(`${graphId}|l`);
 
-        const config = GRAPH_COLOR_GENERATION;
-        const hueStep = 360 / config.hueSlotCount;
-        const baseHueIndex = (hueHash * config.hueStride) % config.hueSlotCount;
+        const config = GRAPH_COLOR_FALLBACK;
+        const hueStep = 360 / config.fallbackHueSlotCount;
+        const baseHueIndex = (hueHash * config.fallbackHueStride) % config.fallbackHueSlotCount;
         const saturation = config.saturationLevels[saturationHash % config.saturationLevels.length];
         const lightness = config.lightnessLevels[lightnessHash % config.lightnessLevels.length];
 
-        for (let attempt = 0; attempt < config.hueSlotCount; attempt += 1) {
-            const candidateIndex = (baseHueIndex + attempt * config.hueRetryStep) % config.hueSlotCount;
+        for (let attempt = 0; attempt < config.fallbackHueSlotCount; attempt += 1) {
+            const candidateIndex = (baseHueIndex + attempt * config.fallbackHueRetryStep) % config.fallbackHueSlotCount;
             const candidateHue = candidateIndex * hueStep;
             if (!this.isHueTooCloseToReserved(candidateHue)) {
                 return this.hslToHex(candidateHue, saturation, lightness);
@@ -764,7 +810,7 @@ class KGGraphVis extends HTMLElement {
     }
 
     /**
-     * Generate a deterministic color for each named graph.
+     * Returns the stable session color for a graph.
      * @param {string} graphId - Graph identifier.
      * @returns {string} Hex color code.
      */
@@ -775,17 +821,14 @@ class KGGraphVis extends HTMLElement {
         }
         const graphColorKey = this.resolveGraphColorKey(gid);
 
-        if (this.reservedGraphHues.length === 0) {
-            this.reservedGraphHues = this.resolveReservedGraphHues();
-        }
-
         if (!this.graphColorMap.has(graphColorKey)) {
             const presetColor = this.resolvePresetGraphColor(graphColorKey);
             if (presetColor) {
                 this.graphColorMap.set(graphColorKey, presetColor);
                 return presetColor;
             }
-            this.graphColorMap.set(graphColorKey, this.buildStableGraphColor(graphColorKey));
+            const assignedColor = this.pickPaletteGraphColor() ?? this.buildStableGraphColor(graphColorKey);
+            this.graphColorMap.set(graphColorKey, assignedColor);
         }
         return this.graphColorMap.get(graphColorKey);
     }
@@ -2916,7 +2959,28 @@ class KGGraphVis extends HTMLElement {
         safeSummary.linkCount = Number.isFinite(summary.linkCount)
             ? Math.max(0, Math.floor(summary.linkCount))
             : 0;
-        safeSummary.namedGraphs = Array.isArray(summary.namedGraphs) ? summary.namedGraphs : [];
+        safeSummary.namedGraphs = Array.isArray(summary.namedGraphs)
+            ? summary.namedGraphs
+                .map(namedGraph => {
+                    const id = this.normalizeGraphId(namedGraph?.id);
+                    if (id === GRAPH_DEFAULTS.defaultGraphId) {
+                        return null;
+                    }
+                    return {
+                        id,
+                        nodeCount: Number.isFinite(namedGraph?.nodeCount)
+                            ? Math.max(0, Math.floor(namedGraph.nodeCount))
+                            : 0,
+                        linkCount: Number.isFinite(namedGraph?.linkCount)
+                            ? Math.max(0, Math.floor(namedGraph.linkCount))
+                            : 0,
+                        color: typeof namedGraph?.color === "string" && namedGraph.color
+                            ? namedGraph.color
+                            : this.getGraphColor(id)
+                    };
+                })
+                .filter(namedGraph => namedGraph !== null)
+            : [];
         const counts = summary.componentCounts ?? {};
         safeSummary.componentCounts.resource = Number.isFinite(counts.resource) ? Math.max(0, Math.floor(counts.resource)) : 0;
         safeSummary.componentCounts.literal = Number.isFinite(counts.literal) ? Math.max(0, Math.floor(counts.literal)) : 0;
@@ -2988,11 +3052,11 @@ class KGGraphVis extends HTMLElement {
         });
 
         summary.namedGraphs = [...namedGraphStats.values()]
+            .sort((left, right) => right.linkCount - left.linkCount || left.id.localeCompare(right.id))
             .map(stat => ({
                 ...stat,
                 color: this.getGraphColor(stat.id)
-            }))
-            .sort((left, right) => right.linkCount - left.linkCount || left.id.localeCompare(right.id));
+            }));
         return summary;
     }
 

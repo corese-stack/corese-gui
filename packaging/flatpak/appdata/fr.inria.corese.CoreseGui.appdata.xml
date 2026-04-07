@@ -148,6 +148,7 @@
                     <li>Queries can now run without local data being loaded.</li>
                     <li>Graph view layout no longer resets when enabling or disabling custom
                         rules.</li>
+                    <li>Improved named graph color distinction and stability.</li>
 
                     <li xml:lang="fr">Les modèles de requêtes SPARQL prennent désormais en charge
                         <code>SERVICE</code> avec une URL d'endpoint.</li>
@@ -155,6 +156,8 @@
                         locales chargées.</li>
                     <li xml:lang="fr">La disposition de la vue graphe n'est plus réinitialisée
                         lors de l'activation ou de la désactivation de règles personnalisées.</li>
+                    <li xml:lang="fr">Amélioration de la distinction et de la stabilité des
+                        couleurs des graphes nommés.</li>
                 </ul>
             </description>
         </release>

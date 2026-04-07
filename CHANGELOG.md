@@ -11,6 +11,7 @@
 ### Fixed
 
 - Graph view layout no longer resets when enabling or disabling custom rules.
+- Improved named graph color distinction and stability.
 
 ## Version 5.0.0 - 2026-03-13
 
