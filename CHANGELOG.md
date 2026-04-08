@@ -10,7 +10,7 @@
 
 ### Fixed
 
-- Fixed duplicate query results when using `RDFS Subset` with `RDFS RL` (see [issue #14](https://github.com/corese-stack/corese-gui/issues/14)).
+- Aligned `RDFS Subset` with legacy Corese behavior and fixed deduplicated counters/results when used with `RDFS RL` (see [issue #14](https://github.com/corese-stack/corese-gui/issues/14)).
 - Graph view layout no longer resets when enabling or disabling custom rules.
 - Improved named graph color distinction and stability (see [issue #13](https://github.com/corese-stack/corese-gui/issues/13)).
 

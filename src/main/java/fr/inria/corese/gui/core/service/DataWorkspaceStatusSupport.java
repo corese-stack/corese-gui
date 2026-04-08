@@ -1,15 +1,15 @@
 package fr.inria.corese.gui.core.service;
 
 import fr.inria.corese.core.Graph;
-import fr.inria.corese.core.kgram.core.Mapping;
-import fr.inria.corese.core.kgram.core.Mappings;
-import fr.inria.corese.core.query.QueryProcess;
+import fr.inria.corese.core.kgram.api.core.Edge;
 import fr.inria.corese.core.sparql.api.IDatatype;
 import fr.inria.corese.gui.core.service.data.DataSource;
 import fr.inria.corese.gui.core.service.data.DataWorkspaceStatus;
 import fr.inria.corese.gui.core.service.data.SourceType;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -24,11 +24,6 @@ public final class DataWorkspaceStatusSupport {
 	private static final String CORESE_DEFAULT_GRAPH_URI_ALT = "http://ns.inria.fr/corese/kgram/default";
 	private static final Set<String> CORESE_DEFAULT_GRAPH_ALIASES = Set.of(CORESE_DEFAULT_GRAPH_URI,
 			CORESE_DEFAULT_GRAPH_URI_LEGACY, CORESE_DEFAULT_GRAPH_URI_ALT);
-	private static final String NAMED_GRAPH_COUNT_QUERY = """
-			SELECT ?g (COUNT(*) AS ?count)
-			WHERE { GRAPH ?g { ?s ?p ?o } }
-			GROUP BY ?g
-			""";
 
 	private DataWorkspaceStatusSupport() {
 		throw new AssertionError("Utility class");
@@ -42,17 +37,8 @@ public final class DataWorkspaceStatusSupport {
 	}
 
 	public static GraphCountSnapshot computeGraphCountSnapshot(Graph graph, int totalTripleCount, Logger logger) {
-		Map<String, Integer> normalizedCounts = normalizeGraphTripleCounts(computeGraphTripleCounts(graph, logger));
-		int reportedTripleTotal = normalizedCounts.values().stream().mapToInt(Integer::intValue).sum();
-		int unassignedTripleCount = Math.max(0, totalTripleCount - reportedTripleTotal);
-		int defaultGraphTripleCount = saturatingAdd(normalizedCounts.getOrDefault(CORESE_DEFAULT_GRAPH_URI, 0),
-				unassignedTripleCount);
-
-		// The Corese default graph is treated as the default graph and is excluded from
-		// named graph stats.
-		Map<String, Integer> namedGraphCounts = new HashMap<>(normalizedCounts);
-		namedGraphCounts.remove(CORESE_DEFAULT_GRAPH_URI);
-		return new GraphCountSnapshot(namedGraphCounts, defaultGraphTripleCount);
+		GraphMetricsSnapshot metrics = collectGraphMetrics(graph, Set.of(), totalTripleCount, logger);
+		return new GraphCountSnapshot(metrics.namedGraphCounts(), metrics.defaultGraphTripleCount());
 	}
 
 	public static List<DataWorkspaceStatus.NamedGraphStat> toSortedNamedGraphStats(
@@ -68,64 +54,82 @@ public final class DataWorkspaceStatusSupport {
 				}).toList();
 	}
 
-	private static Map<String, Integer> computeGraphTripleCounts(Graph graph, Logger logger) {
-		Map<String, Integer> counts = new HashMap<>();
+	public static DistinctTripleSnapshot computeDistinctTripleSnapshot(Graph graph,
+			Set<String> managedInferenceGraphNames) {
+		int totalTripleCount = graph == null ? 0 : Math.max(0, graph.size());
+		GraphMetricsSnapshot metrics = collectGraphMetrics(graph, managedInferenceGraphNames, totalTripleCount, null);
+		return new DistinctTripleSnapshot(metrics.totalTripleCount(), metrics.assertedTripleCount(),
+				metrics.inferredTripleCount());
+	}
+
+	private static GraphMetricsSnapshot collectGraphMetrics(Graph graph, Set<String> managedInferenceGraphNames,
+			int totalTripleCountFallback, Logger logger) {
+		int safeFallback = Math.max(0, totalTripleCountFallback);
 		if (graph == null || graph.size() == 0) {
-			return counts;
+			return new GraphMetricsSnapshot(Map.of(), safeFallback, 0, 0, 0);
 		}
 		try {
-			QueryProcess queryProcess = QueryProcess.create(graph);
-			Mappings mappings = queryProcess.query(NAMED_GRAPH_COUNT_QUERY);
-			for (Mapping mapping : mappings) {
-				IDatatype graphValue = mapping.getValue("?g");
-				if (graphValue == null || graphValue.getLabel() == null || graphValue.getLabel().isBlank()) {
+			Set<String> normalizedManagedInferenceGraphNames = normalizeGraphNameSet(managedInferenceGraphNames);
+			Map<String, Set<TripleKey>> namedGraphTriples = new HashMap<>();
+			Set<TripleKey> defaultGraphTriples = new HashSet<>();
+			Set<TripleKey> visibleTriples = new HashSet<>();
+			Set<TripleKey> assertedTriples = new HashSet<>();
+			Set<TripleKey> inferredTriples = new HashSet<>();
+
+			for (Edge edge : graph.getEdges()) {
+				EdgeSnapshot snapshot = snapshotEdge(edge);
+				if (snapshot == null) {
 					continue;
 				}
-				IDatatype countValue = mapping.getValue("?count");
-				counts.put(graphValue.getLabel(), toNonNegativeInt(countValue));
+				visibleTriples.add(snapshot.triple());
+				if (isDefaultGraph(snapshot.graphName())) {
+					defaultGraphTriples.add(snapshot.triple());
+				} else {
+					namedGraphTriples.computeIfAbsent(snapshot.graphName(), ignored -> new HashSet<>())
+							.add(snapshot.triple());
+				}
+				if (normalizedManagedInferenceGraphNames.contains(snapshot.graphName())) {
+					inferredTriples.add(snapshot.triple());
+				} else {
+					assertedTriples.add(snapshot.triple());
+				}
 			}
+
+			Set<TripleKey> inferredOnlyTriples = new HashSet<>(inferredTriples);
+			inferredOnlyTriples.removeAll(assertedTriples);
+			return new GraphMetricsSnapshot(toCountMap(namedGraphTriples), defaultGraphTriples.size(), visibleTriples.size(),
+					assertedTriples.size(), inferredOnlyTriples.size());
 		} catch (Exception e) {
 			if (logger != null) {
-				logger.warn("Unable to compute named graph counts safely, status will fallback to global counters", e);
+				logger.warn("Unable to compute graph metrics safely, status will fallback to global counters", e);
 			}
-		}
-		return counts;
-	}
-
-	private static int toNonNegativeInt(IDatatype value) {
-		if (value == null || value.getLabel() == null || value.getLabel().isBlank()) {
-			return 0;
-		}
-		try {
-			long parsed = Long.parseLong(value.getLabel());
-			if (parsed <= 0) {
-				return 0;
-			}
-			return parsed > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) parsed;
-		} catch (NumberFormatException _) {
-			return 0;
+			return new GraphMetricsSnapshot(Map.of(), safeFallback, safeFallback, safeFallback, 0);
 		}
 	}
 
-	private static int saturatingAdd(int left, int right) {
-		long sum = (long) left + right;
-		return sum > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) sum;
-	}
-
-	private static Map<String, Integer> normalizeGraphTripleCounts(Map<String, Integer> rawCounts) {
-		Map<String, Integer> normalized = new HashMap<>();
-		if (rawCounts == null || rawCounts.isEmpty()) {
-			return normalized;
+	private static Set<String> normalizeGraphNameSet(Set<String> graphNames) {
+		if (graphNames == null || graphNames.isEmpty()) {
+			return Set.of();
 		}
-		for (Map.Entry<String, Integer> entry : rawCounts.entrySet()) {
-			String graphName = normalizeGraphName(entry.getKey());
-			if (graphName == null || graphName.isBlank()) {
-				continue;
+		Set<String> normalized = new HashSet<>();
+		for (String graphName : graphNames) {
+			String normalizedGraphName = normalizeGraphName(graphName);
+			if (normalizedGraphName != null && !normalizedGraphName.isBlank()) {
+				normalized.add(normalizedGraphName);
 			}
-			int count = Math.max(0, entry.getValue());
-			normalized.put(graphName, saturatingAdd(normalized.getOrDefault(graphName, 0), count));
 		}
 		return normalized;
+	}
+
+	private static Map<String, Integer> toCountMap(Map<String, Set<TripleKey>> namedGraphTriples) {
+		if (namedGraphTriples.isEmpty()) {
+			return Map.of();
+		}
+		Map<String, Integer> counts = new HashMap<>();
+		for (Map.Entry<String, Set<TripleKey>> entry : namedGraphTriples.entrySet()) {
+			counts.put(entry.getKey(), entry.getValue().size());
+		}
+		return counts;
 	}
 
 	private static String normalizeGraphName(String graphName) {
@@ -135,13 +139,78 @@ public final class DataWorkspaceStatusSupport {
 		return isCoreseDefaultGraphAlias(graphName) ? CORESE_DEFAULT_GRAPH_URI : graphName;
 	}
 
+	private static boolean isDefaultGraph(String graphName) {
+		return graphName == null || graphName.isBlank() || CORESE_DEFAULT_GRAPH_URI.equals(graphName);
+	}
+
 	private static boolean isCoreseDefaultGraphAlias(String graphName) {
 		return CORESE_DEFAULT_GRAPH_ALIASES.contains(graphName);
+	}
+
+	private static EdgeSnapshot snapshotEdge(Edge edge) {
+		if (edge == null || edge.getEdgeNode() == null || edge.getNode(0) == null || edge.getNode(1) == null) {
+			return null;
+		}
+		IDatatype subject = edge.getNode(0).getDatatypeValue();
+		IDatatype predicate = edge.getEdgeNode().getDatatypeValue();
+		IDatatype object = edge.getNode(1).getDatatypeValue();
+		if (subject == null || predicate == null || object == null) {
+			return null;
+		}
+		String graphName = null;
+		if (edge.getGraph() != null) {
+			graphName = normalizeGraphName(edge.getGraph().getLabel());
+			if ((graphName == null || graphName.isBlank()) && edge.getGraph().getDatatypeValue() != null) {
+				graphName = normalizeGraphName(edge.getGraph().getDatatypeValue().getLabel());
+			}
+		}
+		return new EdgeSnapshot(graphName, new TripleKey(toTermKey(subject), toTermKey(predicate), toTermKey(object)));
+	}
+
+	private static TermKey toTermKey(IDatatype datatype) {
+		if (datatype == null) {
+			return new TermKey("null", "", "", "");
+		}
+		if (datatype.isURI()) {
+			return new TermKey("uri", datatype.getLabel(), "", "");
+		}
+		if (datatype.isBlank()) {
+			return new TermKey("blank", datatype.getLabel(), "", "");
+		}
+		if (datatype.isLiteral()) {
+			return new TermKey("literal", datatype.getLabel(), safe(datatype.getDatatypeURI()),
+					safe(datatype.getLang()).toLowerCase(Locale.ROOT));
+		}
+		if (datatype.isTriple()) {
+			return new TermKey("triple", datatype.toSparql(false, true), "", "");
+		}
+		return new TermKey("other", datatype.getLabel(), safe(datatype.getDatatypeURI()),
+				safe(datatype.getLang()).toLowerCase(Locale.ROOT));
+	}
+
+	private static String safe(String value) {
+		return value == null ? "" : value;
 	}
 
 	public record SourceStats(int total, int fileCount, int uriCount) {
 	}
 
 	public record GraphCountSnapshot(Map<String, Integer> namedGraphCounts, int defaultGraphTripleCount) {
+	}
+
+	public record DistinctTripleSnapshot(int totalTripleCount, int assertedTripleCount, int inferredTripleCount) {
+	}
+
+	private record GraphMetricsSnapshot(Map<String, Integer> namedGraphCounts, int defaultGraphTripleCount,
+			int totalTripleCount, int assertedTripleCount, int inferredTripleCount) {
+	}
+
+	private record EdgeSnapshot(String graphName, TripleKey triple) {
+	}
+
+	private record TripleKey(TermKey subject, TermKey predicate, TermKey object) {
+	}
+
+	private record TermKey(String kind, String lexicalForm, String datatypeUri, String languageTag) {
 	}
 }

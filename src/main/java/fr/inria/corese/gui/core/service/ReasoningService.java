@@ -76,8 +76,8 @@ public interface ReasoningService {
 	BuiltInProfileSource getBuiltInProfileSource(ReasoningProfile profile);
 
 	/**
-	 * Enables/disables the lightweight RDFS subset inference mode managed by the
-	 * GUI reasoning pipeline.
+	 * Enables/disables the native Corese RDFS subset materialized by the GUI
+	 * reasoning pipeline.
 	 *
 	 * @param enabled
 	 *            target state
@@ -85,7 +85,7 @@ public interface ReasoningService {
 	void setRdfsSubsetEnabled(boolean enabled);
 
 	/**
-	 * Returns whether the lightweight RDFS subset inference mode is enabled.
+	 * Returns whether the native Corese RDFS subset mode is enabled.
 	 *
 	 * @return true if the RDFS subset mode is active
 	 */

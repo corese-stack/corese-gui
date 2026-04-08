@@ -32,9 +32,9 @@ public final class DataStatusTooltipSupport {
 	}
 
 	public enum RenderStatusBadge {
-		STANDARD("Standard", GraphRenderMode.NORMAL), ADAPTIVE("Adaptive", GraphRenderMode.DEGRADED),
-		LOCKED("Locked", GraphRenderMode.DEGRADED), PAUSED("Paused", GraphRenderMode.PAUSED),
-		FAILED("Failed", GraphRenderMode.PAUSED);
+		STANDARD("Standard", GraphRenderMode.NORMAL), ADAPTIVE("Adaptive", GraphRenderMode.DEGRADED), LOCKED("Locked",
+				GraphRenderMode.DEGRADED), PAUSED("Paused",
+						GraphRenderMode.PAUSED), FAILED("Failed", GraphRenderMode.PAUSED);
 
 		private final String label;
 		private final GraphRenderMode styleMode;
@@ -66,10 +66,12 @@ public final class DataStatusTooltipSupport {
 	}
 
 	public static List<String> buildTriplesTooltipLines(DataWorkspaceStatus status) {
-		int namedGraphTriples = Math.max(0, status.tripleCount() - status.defaultGraphTripleCount());
+		int namedGraphStoredTriples = status.namedGraphStats().stream()
+				.mapToInt(DataWorkspaceStatus.NamedGraphStat::tripleCount).sum();
 		return List.of("Explicit: " + formatCount(status.explicitTripleCount()),
+				"Inferred-only: " + formatCount(status.inferredTripleCount()),
 				"Default graph: " + formatCount(status.defaultGraphTripleCount()),
-				"Named graphs: " + formatCount(namedGraphTriples));
+				"Stored in named graphs: " + formatCount(namedGraphStoredTriples));
 	}
 
 	public static List<String> buildSourcesTooltipLines(DataWorkspaceStatus status) {
@@ -98,7 +100,8 @@ public final class DataStatusTooltipSupport {
 		List<String> lines = new ArrayList<>();
 		if (status != null && status.rdfsSubsetEnabled()) {
 			lines.add("RDFS Subset: active");
-			lines.add("RDFS subset inferences are materialized in the managed RDFS graph.");
+			lines.add("Native Corese RDFS subset inferences are materialized in the managed RDFS graph.");
+			lines.add("Subclass typing stays in RDFS RL.");
 			lines.add("When RDFS RL is also active, shared consequences are deduplicated before queries run.");
 		}
 		if (status == null || status.reasoningStats().isEmpty()) {
@@ -121,7 +124,8 @@ public final class DataStatusTooltipSupport {
 
 		List<String> capabilityDetails = buildCapabilityDetails(safeStatus.capabilities());
 		List<String> rawDetails = safeStatus.details().isEmpty()
-				? capabilityDetails.isEmpty() ? List.of(defaultRenderDetail(safeStatus.mode(), normalizedSummary))
+				? capabilityDetails.isEmpty()
+						? List.of(defaultRenderDetail(safeStatus.mode(), normalizedSummary))
 						: capabilityDetails
 				: safeStatus.details();
 		List<String> normalizedDetails = rawDetails.stream().map(DataStatusTooltipSupport::simplifyRenderDetail)
@@ -136,8 +140,7 @@ public final class DataStatusTooltipSupport {
 		String summary = normalizeTooltipLine(safeStatus.summary()).toLowerCase(Locale.ROOT);
 		GraphRenderCapabilities capabilities = safeStatus.capabilities();
 		boolean hasLockSignal = summaryIndicatesLocked(summary) || safeStatus.details().stream()
-				.map(DataStatusTooltipSupport::normalizeTooltipLine)
-				.map(line -> line.toLowerCase(Locale.ROOT))
+				.map(DataStatusTooltipSupport::normalizeTooltipLine).map(line -> line.toLowerCase(Locale.ROOT))
 				.anyMatch(DataStatusTooltipSupport::detailIndicatesLocked);
 		boolean capabilityLockSignal = capabilities != null && !capabilities.interactionsEnabled();
 		boolean hasFailureSignal = summaryIndicatesFailure(summary) || safeStatus.details().stream()
@@ -301,8 +304,8 @@ public final class DataStatusTooltipSupport {
 		if (summary == null || summary.isBlank()) {
 			return false;
 		}
-		return summary.contains("adaptive") || summary.contains("performance")
-				|| summary.contains("optimization") || summary.contains("pressure");
+		return summary.contains("adaptive") || summary.contains("performance") || summary.contains("optimization")
+				|| summary.contains("pressure");
 	}
 
 	private static boolean detailIndicatesLocked(String detail) {

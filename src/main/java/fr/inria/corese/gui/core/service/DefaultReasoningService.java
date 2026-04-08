@@ -6,7 +6,6 @@ import fr.inria.corese.core.kgram.api.core.Edge;
 import fr.inria.corese.core.load.Load;
 import fr.inria.corese.core.load.LoadException;
 import fr.inria.corese.core.logic.Entailment;
-import fr.inria.corese.core.logic.RDFS;
 import fr.inria.corese.core.rule.RuleEngine;
 import fr.inria.corese.core.sparql.api.IDatatype;
 import fr.inria.corese.core.sparql.datatype.DatatypeMap;
@@ -36,7 +35,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>
  * Rule-based inferred triples are isolated in managed named graphs on top of
- * the shared asserted graph. The lightweight RDFS subset mode is also
+ * the shared asserted graph. The native Corese RDFS subset mode is also
  * materialized into the managed RDFS inference graph so that query execution
  * sees one deduplicated source of inferred triples.
  */
@@ -129,7 +128,7 @@ public final class DefaultReasoningService implements ReasoningService {
 		int tripleCountAfter = graphSizeSnapshot();
 		String action = enabled ? "Enabled RDFS subset" : "Disabled RDFS subset";
 		logActivityDelta(GraphActivityLogEntry.Source.REASONING_SERVICE, action,
-				"Managed lightweight RDFS inference on the shared graph.", tripleCountBefore, tripleCountAfter);
+				"Managed native Corese RDFS subset on the shared graph.", tripleCountBefore, tripleCountAfter);
 	}
 
 	@Override
@@ -312,9 +311,9 @@ public final class DefaultReasoningService implements ReasoningService {
 				return;
 			}
 
-			if (rdfsSubsetEnabled) {
-				applyRdfsSubsetInference(assertedSnapshot, mainGraph);
-			}
+				if (rdfsSubsetEnabled) {
+					applyNativeRdfsSubsetInference(assertedSnapshot, mainGraph);
+				}
 			for (ReasoningProfile profile : ReasoningProfile.values()) {
 				if (isEnabled(profile)) {
 					applyProfileInference(assertedSnapshot, mainGraph, profile);
@@ -369,18 +368,17 @@ public final class DefaultReasoningService implements ReasoningService {
 				tripleCountAfter);
 	}
 
-	private void applyRdfsSubsetInference(Graph assertedSnapshot, Graph targetGraph) {
+	private void applyNativeRdfsSubsetInference(Graph assertedSnapshot, Graph targetGraph) {
 		try {
 			Graph workingGraph = assertedSnapshot.copy();
-			workingGraph.setEntailment();
-			workingGraph.set(RDFS.SUBCLASSOF, true);
+			workingGraph.setRDFSEntailment(true);
 			workingGraph.process();
 
 			int insertedCount = insertInferredEdges(workingGraph, targetGraph, ReasoningProfile.RDFS.namedGraphUri(),
 					Entailment.ENTAIL);
-			LOGGER.debug("Applied RDFS subset with {} inferred triple(s).", insertedCount);
+			LOGGER.debug("Applied native Corese RDFS subset with {} inferred triple(s).", insertedCount);
 		} catch (EngineException e) {
-			throw new ReasoningException("Failed to apply RDFS subset inference.", e);
+			throw new ReasoningException("Failed to apply native Corese RDFS subset inference.", e);
 		}
 	}
 

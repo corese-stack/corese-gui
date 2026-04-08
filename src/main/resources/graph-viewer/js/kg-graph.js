@@ -3293,7 +3293,7 @@ class KGGraphVis extends HTMLElement {
             </div>
             <div class="legend-row">
                 <span class="legend-link-line"></span>
-                <span>Predicate Link</span>
+                <span>Triple Link</span>
                 <span class="legend-count">${this.formatLegendCount(componentCounts.predicateLink)}</span>
             </div>
         `;

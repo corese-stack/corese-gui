@@ -8,6 +8,7 @@ import fr.inria.corese.gui.core.service.data.DataWorkspaceStatus;
 import fr.inria.corese.gui.core.service.data.SourceType;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,6 +90,31 @@ class DataWorkspaceStatusSupportTest {
 
 		assertTrue(snapshot.namedGraphCounts().isEmpty());
 		assertEquals(5, snapshot.defaultGraphTripleCount());
+	}
+
+	@Test
+	void computeDistinctTripleSnapshot_preservesRdfTermIdentityForDistinctLexicalLiterals() {
+		Graph graph = Graph.create();
+		insertData(graph, """
+				PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+				INSERT DATA {
+				  <http://example.org/s> <http://example.org/p> "1"^^xsd:integer .
+				  <http://example.org/s> <http://example.org/p> "01"^^xsd:integer .
+				}
+				""");
+
+		DataWorkspaceStatusSupport.DistinctTripleSnapshot snapshot = DataWorkspaceStatusSupport
+				.computeDistinctTripleSnapshot(graph, Set.of());
+		DataWorkspaceStatusSupport.GraphCountSnapshot graphCountSnapshot = DataWorkspaceStatusSupport
+				.computeGraphCountSnapshot(graph, graph.size(), LOGGER);
+
+		assertEquals(2, snapshot.totalTripleCount(),
+				"Distinct triple counting must preserve RDF term identity, including lexical-form differences.");
+		assertEquals(2, snapshot.assertedTripleCount(),
+				"Both asserted triples should remain visible when literals differ only by lexical form.");
+		assertEquals(0, snapshot.inferredTripleCount(), "No inferred triples are present in this fixture.");
+		assertEquals(2, graphCountSnapshot.defaultGraphTripleCount(),
+				"Default graph count should keep both lexical variants as distinct RDF triples.");
 	}
 
 	@Test

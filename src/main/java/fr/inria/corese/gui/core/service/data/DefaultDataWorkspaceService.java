@@ -2,6 +2,7 @@ package fr.inria.corese.gui.core.service.data;
 
 import fr.inria.corese.core.Graph;
 import fr.inria.corese.core.kgram.api.core.Edge;
+import fr.inria.corese.core.logic.Entailment;
 import fr.inria.corese.core.sparql.api.IDatatype;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.service.DataWorkspaceStatusSupport;
@@ -18,8 +19,10 @@ import fr.inria.corese.gui.core.service.mutation.GraphMutationBus;
 import fr.inria.corese.gui.core.service.mutation.GraphMutationEvent;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -208,7 +211,9 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 
 	@Override
 	public int getTripleCount() {
-		return rdfDataService.getTripleCount();
+		Graph graph = GraphStoreService.getInstance().getGraph();
+		return DataWorkspaceStatusSupport.computeDistinctTripleSnapshot(graph, managedInferenceGraphNames())
+				.totalTripleCount();
 	}
 
 	@Override
@@ -227,39 +232,49 @@ public final class DefaultDataWorkspaceService implements DataWorkspaceService {
 		DataWorkspaceStatusSupport.SourceStats sourceStats = DataWorkspaceStatusSupport.computeSourceStats(sources);
 
 		Graph graph = GraphStoreService.getInstance().getGraph();
-		int totalTripleCount = Math.max(0, graph.size());
+		Set<String> managedInferenceGraphNames = managedInferenceGraphNames();
+		DataWorkspaceStatusSupport.DistinctTripleSnapshot distinctTripleSnapshot = DataWorkspaceStatusSupport
+				.computeDistinctTripleSnapshot(graph, managedInferenceGraphNames);
+		int totalTripleCount = distinctTripleSnapshot.totalTripleCount();
 		DataWorkspaceStatusSupport.GraphCountSnapshot graphCountSnapshot = DataWorkspaceStatusSupport
-				.computeGraphCountSnapshot(graph, totalTripleCount, LOGGER);
+				.computeGraphCountSnapshot(graph, Math.max(0, graph.size()), LOGGER);
 		Map<String, Integer> graphTripleCounts = graphCountSnapshot.namedGraphCounts();
 		int defaultGraphTripleCount = graphCountSnapshot.defaultGraphTripleCount();
 
 		List<DataWorkspaceStatus.NamedGraphStat> namedGraphStats = DataWorkspaceStatusSupport
 				.toSortedNamedGraphStats(graphTripleCounts);
-		ReasoningStats reasoningStats = computeReasoningStats(graphTripleCounts);
-		int explicitTripleCount = Math.max(0, totalTripleCount - reasoningStats.inferredTripleCount());
+		List<DataWorkspaceStatus.ReasoningStat> reasoningStats = computeReasoningStats(graphTripleCounts);
 
-		return new DataWorkspaceStatus(totalTripleCount, explicitTripleCount, reasoningStats.inferredTripleCount(),
-				defaultGraphTripleCount, sourceStats.total(), sourceStats.fileCount(), sourceStats.uriCount(),
-				namedGraphStats.size(), namedGraphStats, reasoningStats.details(), reasoningService.isRdfsSubsetEnabled());
+		return new DataWorkspaceStatus(totalTripleCount, distinctTripleSnapshot.assertedTripleCount(),
+				distinctTripleSnapshot.inferredTripleCount(), defaultGraphTripleCount, sourceStats.total(),
+				sourceStats.fileCount(), sourceStats.uriCount(), namedGraphStats.size(), namedGraphStats,
+				reasoningStats, reasoningService.isRdfsSubsetEnabled());
 	}
 
-	private ReasoningStats computeReasoningStats(Map<String, Integer> graphTripleCounts) {
+	private List<DataWorkspaceStatus.ReasoningStat> computeReasoningStats(Map<String, Integer> graphTripleCounts) {
 		List<DataWorkspaceStatus.ReasoningStat> details = new ArrayList<>();
-		int inferredTripleCount = 0;
 		for (ReasoningProfile profile : ReasoningProfile.values()) {
 			int profileCount = graphTripleCounts.getOrDefault(profile.namedGraphUri(), 0);
-			inferredTripleCount += profileCount;
 			details.add(new DataWorkspaceStatus.ReasoningStat(profile.label(), profile.namedGraphUri(), profileCount));
 		}
 		for (RuleFileState ruleFile : reasoningService.snapshotRuleFiles()) {
 			int ruleCount = graphTripleCounts.getOrDefault(ruleFile.namedGraphUri(), 0);
-			inferredTripleCount += ruleCount;
 			details.add(new DataWorkspaceStatus.ReasoningStat(ruleFile.label(), ruleFile.namedGraphUri(), ruleCount));
 		}
-		return new ReasoningStats(details, inferredTripleCount);
+		return details;
 	}
 
-	private record ReasoningStats(List<DataWorkspaceStatus.ReasoningStat> details, int inferredTripleCount) {
+	private Set<String> managedInferenceGraphNames() {
+		LinkedHashSet<String> graphNames = new LinkedHashSet<>();
+		graphNames.add(Entailment.RULE);
+		graphNames.add(Entailment.CONSTRAINT);
+		for (ReasoningProfile profile : ReasoningProfile.values()) {
+			graphNames.add(profile.namedGraphUri());
+		}
+		for (RuleFileState ruleFile : reasoningService.snapshotRuleFiles()) {
+			graphNames.add(ruleFile.namedGraphUri());
+		}
+		return Set.copyOf(graphNames);
 	}
 
 	private static String safeString(String value) {

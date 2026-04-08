@@ -154,9 +154,10 @@ class DataStatusTooltipSupportTest {
 
 		List<String> lines = DataStatusTooltipSupport.buildReasoningTooltipLines(status);
 
-		assertEquals(3, lines.size(), "Tooltip should explain materialized and query-time effects.");
+		assertEquals(4, lines.size(), "Tooltip should explain native subset scope and query-time effects.");
 		assertEquals("RDFS Subset: active", lines.get(0));
-		assertTrue(lines.get(1).contains("materialized"));
-		assertTrue(lines.get(2).contains("deduplicated"));
+		assertTrue(lines.get(1).contains("Native Corese"));
+		assertTrue(lines.get(2).contains("Subclass typing"));
+		assertTrue(lines.get(3).contains("deduplicated"));
 	}
 }

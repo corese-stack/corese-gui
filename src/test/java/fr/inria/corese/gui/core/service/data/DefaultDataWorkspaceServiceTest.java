@@ -1,7 +1,10 @@
 package fr.inria.corese.gui.core.service.data;
 
+import fr.inria.corese.core.query.QueryProcess;
+import fr.inria.corese.core.sparql.exceptions.EngineException;
 import fr.inria.corese.gui.core.service.DefaultReasoningService;
 import fr.inria.corese.gui.core.service.GraphProjectionService;
+import fr.inria.corese.gui.core.service.GraphStoreService;
 import fr.inria.corese.gui.core.service.RdfDataService;
 import fr.inria.corese.gui.core.service.ReasoningProfile;
 import fr.inria.corese.gui.core.service.ReasoningService;
@@ -23,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 class DefaultDataWorkspaceServiceTest {
 
@@ -220,8 +224,8 @@ class DefaultDataWorkspaceServiceTest {
 		File baseline = writeTempTurtle("baseline-rdfs-subset.ttl", """
 				@prefix ex: <http://example.org/> .
 				@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-				ex:Dog rdfs:subClassOf ex:Animal .
-				ex:fido a ex:Dog .
+				ex:hasPet rdfs:domain ex:Person .
+				ex:alice ex:hasPet ex:fido .
 				""");
 
 		workspaceService.loadFile(baseline);
@@ -237,6 +241,32 @@ class DefaultDataWorkspaceServiceTest {
 				"Reset should disable RDFS subset in workspace status.");
 	}
 
+	@Test
+	void statusTripleCount_deduplicatesTriplesSharedByDefaultAndManagedInferenceGraphs() {
+		insertData("""
+				INSERT DATA {
+				  <http://example.org/s> <http://example.org/p> <http://example.org/o> .
+				  GRAPH <urn:corese:inference:rdfs> {
+				    <http://example.org/s> <http://example.org/p> <http://example.org/o> .
+				  }
+				}
+				""");
+
+		DataWorkspaceStatus status = workspaceService.getStatus();
+
+		assertEquals(1, workspaceService.getTripleCount(),
+				"Workspace triple counter should expose one visible triple for duplicate default/inference storage.");
+		assertEquals(1, status.tripleCount(), "Status triple counter should align with visible SPARQL-style counting.");
+		assertEquals(1, status.explicitTripleCount(), "Explicit triple count should keep the asserted triple.");
+		assertEquals(0, status.inferredTripleCount(),
+				"Inferred-only count should exclude duplicates already present in asserted data.");
+		assertEquals(1, status.defaultGraphTripleCount(), "Default graph counter should keep the asserted triple.");
+		assertEquals(1, status.namedGraphCount(),
+				"The managed inference graph should still be reported as a named graph.");
+		assertEquals(1, reasoningTripleCount(ReasoningProfile.RDFS),
+				"Reasoning graph stats should still expose the triple stored in the managed inference graph.");
+	}
+
 	private int reloadLikeDataViewController(List<DataSource> selectedSources) {
 		int reloaded = workspaceService.reloadSources(selectedSources);
 		if (reloaded > 0 && reasoningService.hasAnyEnabledProfile()) {
@@ -249,6 +279,14 @@ class DefaultDataWorkspaceServiceTest {
 		return workspaceService.getStatus().reasoningStats().stream()
 				.filter(stat -> stat.graphName().equals(profile.namedGraphUri()))
 				.mapToInt(DataWorkspaceStatus.ReasoningStat::tripleCount).findFirst().orElse(0);
+	}
+
+	private void insertData(String updateQuery) {
+		try {
+			QueryProcess.create(GraphStoreService.getInstance().getGraph()).query(updateQuery);
+		} catch (EngineException e) {
+			fail("Failed to prepare graph fixture: " + e.getMessage());
+		}
 	}
 
 	private File writeTempTurtle(String fileName, String content) throws IOException {

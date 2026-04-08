@@ -133,39 +133,39 @@ class QueryServiceTest {
 	}
 
 	@Test
-	void rdfsSubsetToggle_controlsManagedInferenceInQueryResults() {
+	void rdfsSubsetToggle_controlsManagedDomainInferenceInQueryResults() {
 		QueryResultRef insertRef = queryService.executeQuery("""
 				PREFIX ex: <http://example.org/>
 				PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 				INSERT DATA {
-					ex:Dog rdfs:subClassOf ex:Animal .
-					ex:fido a ex:Dog .
+					ex:hasPet rdfs:domain ex:Person .
+					ex:alice ex:hasPet ex:fido .
 				}
 				""");
 		try {
 			QueryResultRef beforeRef = queryService.executeQuery("""
 					PREFIX ex: <http://example.org/>
-					SELECT ?x WHERE { ?x a ex:Animal }
+					SELECT ?x WHERE { ?x a ex:Person }
 					""");
 			assertEquals(0, beforeRef.getResultCount(),
-					"Without RDFS subset, no inferred ex:Animal typing should be returned.");
+					"Without RDFS subset, no inferred ex:Person typing should be returned.");
 			queryService.releaseResult(beforeRef.getId());
 
 			reasoningService.setRdfsSubsetEnabled(true);
 
 			QueryResultRef enabledRef = queryService.executeQuery("""
 					PREFIX ex: <http://example.org/>
-					SELECT ?x WHERE { ?x a ex:Animal }
+					SELECT ?x WHERE { ?x a ex:Person }
 					""");
 			assertEquals(1, enabledRef.getResultCount(),
-					"RDFS subset should materialize subclass typing for query evaluation.");
+					"RDFS subset should materialize native domain inference for query evaluation.");
 			queryService.releaseResult(enabledRef.getId());
 
 			reasoningService.setRdfsSubsetEnabled(false);
 
 			QueryResultRef disabledRef = queryService.executeQuery("""
 					PREFIX ex: <http://example.org/>
-					SELECT ?x WHERE { ?x a ex:Animal }
+					SELECT ?x WHERE { ?x a ex:Person }
 					""");
 			assertEquals(0, disabledRef.getResultCount(),
 					"Disabling RDFS subset should remove the inferred query answer.");
@@ -181,8 +181,8 @@ class QueryServiceTest {
 				PREFIX ex: <http://example.org/>
 				PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 				INSERT DATA {
-					ex:Woman rdfs:subClassOf ex:Person .
-					ex:flora a ex:Woman .
+					ex:hasPet rdfs:domain ex:Person .
+					ex:flora ex:hasPet ex:rex .
 				}
 				""");
 		QueryResultRef rdfsRlOnlyRef = null;
@@ -195,7 +195,7 @@ class QueryServiceTest {
 					SELECT ?s WHERE { ?s a ex:Person }
 					""");
 			assertEquals(List.of("<http://example.org/flora>"), firstColumnValues(rdfsRlOnlyRef),
-					"RDFS RL alone should materialize one ex:Person answer for ex:flora.");
+					"RDFS RL alone should materialize one ex:Person answer for ex:flora via rdfs:domain.");
 
 			reasoningService.setRdfsSubsetEnabled(true);
 

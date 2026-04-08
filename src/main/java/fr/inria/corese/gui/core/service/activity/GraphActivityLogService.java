@@ -165,11 +165,12 @@ public final class GraphActivityLogService {
 			if (graph == null) {
 				return new GraphStateSnapshot(0, 0);
 			}
-			int totalTripleCount = Math.max(0, graph.size());
+			int totalTripleCount = DataWorkspaceStatusSupport.computeDistinctTripleSnapshot(graph, java.util.Set.of())
+					.totalTripleCount();
 			int namedGraphCount = 0;
 			if (totalTripleCount > 0) {
 				DataWorkspaceStatusSupport.GraphCountSnapshot graphCountSnapshot = DataWorkspaceStatusSupport
-						.computeGraphCountSnapshot(graph, totalTripleCount, LOGGER);
+						.computeGraphCountSnapshot(graph, Math.max(0, graph.size()), LOGGER);
 				namedGraphCount = graphCountSnapshot.namedGraphCounts().size();
 			}
 			return new GraphStateSnapshot(totalTripleCount, namedGraphCount);
