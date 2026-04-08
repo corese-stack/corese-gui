@@ -12,6 +12,7 @@
 
 - Aligned `RDFS Subset` with legacy Corese behavior and fixed deduplicated counters/results when used with `RDFS RL` (see [issue #14](https://github.com/corese-stack/corese-gui/issues/14)).
 - Graph view layout no longer resets when enabling or disabling custom rules.
+- Improved graph view responsiveness on medium graphs by hiding labels earlier during heavy interaction and stopping converged force layouts sooner.
 - Improved named graph color distinction and stability (see [issue #13](https://github.com/corese-stack/corese-gui/issues/13)).
 
 ## Version 5.0.0 - 2026-03-13

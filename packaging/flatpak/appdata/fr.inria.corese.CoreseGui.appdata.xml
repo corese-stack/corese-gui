@@ -151,6 +151,9 @@
                         #14).</li>
                     <li>Graph view layout no longer resets when enabling or disabling custom
                         rules.</li>
+                    <li>Improved graph view responsiveness on medium graphs by hiding labels
+                        earlier during heavy interaction and stopping converged force layouts
+                        sooner.</li>
                     <li>Improved named graph color distinction and stability (issue #13).</li>
 
                     <li xml:lang="fr">Les modèles de requêtes SPARQL prennent désormais en charge
@@ -162,6 +165,9 @@
                         <code>RDFS RL</code> (issue #14).</li>
                     <li xml:lang="fr">La disposition de la vue graphe n'est plus réinitialisée
                         lors de l'activation ou de la désactivation de règles personnalisées.</li>
+                    <li xml:lang="fr">Amélioration de la réactivité de la vue graphe sur les
+                        graphes moyens en masquant plus tôt les libellés lors des interactions
+                        lourdes et en arrêtant plus vite les layouts convergés.</li>
                     <li xml:lang="fr">Amélioration de la distinction et de la stabilité des
                         couleurs des graphes nommés (issue #13).</li>
                 </ul>
