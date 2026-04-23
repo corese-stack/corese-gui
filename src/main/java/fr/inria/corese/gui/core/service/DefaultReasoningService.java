@@ -90,6 +90,35 @@ public final class DefaultReasoningService implements ReasoningService {
 	}
 
 	@Override
+	public synchronized void setReasoningLevel(ReasoningLevel level) {
+		ReasoningLevel safeLevel = level == null ? ReasoningLevel.NONE : level;
+		ReasoningLevel previousLevel = getReasoningLevel();
+		if (previousLevel == safeLevel) {
+			return;
+		}
+		int tripleCountBefore = graphSizeSnapshot();
+		Map<ReasoningProfile, Boolean> previousStates = new EnumMap<>(profileStates);
+		boolean previousRdfsSubsetEnabled = rdfsSubsetEnabled;
+		applyReasoningLevelState(safeLevel);
+		try {
+			recomputeEnabledProfilesInternal(false);
+			int tripleCountAfter = graphSizeSnapshot();
+			logActivityDelta(GraphActivityLogEntry.Source.REASONING_SERVICE, "Set reasoning level",
+					previousLevel.label() + " -> " + safeLevel.label(), tripleCountBefore, tripleCountAfter);
+		} catch (RuntimeException e) {
+			profileStates.clear();
+			profileStates.putAll(previousStates);
+			rdfsSubsetEnabled = previousRdfsSubsetEnabled;
+			throw e;
+		}
+	}
+
+	@Override
+	public synchronized ReasoningLevel getReasoningLevel() {
+		return ReasoningLevel.fromStates(rdfsSubsetEnabled, profileStates);
+	}
+
+	@Override
 	public synchronized boolean isEnabled(ReasoningProfile profile) {
 		validateProfile(profile);
 		return profileStates.getOrDefault(profile, false);
@@ -423,6 +452,13 @@ public final class DefaultReasoningService implements ReasoningService {
 			return;
 		}
 		engine.setSpeedUp(true);
+	}
+
+	private void applyReasoningLevelState(ReasoningLevel level) {
+		rdfsSubsetEnabled = level.isRdfsSubsetEnabled();
+		for (ReasoningProfile profile : ReasoningProfile.values()) {
+			profileStates.put(profile, level.isProfileEnabled(profile));
+		}
 	}
 
 	private String resolveRuleFileLoadSource(String sourcePath) {

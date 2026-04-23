@@ -7,8 +7,8 @@
    ========================================================================== */
 
 .data-left-pane {
-    -fx-min-width: 248px;
-    -fx-pref-width: 288px;
+    -fx-min-width: 260px;
+    -fx-pref-width: 300px;
     -fx-max-width: 360px;
     -fx-padding: 10px 12px;
     -fx-spacing: 10px;
@@ -31,7 +31,7 @@
 }
 
 .data-rule-list {
-    -fx-spacing: 8px;
+    -fx-spacing: 10px;
     -fx-padding: 8px;
 }
 
@@ -40,17 +40,88 @@
     -fx-max-width: Infinity;
     -fx-padding: 8px 10px;
     -fx-spacing: 8px;
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
 }
 
 .data-rule-toggle-label {
-    -fx-font-size: 14px;
+    -fx-font-size: 13px;
     -fx-font-weight: 600;
     -fx-text-fill: -color-fg-default;
+    -fx-text-overrun: ellipsis;
+    -fx-wrap-text: false;
 }
 
 .data-rule-toggle-switch {
     -fx-scale-x: 0.96;
     -fx-scale-y: 0.96;
+}
+
+.data-reasoning-level-row {
+    -fx-padding: 10px;
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1px;
+}
+
+.data-reasoning-level-label {
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-fg-default;
+    -fx-padding: 0 6px 0 0;
+}
+
+.data-reasoning-level-choice {
+    -fx-min-width: 164px;
+    -fx-pref-width: 176px;
+}
+
+.data-built-in-derived-row {
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1px;
+}
+
+.data-built-in-derived-row-active {
+    -fx-background-color: derive(-color-accent-fg, 85%);
+    -fx-border-color: -color-accent-fg;
+}
+
+.data-built-in-derived-row-inactive {
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+}
+
+.data-rule-derived-state {
+    -fx-font-size: 12px;
+    -fx-padding: 3px 10px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-fg-default;
+    -fx-min-width: 74px;
+    -fx-pref-width: 74px;
+    -fx-alignment: center;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-border-width: 1px;
+    -fx-border-color: -color-border-default;
+    -fx-background-color: -color-bg-subtle;
+}
+
+.data-rule-derived-state-active {
+    -fx-text-fill: -color-fg-emphasis;
+    -fx-border-color: -color-accent-fg;
+    -fx-background-color: -color-accent-fg;
+}
+
+.data-rule-derived-state-inactive {
+    -fx-text-fill: -color-fg-default;
+    -fx-border-color: -color-border-default;
+    -fx-background-color: -color-bg-subtle;
+}
+
+.data-rule-status-cluster {
+    -fx-alignment: center-right;
+    -fx-spacing: 6px;
 }
 
 .data-custom-rules-section {
@@ -122,9 +193,11 @@
 }
 
 .data-custom-rule-name {
-    -fx-font-size: 14px;
+    -fx-font-size: 13px;
     -fx-font-weight: 600;
     -fx-text-fill: -color-fg-default;
+    -fx-text-overrun: ellipsis;
+    -fx-wrap-text: false;
 }
 
 .data-custom-rule-controls {

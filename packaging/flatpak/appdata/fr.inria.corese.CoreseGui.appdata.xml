@@ -155,6 +155,8 @@
                         earlier during heavy interaction and stopping converged force layouts
                         sooner.</li>
                     <li>Improved named graph color distinction and stability (issue #13).</li>
+                    <li>Data view reasoning controls now use a single level selector with
+                        derived built-in profile states.</li>
 
                     <li xml:lang="fr">Les modèles de requêtes SPARQL prennent désormais en charge
                         <code>SERVICE</code> avec une URL d'endpoint.</li>
@@ -170,6 +172,9 @@
                         lourdes et en arrêtant plus vite les layouts convergés.</li>
                     <li xml:lang="fr">Amélioration de la distinction et de la stabilité des
                         couleurs des graphes nommés (issue #13).</li>
+                    <li xml:lang="fr">Les contrôles de raisonnement de la vue Data utilisent
+                        désormais un sélecteur de niveau unique avec des états dérivés pour les
+                        profils intégrés.</li>
                 </ul>
             </description>
         </release>

@@ -51,6 +51,21 @@ public interface ReasoningService {
 	void setEnabled(ReasoningProfile profile, boolean enabled);
 
 	/**
+	 * Applies one discrete reasoning level and refreshes managed inferences.
+	 *
+	 * @param level
+	 *            level to apply
+	 */
+	void setReasoningLevel(ReasoningLevel level);
+
+	/**
+	 * Returns current discrete reasoning level.
+	 *
+	 * @return current reasoning level
+	 */
+	ReasoningLevel getReasoningLevel();
+
+	/**
 	 * Returns whether a reasoning profile is currently enabled.
 	 *
 	 * @param profile
