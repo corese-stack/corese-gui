@@ -1,0 +1,51 @@
+/* In dark mode, avoid white framing around transparent images. */
+html[data-theme="dark"] .bd-article img {
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+img.homepage-brand-logo {
+    display: block;
+    padding: 12px 0 8px;
+}
+
+h1.homepage-brand-title {
+    text-align: center;
+    margin: 0.55rem 0 1.35rem;
+    padding: 0.25rem 0 0.4rem;
+}
+
+.bd-article {
+    padding-left: 0 !important;
+    padding-top: 0 !important;
+}
+
+.bd-main .bd-content .bd-article-container {
+    max-width: 100%;
+}
+
+.theme-screenshot {
+    display: block;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+}
+
+.theme-screenshot img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.theme-screenshot .theme-screenshot-dark {
+    display: none;
+}
+
+html[data-theme="dark"] .theme-screenshot .theme-screenshot-light {
+    display: none;
+}
+
+html[data-theme="dark"] .theme-screenshot .theme-screenshot-dark {
+    display: block;
+}
