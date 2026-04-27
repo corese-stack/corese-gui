@@ -140,7 +140,7 @@
 
     <releases>
 
-        <release version="5.0.1" date="2026-04-03">
+        <release version="5.0.1" date="2026-04-27">
             <description>
                 <ul>
                     <li>SPARQL query templates now support <code>SERVICE</code> with an endpoint

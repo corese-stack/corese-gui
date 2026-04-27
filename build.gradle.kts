@@ -66,7 +66,7 @@ extensions.configure<ShadowExtension>("shadow") {
 fun normalizeProjectVersion(rawValue: String?): String {
     val candidate = rawValue?.trim().orEmpty()
     if (candidate.isBlank()) {
-        return "5.0.1-SNAPSHOT"
+        return "5.0.1"
     }
     return candidate.removePrefix("refs/tags/").removePrefix("v").trim()
 }
