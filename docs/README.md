@@ -43,8 +43,8 @@ Optional environment variables:
 - `LEGACY_MINIMAL_VERSION` (default: `4.6.0`, lower legacy tags are excluded from switcher)
 - `DEV_PRERELEASE_REF` (default: `dev-prerelease`)
 - `PUBLISHED_STABLE_TAGS` (optional comma-separated `vX.Y.Z` list, used by CI to restrict stable docs/switcher to published GitHub releases)
-- `DOCS_DEFAULT_APP_VERSION` (default: `5.0.0`, final fallback only when no supported stable tag and no `dev-prerelease` tag exist locally)
-- `DEV_PRERELEASE_APP_VERSION` (default: `5.0.0`, used to build `-SNAPSHOT` filenames)
+- `DOCS_DEFAULT_APP_VERSION` (default: `5.0.1`, final fallback only when no supported stable tag and no `dev-prerelease` tag exist locally)
+- `DEV_PRERELEASE_APP_VERSION` (default: `5.0.1`, used to build `-SNAPSHOT` filenames)
 
 ## Versioning rules
 
@@ -63,7 +63,7 @@ Optional environment variables:
 - The resolved links depend on `smv_current_version`:
   - `vX.Y.Z` docs: tag `vX.Y.Z`, no `SNAPSHOT` suffix.
   - `dev-prerelease` docs: tag `dev-prerelease`, `SNAPSHOT` suffix on every downloadable artifact.
-  - any other ref (for example a local single-version preview): latest supported published stable release (`vX.Y.Z >= v5.0.0`) when available, otherwise `dev-prerelease`, otherwise `v${DOCS_DEFAULT_APP_VERSION:-5.0.0}`.
+  - any other ref (for example a local single-version preview): latest supported published stable release (`vX.Y.Z >= v5.0.0`) when available, otherwise `dev-prerelease`, otherwise `v${DOCS_DEFAULT_APP_VERSION:-5.0.1}`.
 - Production workflow policy:
   - push to `main` or `develop`: no public docs rebuild.
   - manual dispatch: rebuild the versioned site from the selected workflow ref.
@@ -84,13 +84,13 @@ Optional environment variables:
 - `build.gradle.kts` normalizes `projectVersion` by stripping `refs/tags/` and leading `v`.
 - Maven Central workflow applies the same override only when the ref is a semantic version tag (`vX.Y.Z`).
 
-For local testing before the first official `v5.0.0` published release:
+For local testing with `v5.0.1` as the current stable published release:
 
 ```shell
-git tag v5.0.0
-PUBLISHED_STABLE_TAGS=v5.0.0 \
+git tag v5.0.1
+PUBLISHED_STABLE_TAGS=v5.0.1 \
 sphinx-multiversion docs/source build/html
-PUBLISHED_STABLE_TAGS=v5.0.0 \
+PUBLISHED_STABLE_TAGS=v5.0.1 \
 ./docs/switcher_generator.sh build/html/switcher.json build/html/index.html
-git tag -d v5.0.0
+git tag -d v5.0.1
 ```

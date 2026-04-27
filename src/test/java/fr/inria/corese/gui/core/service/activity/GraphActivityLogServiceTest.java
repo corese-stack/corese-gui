@@ -1,5 +1,8 @@
 package fr.inria.corese.gui.core.service.activity;
 
+import fr.inria.corese.core.query.QueryProcess;
+import fr.inria.corese.core.sparql.exceptions.EngineException;
+import fr.inria.corese.gui.core.service.GraphStoreService;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -8,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 class GraphActivityLogServiceTest {
 
@@ -17,6 +21,7 @@ class GraphActivityLogServiceTest {
 	void setUp() {
 		logService.clear();
 		logService.setMaxEntriesForTesting(GraphActivityLogService.DEFAULT_MAX_ENTRIES);
+		GraphStoreService.getInstance().clear();
 	}
 
 	@Test
@@ -67,5 +72,33 @@ class GraphActivityLogServiceTest {
 		assertEquals(1, receivedSnapshots.get(1).size(), "Second snapshot should contain one entry.");
 		assertTrue(receivedSnapshots.get(receivedSnapshots.size() - 1).isEmpty(),
 				"Last snapshot should be empty after clear.");
+	}
+
+	@Test
+	void log_usesDistinctVisibleTripleCountInGraphStateSnapshot() {
+		insertData("""
+				INSERT DATA {
+				  <http://example.org/s> <http://example.org/p> <http://example.org/o> .
+				  GRAPH <urn:corese:inference:rdfs> {
+				    <http://example.org/s> <http://example.org/p> <http://example.org/o> .
+				  }
+				}
+				""");
+
+		logService.log(GraphActivityLogEntry.Source.REASONING_SERVICE, "Recomputed reasoning inferences", "RDFS", 1, 0);
+
+		GraphActivityLogEntry entry = logService.snapshot().getFirst();
+		assertEquals(1, entry.totalTripleCount(),
+				"Activity log snapshot should use the same distinct visible triple count as the workspace status.");
+		assertEquals(1, entry.namedGraphCount(),
+				"Activity log snapshot should still report the managed inference named graph.");
+	}
+
+	private void insertData(String updateQuery) {
+		try {
+			QueryProcess.create(GraphStoreService.getInstance().getGraph()).query(updateQuery);
+		} catch (EngineException e) {
+			fail("Failed to prepare graph fixture: " + e.getMessage());
+		}
 	}
 }

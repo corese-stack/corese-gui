@@ -21,19 +21,58 @@ const GRAPH_DEFAULTS = Object.freeze({
 });
 
 const GRAPH_PRESET_COLORS = Object.freeze({
+    "kg:entailment": "#5C677D",
+    "http://ns.inria.fr/corese/kgram/entailment": "#5C677D",
     "urn:corese:inference:rdfs": "#7BC8A4",
     "urn:corese:inference:owlrl": "#F6B26B",
     "urn:corese:inference:owlrl-lite": "#9A86E8",
     "urn:corese:inference:owlrl-ext": "#F08CA0"
 });
 
-const GRAPH_COLOR_GENERATION = Object.freeze({
-    hueSlotCount: 30,
-    hueStride: 11,
-    hueRetryStep: 7,
-    minDistanceFromPresetHue: 18,
-    saturationLevels: [42, 48, 54],
-    lightnessLevels: [64, 69, 74]
+// Ordered palette for user named graphs.
+//
+// The first entries are deliberately spaced out for the common case where only
+// a few named graphs are visible. Preset system graphs do not consume this
+// palette, so user graph colors stay stable and predictable across reloads and
+// later rule activations.
+const GRAPH_NAMED_GRAPH_PALETTE = Object.freeze([
+    "#0077BB",
+    "#CC3311",
+    "#228833",
+    "#EE7733",
+    "#33BBEE",
+    "#6A3D9A",
+    "#999933",
+    "#8C564B",
+    "#AA3377",
+    "#332288",
+    "#009988",
+    "#B7791F",
+    "#0B63A5",
+    "#9E2A2B",
+    "#0F766E",
+    "#A61E4D",
+    "#3B5BDB",
+    "#15803D",
+    "#17BECF",
+    "#A16207",
+    "#9467BD",
+    "#CC6677",
+    "#4B5563",
+    "#44AA99",
+    "#7C3AED",
+    "#BCBD22",
+    "#117733",
+    "#882255"
+]);
+
+const GRAPH_COLOR_FALLBACK = Object.freeze({
+    fallbackHueSlotCount: 48,
+    fallbackHueStride: 17,
+    fallbackHueRetryStep: 11,
+    minDistanceFromPresetHue: 14,
+    saturationLevels: [70, 60, 82],
+    lightnessLevels: [50, 60, 44]
 });
 
 /**
@@ -74,11 +113,15 @@ class KGGraphVis extends HTMLElement {
         this.currentTransform = d3.zoomIdentity;
         this.isInteracting = false;
         this.labelsHiddenForInteraction = false;
+        this.labelsHiddenForSettling = false;
         this.interactionTimer = null;
         this.interactionDebounceMs = 140;
         this.interactionHideLabels = true;
-        this.interactionHideNodeThreshold = 300;
-        this.interactionHideLinkThreshold = 600;
+        // Hide labels earlier during pan/zoom/drag on medium graphs.
+        // This keeps the resting view unchanged while reducing WebView repaint
+        // pressure on datasets like humans_data + humans_schema + inference.
+        this.interactionHideNodeThreshold = 160;
+        this.interactionHideLinkThreshold = 200;
         this.width = 800;
         this.height = 600;
         this.isDarkTheme = false;
@@ -138,12 +181,13 @@ class KGGraphVis extends HTMLElement {
         this.renderTimingHistory = [];
         this.renderTimingPressureActive = false;
         this.backgroundRefineToken = 0;
+        this.settlingLabelMinUntil = 0;
+        this.settlingLabelForceUntil = 0;
 
         // Graph coloring
         this.graphColorMap = new Map();
         this.graphContextPrefixes = new Map();
         this.defaultGraphColor = GRAPH_DEFAULTS.defaultGraphColor;
-        this.reservedGraphHues = [];
 
         // Performance optimization
         this.TICK_THROTTLE_SMALL = 16;
@@ -239,6 +283,7 @@ class KGGraphVis extends HTMLElement {
         this.AUTO_OVERVIEW_PADDING = 760;
         this.AUTO_OVERVIEW_MAX_SCALE = 0.09;
         this.AUTO_RECENTER_DELAY_MS = 560;
+        this.SETTLING_LABEL_RELEASE_ALPHA = 0.11;
     }
 
     /* -------------------------------------------------------------
@@ -262,10 +307,10 @@ class KGGraphVis extends HTMLElement {
             return;
         }
         this.simulationStopped = false;
-        this.simulation.alphaTarget(0).alpha(1).restart();
-
         const nodeCount = Array.isArray(this.graph?.nodes) ? this.graph.nodes.length : 0;
         const linkCount = Array.isArray(this.graph?.links) ? this.graph.links.length : 0;
+        this.beginSettlingLabelSuppression(nodeCount, linkCount);
+        this.simulation.alphaTarget(0).alpha(1).restart();
         const profile = this.resolvePreLayoutProfile(nodeCount, linkCount, false);
         if (!profile.enabled) {
             return;
@@ -289,6 +334,29 @@ class KGGraphVis extends HTMLElement {
             }
             this.simulation.alpha(Math.max(0.2, assistedProfile.targetAlpha + 0.05)).alphaTarget(0).restart();
         });
+    }
+
+    hardStopSimulation() {
+        if (!this.simulation || this.simulationStopped) {
+            return false;
+        }
+        this.cancelBackgroundLayoutRefinement();
+        this.simulation.alphaTarget(0).alpha(0).stop();
+        if (Array.isArray(this.graph?.nodes)) {
+            this.graph.nodes.forEach(node => {
+                if (!node) {
+                    return;
+                }
+                node.vx = 0;
+                node.vy = 0;
+            });
+        }
+        this.simulationStopped = true;
+        this.releaseSettlingLabelSuppression();
+        this.ticked(true);
+        this.refreshEdgeLabelPositions(true);
+        this.scheduleLabelVisibilityUpdate();
+        return true;
     }
 
     recenter() {
@@ -366,16 +434,15 @@ class KGGraphVis extends HTMLElement {
         const prevNodeVisible = this.nodeLabelsVisible;
         const prevEdgeVisible = this.edgeLabelsVisible;
         const prevLabelsHiddenForInteraction = this.labelsHiddenForInteraction;
+        const prevLabelsHiddenForSettling = this.labelsHiddenForSettling;
         const prevHoveredNodeId = this.hoveredNodeId;
 
         if (prevHoveredNodeId) {
             this.clearHoverFocus(true);
         }
         this.labelsHiddenForInteraction = false;
-        if (this.svg) {
-            this.svg.classed("labels-hidden", false);
-            this.svg.classed("interaction-active", false);
-        }
+        this.labelsHiddenForSettling = false;
+        this.syncTransientLabelClasses();
 
         let temporaryNodeLabels = null;
         let temporaryEdgeLabels = null;
@@ -528,14 +595,12 @@ class KGGraphVis extends HTMLElement {
                 .style('opacity', prevEdgeVisible ? 1 : 0);
         }
         this.labelsHiddenForInteraction = prevLabelsHiddenForInteraction;
-        if (this.svg) {
-            this.svg.classed("labels-hidden", prevLabelsHiddenForInteraction);
-            this.svg.classed("interaction-active", prevLabelsHiddenForInteraction);
-        }
+        this.labelsHiddenForSettling = prevLabelsHiddenForSettling;
+        this.syncTransientLabelClasses();
         this.updateLevelOfDetail(this.currentZoom);
         this.updateArrowheadVisibility(true);
         this.scheduleLabelVisibilityUpdate();
-        if (!this.labelsHiddenForInteraction && prevHoveredNodeId && this.graph && Array.isArray(this.graph.nodes)) {
+        if (!this.hasTemporarilyHiddenLabels() && prevHoveredNodeId && this.graph && Array.isArray(this.graph.nodes)) {
             const hoveredNode = this.graph.nodes.find(node =>
                 this.getLinkEndpointId(node?.id ?? node) === prevHoveredNodeId);
             if (hoveredNode) {
@@ -708,13 +773,6 @@ class KGGraphVis extends HTMLElement {
         return gid;
     }
 
-    resolveReservedGraphHues() {
-        return Object.values(GRAPH_PRESET_COLORS)
-            .map(color => this.hexToHsl(color))
-            .filter(hsl => Number.isFinite(hsl.h) && hsl.s > 0)
-            .map(hsl => hsl.h);
-    }
-
     stableHash(input) {
         const value = String(input ?? "");
         let hash = 2166136261;
@@ -730,11 +788,26 @@ class KGGraphVis extends HTMLElement {
         return raw > 180 ? 360 - raw : raw;
     }
 
-    isHueTooCloseToReserved(candidateHue, minDistance = GRAPH_COLOR_GENERATION.minDistanceFromPresetHue) {
-        if (!Array.isArray(this.reservedGraphHues) || this.reservedGraphHues.length === 0) {
-            return false;
+    isHueTooCloseToReserved(candidateHue, minDistance = GRAPH_COLOR_FALLBACK.minDistanceFromPresetHue) {
+        return Object.values(GRAPH_PRESET_COLORS).some(colorHex => {
+            const hsl = this.hexToHsl(colorHex);
+            return Number.isFinite(hsl.h)
+                && hsl.s > 0
+                && this.hueDistance(candidateHue, hsl.h) < minDistance;
+        });
+    }
+
+    pickPaletteGraphColor() {
+        const usedHexes = new Set(
+            Array.from(this.graphColorMap.values(), colorHex => String(colorHex ?? "").trim().toUpperCase())
+        );
+
+        for (const colorHex of GRAPH_NAMED_GRAPH_PALETTE) {
+            if (!usedHexes.has(colorHex)) {
+                return colorHex;
+            }
         }
-        return this.reservedGraphHues.some(reservedHue => this.hueDistance(candidateHue, reservedHue) < minDistance);
+        return null;
     }
 
     buildStableGraphColor(graphId) {
@@ -742,14 +815,14 @@ class KGGraphVis extends HTMLElement {
         const saturationHash = this.stableHash(`${graphId}|s`);
         const lightnessHash = this.stableHash(`${graphId}|l`);
 
-        const config = GRAPH_COLOR_GENERATION;
-        const hueStep = 360 / config.hueSlotCount;
-        const baseHueIndex = (hueHash * config.hueStride) % config.hueSlotCount;
+        const config = GRAPH_COLOR_FALLBACK;
+        const hueStep = 360 / config.fallbackHueSlotCount;
+        const baseHueIndex = (hueHash * config.fallbackHueStride) % config.fallbackHueSlotCount;
         const saturation = config.saturationLevels[saturationHash % config.saturationLevels.length];
         const lightness = config.lightnessLevels[lightnessHash % config.lightnessLevels.length];
 
-        for (let attempt = 0; attempt < config.hueSlotCount; attempt += 1) {
-            const candidateIndex = (baseHueIndex + attempt * config.hueRetryStep) % config.hueSlotCount;
+        for (let attempt = 0; attempt < config.fallbackHueSlotCount; attempt += 1) {
+            const candidateIndex = (baseHueIndex + attempt * config.fallbackHueRetryStep) % config.fallbackHueSlotCount;
             const candidateHue = candidateIndex * hueStep;
             if (!this.isHueTooCloseToReserved(candidateHue)) {
                 return this.hslToHex(candidateHue, saturation, lightness);
@@ -764,7 +837,7 @@ class KGGraphVis extends HTMLElement {
     }
 
     /**
-     * Generate a deterministic color for each named graph.
+     * Returns the stable session color for a graph.
      * @param {string} graphId - Graph identifier.
      * @returns {string} Hex color code.
      */
@@ -775,17 +848,14 @@ class KGGraphVis extends HTMLElement {
         }
         const graphColorKey = this.resolveGraphColorKey(gid);
 
-        if (this.reservedGraphHues.length === 0) {
-            this.reservedGraphHues = this.resolveReservedGraphHues();
-        }
-
         if (!this.graphColorMap.has(graphColorKey)) {
             const presetColor = this.resolvePresetGraphColor(graphColorKey);
             if (presetColor) {
                 this.graphColorMap.set(graphColorKey, presetColor);
                 return presetColor;
             }
-            this.graphColorMap.set(graphColorKey, this.buildStableGraphColor(graphColorKey));
+            const assignedColor = this.pickPaletteGraphColor() ?? this.buildStableGraphColor(graphColorKey);
+            this.graphColorMap.set(graphColorKey, assignedColor);
         }
         return this.graphColorMap.get(graphColorKey);
     }
@@ -2546,6 +2616,103 @@ class KGGraphVis extends HTMLElement {
         return safeNodeCount >= lockNodeThreshold || safeLinkCount >= lockLinkThreshold;
     }
 
+    hasTemporarilyHiddenLabels() {
+        return this.labelsHiddenForInteraction || this.labelsHiddenForSettling;
+    }
+
+    syncTransientLabelClasses() {
+        if (!this.svg) {
+            return;
+        }
+        this.svg.classed("labels-hidden", this.hasTemporarilyHiddenLabels());
+        this.svg.classed("interaction-active", this.labelsHiddenForInteraction);
+    }
+
+    shouldHideLabelsWhileSettling(nodeCount = 0, linkCount = 0) {
+        if (this.interactionsLocked) {
+            return false;
+        }
+        if (!this.nodeLabelSelection && !this.linkLabelSelection) {
+            return false;
+        }
+        const safeNodeCount = Number.isFinite(nodeCount) ? Math.max(0, Math.floor(nodeCount)) : 0;
+        const safeLinkCount = Number.isFinite(linkCount) ? Math.max(0, Math.floor(linkCount)) : 0;
+        const largeNodeThreshold = this.scaleThreshold(this.LARGE_GRAPH_NODE_THRESHOLD, 100);
+        const largeLinkThreshold = this.scaleThreshold(this.LARGE_GRAPH_LINK_THRESHOLD, 180);
+        return safeNodeCount >= largeNodeThreshold || safeLinkCount >= largeLinkThreshold;
+    }
+
+    resolveSettlingLabelSuppressionDurations(nodeCount = 0, linkCount = 0) {
+        const safeNodeCount = Number.isFinite(nodeCount) ? Math.max(0, Math.floor(nodeCount)) : 0;
+        const safeLinkCount = Number.isFinite(linkCount) ? Math.max(0, Math.floor(linkCount)) : 0;
+        if (safeNodeCount >= this.PRE_LAYOUT_VERY_LARGE_NODE_THRESHOLD
+            || safeLinkCount >= this.PRE_LAYOUT_VERY_LARGE_LINK_THRESHOLD) {
+            return { minMs: 1800, maxMs: 4200 };
+        }
+        if (safeNodeCount >= this.PRE_LAYOUT_LARGE_NODE_THRESHOLD
+            || safeLinkCount >= this.PRE_LAYOUT_LARGE_LINK_THRESHOLD) {
+            return { minMs: 1300, maxMs: 3200 };
+        }
+        if (safeNodeCount >= this.PRE_LAYOUT_MEDIUM_NODE_THRESHOLD
+            || safeLinkCount >= this.PRE_LAYOUT_MEDIUM_LINK_THRESHOLD) {
+            return { minMs: 1000, maxMs: 2600 };
+        }
+        return { minMs: 850, maxMs: 2200 };
+    }
+
+    resetSettlingLabelSuppression() {
+        this.labelsHiddenForSettling = false;
+        this.settlingLabelMinUntil = 0;
+        this.settlingLabelForceUntil = 0;
+        this.syncTransientLabelClasses();
+    }
+
+    beginSettlingLabelSuppression(nodeCount = 0, linkCount = 0) {
+        if (!this.shouldHideLabelsWhileSettling(nodeCount, linkCount)) {
+            this.resetSettlingLabelSuppression();
+            return false;
+        }
+        const now = performance.now();
+        const durations = this.resolveSettlingLabelSuppressionDurations(nodeCount, linkCount);
+        this.settlingLabelMinUntil = now + durations.minMs;
+        this.settlingLabelForceUntil = now + durations.maxMs;
+        if (this.labelsHiddenForSettling) {
+            return false;
+        }
+        this.labelsHiddenForSettling = true;
+        this.syncTransientLabelClasses();
+        this.notifyEffectiveRenderProfile();
+        return true;
+    }
+
+    releaseSettlingLabelSuppression() {
+        if (!this.labelsHiddenForSettling && this.settlingLabelMinUntil <= 0 && this.settlingLabelForceUntil <= 0) {
+            return false;
+        }
+        const wasHidden = this.labelsHiddenForSettling;
+        this.resetSettlingLabelSuppression();
+        if (wasHidden) {
+            this.notifyEffectiveRenderProfile();
+            this.updateLabelVisibility();
+        }
+        return wasHidden;
+    }
+
+    syncSettlingLabelSuppression(now = performance.now()) {
+        if (!this.labelsHiddenForSettling) {
+            return false;
+        }
+        const pastMinimum = this.settlingLabelMinUntil <= 0 || now >= this.settlingLabelMinUntil;
+        const pastMaximum = this.settlingLabelForceUntil > 0 && now >= this.settlingLabelForceUntil;
+        const simulationSettled = !this.simulation
+            || this.simulationStopped
+            || this.simulation.alpha() <= this.SETTLING_LABEL_RELEASE_ALPHA;
+        if (!pastMaximum && !(pastMinimum && simulationSettled)) {
+            return false;
+        }
+        return this.releaseSettlingLabelSuppression();
+    }
+
     setInteractionLockState(locked, clearHoverFocus = false) {
         const nextLocked = Boolean(locked);
         if (nextLocked === this.interactionsLocked) {
@@ -2567,6 +2734,7 @@ class KGGraphVis extends HTMLElement {
             }
             this.labelsHiddenForInteraction = false;
             this.isInteracting = false;
+            this.syncTransientLabelClasses();
         }
         this.updateNodeDragBehavior();
         return true;
@@ -2679,10 +2847,7 @@ class KGGraphVis extends HTMLElement {
 
     hideLabelsForInteraction() {
         this.labelsHiddenForInteraction = true;
-        if (this.svg) {
-            this.svg.classed('labels-hidden', true);
-            this.svg.classed('interaction-active', true);
-        }
+        this.syncTransientLabelClasses();
     }
 
     onInteraction(shouldHideLabels = true) {
@@ -2691,10 +2856,7 @@ class KGGraphVis extends HTMLElement {
             this.hideGlobalTooltip();
             this.isInteracting = false;
             this.labelsHiddenForInteraction = false;
-            if (this.svg) {
-                this.svg.classed('labels-hidden', false);
-                this.svg.classed('interaction-active', false);
-            }
+            this.syncTransientLabelClasses();
             return;
         }
         this.isInteracting = true;
@@ -2706,10 +2868,7 @@ class KGGraphVis extends HTMLElement {
             this.hideLabelsForInteraction();
         } else {
             this.labelsHiddenForInteraction = false;
-            if (this.svg) {
-                this.svg.classed('labels-hidden', false);
-                this.svg.classed('interaction-active', false);
-            }
+            this.syncTransientLabelClasses();
         }
         if (wasHidden !== this.labelsHiddenForInteraction) {
             this.notifyEffectiveRenderProfile();
@@ -2722,10 +2881,7 @@ class KGGraphVis extends HTMLElement {
             this.interactionTimer = null;
             const wasHiddenInInteraction = this.labelsHiddenForInteraction;
             this.labelsHiddenForInteraction = false;
-            if (this.svg) {
-                this.svg.classed('labels-hidden', false);
-                this.svg.classed('interaction-active', false);
-            }
+            this.syncTransientLabelClasses();
             if (wasHiddenInInteraction) {
                 this.notifyEffectiveRenderProfile();
             }
@@ -2736,7 +2892,7 @@ class KGGraphVis extends HTMLElement {
     scheduleLabelVisibilityUpdate() {
         if (!this.labelCullEnabled) return;
         if (!this.nodeLabelSelection && !this.linkLabelSelection) return;
-        if (this.labelsHiddenForInteraction) return;
+        if (this.hasTemporarilyHiddenLabels()) return;
         if (this.labelVisibilityRaf) return;
         this.labelVisibilityRaf = requestAnimationFrame(() => {
             this.labelVisibilityRaf = null;
@@ -2752,6 +2908,15 @@ class KGGraphVis extends HTMLElement {
     updateLabelVisibility() {
         if (!this.labelCullEnabled) return;
         if (!this.nodeLabelSelection && !this.linkLabelSelection) return;
+        if (this.hasTemporarilyHiddenLabels()) {
+            if (this.nodeLabelSelection) {
+                this.nodeLabelSelection.style('visibility', 'hidden').style('opacity', 0);
+            }
+            if (this.linkLabelSelection) {
+                this.linkLabelSelection.style('visibility', 'hidden').style('opacity', 0);
+            }
+            return;
+        }
 
         const showNodeLabels = this.nodeLabelsVisible && !!this.nodeLabelSelection;
         const showEdgeLabels = this.edgeLabelsVisible && !!this.linkLabelSelection;
@@ -2829,7 +2994,7 @@ class KGGraphVis extends HTMLElement {
         if (!this.linkLabelSelection || !this.graph || !Array.isArray(this.graph.links)) {
             return;
         }
-        if (!force && (!this.edgeLabelsVisible || this.labelsHiddenForInteraction)) {
+        if (!force && (!this.edgeLabelsVisible || this.hasTemporarilyHiddenLabels())) {
             return;
         }
         const resolveGeometry = link => {
@@ -2916,7 +3081,28 @@ class KGGraphVis extends HTMLElement {
         safeSummary.linkCount = Number.isFinite(summary.linkCount)
             ? Math.max(0, Math.floor(summary.linkCount))
             : 0;
-        safeSummary.namedGraphs = Array.isArray(summary.namedGraphs) ? summary.namedGraphs : [];
+        safeSummary.namedGraphs = Array.isArray(summary.namedGraphs)
+            ? summary.namedGraphs
+                .map(namedGraph => {
+                    const id = this.normalizeGraphId(namedGraph?.id);
+                    if (id === GRAPH_DEFAULTS.defaultGraphId) {
+                        return null;
+                    }
+                    return {
+                        id,
+                        nodeCount: Number.isFinite(namedGraph?.nodeCount)
+                            ? Math.max(0, Math.floor(namedGraph.nodeCount))
+                            : 0,
+                        linkCount: Number.isFinite(namedGraph?.linkCount)
+                            ? Math.max(0, Math.floor(namedGraph.linkCount))
+                            : 0,
+                        color: typeof namedGraph?.color === "string" && namedGraph.color
+                            ? namedGraph.color
+                            : this.getGraphColor(id)
+                    };
+                })
+                .filter(namedGraph => namedGraph !== null)
+            : [];
         const counts = summary.componentCounts ?? {};
         safeSummary.componentCounts.resource = Number.isFinite(counts.resource) ? Math.max(0, Math.floor(counts.resource)) : 0;
         safeSummary.componentCounts.literal = Number.isFinite(counts.literal) ? Math.max(0, Math.floor(counts.literal)) : 0;
@@ -2988,11 +3174,11 @@ class KGGraphVis extends HTMLElement {
         });
 
         summary.namedGraphs = [...namedGraphStats.values()]
+            .sort((left, right) => right.linkCount - left.linkCount || left.id.localeCompare(right.id))
             .map(stat => ({
                 ...stat,
                 color: this.getGraphColor(stat.id)
-            }))
-            .sort((left, right) => right.linkCount - left.linkCount || left.id.localeCompare(right.id));
+            }));
         return summary;
     }
 
@@ -3113,23 +3299,27 @@ class KGGraphVis extends HTMLElement {
         const hasNodes = nodeCount > 0;
         const hasEdges = edgeCount > 0;
         const interactionHidden = this.labelsHiddenForInteraction && (hasNodes || hasEdges);
+        const settlingHidden = this.labelsHiddenForSettling && (hasNodes || hasEdges);
 
         const effectiveNodeLabelsVisible = !hasNodes
-            || (!interactionHidden && this.nodeLabelsVisible && !!this.nodeLabelSelection);
+            || (!interactionHidden && !settlingHidden && this.nodeLabelsVisible && !!this.nodeLabelSelection);
         const effectiveEdgeLabelsVisible = !hasEdges
-            || (!interactionHidden && this.edgeLabelsVisible && !!this.linkLabelSelection);
+            || (!interactionHidden && !settlingHidden && this.edgeLabelsVisible && !!this.linkLabelSelection);
 
         if (interactionHidden) {
             effectiveDetails.push("Labels temporarily hidden while interacting with the graph.");
         }
-        if (hasNodes && !effectiveNodeLabelsVisible && !interactionHidden) {
+        if (settlingHidden) {
+            effectiveDetails.push("Labels temporarily hidden while the initial layout settles.");
+        }
+        if (hasNodes && !effectiveNodeLabelsVisible && !interactionHidden && !settlingHidden) {
             if (!this.nodeLabelSelection) {
                 effectiveDetails.push("Node labels disabled for current graph size.");
             } else {
                 effectiveDetails.push("Node labels hidden at current zoom level.");
             }
         }
-        if (hasEdges && !effectiveEdgeLabelsVisible && !interactionHidden) {
+        if (hasEdges && !effectiveEdgeLabelsVisible && !interactionHidden && !settlingHidden) {
             if (!this.showEdgeLabels) {
                 effectiveDetails.push("Edge labels disabled.");
             } else if (!this.linkLabelSelection) {
@@ -3165,6 +3355,8 @@ class KGGraphVis extends HTMLElement {
         const isDegraded = baseMode === "degraded"
             || hasHardNodeLabelDrop
             || hasHardEdgeLabelDrop
+            || interactionHidden
+            || settlingHidden
             || this.interactionsLocked
             || this.performanceLagActive
             || this.renderTimingPressureActive;
@@ -3173,6 +3365,8 @@ class KGGraphVis extends HTMLElement {
             ? (uniqueDetails.length > 0 ? "Adaptive detail mode" : "Standard rendering")
             : interactionHidden
                 ? "Interaction optimization active"
+                : settlingHidden
+                    ? "Preview optimization active"
                 : this.interactionsLocked
                     ? "Interactions disabled for very large graph"
                 : this.performanceLagActive && this.performanceLastMeasuredFps > 0
@@ -3229,7 +3423,7 @@ class KGGraphVis extends HTMLElement {
             </div>
             <div class="legend-row">
                 <span class="legend-link-line"></span>
-                <span>Predicate Link</span>
+                <span>Triple Link</span>
                 <span class="legend-count">${this.formatLegendCount(componentCounts.predicateLink)}</span>
             </div>
         `;
@@ -4292,6 +4486,7 @@ class KGGraphVis extends HTMLElement {
         this.clearAutoFitTimers();
         this.cancelBackgroundLayoutRefinement();
         this.stopPerformanceMonitoring();
+        this.resetSettlingLabelSuppression();
 
         const chartSvg = this.shadowRoot.querySelector("#chart-container");
         if (!chartSvg || isStaleDraw()) return;
@@ -4304,6 +4499,7 @@ class KGGraphVis extends HTMLElement {
             this.hideGlobalTooltip();
             this.isInteracting = false;
             this.labelsHiddenForInteraction = false;
+            this.resetSettlingLabelSuppression();
             this.lastLabelVisibilityUpdate = 0;
             this.lastLabelUpdate = 0;
             this.lastRenderTiming = null;
@@ -4355,6 +4551,7 @@ class KGGraphVis extends HTMLElement {
         this.hideGlobalTooltip();
         this.isInteracting = false;
         this.labelsHiddenForInteraction = false;
+        this.resetSettlingLabelSuppression();
         this.lastLabelVisibilityUpdate = 0;
         this.lastLabelUpdate = 0;
         this.lastLinkPathUpdate = 0;
@@ -4434,7 +4631,9 @@ class KGGraphVis extends HTMLElement {
                     : (addedRatio <= 0.12 ? 0.18 : (addedRatio <= 0.35 ? 0.30 : 0.55));
 
             const shouldAutoFit = hadPendingAutoFit
-                || isMediumOrLargerGraph
+                // Keep the first render of medium/large graphs framed as an overview,
+                // but avoid forcing the same refit on every incremental refresh.
+                || (!hadExistingLayout && isMediumOrLargerGraph)
                 || this.shouldApplyAutoFit(hadExistingLayout, addedRatio);
             if (shouldAutoFit) {
                 const overviewTransform = this.resolveFitTransform(this.AUTO_OVERVIEW_PADDING,
@@ -4646,6 +4845,7 @@ class KGGraphVis extends HTMLElement {
                 .on("tick", () => this.tickedThrottled())
                 .on("end", () => {
                     this.simulationStopped = true;
+                    this.releaseSettlingLabelSuppression();
                     this.ticked(true);
                     this.refreshEdgeLabelPositions(true);
                     this.scheduleLabelVisibilityUpdate();
@@ -4654,6 +4854,7 @@ class KGGraphVis extends HTMLElement {
         } else {
             this.simulation = null;
             this.simulationStopped = true;
+            this.resetSettlingLabelSuppression();
         }
 
         this.zoomLayer = this.svg.append("g").attr("class", "zoom-layer");
@@ -4792,6 +4993,12 @@ class KGGraphVis extends HTMLElement {
             this.ensureNodeLabelsCreated();
         }
 
+        if (this.simulation) {
+            this.beginSettlingLabelSuppression(nodeCount, linkCount);
+        } else {
+            this.resetSettlingLabelSuppression();
+        }
+
         // Render one immediate layout frame so links/labels are placed before
         // the first animated tick.
         this.ticked();
@@ -4828,6 +5035,7 @@ class KGGraphVis extends HTMLElement {
         } else {
             this.cancelBackgroundLayoutRefinement();
             this.stopPerformanceMonitoring();
+            this.resetSettlingLabelSuppression();
             this.refreshEdgeLabelPositions(true);
             this.scheduleLabelVisibilityUpdate();
         }
@@ -4839,15 +5047,17 @@ class KGGraphVis extends HTMLElement {
      */
     tickedThrottled() {
         const now = performance.now();
+        this.syncSettlingLabelSuppression(now);
         if (now - this.lastTickTime < this.TICK_THROTTLE) {
             return; // Skip this tick
         }
         this.lastTickTime = now;
 
-        // Auto-stabilize simulation when converged to save CPU (but keep it alive)
+        // Hard-stop the timer once the layout is effectively converged so the
+        // WebView is not spending frames on micro-movements.
         if (this.simulation && this.simulation.alpha() < this.AUTO_STOP_ALPHA && !this.simulationStopped) {
-            this.simulation.alphaTarget(0); // Set target to 0 but don't stop
-            this.simulationStopped = true;
+            this.hardStopSimulation();
+            return;
         }
 
         this.ticked(false);

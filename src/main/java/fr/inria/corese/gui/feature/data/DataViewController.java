@@ -1,6 +1,5 @@
 package fr.inria.corese.gui.feature.data;
 
-import atlantafx.base.controls.ToggleSwitch;
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
 import fr.inria.corese.gui.component.button.factory.ButtonFactory;
@@ -16,6 +15,7 @@ import fr.inria.corese.gui.core.service.data.DefaultDataWorkspaceService;
 import fr.inria.corese.gui.core.service.DefaultReasoningService;
 import fr.inria.corese.gui.core.service.mutation.GraphMutationBus;
 import fr.inria.corese.gui.core.service.mutation.GraphMutationEvent;
+import fr.inria.corese.gui.core.service.ReasoningLevel;
 import fr.inria.corese.gui.core.service.ReasoningProfile;
 import fr.inria.corese.gui.core.service.ReasoningService;
 import fr.inria.corese.gui.core.theme.ThemeManager;
@@ -34,12 +34,11 @@ import fr.inria.corese.gui.feature.data.support.DataUiMessageUtils;
 import fr.inria.corese.gui.utils.AppExecutors;
 import java.io.File;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import javafx.application.Platform;
+import javafx.scene.control.ChoiceBox;
 import javafx.stage.FileChooser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +54,6 @@ public class DataViewController implements AutoCloseable {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DataViewController.class);
 	private static final String MSG_NO_DATA_TO_CLEAR = "No RDF data to clear.";
-	private static final String RDFS_SUBSET_LABEL = "RDFS Subset";
 
 	private final DataView view;
 	private final DataWorkspaceService workspaceService;
@@ -69,7 +67,6 @@ public class DataViewController implements AutoCloseable {
 	private final AtomicBoolean graphSnapshotRefreshRunning = new AtomicBoolean(false);
 	private final AtomicBoolean graphSnapshotRefreshRequested = new AtomicBoolean(false);
 	private final AtomicBoolean manualGraphRenderInProgress = new AtomicBoolean(false);
-	private final Map<ReasoningProfile, ToggleSwitch> reasoningToggles = new EnumMap<>(ReasoningProfile.class);
 
 	private AutoCloseable mutationSubscription;
 	private final ThemeManager themeManager;
@@ -124,31 +121,15 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void configureReasoningControls() {
-		ToggleSwitch rdfsSubsetToggle = view.getRdfsSubsetToggle();
-		List<ToggleSwitch> builtInToggles = view.getBuiltInRuleToggles();
-		rdfsSubsetToggle.setSelected(reasoningService.isRdfsSubsetEnabled());
-		rdfsSubsetToggle.selectedProperty().addListener((observable, previous, selected) -> {
+		ChoiceBox<ReasoningLevel> levelChoice = view.getReasoningLevelChoice();
+		levelChoice.setValue(reasoningService.getReasoningLevel());
+		levelChoice.getSelectionModel().selectedItemProperty().addListener((observable, previous, selected) -> {
 			if (syncingReasoningUi.get()) {
 				return;
 			}
-			handleRdfsSubsetToggle(Boolean.TRUE.equals(selected));
+			handleReasoningLevelSelection(selected);
 		});
-		reasoningToggles.put(ReasoningProfile.RDFS, builtInToggles.get(0));
-		reasoningToggles.put(ReasoningProfile.OWL_RL, builtInToggles.get(1));
-		reasoningToggles.put(ReasoningProfile.OWL_RL_LITE, builtInToggles.get(2));
-		reasoningToggles.put(ReasoningProfile.OWL_RL_EXT, builtInToggles.get(3));
-
-		for (Map.Entry<ReasoningProfile, ToggleSwitch> entry : reasoningToggles.entrySet()) {
-			ReasoningProfile profile = entry.getKey();
-			ToggleSwitch toggle = entry.getValue();
-			toggle.setSelected(reasoningService.isEnabled(profile));
-			toggle.selectedProperty().addListener((observable, previous, selected) -> {
-				if (syncingReasoningUi.get()) {
-					return;
-				}
-				handleReasoningToggle(profile, Boolean.TRUE.equals(selected));
-			});
-		}
+		view.updateBuiltInDerivedState(levelChoice.getValue());
 		view.setRdfsSubsetViewAction(DataReasoningInfoDialog::showRdfsSubsetInfo);
 		for (ReasoningProfile profile : ReasoningProfile.values()) {
 			view.setBuiltInRuleViewAction(profile, () -> handleBuiltInRuleViewRequested(profile));
@@ -386,7 +367,7 @@ public class DataViewController implements AutoCloseable {
 	}
 
 	private void refreshReasoningUiState() {
-		syncReasoningToggleStates();
+		syncReasoningSelectionState();
 		ruleFileController.refreshRuleFileList();
 	}
 
@@ -652,52 +633,32 @@ public class DataViewController implements AutoCloseable {
 		});
 	}
 
-	private void syncReasoningToggleStates() {
+	private void syncReasoningSelectionState() {
 		syncingReasoningUi.set(true);
 		try {
-			view.getRdfsSubsetToggle().setSelected(reasoningService.isRdfsSubsetEnabled());
-			for (Map.Entry<ReasoningProfile, ToggleSwitch> entry : reasoningToggles.entrySet()) {
-				entry.getValue().setSelected(reasoningService.isEnabled(entry.getKey()));
-			}
+			ReasoningLevel level = reasoningService.getReasoningLevel();
+			view.getReasoningLevelChoice().setValue(level);
+			view.updateBuiltInDerivedState(level);
 		} finally {
 			syncingReasoningUi.set(false);
 		}
 	}
 
-	private void handleReasoningToggle(ReasoningProfile profile, boolean enabled) {
-		runAsyncUiRefreshOperation("Reasoning", buildReasoningToggleLoadingMessage(profile, enabled), () -> {
+	private void handleReasoningLevelSelection(ReasoningLevel level) {
+		ReasoningLevel targetLevel = level == null ? ReasoningLevel.NONE : level;
+		runAsyncUiRefreshOperation("Reasoning", buildReasoningLevelLoadingMessage(targetLevel), () -> {
 			try {
 				DataWorkspaceStatus beforeStatus = workspaceService.getStatus();
-				reasoningService.setEnabled(profile, enabled);
+				reasoningService.setReasoningLevel(targetLevel);
 				DataWorkspaceStatus afterStatus = workspaceService.getStatus();
-				String profileLabel = profile == null ? "Profile" : profile.label();
-				String stateLabel = enabled ? "enabled" : "disabled";
+				String levelLabel = displayLabelForLevel(targetLevel);
 				String deltaMessage = DataUiMessageUtils.buildTripleDeltaMessage(beforeStatus.inferredTripleCount(),
 						afterStatus.inferredTripleCount());
-				String message = profileLabel + " " + stateLabel + ". " + deltaMessage;
-				return () -> NotificationWidget.getInstance().showSuccess("Reasoning Profile", message);
+				String message = "Level set to " + levelLabel + ". " + deltaMessage;
+				return () -> NotificationWidget.getInstance().showSuccess("Reasoning", message);
 			} catch (Exception e) {
 				return () -> NotificationWidget.getInstance().showErrorWithDetails("Reasoning Error",
-						"Reasoning update failed for " + profile.label() + ": " + e.getMessage(), e);
-			}
-		});
-	}
-
-	private void handleRdfsSubsetToggle(boolean enabled) {
-		runAsyncUiRefreshOperation("Reasoning", buildReasoningToggleLoadingMessage(RDFS_SUBSET_LABEL, enabled),
-				() -> {
-			try {
-				DataWorkspaceStatus beforeStatus = workspaceService.getStatus();
-				reasoningService.setRdfsSubsetEnabled(enabled);
-				DataWorkspaceStatus afterStatus = workspaceService.getStatus();
-				String stateLabel = enabled ? "enabled" : "disabled";
-				String deltaMessage = DataUiMessageUtils.buildTripleDeltaMessage(beforeStatus.tripleCount(),
-						afterStatus.tripleCount());
-				String message = RDFS_SUBSET_LABEL + " " + stateLabel + ". " + deltaMessage;
-				return () -> NotificationWidget.getInstance().showSuccess("Reasoning Profile", message);
-			} catch (Exception e) {
-				return () -> NotificationWidget.getInstance().showErrorWithDetails("Reasoning Error",
-						"Reasoning update failed for " + RDFS_SUBSET_LABEL + ": " + e.getMessage(), e);
+						"Reasoning update failed for " + displayLabelForLevel(targetLevel) + ": " + e.getMessage(), e);
 			}
 		});
 	}
@@ -710,10 +671,12 @@ public class DataViewController implements AutoCloseable {
 			try {
 				ReasoningService.BuiltInProfileSource source = reasoningService.getBuiltInProfileSource(profile);
 				Platform.runLater(
-						() -> DataRulePreviewDialog.show(source.label(), source.sourcePath(), source.sourceContent()));
+						() -> DataRulePreviewDialog.show(displayLabelForProfile(profile), source.sourcePath(),
+								source.sourceContent()));
 			} catch (Exception e) {
 				Platform.runLater(() -> NotificationWidget.getInstance().showErrorWithDetails("Rule Source Error",
-						"Failed to open built-in profile source " + profile.label() + ": " + e.getMessage(), e));
+						"Failed to open built-in profile source " + displayLabelForProfile(profile) + ": "
+								+ e.getMessage(), e));
 			}
 		});
 	}
@@ -758,14 +721,24 @@ public class DataViewController implements AutoCloseable {
 		});
 	}
 
-	private String buildReasoningToggleLoadingMessage(ReasoningProfile profile, boolean enabled) {
-		String profileLabel = profile == null ? "profile" : profile.label();
-		return buildReasoningToggleLoadingMessage(profileLabel, enabled);
+	private String buildReasoningLevelLoadingMessage(ReasoningLevel level) {
+		return "Applying level " + displayLabelForLevel(level) + "...";
 	}
 
-	private String buildReasoningToggleLoadingMessage(String profileLabel, boolean enabled) {
-		String safeLabel = profileLabel == null || profileLabel.isBlank() ? "profile" : profileLabel;
-		return enabled ? "Enabling " + safeLabel + "..." : "Disabling " + safeLabel + "...";
+	private String displayLabelForLevel(ReasoningLevel level) {
+		return level == null ? ReasoningLevel.NONE.label() : level.label();
+	}
+
+	private String displayLabelForProfile(ReasoningProfile profile) {
+		if (profile == null) {
+			return "Profile";
+		}
+		return switch (profile) {
+			case RDFS -> "RDFS RL";
+			case OWL_RL -> "OWL RL";
+			case OWL_RL_LITE -> "OWL RL Lite";
+			case OWL_RL_EXT -> "OWL RL Ext";
+		};
 	}
 
 	private void notifyLoadOutcome(String sourceLabel, int loadedCount, int tripleCount,

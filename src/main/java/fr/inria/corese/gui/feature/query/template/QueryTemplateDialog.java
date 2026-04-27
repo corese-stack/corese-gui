@@ -7,9 +7,9 @@ import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.io.AppPreferences;
 import fr.inria.corese.gui.core.dialog.ModalService;
 import fr.inria.corese.gui.core.theme.CssUtils;
+import java.net.URI;
 import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.binding.Bindings;
@@ -24,9 +24,12 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Control;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory.IntegerSpinnerValueFactory;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -57,6 +60,7 @@ public final class QueryTemplateDialog {
 	private static final int DEFAULT_LIMIT = 100;
 	private static final int DEFAULT_OFFSET = 0;
 	private static final int MAX_LIMIT_OFFSET = 1_000_000;
+	private static final String DEFAULT_SERVICE_ENDPOINT = "https://dbpedia.org/sparql";
 	private static final Duration ROW_ANIMATION_DURATION = Duration.millis(150);
 	private static final Duration MESSAGE_ANIMATION_DURATION = Duration.millis(140);
 	private static final double FALLBACK_ROW_HEIGHT = 34.0;
@@ -73,6 +77,8 @@ public final class QueryTemplateDialog {
 	private static final String PREF_USE_UNION_PATTERN = "queryTemplate.useUnionPattern";
 	private static final String PREF_USE_OFFSET = "queryTemplate.useOffset";
 	private static final String PREF_OFFSET_VALUE = "queryTemplate.offsetValue";
+	private static final String PREF_USE_SERVICE = "queryTemplate.useService";
+	private static final String PREF_SERVICE_URL = "queryTemplate.serviceUrl";
 
 	private static final String OFFSET_ROW_ANIMATION_KEY = "queryTemplateOffsetRowAnimation";
 	private static final String VALIDATION_ANIMATION_KEY = "queryTemplateValidationAnimation";
@@ -87,7 +93,7 @@ public final class QueryTemplateDialog {
 		Form form = new Form();
 		restorePreferences(form);
 
-		VBox optionsColumn = buildOptionsColumn(form);
+		ScrollPane optionsColumn = buildOptionsColumn(form);
 		VBox previewColumn = buildPreviewColumn(form.previewEditor);
 
 		HBox content = new HBox(16, optionsColumn, previewColumn);
@@ -96,6 +102,7 @@ public final class QueryTemplateDialog {
 		content.setFillHeight(true);
 		content.setMaxHeight(Double.MAX_VALUE);
 		VBox.setVgrow(content, Priority.ALWAYS);
+		HBox.setHgrow(optionsColumn, Priority.NEVER);
 		HBox.setHgrow(previewColumn, Priority.ALWAYS);
 
 		Runnable refreshPreview = () -> updatePreview(form, true);
@@ -130,6 +137,8 @@ public final class QueryTemplateDialog {
 		bindRefresh(refreshPreview, form.orderBySubjectCheck.selectedProperty());
 		bindRefresh(refreshPreview, form.useOptionalPatternCheck.selectedProperty());
 		bindRefresh(refreshPreview, form.useUnionPatternCheck.selectedProperty());
+		bindRefresh(refreshPreview, form.useServiceClauseCheck.selectedProperty());
+		bindRefresh(refreshPreview, form.serviceUrlField.textProperty());
 		bindRefresh(refreshPreview, form.applyLimitCheck.selectedProperty());
 		bindRefresh(refreshPreview, form.limitSpinner.valueProperty());
 		bindRefresh(refreshPreview, form.limitSpinner.getEditor().textProperty());
@@ -142,14 +151,19 @@ public final class QueryTemplateDialog {
 		source.addListener((obs, oldVal, newVal) -> refreshPreview.run());
 	}
 
-	private static VBox buildOptionsColumn(Form form) {
-		VBox optionsColumn = new VBox(10, form.typeSection, form.patternSection, form.resultSection,
-				form.paginationSection);
+	private static ScrollPane buildOptionsColumn(Form form) {
+		VBox optionsContent = new VBox(10, form.typeSection, form.patternSection, form.serviceSection, form.resultSection,
+				form.paginationSection, form.validationLabel);
+		ScrollPane optionsColumn = new ScrollPane(optionsContent);
 		optionsColumn.getStyleClass().add(STYLE_CLASS_OPTIONS);
+		optionsColumn.setFitToWidth(true);
+		optionsColumn.setFitToHeight(false);
+		optionsColumn.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+		optionsColumn.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
 		optionsColumn.setPrefWidth(300);
 		optionsColumn.setMinWidth(280);
+		optionsColumn.setMinHeight(0);
 		optionsColumn.setMaxHeight(Double.MAX_VALUE);
-		VBox.setVgrow(optionsColumn, Priority.ALWAYS);
 		return optionsColumn;
 	}
 
@@ -160,28 +174,66 @@ public final class QueryTemplateDialog {
 		previewColumn.setMaxHeight(Double.MAX_VALUE);
 		previewEditor.prefHeightProperty().bind(Bindings.max(340.0,
 				previewColumn.heightProperty().subtract(previewLabel.heightProperty()).subtract(8.0)));
-		VBox.setVgrow(previewColumn, Priority.ALWAYS);
 		return previewColumn;
 	}
 
 	private static void updatePreview(Form form, boolean animateOffsetRow) {
-		QueryTemplateType selectedType = form.templateTypeCombo.getValue() != null
-				? form.templateTypeCombo.getValue()
-				: QueryTemplateType.SELECT;
+		QueryTemplateType selectedType = selectedType(form);
+		FormState formState = updateFormAvailability(form, selectedType, animateOffsetRow);
+		ServiceValidation serviceValidation = validateServiceInputs(form, formState.serviceEnabled());
+		boolean validateLimit = formState.limitEnabled();
+		boolean validateOffset = formState.offsetEnabled();
+		NumericValidation numericValidation = validateNumericInputs(form, validateLimit, validateOffset);
+		boolean hasValidationError = !serviceValidation.valid() || !numericValidation.valid();
+		form.hasValidationError.set(hasValidationError);
 
+		savePreferences(form, selectedType, numericValidation.limitValue(), numericValidation.offsetValue());
+		if (hasValidationError) {
+			String validationMessage = !serviceValidation.valid() ? serviceValidation.message()
+					: numericValidation.message();
+			showValidationError(form, validationMessage);
+			return;
+		}
+		clearValidationError(form);
+
+		QueryTemplateOptions options = buildTemplateOptions(form, selectedType, serviceValidation, numericValidation,
+				formState);
+		form.previewEditor.setContent(QueryTemplateGenerator.generate(options));
+	}
+
+	private static QueryTemplateType selectedType(Form form) {
+		return form.templateTypeCombo.getValue() == null ? QueryTemplateType.SELECT : form.templateTypeCombo.getValue();
+	}
+
+	private static FormState updateFormAvailability(Form form, QueryTemplateType selectedType, boolean animateOffsetRow) {
 		boolean supportsGraphPattern = selectedType.supportsGraphClause();
 		configureOptionAvailability(form.useGraphPatternCheck, supportsGraphPattern);
 
 		boolean supportsPatternVariant = selectedType.supportsPatternVariant();
 		configureOptionAvailability(form.useOptionalPatternCheck, supportsPatternVariant);
 		configureOptionAvailability(form.useUnionPatternCheck, supportsPatternVariant);
+		setNodeVisible(form.patternSection, supportsGraphPattern || supportsPatternVariant);
+
+		boolean supportsService = selectedType.supportsServiceClause();
+		setNodeVisible(form.serviceSection, supportsService);
+		configureOptionAvailability(form.useServiceClauseCheck, supportsService);
+		boolean serviceEnabled = supportsService && form.useServiceClauseCheck.isSelected();
+		configureServiceRow(form.serviceUrlRow, form.serviceUrlField, serviceEnabled);
 
 		boolean supportsDistinct = selectedType.supportsDistinct();
 		configureOptionAvailability(form.useDistinctCheck, supportsDistinct);
 
 		boolean supportsOrderBy = selectedType.supportsOrderBy();
 		configureOptionAvailability(form.orderBySubjectCheck, supportsOrderBy);
+		setNodeVisible(form.resultSection, supportsDistinct || supportsOrderBy);
 
+		boolean limitEnabled = updatePaginationAvailability(form, selectedType, animateOffsetRow);
+		boolean offsetEnabled = form.offsetOptionRow.isManaged() && form.applyOffsetCheck.isSelected();
+		return new FormState(serviceEnabled, limitEnabled, offsetEnabled);
+	}
+
+	private static boolean updatePaginationAvailability(Form form, QueryTemplateType selectedType,
+			boolean animateOffsetRow) {
 		boolean supportsLimit = selectedType.supportsLimit();
 		setNodeVisible(form.paginationSection, supportsLimit);
 		setNodeVisible(form.limitOptionRow, supportsLimit);
@@ -189,39 +241,28 @@ public final class QueryTemplateDialog {
 		if (!supportsLimit) {
 			form.applyLimitCheck.setSelected(false);
 		}
-		form.limitSpinner.setDisable(!supportsLimit || !form.applyLimitCheck.isSelected());
+		boolean limitEnabled = supportsLimit && form.applyLimitCheck.isSelected();
+		form.limitSpinner.setDisable(!limitEnabled);
 
 		boolean supportsOffset = selectedType.supportsOffset();
-		boolean offsetRowVisible = supportsLimit && supportsOffset && form.applyLimitCheck.isSelected();
-		if (!offsetRowVisible) {
+		boolean offsetAvailable = limitEnabled && supportsOffset;
+		if (!offsetAvailable) {
 			form.applyOffsetCheck.setSelected(false);
 		}
-		form.applyOffsetCheck.setDisable(!offsetRowVisible);
-		form.offsetSpinner.setDisable(!offsetRowVisible || !form.applyOffsetCheck.isSelected());
-		setCollapsibleRowVisible(form.offsetOptionRow, offsetRowVisible, animateOffsetRow, OFFSET_ROW_ANIMATION_KEY);
+		form.applyOffsetCheck.setDisable(!offsetAvailable);
+		form.offsetSpinner.setDisable(!offsetAvailable || !form.applyOffsetCheck.isSelected());
+		setCollapsibleRowVisible(form.offsetOptionRow, offsetAvailable, animateOffsetRow, OFFSET_ROW_ANIMATION_KEY);
+		return limitEnabled;
+	}
 
-		setNodeVisible(form.patternSection, supportsGraphPattern || supportsPatternVariant);
-		setNodeVisible(form.resultSection, supportsDistinct || supportsOrderBy);
-
-		boolean validateLimit = supportsLimit && form.applyLimitCheck.isSelected();
-		boolean validateOffset = offsetRowVisible && form.applyOffsetCheck.isSelected();
-		NumericValidation numericValidation = validateNumericInputs(form, validateLimit, validateOffset);
-		form.hasValidationError.set(!numericValidation.valid());
-
-		savePreferences(form, selectedType, numericValidation.limitValue(), numericValidation.offsetValue());
-		if (!numericValidation.valid()) {
-			showValidationError(form, numericValidation.message());
-			return;
-		}
-		clearValidationError(form);
-
-		Integer limit = validateLimit ? numericValidation.limitValue() : null;
-		Integer offset = validateOffset ? numericValidation.offsetValue() : null;
-
-		QueryTemplateOptions options = new QueryTemplateOptions(selectedType, form.useGraphPatternCheck.isSelected(),
+	private static QueryTemplateOptions buildTemplateOptions(Form form, QueryTemplateType selectedType,
+			ServiceValidation serviceValidation, NumericValidation numericValidation, FormState formState) {
+		Integer limit = formState.limitEnabled() ? numericValidation.limitValue() : null;
+		Integer offset = formState.offsetEnabled() ? numericValidation.offsetValue() : null;
+		return new QueryTemplateOptions(selectedType, form.useGraphPatternCheck.isSelected(),
 				form.useDistinctCheck.isSelected(), form.orderBySubjectCheck.isSelected(),
-				form.useOptionalPatternCheck.isSelected(), form.useUnionPatternCheck.isSelected(), limit, offset);
-		form.previewEditor.setContent(QueryTemplateGenerator.generate(options));
+				form.useOptionalPatternCheck.isSelected(), form.useUnionPatternCheck.isSelected(),
+				form.useServiceClauseCheck.isSelected(), serviceValidation.endpointUrl(), limit, offset);
 	}
 
 	private static void configureOptionAvailability(CheckBox checkBox, boolean supported) {
@@ -344,6 +385,13 @@ public final class QueryTemplateDialog {
 		node.setManaged(visible);
 	}
 
+	private static void configureServiceRow(HBox row, Node input, boolean visible) {
+		setNodeVisible(row, visible);
+		if (input instanceof Control control) {
+			control.setDisable(!visible);
+		}
+	}
+
 	private static NumericValidation validateNumericInputs(Form form, boolean validateLimit, boolean validateOffset) {
 		NumericFieldValidation limitValidation = validateNumericField(form.limitSpinner, DEFAULT_LIMIT, 1,
 				validateLimit, "LIMIT");
@@ -361,6 +409,12 @@ public final class QueryTemplateDialog {
 		}
 		boolean valid = message.isBlank();
 		return new NumericValidation(valid, limitValidation.value(), offsetValidation.value(), message);
+	}
+
+	private static ServiceValidation validateServiceInputs(Form form, boolean serviceEnabled) {
+		TextFieldValidation endpointValidation = validateServiceEndpoint(form.serviceUrlField, serviceEnabled);
+		applyTextValidationState(form.serviceUrlField, endpointValidation.invalid());
+		return new ServiceValidation(!endpointValidation.invalid(), endpointValidation.value(), endpointValidation.message());
 	}
 
 	private static NumericFieldValidation validateNumericField(Spinner<Integer> spinner, int fallback, int minValue,
@@ -390,9 +444,37 @@ public final class QueryTemplateDialog {
 		return new NumericFieldValidation((int) parsedValue, false, "");
 	}
 
+	private static TextFieldValidation validateServiceEndpoint(TextField field, boolean required) {
+		String value = normalize(field.getText());
+		if (!required) {
+			return new TextFieldValidation(value, false, "");
+		}
+		if (value.isBlank()) {
+			return new TextFieldValidation(value, true, "Service endpoint URL is required.");
+		}
+		if (value.contains("<") || value.contains(">")) {
+			return new TextFieldValidation(value, true, "Service endpoint URL must not contain angle brackets.");
+		}
+		try {
+			URI uri = URI.create(value);
+			String scheme = uri.getScheme();
+			if (!uri.isAbsolute() || scheme == null || (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))
+					|| uri.getRawAuthority() == null) {
+				return new TextFieldValidation(value, true, "Service endpoint must be an absolute HTTP(S) URL.");
+			}
+			return new TextFieldValidation(value, false, "");
+		} catch (IllegalArgumentException _) {
+			return new TextFieldValidation(value, true, "Service endpoint URL is invalid.");
+		}
+	}
+
 	private static void applyNumericValidationState(Spinner<Integer> spinner, boolean invalid) {
 		toggleStyleClass(spinner, STYLE_CLASS_INPUT_INVALID, invalid);
 		toggleStyleClass(spinner.getEditor(), STYLE_CLASS_INPUT_INVALID, invalid);
+	}
+
+	private static void applyTextValidationState(TextField field, boolean invalid) {
+		toggleStyleClass(field, STYLE_CLASS_INPUT_INVALID, invalid);
 	}
 
 	private static void toggleStyleClass(Node node, String styleClass, boolean enabled) {
@@ -571,35 +653,37 @@ public final class QueryTemplateDialog {
 	}
 
 	private static void restorePreferences(Form form) {
-		form.templateTypeCombo.getSelectionModel()
-				.select(readEnum(PREF_TYPE, QueryTemplateType.SELECT, QueryTemplateType::valueOf));
+		form.templateTypeCombo.getSelectionModel().select(readTemplateTypePreference());
 		form.useGraphPatternCheck.setSelected(PREFS.getBoolean(PREF_USE_GRAPH, false));
 		form.useDistinctCheck.setSelected(PREFS.getBoolean(PREF_USE_DISTINCT, false));
 		form.orderBySubjectCheck.setSelected(PREFS.getBoolean(PREF_ORDER_BY, false));
 		form.useOptionalPatternCheck.setSelected(PREFS.getBoolean(PREF_USE_OPTIONAL_PATTERN, false));
 		form.useUnionPatternCheck.setSelected(PREFS.getBoolean(PREF_USE_UNION_PATTERN, false));
+		form.useServiceClauseCheck.setSelected(PREFS.getBoolean(PREF_USE_SERVICE, false));
+		form.serviceUrlField.setText(PREFS.get(PREF_SERVICE_URL, DEFAULT_SERVICE_ENDPOINT));
 		form.applyLimitCheck.setSelected(PREFS.getBoolean(PREF_USE_LIMIT, false));
 		form.applyOffsetCheck.setSelected(PREFS.getBoolean(PREF_USE_OFFSET, false));
 
-		IntegerSpinnerValueFactory limitFactory = (IntegerSpinnerValueFactory) form.limitSpinner.getValueFactory();
-		int storedLimit = Math.max(1, PREFS.getInt(PREF_LIMIT_VALUE, DEFAULT_LIMIT));
-		limitFactory.setValue(Math.min(storedLimit, MAX_LIMIT_OFFSET));
-
-		IntegerSpinnerValueFactory offsetFactory = (IntegerSpinnerValueFactory) form.offsetSpinner.getValueFactory();
-		int storedOffset = Math.max(0, PREFS.getInt(PREF_OFFSET_VALUE, DEFAULT_OFFSET));
-		offsetFactory.setValue(Math.min(storedOffset, MAX_LIMIT_OFFSET));
+		restoreSpinnerValue(form.limitSpinner, PREF_LIMIT_VALUE, DEFAULT_LIMIT, 1);
+		restoreSpinnerValue(form.offsetSpinner, PREF_OFFSET_VALUE, DEFAULT_OFFSET, 0);
 	}
 
-	private static <E extends Enum<E>> E readEnum(String key, E defaultValue, Function<String, E> parser) {
-		String stored = PREFS.get(key, null);
+	private static QueryTemplateType readTemplateTypePreference() {
+		String stored = PREFS.get(PREF_TYPE, null);
 		if (stored == null || stored.isBlank()) {
-			return defaultValue;
+			return QueryTemplateType.SELECT;
 		}
 		try {
-			return parser.apply(stored);
+			return QueryTemplateType.valueOf(stored);
 		} catch (IllegalArgumentException _) {
-			return defaultValue;
+			return QueryTemplateType.SELECT;
 		}
+	}
+
+	private static void restoreSpinnerValue(Spinner<Integer> spinner, String prefKey, int defaultValue, int minValue) {
+		IntegerSpinnerValueFactory valueFactory = (IntegerSpinnerValueFactory) spinner.getValueFactory();
+		int storedValue = Math.max(minValue, PREFS.getInt(prefKey, defaultValue));
+		valueFactory.setValue(Math.min(storedValue, MAX_LIMIT_OFFSET));
 	}
 
 	private static void savePreferences(Form form, QueryTemplateType type, int limitValue, int offsetValue) {
@@ -609,6 +693,8 @@ public final class QueryTemplateDialog {
 		PREFS.putBoolean(PREF_ORDER_BY, form.orderBySubjectCheck.isSelected());
 		PREFS.putBoolean(PREF_USE_OPTIONAL_PATTERN, form.useOptionalPatternCheck.isSelected());
 		PREFS.putBoolean(PREF_USE_UNION_PATTERN, form.useUnionPatternCheck.isSelected());
+		PREFS.putBoolean(PREF_USE_SERVICE, form.useServiceClauseCheck.isSelected());
+		PREFS.put(PREF_SERVICE_URL, normalize(form.serviceUrlField.getText()));
 		PREFS.putBoolean(PREF_USE_LIMIT, form.applyLimitCheck.isSelected());
 		PREFS.putInt(PREF_LIMIT_VALUE, limitValue);
 		PREFS.putBoolean(PREF_USE_OFFSET, form.applyOffsetCheck.isSelected());
@@ -636,19 +722,26 @@ public final class QueryTemplateDialog {
 		return checkBox;
 	}
 
+	private static TextField createTextField(String promptText) {
+		TextField textField = new TextField();
+		textField.setPromptText(promptText);
+		textField.setMaxWidth(Double.MAX_VALUE);
+		return textField;
+	}
+
 	private static Spinner<Integer> createLimitSpinner() {
-		Spinner<Integer> spinner = new Spinner<>();
-		spinner.setEditable(true);
-		spinner.setMaxWidth(Double.MAX_VALUE);
-		spinner.setValueFactory(new IntegerSpinnerValueFactory(1, MAX_LIMIT_OFFSET, DEFAULT_LIMIT, 10));
-		return spinner;
+		return createIntegerSpinner(1, DEFAULT_LIMIT, 10);
 	}
 
 	private static Spinner<Integer> createOffsetSpinner() {
+		return createIntegerSpinner(0, DEFAULT_OFFSET, 10);
+	}
+
+	private static Spinner<Integer> createIntegerSpinner(int minValue, int defaultValue, int step) {
 		Spinner<Integer> spinner = new Spinner<>();
 		spinner.setEditable(true);
 		spinner.setMaxWidth(Double.MAX_VALUE);
-		spinner.setValueFactory(new IntegerSpinnerValueFactory(0, MAX_LIMIT_OFFSET, DEFAULT_OFFSET, 10));
+		spinner.setValueFactory(new IntegerSpinnerValueFactory(minValue, MAX_LIMIT_OFFSET, defaultValue, step));
 		return spinner;
 	}
 
@@ -657,6 +750,14 @@ public final class QueryTemplateDialog {
 		HBox.setHgrow(spacer, Priority.ALWAYS);
 		HBox row = new HBox(10, checkBox, spacer, spinner);
 		row.getStyleClass().add(STYLE_CLASS_OPTION_ROW);
+		return row;
+	}
+
+	private static HBox createLabeledInputRow(String labelText, Node input) {
+		Label label = new Label(labelText);
+		HBox row = new HBox(10, label, input);
+		row.getStyleClass().add(STYLE_CLASS_OPTION_ROW);
+		HBox.setHgrow(input, Priority.ALWAYS);
 		return row;
 	}
 
@@ -693,6 +794,10 @@ public final class QueryTemplateDialog {
 		private final CheckBox useOptionalPatternCheck = createOptionCheck("Add OPTIONAL block");
 		private final CheckBox useUnionPatternCheck = createOptionCheck("Add UNION block");
 
+		private final CheckBox useServiceClauseCheck = createOptionCheck("Wrap WHERE pattern in SERVICE");
+		private final TextField serviceUrlField = createTextField(DEFAULT_SERVICE_ENDPOINT);
+		private final HBox serviceUrlRow = createLabeledInputRow("Endpoint", serviceUrlField);
+
 		private final CheckBox useDistinctCheck = createOptionCheck("Use DISTINCT");
 		private final CheckBox orderBySubjectCheck = createOptionCheck("Order by ?s (ASC)");
 
@@ -710,13 +815,14 @@ public final class QueryTemplateDialog {
 		private final VBox typeSection = createOptionsSection("Query Type", templateTypeCombo);
 		private final VBox patternSection = createOptionsSection("Pattern", useGraphPatternCheck,
 				useOptionalPatternCheck, useUnionPatternCheck);
+		private final VBox serviceSection = createOptionsSection("Remote Service", useServiceClauseCheck, serviceUrlRow);
 		private final VBox resultSection = createOptionsSection("Result Options", useDistinctCheck,
 				orderBySubjectCheck);
-		private final VBox paginationSection = createOptionsSection("Pagination", limitOptionRow, offsetOptionRow,
-				validationLabel);
+		private final VBox paginationSection = createOptionsSection("Pagination", limitOptionRow, offsetOptionRow);
 
 		private Form() {
 			setRowVisibilityImmediately(offsetOptionRow, false);
+			setNodeVisible(serviceUrlRow, false);
 			prepareCollapsedValidationLabel(validationLabel);
 		}
 	}
@@ -725,5 +831,14 @@ public final class QueryTemplateDialog {
 	}
 
 	private record NumericValidation(boolean valid, int limitValue, int offsetValue, String message) {
+	}
+
+	private record TextFieldValidation(String value, boolean invalid, String message) {
+	}
+
+	private record ServiceValidation(boolean valid, String endpointUrl, String message) {
+	}
+
+	private record FormState(boolean serviceEnabled, boolean limitEnabled, boolean offsetEnabled) {
 	}
 }

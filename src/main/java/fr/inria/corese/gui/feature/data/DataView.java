@@ -1,6 +1,5 @@
 package fr.inria.corese.gui.feature.data;
 
-import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
 import fr.inria.corese.gui.component.button.config.ButtonConfig;
 import fr.inria.corese.gui.component.button.enums.ButtonIcon;
@@ -10,6 +9,7 @@ import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderMode;
 import fr.inria.corese.gui.component.graph.GraphDisplayWidget.GraphRenderStatus;
 import fr.inria.corese.gui.component.toolbar.ToolbarWidget;
 import fr.inria.corese.gui.core.io.FileTypeSupport;
+import fr.inria.corese.gui.core.service.ReasoningLevel;
 import fr.inria.corese.gui.core.service.data.DataWorkspaceStatus;
 import fr.inria.corese.gui.core.service.ReasoningProfile;
 import fr.inria.corese.gui.core.theme.CssUtils;
@@ -21,11 +21,14 @@ import fr.inria.corese.gui.feature.data.support.DataStatusTooltipSupport.RenderS
 import fr.inria.corese.gui.utils.fx.FileDragDropSupport;
 import fr.inria.corese.gui.utils.fx.RoundedClipSupport;
 import java.io.File;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tooltip;
@@ -82,16 +85,19 @@ public class DataView extends AbstractView {
 	private final StackPane graphContainer = new StackPane();
 	private final Region graphDropOverlay = new Region();
 
-	private final ToggleSwitch rdfsSubsetToggle = new ToggleSwitch();
-	private final ToggleSwitch rdfsToggle = new ToggleSwitch();
-	private final ToggleSwitch owlRlToggle = new ToggleSwitch();
-	private final ToggleSwitch owlRlLiteToggle = new ToggleSwitch();
-	private final ToggleSwitch owlRlExtToggle = new ToggleSwitch();
+	private final ChoiceBox<ReasoningLevel> reasoningLevelChoice = new ChoiceBox<>();
+	private final Label rdfsSubsetStateLabel = createBuiltInStateLabel();
+	private final Label rdfsStateLabel = createBuiltInStateLabel();
+	private final Label owlRlStateLabel = createBuiltInStateLabel();
+	private final Label owlRlLiteStateLabel = createBuiltInStateLabel();
+	private final Label owlRlExtStateLabel = createBuiltInStateLabel();
+	private final Map<ReasoningProfile, Label> profileStateLabels = new EnumMap<>(ReasoningProfile.class);
+	private final Map<ReasoningLevel, HBox> hierarchyRows = new EnumMap<>(ReasoningLevel.class);
 	private final Button rdfsSubsetViewButton = createBuiltInRuleViewButton("Explain what RDFS Subset enables");
 	private final Button rdfsViewButton = createBuiltInRuleViewButton("View RDFS RL profile rule file");
 	private final Button owlRlViewButton = createBuiltInRuleViewButton("View OWL RL profile rule file");
 	private final Button owlRlLiteViewButton = createBuiltInRuleViewButton("View OWL RL Lite profile rule file");
-	private final Button owlRlExtViewButton = createBuiltInRuleViewButton("View OWL RL Extended profile rule file");
+	private final Button owlRlExtViewButton = createBuiltInRuleViewButton("View OWL RL Ext profile rule file");
 	private final VBox ruleFilesList = new VBox(8);
 	private final ScrollPane ruleFilesScrollPane = new ScrollPane(ruleFilesList);
 	private final StackPane ruleFilesContent = new StackPane();
@@ -115,6 +121,7 @@ public class DataView extends AbstractView {
 	public DataView() {
 		super(new BorderPane(), STYLESHEET_PATH);
 		CssUtils.applyViewStyles(getRoot(), COMMON_STYLESHEET_PATH);
+		initializeReasoningSelectors();
 		initializeLayout();
 		updateStatus(DataWorkspaceStatus.empty());
 		updateGraphRenderStatus(GraphRenderStatus.normal());
@@ -184,14 +191,26 @@ public class DataView extends AbstractView {
 
 		Label builtInTitle = new Label("Built-in Reasoning");
 		builtInTitle.getStyleClass().add("data-section-title");
+		HBox rdfsSubsetRow = createAndRegisterHierarchyRow(ReasoningLevel.RDFS_SUBSET, "RDFS Subset",
+				rdfsSubsetStateLabel, rdfsSubsetViewButton,
+				"Native Corese RDFS subset materialized into the managed RDFS graph. "
+						+ "It excludes subclass typing; use RDFS RL for that. Shared consequences stay deduplicated.");
+		HBox rdfsRlRow = createAndRegisterHierarchyRow(ReasoningLevel.RDFS_RL, "RDFS RL", rdfsStateLabel,
+				rdfsViewButton, null);
+		HBox owlRlLiteRow = createAndRegisterHierarchyRow(ReasoningLevel.OWL_RL_LITE, "OWL RL Lite",
+				owlRlLiteStateLabel, owlRlLiteViewButton, null);
+		HBox owlRlRow = createAndRegisterHierarchyRow(ReasoningLevel.OWL_RL, "OWL RL", owlRlStateLabel,
+				owlRlViewButton, null);
+		HBox owlRlExtRow = createAndRegisterHierarchyRow(ReasoningLevel.OWL_RL_EXT, "OWL RL Ext",
+				owlRlExtStateLabel, owlRlExtViewButton, null);
+
 		VBox builtInRules = new VBox(8,
-				createNativeReasoningRow("RDFS Subset", rdfsSubsetToggle, rdfsSubsetViewButton,
-						"Native lightweight RDFS inference. Some inferred triples are added to kg:entailment; "
-								+ "subclass-based rdf:type results may also be resolved at query time."),
-				createBuiltInRuleRow("RDFS RL", rdfsToggle, rdfsViewButton),
-				createBuiltInRuleRow("OWL RL", owlRlToggle, owlRlViewButton),
-				createBuiltInRuleRow("OWL RL Lite", owlRlLiteToggle, owlRlLiteViewButton),
-				createBuiltInRuleRow("OWL RL Extended", owlRlExtToggle, owlRlExtViewButton));
+				createReasoningLevelRow(),
+				rdfsSubsetRow,
+				rdfsRlRow,
+				owlRlLiteRow,
+				owlRlRow,
+				owlRlExtRow);
 		builtInRules.getStyleClass().addAll("data-rule-list", "app-card", "app-card-default");
 		RoundedClipSupport.applyRoundedClip(builtInRules, CARD_RADIUS);
 
@@ -236,41 +255,42 @@ public class DataView extends AbstractView {
 		return button;
 	}
 
-	private HBox createBuiltInRuleRow(String labelText, ToggleSwitch toggle, Button viewButton) {
-		Label label = new Label(labelText);
-		label.getStyleClass().add("data-rule-toggle-label");
-
-		toggle.getStyleClass().add("data-rule-toggle-switch");
-		toggle.setFocusTraversable(false);
+	private HBox createReasoningLevelRow() {
+		Label levelLabel = new Label("Level");
+		levelLabel.getStyleClass().add("data-reasoning-level-label");
+		levelLabel.setMinWidth(Region.USE_PREF_SIZE);
 
 		Region spacer = new Region();
 		HBox.setHgrow(spacer, Priority.ALWAYS);
 
-		HBox row = new HBox(8, label, spacer, viewButton, toggle);
-		row.getStyleClass().addAll("data-rule-row", "app-card-row");
+		HBox row = new HBox(8, levelLabel, spacer, reasoningLevelChoice);
+		row.getStyleClass().addAll("data-rule-row", "app-card-row", "data-reasoning-level-row");
 		row.setAlignment(Pos.CENTER_LEFT);
 		return row;
 	}
 
-	private HBox createNativeReasoningRow(String labelText, ToggleSwitch toggle, Button viewButton,
-			String tooltipText) {
+	private HBox createAndRegisterHierarchyRow(ReasoningLevel level, String labelText, Label stateLabel,
+			Button viewButton, String tooltipText) {
+		HBox row = createBuiltInRuleDerivedRow(labelText, stateLabel, viewButton, tooltipText);
+		hierarchyRows.put(level, row);
+		return row;
+	}
+
+	private HBox createBuiltInRuleDerivedRow(String labelText, Label stateLabel, Button viewButton, String tooltipText) {
 		Label label = new Label(labelText);
 		label.getStyleClass().add("data-rule-toggle-label");
 		if (tooltipText != null && !tooltipText.isBlank()) {
 			label.setTooltip(new Tooltip(tooltipText));
 		}
 
-		toggle.getStyleClass().add("data-rule-toggle-switch");
-		toggle.setFocusTraversable(false);
-		if (tooltipText != null && !tooltipText.isBlank()) {
-			toggle.setTooltip(new Tooltip(tooltipText));
-		}
-
 		Region spacer = new Region();
 		HBox.setHgrow(spacer, Priority.ALWAYS);
+		HBox statusCluster = new HBox(6, viewButton, stateLabel);
+		statusCluster.getStyleClass().add("data-rule-status-cluster");
+		statusCluster.setAlignment(Pos.CENTER_RIGHT);
 
-		HBox row = new HBox(8, label, spacer, viewButton, toggle);
-		row.getStyleClass().addAll("data-rule-row", "app-card-row");
+		HBox row = new HBox(8, label, spacer, statusCluster);
+		row.getStyleClass().addAll("data-rule-row", "app-card-row", "data-built-in-derived-row");
 		row.setAlignment(Pos.CENTER_LEFT);
 		if (tooltipText != null && !tooltipText.isBlank()) {
 			Tooltip.install(row, new Tooltip(tooltipText));
@@ -479,6 +499,67 @@ public class DataView extends AbstractView {
 		FileDragDropSupport.setOverlayActive(ruleFilesDropOverlay, STYLE_CLASS_CUSTOM_RULES_DROP_OVERLAY_ACTIVE, active);
 	}
 
+	private void initializeReasoningSelectors() {
+		reasoningLevelChoice.getStyleClass().add("data-reasoning-level-choice");
+		reasoningLevelChoice.getItems().setAll(ReasoningLevel.values());
+		reasoningLevelChoice.setValue(ReasoningLevel.NONE);
+		reasoningLevelChoice.setFocusTraversable(false);
+
+		profileStateLabels.clear();
+		profileStateLabels.put(ReasoningProfile.RDFS, rdfsStateLabel);
+		profileStateLabels.put(ReasoningProfile.OWL_RL, owlRlStateLabel);
+		profileStateLabels.put(ReasoningProfile.OWL_RL_LITE, owlRlLiteStateLabel);
+		profileStateLabels.put(ReasoningProfile.OWL_RL_EXT, owlRlExtStateLabel);
+
+		updateBuiltInDerivedState(ReasoningLevel.NONE);
+	}
+
+	private static Label createBuiltInStateLabel() {
+		Label label = new Label();
+		label.getStyleClass().add("data-rule-derived-state");
+		label.setFocusTraversable(false);
+		label.setMinWidth(Region.USE_PREF_SIZE);
+		return label;
+	}
+
+	private static void applyDerivedRowStyle(HBox row, boolean active) {
+		if (row == null) {
+			return;
+		}
+		row.getStyleClass().removeAll("data-built-in-derived-row-active", "data-built-in-derived-row-inactive");
+		if (active) {
+			row.getStyleClass().add("data-built-in-derived-row-active");
+			return;
+		}
+		row.getStyleClass().add("data-built-in-derived-row-inactive");
+	}
+
+	private static void applyDerivedStateStyle(Label label, boolean active) {
+		if (label == null) {
+			return;
+		}
+		label.getStyleClass().removeAll("data-rule-derived-state-active", "data-rule-derived-state-inactive");
+		if (!active) {
+			label.getStyleClass().add("data-rule-derived-state-inactive");
+			label.setText("inactive");
+			return;
+		}
+		label.getStyleClass().add("data-rule-derived-state-active");
+		label.setText("active");
+	}
+
+	private static ReasoningLevel hierarchyLevelForProfile(ReasoningProfile profile) {
+		if (profile == null) {
+			return ReasoningLevel.NONE;
+		}
+		return switch (profile) {
+			case RDFS -> ReasoningLevel.RDFS_RL;
+			case OWL_RL_LITE -> ReasoningLevel.OWL_RL_LITE;
+			case OWL_RL -> ReasoningLevel.OWL_RL;
+			case OWL_RL_EXT -> ReasoningLevel.OWL_RL_EXT;
+		};
+	}
+
 	/**
 	 * Sets the right-side toolbar button configuration.
 	 *
@@ -679,16 +760,12 @@ public class DataView extends AbstractView {
 	}
 
 	/**
-	 * Returns built-in reasoning toggles.
+	 * Returns the reasoning level selector.
 	 *
-	 * @return list of rule toggles
+	 * @return level selector
 	 */
-	public List<ToggleSwitch> getBuiltInRuleToggles() {
-		return List.of(rdfsToggle, owlRlToggle, owlRlLiteToggle, owlRlExtToggle);
-	}
-
-	public ToggleSwitch getRdfsSubsetToggle() {
-		return rdfsSubsetToggle;
+	public ChoiceBox<ReasoningLevel> getReasoningLevelChoice() {
+		return reasoningLevelChoice;
 	}
 
 	public void setRdfsSubsetViewAction(Runnable action) {
@@ -726,12 +803,22 @@ public class DataView extends AbstractView {
 	}
 
 	/**
-	 * Resets all built-in reasoning toggles to OFF.
+	 * Updates read-only built-in profile state labels according to one level.
+	 *
+	 * @param level
+	 *            selected reasoning level
 	 */
-	public void resetBuiltInRuleToggles() {
-		rdfsSubsetToggle.setSelected(false);
-		for (ToggleSwitch toggle : getBuiltInRuleToggles()) {
-			toggle.setSelected(false);
+	public void updateBuiltInDerivedState(ReasoningLevel level) {
+		ReasoningLevel safeLevel = level == null ? ReasoningLevel.NONE : level;
+		applyDerivedStateStyle(rdfsSubsetStateLabel, safeLevel.isAtLeast(ReasoningLevel.RDFS_SUBSET));
+		applyDerivedRowStyle(hierarchyRows.get(ReasoningLevel.RDFS_SUBSET),
+				safeLevel.isAtLeast(ReasoningLevel.RDFS_SUBSET));
+
+		for (Map.Entry<ReasoningProfile, Label> entry : profileStateLabels.entrySet()) {
+			ReasoningLevel hierarchyLevel = hierarchyLevelForProfile(entry.getKey());
+			boolean active = safeLevel.isAtLeast(hierarchyLevel);
+			applyDerivedStateStyle(entry.getValue(), active);
+			applyDerivedRowStyle(hierarchyRows.get(hierarchyLevel), active);
 		}
 	}
 

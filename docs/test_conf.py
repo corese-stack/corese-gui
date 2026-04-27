@@ -30,8 +30,8 @@ class DocsDownloadUrlTests(unittest.TestCase):
             urls = self.conf._build_download_urls(tag, app_version, artifact_version)
 
         self.assertEqual(tag, "dev-prerelease")
-        self.assertEqual(app_version, "5.0.0")
-        self.assertEqual(artifact_version, "5.0.0-SNAPSHOT")
+        self.assertEqual(app_version, "5.0.1")
+        self.assertEqual(artifact_version, "5.0.1-SNAPSHOT")
 
         expected_snapshot_urls = (
             "windows_installer",
@@ -47,7 +47,7 @@ class DocsDownloadUrlTests(unittest.TestCase):
             "linux_standalone_arm64",
         )
         for key in expected_snapshot_urls:
-            self.assertIn("5.0.0-SNAPSHOT", urls[key], key)
+            self.assertIn("5.0.1-SNAPSHOT", urls[key], key)
             self.assertIn("/releases/download/dev-prerelease/", urls[key], key)
 
         self.assertEqual(
@@ -57,12 +57,12 @@ class DocsDownloadUrlTests(unittest.TestCase):
         self.assertEqual(urls["flathub_page"], "https://flathub.org/apps/fr.inria.corese.CoreseGui")
 
     def test_stable_release_uses_plain_version_for_all_downloadable_artifacts(self):
-        tag, app_version, artifact_version, _ = self.conf._compute_download_context("v5.0.0")
+        tag, app_version, artifact_version, _ = self.conf._compute_download_context("v5.0.1")
         urls = self.conf._build_download_urls(tag, app_version, artifact_version)
 
-        self.assertEqual(tag, "v5.0.0")
-        self.assertEqual(app_version, "5.0.0")
-        self.assertEqual(artifact_version, "5.0.0")
+        self.assertEqual(tag, "v5.0.1")
+        self.assertEqual(app_version, "5.0.1")
+        self.assertEqual(artifact_version, "5.0.1")
 
         downloadable_urls = (
             "windows_installer",
@@ -78,13 +78,13 @@ class DocsDownloadUrlTests(unittest.TestCase):
             "linux_standalone_arm64",
         )
         for key in downloadable_urls:
-            self.assertIn("5.0.0", urls[key], key)
+            self.assertIn("5.0.1", urls[key], key)
             self.assertNotIn("SNAPSHOT", urls[key], key)
-            self.assertIn("/releases/download/v5.0.0/", urls[key], key)
+            self.assertIn("/releases/download/v5.0.1/", urls[key], key)
 
         self.assertEqual(
             urls["release_page"],
-            "https://github.com/corese-stack/corese-gui/releases/tag/v5.0.0",
+            "https://github.com/corese-stack/corese-gui/releases/tag/v5.0.1",
         )
         self.assertEqual(urls["flathub_page"], "https://flathub.org/apps/fr.inria.corese.CoreseGui")
 
@@ -97,7 +97,7 @@ class DocsDownloadUrlTests(unittest.TestCase):
             )
         )
 
-        tag, app_version, artifact_version, _ = self.conf._compute_download_context("v5.0.0")
+        tag, app_version, artifact_version, _ = self.conf._compute_download_context("v5.0.1")
         urls = self.conf._build_download_urls(tag, app_version, artifact_version)
         generated_urls = sorted(
             value
@@ -119,6 +119,17 @@ class DocsDownloadUrlTests(unittest.TestCase):
         self.assertEqual(app_version, "5.1.0")
         self.assertEqual(artifact_version, "5.1.0")
 
+    def test_non_versioned_build_without_tags_falls_back_to_default_stable_version(self):
+        with mock.patch.object(self.conf, "_latest_supported_stable_tag", return_value=None):
+            with mock.patch.object(self.conf, "_git_tag_exists", return_value=False):
+                tag, app_version, artifact_version, _ = self.conf._compute_download_context(
+                    "local"
+                )
+
+        self.assertEqual(tag, "v5.0.1")
+        self.assertEqual(app_version, "5.0.1")
+        self.assertEqual(artifact_version, "5.0.1")
+
     def test_empty_published_stable_tags_skips_git_tag_lookup(self):
         with mock.patch.dict(os.environ, {"PUBLISHED_STABLE_TAGS": ""}, clear=False):
             with mock.patch.object(self.conf.subprocess, "run") as subprocess_run:
@@ -138,7 +149,7 @@ class DocsDownloadUrlTests(unittest.TestCase):
                 {
                     "DOCS_BASE_URL": "https://corese-stack.github.io/corese-gui",
                     "MINIMAL_VERSION": "5.0.0",
-                    "PUBLISHED_STABLE_TAGS": "v5.0.0",
+                    "PUBLISHED_STABLE_TAGS": "v5.0.1",
                 }
             )
 
@@ -154,10 +165,10 @@ class DocsDownloadUrlTests(unittest.TestCase):
             switcher_entries = json.loads(json_output.read_text(encoding="utf-8"))
             html_output_text = html_output.read_text(encoding="utf-8")
 
-        self.assertEqual(switcher_entries[0]["version"], "v5.0.0")
-        self.assertEqual(switcher_entries[0]["name"], "v5.0.0 (latest)")
+        self.assertEqual(switcher_entries[0]["version"], "v5.0.1")
+        self.assertEqual(switcher_entries[0]["name"], "v5.0.1 (latest)")
         self.assertTrue(switcher_entries[0]["preferred"])
-        self.assertIn("https://corese-stack.github.io/corese-gui/v5.0.0/", html_output_text)
+        self.assertIn("https://corese-stack.github.io/corese-gui/v5.0.1/", html_output_text)
 
 
 if __name__ == "__main__":

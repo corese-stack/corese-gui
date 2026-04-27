@@ -1,5 +1,7 @@
 package fr.inria.corese.gui.feature.query.template;
 
+import java.util.EnumSet;
+
 /**
  * Supported SPARQL template families available in the query template dialog.
  */
@@ -9,6 +11,16 @@ public enum QueryTemplateType {
 			"ASK"), INSERT_DATA("INSERT DATA"), DELETE_DATA("DELETE DATA"), DELETE_INSERT_WHERE(
 					"DELETE/INSERT WHERE"), LOAD_URI("LOAD"), CLEAR_GRAPH("CLEAR GRAPH"), DROP_GRAPH("DROP GRAPH");
 
+	private static final EnumSet<QueryTemplateType> GRAPH_CLAUSE_TYPES = EnumSet.of(SELECT, SELECT_COUNT, CONSTRUCT,
+			DESCRIBE, ASK, INSERT_DATA, DELETE_DATA, DELETE_INSERT_WHERE);
+	private static final EnumSet<QueryTemplateType> PATTERN_VARIANT_TYPES = EnumSet.of(SELECT, SELECT_COUNT, CONSTRUCT,
+			DESCRIBE, ASK);
+	private static final EnumSet<QueryTemplateType> DISTINCT_TYPES = EnumSet.of(SELECT);
+	private static final EnumSet<QueryTemplateType> ORDER_BY_TYPES = EnumSet.of(SELECT);
+	private static final EnumSet<QueryTemplateType> LIMIT_TYPES = EnumSet.of(SELECT, CONSTRUCT, DESCRIBE);
+	private static final EnumSet<QueryTemplateType> SERVICE_CLAUSE_TYPES = EnumSet.of(SELECT, SELECT_COUNT, CONSTRUCT,
+			DESCRIBE, ASK, DELETE_INSERT_WHERE);
+
 	private final String label;
 
 	QueryTemplateType(String label) {
@@ -16,30 +28,31 @@ public enum QueryTemplateType {
 	}
 
 	public boolean supportsGraphClause() {
-		return switch (this) {
-			case SELECT, SELECT_COUNT, CONSTRUCT, DESCRIBE, ASK, INSERT_DATA, DELETE_DATA, DELETE_INSERT_WHERE -> true;
-			case LOAD_URI, CLEAR_GRAPH, DROP_GRAPH -> false;
-		};
+		return GRAPH_CLAUSE_TYPES.contains(this);
 	}
 
 	public boolean supportsPatternVariant() {
-		return this == SELECT || this == SELECT_COUNT || this == CONSTRUCT || this == DESCRIBE || this == ASK;
+		return PATTERN_VARIANT_TYPES.contains(this);
 	}
 
 	public boolean supportsDistinct() {
-		return this == SELECT;
+		return DISTINCT_TYPES.contains(this);
 	}
 
 	public boolean supportsOrderBy() {
-		return this == SELECT;
+		return ORDER_BY_TYPES.contains(this);
 	}
 
 	public boolean supportsLimit() {
-		return this == SELECT || this == CONSTRUCT || this == DESCRIBE;
+		return LIMIT_TYPES.contains(this);
 	}
 
 	public boolean supportsOffset() {
 		return supportsLimit();
+	}
+
+	public boolean supportsServiceClause() {
+		return SERVICE_CLAUSE_TYPES.contains(this);
 	}
 
 	@Override

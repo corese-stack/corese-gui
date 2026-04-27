@@ -4,6 +4,9 @@ import fr.inria.corese.core.sparql.triple.parser.ASTQuery;
 import fr.inria.corese.gui.core.enums.QueryType;
 import fr.inria.corese.gui.core.enums.SerializationFormat;
 import fr.inria.corese.gui.core.model.QueryResultRef;
+import fr.inria.corese.gui.feature.result.table.support.TsvTableParser;
+import java.util.LinkedHashSet;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -65,6 +68,21 @@ class QueryServiceTest {
 	}
 
 	@Test
+	void executeQuery_withoutLocalData_canStillReturnBindings() {
+		QueryResultRef resultRef = queryService.executeQuery("""
+				SELECT ?value
+				WHERE {
+					VALUES ?value { 1 }
+				}
+				""");
+
+		assertEquals(QueryType.SELECT, resultRef.getQueryType());
+		assertEquals(1, resultRef.getResultCount(),
+				"Queries that do not depend on the local graph should still execute on an empty dataset.");
+		queryService.releaseResult(resultRef.getId());
+	}
+
+	@Test
 	void formatResult_tsvPreservesLiteralMetadataWhileCsvFlattensValue() {
 		QueryResultRef updateRef = queryService.executeQuery("""
 				PREFIX ex: <http://example.org/>
@@ -115,46 +133,98 @@ class QueryServiceTest {
 	}
 
 	@Test
-	void rdfsSubsetToggle_controlsNativeEntailmentInQueryResults() {
+	void rdfsSubsetToggle_controlsManagedDomainInferenceInQueryResults() {
 		QueryResultRef insertRef = queryService.executeQuery("""
 				PREFIX ex: <http://example.org/>
 				PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 				INSERT DATA {
-					ex:Dog rdfs:subClassOf ex:Animal .
-					ex:fido a ex:Dog .
+					ex:hasPet rdfs:domain ex:Person .
+					ex:alice ex:hasPet ex:fido .
 				}
 				""");
 		try {
 			QueryResultRef beforeRef = queryService.executeQuery("""
 					PREFIX ex: <http://example.org/>
-					SELECT ?x WHERE { ?x a ex:Animal }
+					SELECT ?x WHERE { ?x a ex:Person }
 					""");
 			assertEquals(0, beforeRef.getResultCount(),
-					"Without native RDFS subset, no inferred ex:Animal typing should be returned.");
+					"Without RDFS subset, no inferred ex:Person typing should be returned.");
 			queryService.releaseResult(beforeRef.getId());
 
 			reasoningService.setRdfsSubsetEnabled(true);
 
 			QueryResultRef enabledRef = queryService.executeQuery("""
 					PREFIX ex: <http://example.org/>
-					SELECT ?x WHERE { ?x a ex:Animal }
+					SELECT ?x WHERE { ?x a ex:Person }
 					""");
 			assertEquals(1, enabledRef.getResultCount(),
-					"Native RDFS subset should expose subclass typing during query evaluation.");
+					"RDFS subset should materialize native domain inference for query evaluation.");
 			queryService.releaseResult(enabledRef.getId());
 
 			reasoningService.setRdfsSubsetEnabled(false);
 
 			QueryResultRef disabledRef = queryService.executeQuery("""
 					PREFIX ex: <http://example.org/>
-					SELECT ?x WHERE { ?x a ex:Animal }
+					SELECT ?x WHERE { ?x a ex:Person }
 					""");
 			assertEquals(0, disabledRef.getResultCount(),
-					"Disabling native RDFS subset should remove the inferred query answer.");
+					"Disabling RDFS subset should remove the inferred query answer.");
 			queryService.releaseResult(disabledRef.getId());
 		} finally {
 			queryService.releaseResult(insertRef.getId());
 		}
+	}
+
+	@Test
+	void rdfsSubsetAndRdfsRl_shareOneDeduplicatedInferenceGraph() {
+		QueryResultRef insertRef = queryService.executeQuery("""
+				PREFIX ex: <http://example.org/>
+				PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+				INSERT DATA {
+					ex:hasPet rdfs:domain ex:Person .
+					ex:flora ex:hasPet ex:rex .
+				}
+				""");
+		QueryResultRef rdfsRlOnlyRef = null;
+		QueryResultRef combinedRef = null;
+		try {
+			reasoningService.setEnabled(ReasoningProfile.RDFS, true);
+
+			rdfsRlOnlyRef = queryService.executeQuery("""
+					PREFIX ex: <http://example.org/>
+					SELECT ?s WHERE { ?s a ex:Person }
+					""");
+			assertEquals(List.of("<http://example.org/flora>"), firstColumnValues(rdfsRlOnlyRef),
+					"RDFS RL alone should materialize one ex:Person answer for ex:flora via rdfs:domain.");
+
+			reasoningService.setRdfsSubsetEnabled(true);
+
+			combinedRef = queryService.executeQuery("""
+					PREFIX ex: <http://example.org/>
+					SELECT ?s WHERE { ?s a ex:Person }
+					""");
+			List<String> combinedValues = firstColumnValues(combinedRef);
+
+			assertEquals(List.of("<http://example.org/flora>"), combinedValues,
+					"RDFS subset and RDFS RL should now share one deduplicated RDFS inference graph.");
+			assertEquals(1, new LinkedHashSet<>(combinedValues).size(),
+					"The combined result should still expose one distinct binding.");
+			assertEquals(1, combinedRef.getResultCount(),
+					"Query result count should no longer expose duplicate bindings.");
+		} finally {
+			if (combinedRef != null) {
+				queryService.releaseResult(combinedRef.getId());
+			}
+			if (rdfsRlOnlyRef != null) {
+				queryService.releaseResult(rdfsRlOnlyRef.getId());
+			}
+			queryService.releaseResult(insertRef.getId());
+		}
+	}
+
+	private List<String> firstColumnValues(QueryResultRef resultRef) {
+		String tsv = queryService.formatResult(resultRef.getId(), SerializationFormat.TSV);
+		return TsvTableParser.parse(tsv).stream().skip(1).map(row -> row.length == 0 ? "" : row[0]).toList();
 	}
 
 }

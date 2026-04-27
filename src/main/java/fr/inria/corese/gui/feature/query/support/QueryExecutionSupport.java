@@ -4,22 +4,12 @@ import fr.inria.corese.gui.component.notification.NotificationWidget;
 import fr.inria.corese.gui.core.model.QueryResultRef;
 
 /**
- * Query execution helpers (classification and user feedback messages).
+ * Query execution helpers for user feedback messages.
  */
 public final class QueryExecutionSupport {
 
 	private QueryExecutionSupport() {
 		throw new AssertionError("Utility class");
-	}
-
-	public static boolean looksLikeReadQuery(String queryContent) {
-		if (queryContent == null || queryContent.isBlank()) {
-			return false;
-		}
-		String normalized = " " + queryContent.toLowerCase().replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
-				+ " ";
-		return normalized.contains(" select ") || normalized.contains(" ask ") || normalized.contains(" construct ")
-				|| normalized.contains(" describe ");
 	}
 
 	public static void showAskOutcomeNotification(QueryResultRef resultRef) {

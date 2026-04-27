@@ -70,8 +70,8 @@ class ReasoningGraphProjectionTest {
 				"Expected inferred triples after enabling RDFS RL for the subclass dataset.");
 
 		String jsonLd = projectionService.snapshotJsonLd();
-		assertTrue(jsonLd.contains("urn:corese:inference:rdfsrl"),
-				"JSON-LD snapshot should expose the RDFS RL named graph URI for inferred triples.");
+		assertTrue(jsonLd.contains("urn:corese:inference:rdfs"),
+				"JSON-LD snapshot should expose the managed RDFS named graph URI for inferred triples.");
 		assertTrue(jsonLd.contains("\"@graph\""),
 				"JSON-LD snapshot should keep named graph containers after reasoning.");
 	}

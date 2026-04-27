@@ -5,7 +5,7 @@ on:
     workflow_dispatch:
         inputs:
             ref:
-                description: "Tag to release (example: v5.0.0)"
+                description: "Tag to release (example: v5.0.1)"
                 required: true
                 type: string
     push:
@@ -55,7 +55,7 @@ jobs:
 
                   if [[ -n "$snapshot_files" ]]; then
                       echo "Release artifacts must not contain '-SNAPSHOT-' in filenames." >&2
-                      echo "Set a stable version (for example: 5.0.0) before publishing." >&2
+                      echo "Set a stable version (for example: 5.0.1) before publishing." >&2
                       echo "" >&2
                       echo "Detected files:" >&2
                       echo "$snapshot_files" >&2
