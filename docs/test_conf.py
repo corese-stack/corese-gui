@@ -30,8 +30,8 @@ class DocsDownloadUrlTests(unittest.TestCase):
             urls = self.conf._build_download_urls(tag, app_version, artifact_version)
 
         self.assertEqual(tag, "dev-prerelease")
-        self.assertEqual(app_version, "5.0.1")
-        self.assertEqual(artifact_version, "5.0.1-SNAPSHOT")
+        self.assertEqual(app_version, "5.0.2")
+        self.assertEqual(artifact_version, "5.0.2-SNAPSHOT")
 
         expected_snapshot_urls = (
             "windows_installer",
@@ -47,7 +47,7 @@ class DocsDownloadUrlTests(unittest.TestCase):
             "linux_standalone_arm64",
         )
         for key in expected_snapshot_urls:
-            self.assertIn("5.0.1-SNAPSHOT", urls[key], key)
+            self.assertIn("5.0.2-SNAPSHOT", urls[key], key)
             self.assertIn("/releases/download/dev-prerelease/", urls[key], key)
 
         self.assertEqual(

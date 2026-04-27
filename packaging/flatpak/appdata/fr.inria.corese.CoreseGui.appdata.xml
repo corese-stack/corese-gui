@@ -140,6 +140,13 @@
 
     <releases>
 
+        <release version="5.0.2-SNAPSHOT" date="">
+            <description>
+                <ul>
+                </ul>
+            </description>
+        </release>
+
         <release version="5.0.1" date="2026-04-27">
             <description>
                 <ul>
